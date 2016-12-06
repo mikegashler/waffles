@@ -42,7 +42,6 @@
 #include <cmath>
 #include <memory>
 #include "GBlock.h"
-#include "GBlockWeightless.h"
 
 namespace GClasses {
 

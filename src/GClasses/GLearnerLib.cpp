@@ -34,7 +34,6 @@
 #include <vector>
 #include <set>
 #include "GBlock.h"
-#include "GBlockWeightless.h"
 
 using namespace GClasses;
 

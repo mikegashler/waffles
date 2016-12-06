@@ -27,6 +27,9 @@
 namespace GClasses {
 
 
+class GContextRecurrent;
+
+
 /// Represents a block of network units (artificial neurons) in a neural network.
 class GBlock
 {
@@ -50,8 +53,9 @@ public:
 		block_softplus,
 		block_linear,
 		block_activation,
-		block_productpooling,
-		block_additionpooling,
+		block_scalarproduct,
+		block_scalarsum,
+		block_switch,
 		block_maxout,
 		block_softmax,
 		block_restrictedboltzmannmachine,
@@ -64,19 +68,22 @@ public:
 	GBlock(GDomNode* pNode);
 	virtual ~GBlock() {}
 
-	/// Returns the type of this layer
+	/// Returns the type of this block
 	virtual BlockType type() const = 0;
 
-	/// Returns true iff this layer operates only on individual elements
+	/// Returns true iff this block operates only on individual elements
 	virtual bool elementWise() const { return false; }
 
-	/// Returns true iff this layer does its computations in parallel on a GPU.
+	/// Returns true iff this block is recurrent
+	virtual bool isRecurrent() const { return false; }
+
+	/// Returns true iff this block does its computations in parallel on a GPU.
 	virtual bool usesGPU() { return false; }
 
-	/// Marshall this layer into a DOM.
+	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const = 0;
 
-	/// Unmarshalls the specified DOM node into a layer object.
+	/// Unmarshalls the specified DOM node into a block object.
 	static GBlock* deserialize(GDomNode* pNode);
 
 	/// Returns the offset in the previous layer's output where values are fed as input to this block.
@@ -85,16 +92,16 @@ public:
 	/// Sets the starting offset in the previous layer's output where values will be fed as input to this block.
 	void setInPos(size_t n) { m_inPos = n; };
 
-	/// Makes a string representation of this layer
+	/// Makes a string representation of this block
 	virtual std::string to_str() const = 0;
 
-	/// Resizes this layer.
+	/// Resizes this block.
 	virtual void resize(size_t inputs, size_t outputs) = 0;
 
-	/// Returns the number of inputs this layer consumes
+	/// Returns the number of inputs this block consumes
 	virtual size_t inputs() const = 0;
 
-	/// Returns the number of outputs this layer produces
+	/// Returns the number of outputs this block produces
 	virtual size_t outputs() const = 0;
 
 	/// Evaluates the input, sets the output.
@@ -102,18 +109,18 @@ public:
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) = 0;
+	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const = 0;
 
-	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const = 0;
 
-	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	/// Serialize the weights in this block into a vector. Return the number of elements written.
 	virtual size_t weightsToVector(double* pOutVector) const = 0;
 
-	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	/// Deserialize from a vector to the weights in this block. Return the number of elements consumed.
 	virtual size_t vectorToWeights(const double* pVector) = 0;
 
-	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	/// Copy the weights from pSource to this block. (Assumes pSource is the same type of block.)
 	virtual void copyWeights(const GBlock* pSource) = 0;
 
 	/// Initialize the weights, usually with small random values.
@@ -145,18 +152,211 @@ protected:
 
 
 
-/// Standard fully-connected layer of weights. Often followed by a GBlockActivation.
-class GBlockLinear : public GBlock
+/// The base class of layers that have no weights
+class GBlockWeightless : public GBlock
+{
+public:
+	GBlockWeightless() : GBlock() {}
+	GBlockWeightless(GDomNode* pNode) : GBlock(pNode) {}
+	virtual ~GBlockWeightless() {}
+
+	virtual size_t weightCount() const override { return 0; }
+	virtual size_t weightsToVector(double* pOutVector) const override { return 0; }
+	virtual size_t vectorToWeights(const double* pVector) override { return 0; }
+	virtual void copyWeights(const GBlock* pSource) override {}
+	virtual void resetWeights(GRand& rand) override {}
+	virtual void perturbWeights(GRand& rand, double deviation) override {}
+	virtual void maxNorm(double min, double max) override {}
+	virtual void scaleWeights(double factor, bool scaleBiases) override {}
+	virtual void diminishWeights(double amount, bool regularizeBiases) override {}
+	virtual void updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient) const override {}
+	virtual void step(double learningRate, const GVec &gradient) override {}
+};
+
+
+
+
+
+/// Treats the input as two concatenated vectors.
+/// Adds each corresponding pair of values together to produce the output.
+class GBlockScalarSum : public GBlockWeightless
 {
 protected:
-	GMatrix m_weights; // An (inputs+1)-by-outputs matrix of weights. The last row contains the bias values.
+	size_t m_outputCount;
 
 public:
-	GBlockLinear(size_t outputs, size_t inputs = 0);
-	GBlockLinear(GDomNode* pNode);
+	/// General-purpose constructor.
+	GBlockScalarSum(size_t outputs);
+
+	/// Deserializing constructor
+	GBlockScalarSum(GDomNode* pNode);
+	~GBlockScalarSum();
 
 	/// Returns the type of this layer
-	virtual BlockType type() const override { return block_linear; }
+	virtual BlockType type() const override { return block_scalarsum; }
+
+	/// Marshall this layer into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const override;
+
+	/// Makes a string representation of this layer
+	virtual std::string to_str() const override;
+
+	/// Resizes this layer. outputs must be 2*inputs.
+	virtual void resize(size_t inputs, size_t outputs) override;
+
+	/// Returns the number of inputs this layer consumes
+	virtual size_t inputs() const override { return m_outputCount * 2; }
+
+	/// Returns the number of outputs this layer produces
+	virtual size_t outputs() const override { return m_outputCount; }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& input, GVec& output) const override;
+
+	/// A special forward prop that accepts two vectors of the same size.
+	void forwardProp2(const GVec& in1, const GVec& in2, GVec& output) const;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+
+	/// A convenience version of backProp that mirrors forwardProp2.
+	void backProp2(const GVec& outBlame, GVec& inBlame1, GVec& inBlame2) const;
+};
+
+
+
+
+
+/// Treats the input as two concatenated vectors.
+/// Multiplies each corresponding pair of values together to produce the output.
+class GBlockScalarProduct : public GBlockWeightless
+{
+protected:
+	size_t m_outputCount;
+
+public:
+	/// General-purpose constructor.
+	GBlockScalarProduct(size_t outputs);
+
+	/// Deserializing constructor
+	GBlockScalarProduct(GDomNode* pNode);
+	~GBlockScalarProduct();
+
+	/// Returns the type of this layer
+	virtual BlockType type() const override { return block_scalarproduct; }
+
+	/// Marshall this layer into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const override;
+
+	/// Makes a string representation of this layer
+	virtual std::string to_str() const override;
+
+	/// Resizes this layer. outputs must be 2*inputs.
+	virtual void resize(size_t inputs, size_t outputs) override;
+
+	/// Returns the number of inputs this layer consumes
+	virtual size_t inputs() const override { return m_outputCount * 2; }
+
+	/// Returns the number of outputs this layer produces
+	virtual size_t outputs() const override { return m_outputCount; }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& input, GVec& output) const override;
+
+	/// A special forward prop that accepts two vectors of the same size.
+	void forwardProp2(const GVec& in1, const GVec& in2, GVec& output) const;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+
+	/// A convenience version of backProp pthat mirrors forwardProp2.
+	void backProp2(const GVec& input1, const GVec& input2, const GVec& outBlame, GVec& inBlame1, GVec& inBlame2) const;
+};
+
+
+
+
+
+
+/// Treats the input as three concatenated vectors: a, b, and c.
+/// (The values in 'a' typically fall in the range [0,1].)
+/// The output is computed element-wise as a*b + (1-a)*c.
+class GBlockSwitch : public GBlockWeightless
+{
+protected:
+	size_t m_outputCount;
+
+public:
+	/// General-purpose constructor.
+	GBlockSwitch(size_t outputs);
+
+	/// Deserializing constructor
+	GBlockSwitch(GDomNode* pNode);
+	~GBlockSwitch();
+
+	/// Returns the type of this layer
+	virtual BlockType type() const override { return block_switch; }
+
+	/// Marshall this layer into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const override;
+
+	/// Makes a string representation of this layer
+	virtual std::string to_str() const override;
+
+	/// Resizes this layer. outputs must be 2*inputs.
+	virtual void resize(size_t inputs, size_t outputs) override;
+
+	/// Returns the number of inputs this layer consumes
+	virtual size_t inputs() const override { return m_outputCount * 3; }
+
+	/// Returns the number of outputs this layer produces
+	virtual size_t outputs() const override { return m_outputCount; }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& input, GVec& output) const override;
+
+	/// A special forward prop that accepts three vectors of the same size.
+	void forwardProp3(const GVec& inA, const GVec& inB, const GVec& inC, GVec& output) const;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+
+	/// A convenience version of backProp that mirrors forwardProp3
+	void backProp3(const GVec& inA, const GVec& inB, const GVec& inC, const GVec& outBlame, GVec& inBlameA, GVec& inBlameB, GVec& inBlameC) const;
+};
+
+
+
+
+
+class GMaxPooling2D : public GBlockWeightless
+{
+protected:
+	size_t m_inputCols;
+	size_t m_inputRows;
+	size_t m_inputChannels;
+	size_t m_regionSize;
+
+public:
+	/// General-purpose constructor.
+	/// For example, if your input is a 64x48 color (RGB) image, then inputCols will be 64, inputRows will be 48,
+	/// and inputChannels will be 3. The total input size will be 9216 (64*48*3=9216).
+	/// The values should be presented in the following order: c1x1y1, c2x1y1, c1x2y1, c2x2y1, c1x1y2, ...
+	/// If kernelSize is 5, then the output will consist of 60 columns (64-5+1=60) and 44 rows (48-5+1=44).
+	/// If kernelsPerChannel is 2, then there will be 6 (3*2=6) channels in the output, for a total of
+	/// 15840 (60*44*6=15840) output values. (kernelSize must be <= inputSamples.)
+	GMaxPooling2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t regionSize = 2);
+
+	/// Deserializing constructor
+	GMaxPooling2D(GDomNode* pNode);
+
+	virtual ~GMaxPooling2D();
+
+	/// Returns the type of this layer
+	virtual BlockType type() const override { return block_maxpooling; }
 
 	/// Marshall this layer into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
@@ -168,17 +368,303 @@ public:
 	virtual void resize(size_t inputs, size_t outputs) override;
 
 	/// Returns the number of inputs this layer consumes
-	virtual size_t inputs() const override { return m_weights.rows() - 1; }
+	virtual size_t inputs() const override { return m_inputRows * m_inputCols * m_inputChannels; }
 
 	/// Returns the number of outputs this layer produces
-	virtual size_t outputs() const override { return m_weights.cols(); }
+	virtual size_t outputs() const override { return m_inputRows * m_inputCols * m_inputChannels / (m_regionSize * m_regionSize); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& input, GVec& output) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) override;
+	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+};
+
+
+
+
+
+
+
+
+
+
+/// The base class of layers that apply an activation function, such as tanh, in an element-wise manner.
+class GBlockActivation : public GBlockWeightless
+{
+protected:
+	size_t m_units;
+
+public:
+	GBlockActivation(size_t size = 0);
+	GBlockActivation(GDomNode* pNode);
+
+	/// Returns true iff this layer operates only on individual elements
+	virtual bool elementWise() const { return true; }
+
+	/// Marshall this layer into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const override;
+
+	/// Makes a string representation of this layer
+	virtual std::string to_str() const override;
+
+	/// Resizes this layer.
+	virtual void resize(size_t inputs, size_t outputs) override;
+
+	/// Returns the number of inputs this layer consumes
+	virtual size_t inputs() const override { return m_units; }
+
+	/// Returns the number of outputs this layer produces
+	virtual size_t outputs() const override { return m_units; }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& input, GVec& output) const override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+
+	/// Evaluates the activation function
+	virtual double eval(double x) const = 0;
+
+	/// Evaluates the derivative of the activation function.
+	/// x is the net input, and f_x is the output activation--the value obtained by calling eval(x).
+	virtual double derivative(double x, double f_x) const = 0;
+};
+
+
+
+/// The identity function. Serves as a pass-through block of units in a neural network.
+class GBlockIdentity : public GBlockActivation
+{
+public:
+	GBlockIdentity(size_t size = 0) : GBlockActivation(size) {}
+	GBlockIdentity(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual BlockType type() const override { return block_identity; }
+	virtual double eval(double x) const override { return x; }
+	virtual double derivative(double x, double f_x) const override { return 1.0; }
+};
+
+
+
+
+/// An element-wise nonlinearity layer
+// (Note, the following code is a bit faster:
+// 		if(std::abs(x) >= 700.0)
+// 			return (x >= 0 ? 1.0 : -1.0);
+// 		double a = exp(x);
+// 		double b = 1.0 / a;
+// 		return (a - b) / (a + b);
+// and here is a fast version of the derivative
+// 		if(std::abs(x) >= 700.0)
+// 			return (x >= 0 ? 1.0 : 0.0);
+// 		double a = exp(x);
+// 		double b = 1.0 / a;
+// 		double d = 2.0 / (a + b); // sech(x)
+// 		return d * d;
+class GBlockTanh : public GBlockActivation
+{
+public:
+	GBlockTanh(size_t size = 0) : GBlockActivation(size) {}
+	GBlockTanh(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual BlockType type() const override { return block_tanh; }
+	virtual double eval(double x) const override { return std::tanh(x); }
+	virtual double derivative(double x, double f_x) const override { return 1.0 - (f_x * f_x); }
+};
+
+
+
+/// An element-wise nonlinearity layer
+class GBlockLogistic : public GBlockActivation
+{
+public:
+	GBlockLogistic(size_t size = 0) : GBlockActivation(size) {}
+	GBlockLogistic(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual BlockType type() const override { return block_logistic; }
+	virtual double eval(double x) const override
+	{
+		if(x >= 700.0) // Don't trigger a floating point exception
+			return 1.0;
+		else if(x < -700.0) // Don't trigger a floating point exception
+			return 0.0;
+		else return 1.0 / (std::exp(-x) + 1.0);
+		
+	}
+	virtual double derivative(double x, double f_x) const override { return f_x * (1.0 - f_x); }
+};
+
+
+
+#define BEND_AMOUNT 0.5
+#define BEND_SIZE 0.5
+/// An element-wise nonlinearity layer
+class GBlockBentIdentity : public GBlockActivation
+{
+public:
+	GBlockBentIdentity(size_t size = 0) : GBlockActivation(size) {}
+	GBlockBentIdentity(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual BlockType type() const override { return block_bentidentity; }
+	virtual double eval(double x) const override { return BEND_AMOUNT * (std::sqrt(x * x + BEND_SIZE * BEND_SIZE) - BEND_SIZE) + x; }
+	virtual double derivative(double x, double f_x) const override { return BEND_AMOUNT * x / std::sqrt(x * x + BEND_SIZE * BEND_SIZE) + 1.0; }
+};
+
+
+
+/// An element-wise nonlinearity layer
+/// This activation function forms a sigmoid shape by splicing exponential and logarithmic functions together.
+class GBlockSigExp : public GBlockActivation
+{
+public:
+	GBlockSigExp(size_t size = 0) : GBlockActivation(size) {}
+	GBlockSigExp(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual BlockType type() const override { return block_sigexp; }
+	virtual double eval(double x) const override { return (x <= 0.0 ? exp(x) - 1.0 : std::log(x + 1.0)); }
+	virtual double derivative(double x, double f_x) const override { return (x <= 0.0 ? std::exp(x) : 1.0 / (x + 1.0)); }
+};
+
+
+
+/// An element-wise nonlinearity layer
+class GBlockGaussian : public GBlockActivation
+{
+public:
+	GBlockGaussian(size_t size = 0) : GBlockActivation(size) {}
+	GBlockGaussian(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual BlockType type() const override { return block_gaussian; }
+	virtual double eval(double x) const override { return std::exp(-(x * x)); }
+	virtual double derivative(double x, double f_x) const override { return -2.0 * x * std::exp(-(x * x)); }
+};
+
+
+
+/// An element-wise nonlinearity layer
+class GBlockSine : public GBlockActivation
+{
+public:
+	GBlockSine(size_t size = 0) : GBlockActivation(size) {}
+	GBlockSine(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual BlockType type() const override { return block_sine; }
+	virtual double eval(double x) const override { return std::sin(x); }
+	virtual double derivative(double x, double f_x) const override { return std::cos(x); }
+};
+
+
+
+
+/// An element-wise nonlinearity layer
+class GBlockRectifier : public GBlockActivation
+{
+public:
+	GBlockRectifier(size_t size = 0) : GBlockActivation(size) {}
+	GBlockRectifier(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual BlockType type() const override { return block_rectifier; }
+	virtual double eval(double x) const override { return std::max(0.0, x); }
+	virtual double derivative(double x, double f_x) const override { return (x >= 0.0 ? 1.0 : 0.0); }
+};
+
+
+
+
+/// An element-wise nonlinearity layer
+class GBlockLeakyRectifier : public GBlockActivation
+{
+public:
+	GBlockLeakyRectifier(size_t size = 0) : GBlockActivation(size) {}
+	GBlockLeakyRectifier(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual BlockType type() const override { return block_leakyrectifier; }
+	virtual double eval(double x) const override { return x >= 0.0 ? x : 0.01 * x; }
+	virtual double derivative(double x, double f_x) const override { return x >= 0.0 ? 1.0 : 0.01; }
+};
+
+
+
+/// An element-wise nonlinearity layer
+// (Note: A similar, but less well-known function is the integral of the logistic function. I think it is slightly faster to compute.)
+class GBlockSoftPlus : public GBlockActivation
+{
+public:
+	GBlockSoftPlus(size_t size = 0) : GBlockActivation(size) {}
+	GBlockSoftPlus(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual BlockType type() const override { return block_softplus; }
+	virtual double eval(double x) const override { return x > 500 ? x : log(1.0 + exp(x)); }
+	virtual double derivative(double x, double f_x) const override { return 1.0 / (1.0 + exp(-x)); }
+};
+
+
+
+
+/// An element-wise nonlinearity layer.
+/// This function is shaped like a sigmoid, but with both a co-domain and domain
+/// that spans the continuous values. At very negative values,
+/// it is shaped like y=-sqrt(-2x). Near zero, it is shaped
+/// like y=x. At very positive values, it is shaped like y=sqrt(2x).
+class GBlockSoftRoot : public GBlockActivation
+{
+public:
+	GBlockSoftRoot(size_t size = 0) : GBlockActivation(size) {}
+	GBlockSoftRoot(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual BlockType type() const override { return block_softroot; }
+	virtual double eval(double x) const override
+	{
+		double d = std::sqrt(x * x + 1.0);
+		return std::sqrt(d + x) - std::sqrt(d - x);
+	}
+	virtual double derivative(double x, double f_x) const override
+	{
+		if(std::abs(x) > 1e7)
+			return 0.0;
+		double d = std::sqrt(x * x + 1.0);
+		double t = x / d;
+		return (t + 1.0) / (2.0 * std::sqrt(d + x)) - (t - 1.0) / (2.0 * std::sqrt(d - x));
+	}
+};
+
+
+
+
+
+
+/// Standard fully-connected block of weights. Often followed by a GBlockActivation.
+class GBlockLinear : public GBlock
+{
+protected:
+	GMatrix m_weights; // An (inputs+1)-by-outputs matrix of weights. The last row contains the bias values.
+
+public:
+	GBlockLinear(size_t outputs, size_t inputs = 0);
+	GBlockLinear(GDomNode* pNode);
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_linear; }
+
+	/// Marshall this block into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const override;
+
+	/// Makes a string representation of this block
+	virtual std::string to_str() const override;
+
+	/// Resizes this block.
+	virtual void resize(size_t inputs, size_t outputs) override;
+
+	/// Returns the number of inputs this block consumes
+	virtual size_t inputs() const override { return m_weights.rows() - 1; }
+
+	/// Returns the number of outputs this block produces
+	virtual size_t outputs() const override { return m_weights.cols(); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& input, GVec& output) const override;
+
+	/// A convenience method that concatenates two vectors before feeding into this layer
+	void forwardProp2(const GVec& in1, const GVec& in2, GVec& output) const;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+
+	/// A convenience method that mirrors forwardProp2.
+	void backProp2(const GVec& outBlame, GVec& inBlame1, GVec& inBlame2) const;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
@@ -193,19 +679,19 @@ public:
 	/// Moves all weights in the direction of zero by the specified amount.
 	virtual void diminishWeights(double amount, bool regularizeBiases) override;
 
-	/// Applies contractive regularization to the weights in this layer.
+	/// Applies contractive regularization to the weights in this block.
 	void contractWeights(double factor, bool contractBiases, const GVec& output);
 
-	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
 
-	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	/// Serialize the weights in this block into a vector. Return the number of elements written.
 	virtual size_t weightsToVector(double* pOutVector) const override;
 
-	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	/// Deserialize from a vector to the weights in this block. Return the number of elements consumed.
 	virtual size_t vectorToWeights(const double* pVector) override;
 
-	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	/// Copy the weights from pSource to this block. (Assumes pSource is the same type of block.)
 	virtual void copyWeights(const GBlock* pSource) override;
 
 	/// Initialize the weights with small random values.
@@ -218,10 +704,10 @@ public:
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
 	virtual void maxNorm(double min, double max) override;
 
-	/// Returns the bias vector of this layer.
+	/// Returns the bias vector of this block.
 	GVec& bias() { return m_weights.back(); }
 
-	/// Returns the bias vector of this layer.
+	/// Returns the bias vector of this block.
 	const GVec& bias() const { return m_weights.back(); }
 
 	/// Get the entire weights matrix
@@ -230,7 +716,7 @@ public:
 	/// Get the entire weights matrix
 	const GMatrix &weights() const { return m_weights; }
 
-	/// Transforms the weights of this layer by the specified transformation matrix and offset vector.
+	/// Transforms the weights of this block by the specified transformation matrix and offset vector.
 	/// transform should be the pseudoinverse of the transform applied to the inputs. pOffset should
 	/// be the negation of the offset added to the inputs after the transform, or the transformed offset
 	/// that is added before the transform.
@@ -262,22 +748,22 @@ public:
 	GBlockMaxOut(GDomNode* pNode);
 	~GBlockMaxOut();
 
-	/// Returns the type of this layer
+	/// Returns the type of this block
 	virtual BlockType type() const override { return block_maxout; }
 
-	/// Marshall this layer into a DOM.
+	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
 
-	/// Makes a string representation of this layer
+	/// Makes a string representation of this block
 	virtual std::string to_str() const override;
 
-	/// Resizes this layer.
+	/// Resizes this block.
 	virtual void resize(size_t inputs, size_t outputs) override;
 
-	/// Returns the number of inputs this layer consumes
+	/// Returns the number of inputs this block consumes
 	virtual size_t inputs() const override { return m_weights.rows(); }
 
-	/// Returns the number of outputs this layer produces
+	/// Returns the number of outputs this block produces
 	virtual size_t outputs() const override { return m_weights.cols(); }
 
 	/// Evaluate the input, set the output.
@@ -285,7 +771,7 @@ public:
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) override;
+	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
@@ -294,22 +780,22 @@ public:
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
 
-	/// Multiplies all the weights in this layer by the specified factor.
+	/// Multiplies all the weights in this block by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) override;
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
 	virtual void diminishWeights(double amount, bool regularizeBiases) override;
 
-	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
 
-	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	/// Serialize the weights in this block into a vector. Return the number of elements written.
 	virtual size_t weightsToVector(double* pOutVector) const override;
 
-	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	/// Deserialize from a vector to the weights in this block. Return the number of elements consumed.
 	virtual size_t vectorToWeights(const double* pVector) override;
 
-	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	/// Copy the weights from pSource to this block. (Assumes pSource is the same type of block.)
 	virtual void copyWeights(const GBlock* pSource) override;
 
 	/// Initialize the weights with small random values.
@@ -324,24 +810,24 @@ public:
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
 	virtual void maxNorm(double min, double max) override;
 
-	/// Returns a reference to the weights matrix of this layer
+	/// Returns a reference to the weights matrix of this block
 	GMatrix& weights() { return m_weights; }
 
-	/// Returns a reference to the weights matrix of this layer
+	/// Returns a reference to the weights matrix of this block
 	const GMatrix& weights() const { return m_weights; }
 
-	/// Returns the bias vector of this layer.
+	/// Returns the bias vector of this block.
 	GVec& bias() { return m_bias[0]; }
 
-	/// Returns the bias vector of this layer.
+	/// Returns the bias vector of this block.
 	const GVec& bias() const { return m_bias[0]; }
 
-	/// Sets the weights of this layer to make it weakly approximate the identity function.
+	/// Sets the weights of this block to make it weakly approximate the identity function.
 	/// start specifies the first unit whose incoming weights will be adjusted.
 	/// count specifies the maximum number of units whose incoming weights are adjusted.
 	void setWeightsToIdentity(size_t start = 0, size_t count = (size_t)-1);
 
-	/// Transforms the weights of this layer by the specified transformation matrix and offset vector.
+	/// Transforms the weights of this block by the specified transformation matrix and offset vector.
 	/// transform should be the pseudoinverse of the transform applied to the inputs. pOffset should
 	/// be the negation of the offset added to the inputs after the transform, or the transformed offset
 	/// that is added before the transform.
@@ -369,22 +855,22 @@ public:
 	/// Deserializing constructor
 	GBlockRestrictedBoltzmannMachine(GDomNode* pNode);
 
-	/// Returns the type of this layer
+	/// Returns the type of this block
 	virtual BlockType type() const override { return block_restrictedboltzmannmachine; }
 
-	/// Marshall this layer into a DOM.
+	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
 
-	/// Makes a string representation of this layer
+	/// Makes a string representation of this block
 	virtual std::string to_str() const override;
 
-	/// Resizes this layer.
+	/// Resizes this block.
 	virtual void resize(size_t inputs, size_t outputs) override;
 
-	/// Returns the number of inputs this layer consumes
+	/// Returns the number of inputs this block consumes
 	virtual size_t inputs() const override { return m_weights.cols(); }
 
-	/// Returns the number of outputs this layer produces
+	/// Returns the number of outputs this block produces
 	virtual size_t outputs() const override { return m_weights.rows(); }
 
 	/// Evaluate the input, set the output.
@@ -392,9 +878,9 @@ public:
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) override;
+	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
-	/// Feed a vector backwards through this layer.
+	/// Feed a vector backwards through this block.
 	void feedBackward(const GVec& output, GVec& input) const;
 
 	/// Updates the gradient for updating the weights by gradient descent.
@@ -404,22 +890,22 @@ public:
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
 
-	/// Multiplies all the weights in this layer by the specified factor.
+	/// Multiplies all the weights in this block by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) override;
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
 	virtual void diminishWeights(double amount, bool regularizeBiases) override;
 
-	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
 
-	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	/// Serialize the weights in this block into a vector. Return the number of elements written.
 	virtual size_t weightsToVector(double* pOutVector) const override;
 
-	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	/// Deserialize from a vector to the weights in this block. Return the number of elements consumed.
 	virtual size_t vectorToWeights(const double* pVector) override;
 
-	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	/// Copy the weights from pSource to this block. (Assumes pSource is the same type of block.)
 	virtual void copyWeights(const GBlock* pSource) override;
 
 	/// Initialize the weights with small random values.
@@ -435,23 +921,23 @@ public:
 	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are <= max.
 	virtual void maxNorm(double min, double max) override;
 
-	/// Returns a reference to the weights matrix of this layer
+	/// Returns a reference to the weights matrix of this block
 	GMatrix& weights() { return m_weights; }
 
-	/// Returns the bias for the hidden end of this layer.
+	/// Returns the bias for the hidden end of this block.
 	GVec& bias() { return m_bias; }
 
-	/// Returns the bias for the hidden end of this layer.
+	/// Returns the bias for the hidden end of this block.
 	const GVec& bias() const { return m_bias; }
 
-	/// Returns the bias for the visible end of this layer.
+	/// Returns the bias for the visible end of this block.
 	GVec& biasReverse() { return m_biasReverse[0]; }
 	const GVec& biasReverse() const { return m_biasReverse[0]; }
 
-	/// Performs binomial resampling of the activation values on the output end of this layer.
+	/// Performs binomial resampling of the activation values on the output end of this block.
 	void resampleHidden(GRand& rand, GVec& output);
 
-	/// Performs binomial resampling of the activation values on the input end of this layer.
+	/// Performs binomial resampling of the activation values on the input end of this block.
 	void resampleVisible(GRand& rand, GVec& input);
 
 	/// Draws a sample observation from "iters" iterations of Gibbs sampling.
@@ -461,11 +947,11 @@ public:
 
 	
 /*  *** Note that these two commented-out methods are pretty-much the whole point of RBMs, so this class is pretty-much useless until they are restored. ***
-	/// Returns the free energy of this layer. Assumes that a pattern has already been set in the 
+	/// Returns the free energy of this block. Assumes that a pattern has already been set in the 
 	double freeEnergy(const GVec& visibleSample);
 
-	/// Refines this layer by contrastive divergence.
-	/// pVisibleSample should point to a vector of inputs that will be presented to this layer.
+	/// Refines this block by contrastive divergence.
+	/// pVisibleSample should point to a vector of inputs that will be presented to this block.
 	void contrastiveDivergence(GRand& rand, const GVec& visibleSample, double learningRate, size_t gibbsSamples = 1);
 */
 };
@@ -497,22 +983,22 @@ public:
 	/// Deserializing constructor
 	GBlockConvolutional1D(GDomNode* pNode);
 
-	/// Returns the type of this layer
+	/// Returns the type of this block
 	virtual BlockType type() const override { return block_convolutional1d; }
 
-	/// Marshall this layer into a DOM.
+	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
 
-	/// Makes a string representation of this layer
+	/// Makes a string representation of this block
 	virtual std::string to_str() const override;
 
-	/// Resizes this layer.
+	/// Resizes this block.
 	virtual void resize(size_t inputs, size_t outputs) override;
 
-	/// Returns the number of inputs this layer consumes
+	/// Returns the number of inputs this block consumes
         virtual size_t inputs() const override { return m_inputSamples * m_inputChannels; }
 
-	/// Returns the number of outputs this layer produces
+	/// Returns the number of outputs this block produces
         virtual size_t outputs() const override { return m_outputSamples * m_inputChannels * m_kernelsPerChannel; }
 
 	/// Evaluate the input, set the output.
@@ -520,7 +1006,7 @@ public:
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) override;
+	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
@@ -529,22 +1015,22 @@ public:
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
 
-	/// Multiplies all the weights in this layer by the specified factor.
+	/// Multiplies all the weights in this block by the specified factor.
 	virtual void scaleWeights(double factor, bool scaleBiases) override;
 
 	/// Diminishes all the weights (that is, moves them in the direction toward 0) by the specified amount.
 	virtual void diminishWeights(double amount, bool regularizeBiases) override;
 
-	/// Returns the number of double-precision elements necessary to serialize the weights of this layer into a vector.
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
 
-	/// Serialize the weights in this layer into a vector. Return the number of elements written.
+	/// Serialize the weights in this block into a vector. Return the number of elements written.
 	virtual size_t weightsToVector(double* pOutVector) const override;
 
-	/// Deserialize from a vector to the weights in this layer. Return the number of elements consumed.
+	/// Deserialize from a vector to the weights in this block. Return the number of elements consumed.
 	virtual size_t vectorToWeights(const double* pVector) override;
 
-	/// Copy the weights from pSource to this layer. (Assumes pSource is the same type of layer.)
+	/// Copy the weights from pSource to this block. (Assumes pSource is the same type of block.)
 	virtual void copyWeights(const GBlock* pSource) override;
 
 	/// Initialize the weights with small random values.
@@ -625,7 +1111,7 @@ public:
 	/// General-purpose constructor.
 	GBlockConvolutional2D(size_t width, size_t height, size_t channels, size_t kWidth, size_t kHeight, size_t kCount = 0);
 
-	/// Constructor that will automatically use the upstream convolutional layer when added to a neural network
+	/// Constructor that will automatically use the upstream convolutional block when added to a neural network
 	GBlockConvolutional2D(size_t kWidth, size_t kHeight, size_t kCount = 0);
 
 	GBlockConvolutional2D(GDomNode* pNode);
@@ -642,7 +1128,7 @@ public:
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) override;
+	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
 
 	/// Updates the gradient for updating the weights by gradient descent.
@@ -690,6 +1176,188 @@ public:
 	GVec &bias() { return m_bias; }
 };
 */
+
+
+
+
+
+
+/// Base class of recurrent blocks.
+//
+// A recurrent block unfolded through time:
+//
+//        output_t              output_t_1              output_t+2
+//           ^                     ^                       ^
+//         __|__                 __|__                   __|__
+//        |     |               |     |                 |     |
+// ... >--|     |--> state_t >--|     |--> state_t+1 >--|     |--> ...
+//        |_____|               |_____|                 |_____|
+//           |                     |                       |
+//           ^                     ^                       ^
+//         input_t               input_t+1               input_t+2
+//
+class GBlockRecurrent : public GBlock
+{
+public:
+	GBlockRecurrent() : GBlock() {}
+	GBlockRecurrent(GDomNode* pNode) : GBlock(pNode) {}
+	virtual ~GBlockRecurrent() {}
+
+	/// Returns true.
+	virtual bool isRecurrent() const { return true; }
+
+	/// Returns the number of times the block is unfolded through time for training purposes.
+	virtual size_t depth() = 0;
+
+	/// Returns a new context object for this recurrent block
+	virtual GContextRecurrent* newContext() = 0;
+
+protected:
+	/// Deliberately protected.
+	/// Throws an exception telling you to call GContextRecurrent::forwardProp instead.
+	virtual void forwardProp(const GVec& input, GVec& output) const override;
+
+	/// Deliberately protected.
+	/// Throws an exception telling you to call GContextRecurrent::backProp instead.
+	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+};
+
+/// A special context object for recurrent blocks
+class GContextRecurrent
+{
+public:
+	std::vector<GVec*> m_history; // Stores recent inputs into the recurrent block
+	size_t m_depth; // The number of times the block is unfolded through time
+	size_t m_pos; // Position of the oldest recorded input vector in the history
+
+protected:
+	GContextRecurrent(); // deliberately protected. Call GBlockRecurrent::newContext to construct one.
+public:
+	virtual ~GContextRecurrent();
+
+	/// Resets the state of this context. This method is called whenever training on a sequence of data begins anew.
+	virtual void resetState() = 0;
+
+
+	void forwardProp(const GVec& input, GVec& output);
+
+	void forwardPropThroughTime(const GVec& input, GVec& output);
+
+};
+
+
+
+
+/// A classic Long Short Term Memory block (with coupled forget and input gates)
+class GBlockLSTM : public GBlockRecurrent
+{
+friend class GContextLSTM;
+protected:
+	GBlockScalarProduct m_product;
+	GBlockSwitch m_switch;
+	GBlockLogistic m_logistic;
+	GBlockTanh m_tanh;
+	GBlockLinear m_write;
+	GBlockLinear m_val;
+	GBlockLinear m_read;
+
+public:
+	GBlockLSTM(size_t units = 0);
+	virtual ~GBlockLSTM();
+
+	/// Makes a new context object for this block
+	virtual GContextRecurrent* newContext() override;
+
+	/// Resizes this block.
+	virtual void resize(size_t inputs, size_t outputs) override;
+
+
+};
+
+/// Context class for LSTM blocks
+class GContextLSTM : public GContextRecurrent
+{
+public:
+	const GBlockLSTM& m_block;
+	GVec m_c;
+	GVec m_h;
+	GVec m_f;
+	GVec m_t;
+	GVec m_o;
+	GVec m_blamec;
+	GVec m_blameh;
+	GVec m_blamef;
+	GVec m_blamet;
+	GVec m_blameo;
+	GVec m_buf1;
+	GVec m_buf2;
+
+	GContextLSTM(GBlockLSTM& block);
+
+	/// See the comment for GContext::resetState.
+	virtual void resetState() override;
+
+	void forwardProp(GContextLSTM* pPrev, const GVec& input, GVec& output);
+	void backProp(GContextLSTM* pPrev, const GVec& outBlame, GVec& inBlame);
+
+};
+
+
+
+
+
+/// A block of Gated Recurrent Units
+class GBlockGRU : public GBlockRecurrent
+{
+friend class GContextGRU;
+protected:
+	GBlockScalarProduct m_product;
+	GBlockSwitch m_switch;
+	GBlockLogistic m_logistic;
+	GBlockTanh m_tanh;
+	GBlockLinear m_update;
+	GBlockLinear m_remember;
+	GBlockLinear m_val;
+
+public:
+	GBlockGRU(size_t units = 0);
+	virtual ~GBlockGRU();
+
+	/// Makes a new context object for this block
+	GContextRecurrent* newContext();
+
+	/// Resizes this block.
+	virtual void resize(size_t inputs, size_t outputs) override;
+
+
+};
+
+/// Context class for GRU blocks
+class GContextGRU : public GContextRecurrent
+{
+public:
+	const GBlockGRU& m_block;
+	GVec m_h;
+	GVec m_z;
+	GVec m_r;
+	GVec m_t;
+	GVec m_blameh;
+	GVec m_blamez;
+	GVec m_blamer;
+	GVec m_blamet;
+	GVec m_buf1;
+	GVec m_buf2;
+
+	GContextGRU(GBlockGRU& block);
+
+	/// See the comment for GContext::resetState.
+	virtual void resetState() override;
+
+	void forwardProp(GContextGRU* pPrev, const GVec& input, GVec& output);
+	void backProp(GContextGRU* pPrev, const GVec& outBlame, GVec& inBlame);
+
+};
+
 
 
 } // namespace GClasses

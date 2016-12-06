@@ -114,13 +114,13 @@ public:
 	GVec& operator*=(double scalar);
 
 	/// Scales this vector.
+	GVec& operator*=(const GVec& that);
+
+	/// Scales this vector.
 	GVec& operator/=(double scalar);
 
 	/// Sets the data in this vector.
 	void set(const double* pSource, size_t size);
-
-// standard deviation
-// add divide method, plus for scalars,
 
 	/// Returns the mean of all of the elements in this vector.
 	double mean() const;

@@ -60,7 +60,6 @@ CPP_FILES = \
 	GBitTable.cpp\
 	GBlob.cpp\
 	GBlock.cpp\
-	GBlockWeightless.cpp\
 	GCluster.cpp\
 	GCrypto.cpp\
 	GDecisionTree.cpp\

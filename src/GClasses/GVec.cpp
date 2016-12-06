@@ -176,6 +176,14 @@ GVec& GVec::operator*=(double scalar)
 	return *this;
 }
 
+GVec& GVec::operator*=(const GVec& that)
+{
+	GAssert(size() == that.size());
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] *= that[i];
+	return *this;
+}
+
 GVec& GVec::operator/=(double scalar)
 {
 	for(size_t i = 0; i < m_size; i++)

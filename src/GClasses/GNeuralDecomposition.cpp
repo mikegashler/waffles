@@ -22,7 +22,6 @@
 #include "GNeuralDecomposition.h"
 #include "GActivation.h"
 #include "GDom.h"
-#include "GBlockWeightless.h"
 
 namespace GClasses {
 

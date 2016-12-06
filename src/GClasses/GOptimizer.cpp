@@ -99,7 +99,7 @@ GNeuralNetOptimizer::~GNeuralNetOptimizer()
 	delete m_objective;
 }
 
-GNeuralNetContext& GNeuralNetOptimizer::context()
+GContextNeuralNet& GNeuralNetOptimizer::context()
 {
 	if(!m_pContext)
 	{
@@ -240,7 +240,7 @@ void GSGDOptimizer::prepareForOptimizing()
 
 void GSGDOptimizer::updateDeltas(const GVec& feat, const GVec& lab)
 {
-	GNeuralNetContext& ctx = context();
+	GContextNeuralNet& ctx = context();
 	ctx.forwardProp(feat, ctx.predBuf());
 	m_objective->calculateOutputLayerBlame(ctx.predBuf(), lab, ctx.blameBuf());
 	ctx.backProp(feat, ctx.predBuf(), ctx.blameBuf(), nullptr);
@@ -279,7 +279,7 @@ void GAdamOptimizer::prepareForOptimizing()
 
 void GAdamOptimizer::updateDeltas(const GVec& feat, const GVec& lab)
 {
-	GNeuralNetContext& ctx = context();
+	GContextNeuralNet& ctx = context();
 	ctx.forwardProp(feat, ctx.predBuf());
 	m_objective->calculateOutputLayerBlame(ctx.predBuf(), lab, ctx.blameBuf());
 	m_pContext->backProp(feat, lab, ctx.blameBuf(), nullptr);
@@ -330,7 +330,7 @@ void GRMSPropOptimizer::prepareForOptimizing()
 
 void GRMSPropOptimizer::updateDeltas(const GVec& feat, const GVec& lab)
 {
-	GNeuralNetContext& ctx = context();
+	GContextNeuralNet& ctx = context();
 	ctx.forwardProp(feat, ctx.predBuf());
 	m_objective->calculateOutputLayerBlame(ctx.predBuf(), lab, ctx.blameBuf());
 	m_pContext->backProp(feat, ctx.predBuf(), ctx.blameBuf(), nullptr);

@@ -19,7 +19,6 @@
 */
 
 #include "GBlock.h"
-#include "GBlockWeightless.h"
 #ifndef MIN_PREDICT
 #include "GMath.h"
 #endif // MIN_PREDICT
@@ -83,13 +82,449 @@ GBlock* GBlock::deserialize(GDomNode* pNode)
 		case block_leakyrectifier: return new GBlockLeakyRectifier(pNode);
 		case block_softplus: return new GBlockSoftPlus(pNode);
 		case block_linear: return new GBlockLinear(pNode);
-		//case block_restrictedboltzmannmachine: return new GBlockRestrictedBoltzmannMachine(pNode);
-		//case block_convolutional1d: return new GBlockConvolutional1D(pNode);
+		case block_scalarsum: return new GBlockScalarSum(pNode);
+		case block_scalarproduct: return new GBlockScalarProduct(pNode);
+		case block_switch: return new GBlockSwitch(pNode);
+		case block_restrictedboltzmannmachine: return new GBlockRestrictedBoltzmannMachine(pNode);
+		case block_convolutional1d: return new GBlockConvolutional1D(pNode);
 		//case block_convolutional2d: return new GBlockConvolutional2D(pNode);
 		default: throw Ex("Unrecognized neural network layer type: ", GClasses::to_str((int)e));
 	}
 }
 
+
+
+
+
+
+
+
+GBlockScalarSum::GBlockScalarSum(size_t outputs)
+: GBlockWeightless()
+{
+	resize(outputs * 2, outputs);
+}
+
+GBlockScalarSum::GBlockScalarSum(GDomNode* pNode)
+: GBlockWeightless(pNode), m_outputCount(pNode->field("outputs")->asInt())
+{
+}
+
+GBlockScalarSum::~GBlockScalarSum()
+{
+}
+
+GDomNode* GBlockScalarSum::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "outputs", pDoc->newInt(m_outputCount));
+	return pNode;
+}
+
+// virtual
+std::string GBlockScalarSum::to_str() const
+{
+	std::ostringstream os;
+	os << "[GBlockScalarSum:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "]\n";
+	return os.str();
+}
+
+void GBlockScalarSum::resize(size_t inputCount, size_t outputCount)
+{
+	if(outputCount * 2 != inputCount)
+		throw Ex("inputCount must be 2*outputCount");
+	m_outputCount = outputCount;
+}
+
+// virtual
+void GBlockScalarSum::forwardProp(const GVec& input, GVec& output) const
+{
+	GAssert(input.size() == m_outputCount * 2 && output.size() == m_outputCount);
+	for(size_t i = 0; i < m_outputCount; i++)
+		output[i] = input[i] + input[m_outputCount + i];
+}
+
+void GBlockScalarSum::forwardProp2(const GVec& in1, const GVec& in2, GVec& output) const
+{
+	GAssert(in1.size() == m_outputCount && in2.size() == m_outputCount && output.size() == m_outputCount);
+	for(size_t i = 0; i < m_outputCount; i++)
+		output[i] = in1[i] + in2[i];
+}
+
+void GBlockScalarSum::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
+{
+	GAssert(input.size() == 2 * m_outputCount && output.size() == m_outputCount && outBlame.size() == m_outputCount && inBlame.size() == m_outputCount);
+	for(size_t i = 0; i < m_outputCount; i++)
+	{
+		inBlame[i] += outBlame[i];
+		inBlame[m_outputCount + i] += outBlame[i];
+	}
+}
+
+void GBlockScalarSum::backProp2(const GVec& outBlame, GVec& inBlame1, GVec& inBlame2) const
+{
+	GAssert(outBlame.size() == m_outputCount && inBlame1.size() == m_outputCount && inBlame2.size() == m_outputCount);
+	for(size_t i = 0; i < m_outputCount; i++)
+	{
+		inBlame1[i] += outBlame[i];
+		inBlame2[i] += outBlame[i];
+	}
+}
+
+
+
+
+
+
+
+
+GBlockScalarProduct::GBlockScalarProduct(size_t outputs)
+: GBlockWeightless()
+{
+	resize(outputs * 2, outputs);
+}
+
+GBlockScalarProduct::GBlockScalarProduct(GDomNode* pNode)
+: GBlockWeightless(pNode), m_outputCount(pNode->field("outputs")->asInt())
+{
+}
+
+GBlockScalarProduct::~GBlockScalarProduct()
+{
+}
+
+GDomNode* GBlockScalarProduct::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "outputs", pDoc->newInt(m_outputCount));
+	return pNode;
+}
+
+// virtual
+std::string GBlockScalarProduct::to_str() const
+{
+	std::ostringstream os;
+	os << "[GBlockScalarProduct:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "]\n";
+	return os.str();
+}
+
+void GBlockScalarProduct::resize(size_t inputCount, size_t outputCount)
+{
+	if(outputCount * 2 != inputCount)
+		throw Ex("inputCount must be 2*outputCount");
+	m_outputCount = outputCount;
+}
+
+// virtual
+void GBlockScalarProduct::forwardProp(const GVec& input, GVec& output) const
+{
+	GAssert(input.size() == m_outputCount * 2 && output.size() == m_outputCount);
+	for(size_t i = 0; i < m_outputCount; i++)
+		output[i] = input[i] * input[m_outputCount + i];
+}
+
+void GBlockScalarProduct::forwardProp2(const GVec& in1, const GVec& in2, GVec& output) const
+{
+	GAssert(in1.size() == m_outputCount &&
+		in2.size() == m_outputCount &&
+		output.size() == m_outputCount);
+	for(size_t i = 0; i < m_outputCount; i++)
+		output[i] = in1[i] * in2[i];
+}
+
+void GBlockScalarProduct::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
+{
+	GAssert(input.size() == 2 * m_outputCount &&
+		output.size() == m_outputCount &&
+		outBlame.size() == m_outputCount &&
+		inBlame.size() == m_outputCount);
+	for(size_t i = 0; i < m_outputCount; i++)
+	{
+		inBlame[i] += outBlame[i] * input[m_outputCount + i];
+		inBlame[m_outputCount + i] += outBlame[i] * input[i];
+	}
+}
+
+void GBlockScalarProduct::backProp2(const GVec& input1, const GVec& input2, const GVec& outBlame, GVec& inBlame1, GVec& inBlame2) const
+{
+	GAssert(input1.size() == m_outputCount &&
+		input2.size() == m_outputCount &&
+		outBlame.size() == m_outputCount &&
+		inBlame1.size() == m_outputCount &&
+		inBlame2.size() == m_outputCount);
+	for(size_t i = 0; i < m_outputCount; i++)
+	{
+		inBlame1[i] += outBlame[i] * input2[i];
+		inBlame2[i] += outBlame[i] * input1[i];
+	}
+}
+
+
+
+
+
+
+
+GBlockSwitch::GBlockSwitch(size_t outputs)
+: GBlockWeightless()
+{
+	resize(outputs * 3, outputs);
+}
+
+GBlockSwitch::GBlockSwitch(GDomNode* pNode)
+: GBlockWeightless(pNode), m_outputCount(pNode->field("outputs")->asInt())
+{
+}
+
+GBlockSwitch::~GBlockSwitch()
+{
+}
+
+GDomNode* GBlockSwitch::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "outputs", pDoc->newInt(m_outputCount));
+	return pNode;
+}
+
+// virtual
+std::string GBlockSwitch::to_str() const
+{
+	std::ostringstream os;
+	os << "[GBlockSwitch:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "]\n";
+	return os.str();
+}
+
+void GBlockSwitch::resize(size_t inputCount, size_t outputCount)
+{
+	if(outputCount * 3 != inputCount)
+		throw Ex("inputCount must be 3*outputCount");
+	m_outputCount = outputCount;
+}
+
+// virtual
+void GBlockSwitch::forwardProp(const GVec& input, GVec& output) const
+{
+	GAssert(input.size() == m_outputCount * 3 && output.size() == m_outputCount);
+	for(size_t i = 0; i < m_outputCount; i++)
+		output[i] = input[i] * input[m_outputCount + i] + (1.0 - input[i]) * input[m_outputCount + m_outputCount + i];
+}
+
+void GBlockSwitch::forwardProp3(const GVec& inA, const GVec& inB, const GVec& inC, GVec& output) const
+{
+	GAssert(inA.size() == m_outputCount &&
+		inB.size() == m_outputCount &&
+		inC.size() == m_outputCount &&
+		output.size() == m_outputCount);
+	for(size_t i = 0; i < m_outputCount; i++)
+		output[i] = inA[i] * inB[i] + (1.0 - inA[i]) * inC[i];
+}
+
+void GBlockSwitch::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
+{
+	GAssert(input.size() == 3 * m_outputCount &&
+		output.size() == m_outputCount &&
+		outBlame.size() == m_outputCount &&
+		inBlame.size() == m_outputCount);
+	for(size_t i = 0; i < m_outputCount; i++)
+	{
+		inBlame[i] += (input[m_outputCount + i] - input[m_outputCount + m_outputCount + i]) * outBlame[i];
+		inBlame[m_outputCount + i] += input[i] * outBlame[i];
+		inBlame[m_outputCount + m_outputCount + i] += (1.0 - input[i]) * outBlame[i];
+	}
+}
+
+void GBlockSwitch::backProp3(const GVec& inA, const GVec& inB, const GVec& inC, const GVec& outBlame, GVec& inBlameA, GVec& inBlameB, GVec& inBlameC) const
+{
+	GAssert(inA.size() == m_outputCount &&
+		inB.size() == m_outputCount &&
+		inC.size() == m_outputCount &&
+		outBlame.size() == m_outputCount &&
+		inBlameA.size() == m_outputCount &&
+		inBlameB.size() == m_outputCount &&
+		inBlameC.size() == m_outputCount);
+	for(size_t i = 0; i < m_outputCount; i++)
+	{
+		inBlameA[i] += (inB[i] - inC[i]) * outBlame[i];
+		inBlameB[i] += inA[i] * outBlame[i];
+		inBlameC[i] += (1.0 - inA[i]) * outBlame[i];
+	}
+}
+
+
+
+
+
+
+
+GMaxPooling2D::GMaxPooling2D(size_t inputCols, size_t inputRows, size_t inputChannels, size_t regionSize)
+: GBlockWeightless(),
+m_inputCols(inputCols),
+m_inputRows(inputRows),
+m_inputChannels(inputChannels),
+m_regionSize(regionSize)
+{
+	if(inputCols % regionSize != 0)
+		throw Ex("inputCols is not a multiple of regionSize");
+	if(inputRows % regionSize != 0)
+		throw Ex("inputRows is not a multiple of regionSize");
+}
+
+GMaxPooling2D::GMaxPooling2D(GDomNode* pNode)
+: m_inputCols((size_t)pNode->field("icol")->asInt()),
+m_inputRows((size_t)pNode->field("irow")->asInt()),
+m_inputChannels((size_t)pNode->field("ichan")->asInt()),
+m_regionSize((size_t)pNode->field("size")->asInt())
+{
+}
+
+GMaxPooling2D::~GMaxPooling2D()
+{
+}
+
+// virtual
+GDomNode* GMaxPooling2D::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "icol", pDoc->newInt(m_inputCols));
+	pNode->addField(pDoc, "irow", pDoc->newInt(m_inputRows));
+	pNode->addField(pDoc, "ichan", pDoc->newInt(m_inputChannels));
+	pNode->addField(pDoc, "size", pDoc->newInt(m_regionSize));
+	return pNode;
+}
+
+// virtual
+std::string GMaxPooling2D::to_str() const
+{
+	std::ostringstream os;
+	os << "[GMaxPooling2D:" << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << "]";
+	return os.str();
+}
+
+// virtual
+void GMaxPooling2D::resize(size_t inputSize, size_t outputSize)
+{
+	if(inputSize != m_inputCols * m_inputRows * m_inputChannels)
+		throw Ex("Changing the size of GMaxPooling2D is not supported");
+	if(outputSize != m_inputChannels * m_inputCols * m_inputRows / (m_regionSize * m_regionSize))
+		throw Ex("Changing the size of GMaxPooling2D is not supported");
+}
+
+// virtual
+void GMaxPooling2D::forwardProp(const GVec& input, GVec& output) const
+{
+	size_t actPos = 0;
+	for(size_t yy = 0; yy < m_inputRows; yy += m_regionSize)
+	{
+		for(size_t xx = 0; xx < m_inputCols; xx += m_regionSize)
+		{
+			for(size_t c = 0; c < m_inputChannels; c++)
+			{
+				double m = -1e100;
+				size_t yStep = m_inputCols * m_inputChannels;
+				size_t yStart = yy * yStep;
+				size_t yEnd = yStart + m_regionSize * yStep;
+				for(size_t y = yStart; y < yEnd; y += yStep)
+				{
+					size_t xStart = yStart + xx * m_inputChannels + c;
+					size_t xEnd = xStart + m_regionSize * m_inputChannels + c;
+					for(size_t x = xStart; x < xEnd; x += m_inputChannels)
+						m = std::max(m, input[x]);
+				}
+				output[actPos++] = m;
+			}
+		}
+	}
+}
+
+// virtual
+void GMaxPooling2D::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
+{
+	size_t downPos = 0;
+	for(size_t yy = 0; yy < m_inputRows; yy += m_regionSize)
+	{
+		for(size_t xx = 0; xx < m_inputCols; xx += m_regionSize)
+		{
+			for(size_t c = 0; c < m_inputChannels; c++)
+			{
+				double m = -1e100;
+				size_t maxIndex = 0;
+				size_t yStep = m_inputCols * m_inputChannels;
+				size_t yStart = yy * yStep;
+				size_t yEnd = yStart + m_regionSize * yStep;
+				for(size_t y = yStart; y < yEnd; y += yStep)
+				{
+					size_t xStart = yStart + xx * m_inputChannels + c;
+					size_t xEnd = xStart + m_regionSize * m_inputChannels + c;
+					for(size_t x = xStart; x < xEnd; x += m_inputChannels)
+					{
+						if(input[x] > m)
+						{
+							m = input[x];
+							maxIndex = x;
+						}
+						inBlame[x] = 0.0;
+					}
+				}
+				inBlame[maxIndex] = outBlame[downPos++];
+			}
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+GBlockActivation::GBlockActivation(size_t size)
+: GBlockWeightless()
+{
+	resize(size, size);
+}
+
+GBlockActivation::GBlockActivation(GDomNode* pNode)
+: GBlockWeightless(pNode), m_units(pNode->field("units")->asInt())
+{}
+
+GDomNode* GBlockActivation::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "units", pDoc->newInt(m_units));
+	return pNode;
+}
+
+/// Makes a string representation of this layer
+std::string GBlockActivation::to_str() const
+{
+	std::ostringstream oss;
+	oss << "[GBlockActivation: type=" << (size_t)type() << ", size=" << inputs() << "]";
+	return oss.str();
+}
+
+void GBlockActivation::resize(size_t in, size_t out)
+{
+	if(in != out)
+		throw Ex("GBlockActivation must have the same number of inputs as outputs.");
+	m_units = out;
+}
+
+void GBlockActivation::forwardProp(const GVec& input, GVec& output) const
+{
+	for(size_t i = 0; i < input.size(); i++)
+		output[i] = eval(input[i]);
+}
+
+void GBlockActivation::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
+{
+	for(size_t i = 0; i < inBlame.size(); i++)
+		inBlame[i] += outBlame[i] * derivative(input[i], output[i]);
+}
 
 
 
@@ -133,6 +568,8 @@ std::string GBlockLinear::to_str() const
 
 void GBlockLinear::forwardProp(const GVec& input, GVec& output) const
 {
+	GAssert(input.size() == m_weights.rows() - 1);
+	GAssert(output.size() == m_weights.cols());
 	output.copy(bias());
 	GAssert(output[outputs() - 1] > -1e100 && output[outputs() - 1] < 1e100);
 	for(size_t i = 0; i < input.size(); i++)
@@ -140,10 +577,33 @@ void GBlockLinear::forwardProp(const GVec& input, GVec& output) const
 	GAssert(output[outputs() - 1] > -1e100 && output[outputs() - 1] < 1e100);
 }
 
-void GBlockLinear::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame)
+void GBlockLinear::forwardProp2(const GVec& in1, const GVec& in2, GVec& output) const
 {
+	GAssert(in1.size() + in2.size() == m_weights.rows() - 1);
+	GAssert(output.size() == m_weights.cols());
+	output.copy(bias());
+	GAssert(output[outputs() - 1] > -1e100 && output[outputs() - 1] < 1e100);
+	for(size_t i = 0; i < in1.size(); i++)
+		output.addScaled(in1[i], m_weights.row(i));
+	for(size_t i = 0; i < in2.size(); i++)
+		output.addScaled(in2[i], m_weights.row(in1.size() + i));
+	GAssert(output[outputs() - 1] > -1e100 && output[outputs() - 1] < 1e100);
+}
+
+void GBlockLinear::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
+{
+	GAssert(outBlame.size() == m_weights.cols() && inBlame.size() == m_weights.rows() - 1);
 	for(size_t i = 0; i < inBlame.size(); i++)
 		inBlame[i] += outBlame.dotProduct(m_weights[i]);
+}
+
+void GBlockLinear::backProp2(const GVec& outBlame, GVec& inBlame1, GVec& inBlame2) const
+{
+	GAssert(outBlame.size() == m_weights.cols() && inBlame1.size() + inBlame2.size() == m_weights.rows() - 1);
+	for(size_t i = 0; i < inBlame1.size(); i++)
+		inBlame1[i] += outBlame.dotProduct(m_weights[i]);
+	for(size_t i = 0; i < inBlame2.size(); i++)
+		inBlame2[i] += outBlame.dotProduct(m_weights[inBlame1.size() + i]);
 }
 
 void GBlockLinear::updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient) const
@@ -417,7 +877,7 @@ void GBlockMaxOut::forwardProp(const GVec& input, GVec& output) const
 	}
 }
 
-void GBlockMaxOut::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame)
+void GBlockMaxOut::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
 {
 	const GVec& source = outBlame(); // source
 	GVec& inb = inBlame(); // destination
@@ -719,7 +1179,7 @@ void GBlockRestrictedBoltzmannMachine::contrastiveDivergence(GRand& rand, const 
 	bias().addScaled(-learningRate, activation());
 }
 */
-void GBlockRestrictedBoltzmannMachine::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame)
+void GBlockRestrictedBoltzmannMachine::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
 {
 	m_weights.multiply(outBlame, inBlame, true);
 }
@@ -927,7 +1387,7 @@ void GBlockConvolutional1D::forwardProp(const GVec& input, GVec& output) const
 }
 
 // virtual
-void GBlockConvolutional1D::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame)
+void GBlockConvolutional1D::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
 {
 	size_t kernelSize = m_kernels.cols();
 	inBlame.fill(0.0);
@@ -940,7 +1400,7 @@ void GBlockConvolutional1D::backProp(const GVec& input, const GVec& output, cons
 		{
 			for(size_t k = 0; k < m_kernelsPerChannel; k++) // for each kernel...
 			{
-				GVec& w = m_kernels[kern++];
+				const GVec& w = m_kernels[kern++];
 				size_t samp = 0;
 				for(size_t l = 0; l < kernelSize; l++) // for each connection...
 				{
@@ -1279,7 +1739,7 @@ void GBlockConvolutional2D::forwardProp(const GVec& input, GVec& output) const
 	n.dz = 0;
 }
 
-void GBlockConvolutional2D::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame)
+void GBlockConvolutional2D::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
 {
 	Image &err = m_errImage;
 	Image &upErr = m_upStreamErrorImage;
@@ -1506,6 +1966,299 @@ void GBlockConvolutional2D::updateOutputSize()
 	m_errImage.height = m_outputHeight;
 }
 */
+
+
+
+
+
+
+
+
+
+// virtual
+GContextRecurrent::~GContextRecurrent()
+{
+}
+
+// virtual
+void GBlockRecurrent::forwardProp(const GVec& input, GVec& output) const
+{
+	throw Ex("This method should not be called. Call GContextRecurrent::forwardProp instead.");
+}
+
+// virtual
+void GBlockRecurrent::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
+{
+	throw Ex("This method should not be called. Call GContextRecurrent::backProp instead.");
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+GContextRecurrent::GContextRecurrent()
+{
+}
+
+void GContextRecurrent::forwardProp(const GVec& input, GVec& output)
+{
+	
+}
+
+void GContextRecurrent::forwardPropThroughTime(const GVec& input, GVec& output)
+{
+	resetState();
+	
+}
+
+
+
+
+
+
+
+
+
+
+GBlockLSTM::GBlockLSTM(size_t units)
+: m_product(units), m_switch(units), m_write(0ul), m_val(0ul), m_read(0ul)
+{
+	if(units > 0)
+		resize(units, units);
+}
+
+GBlockLSTM::~GBlockLSTM()
+{
+}
+
+GContextRecurrent* GBlockLSTM::newContext()
+{
+	return new GContextLSTM(*this);
+}
+
+// virtual
+void GBlockLSTM::resize(size_t inputs, size_t outputs)
+{
+	if(inputs != outputs)
+		throw Ex("Expected the same number of inputs and outputs");
+	m_product.resize(outputs * 2, outputs);
+	m_switch.resize(outputs * 3, outputs);
+	m_logistic.resize(outputs, outputs);
+	m_tanh.resize(outputs, outputs);
+	m_write.resize(outputs, outputs);
+	m_val.resize(outputs, outputs);
+	m_read.resize(outputs, outputs);
+}
+
+
+
+
+
+
+
+
+
+
+GContextLSTM::GContextLSTM(GBlockLSTM& block)
+: GContextRecurrent(),
+m_block(block)
+{
+	size_t units = block.outputs();
+	m_c.resize(units);
+	m_h.resize(units);
+	m_f.resize(units);
+	m_t.resize(units);
+	m_o.resize(units);
+	m_blamec.resize(units);
+	m_blameh.resize(units);
+	m_blamef.resize(units);
+	m_blamet.resize(units);
+	m_blameo.resize(units);
+	m_buf1.resize(units);
+	m_buf2.resize(units);
+}
+
+// virtual
+void GContextLSTM::resetState()
+{
+	m_c.fill(0.0);
+	m_h.fill(0.0);
+}
+
+void GContextLSTM::forwardProp(GContextLSTM* pPrev, const GVec& input, GVec& output)
+{
+	// Compute how much to write into the memory
+	m_block.m_write.forwardProp2(pPrev->m_h, input, m_buf1);
+	m_block.m_logistic.forwardProp(m_buf1, m_f);
+
+	// Compute the values to write into memory
+	m_block.m_val.forwardProp2(pPrev->m_h, input, m_buf1);
+	m_block.m_tanh.forwardProp(m_buf1, m_t);
+
+	// Update the memory
+	m_block.m_switch.forwardProp3(m_f, pPrev->m_c, m_t, m_c);
+
+	// Compute how much to read from memory
+	m_block.m_read.forwardProp2(pPrev->m_h, input, m_buf1);
+	m_block.m_logistic.forwardProp(m_buf1, m_o);
+
+	// Read from memory
+	m_block.m_tanh.forwardProp(m_c, m_buf1);
+	m_block.m_product.forwardProp2(m_o, m_buf1, m_h);
+	if(output.data() != m_h.data())
+		output.copy(m_h);
+}
+
+void GContextLSTM::backProp(GContextLSTM* pPrev, const GVec& outBlame, GVec& inBlame)
+{
+	// Blame the read gate
+	m_blameh += outBlame;
+	m_buf2.fill(0.0);
+	m_blameo.fill(0.0);
+	m_block.m_product.backProp2(m_o, m_buf1, m_blameh, m_blameo, m_buf2);
+	m_block.m_tanh.backProp(m_c, m_buf1, m_buf2, m_blamec);
+
+	// Blame the amount to read
+	m_block.m_logistic.backProp(m_buf2/*ignored bogus value*/, m_o, m_blameo, m_buf1);
+	m_block.m_read.backProp2(m_buf1, pPrev->m_blameh, inBlame);
+
+	// Blame the memory
+	m_blamef.fill(0.0);
+	m_blamet.fill(0.0);
+	m_block.m_switch.backProp3(m_f, pPrev->m_c, m_t, m_blamec, m_blamef, pPrev->m_blamec, m_blamet);
+
+	// Blame the value written to memory
+	m_buf2.fill(0.0);
+	m_block.m_tanh.backProp(m_buf2/*ignored bogus value*/, m_t, m_blamet, m_buf2);
+	m_block.m_val.backProp2(m_buf2, pPrev->m_blameh, inBlame);
+
+	// Blame the amount to write to memory
+	m_buf2.fill(0.0);
+	m_block.m_logistic.backProp(m_buf2/*ignored bogus value*/, m_f, m_blamef, m_buf2);
+	m_block.m_write.backProp2(m_buf2, pPrev->m_blameh, inBlame);
+}
+
+
+
+
+
+
+
+GBlockGRU::GBlockGRU(size_t units)
+: m_product(units), m_switch(units), m_update(0ul), m_remember(0ul), m_val(0ul)
+{
+	if(units > 0)
+		resize(units, units);
+}
+
+GBlockGRU::~GBlockGRU()
+{
+}
+
+GContextRecurrent* GBlockGRU::newContext()
+{
+	return new GContextGRU(*this);
+}
+
+// virtual
+void GBlockGRU::resize(size_t inputs, size_t outputs)
+{
+	if(inputs != outputs)
+		throw Ex("Expected the same number of inputs and outputs");
+	m_product.resize(outputs * 2, outputs);
+	m_switch.resize(outputs * 3, outputs);
+	m_logistic.resize(outputs, outputs);
+	m_tanh.resize(outputs, outputs);
+	m_update.resize(outputs, outputs);
+	m_remember.resize(outputs, outputs);
+	m_val.resize(outputs, outputs);
+}
+
+
+
+
+
+
+
+
+
+
+GContextGRU::GContextGRU(GBlockGRU& block)
+: GContextRecurrent(),
+m_block(block)
+{
+	size_t units = block.outputs();
+	m_h.resize(units);
+	m_z.resize(units);
+	m_r.resize(units);
+	m_t.resize(units);
+	m_blameh.resize(units);
+	m_blamez.resize(units);
+	m_blamer.resize(units);
+	m_blamet.resize(units);
+	m_buf1.resize(units);
+	m_buf2.resize(units);
+}
+
+// virtual
+void GContextGRU::resetState()
+{
+	m_h.fill(0.0);
+}
+
+void GContextGRU::forwardProp(GContextGRU* pPrev, const GVec& input, GVec& output)
+{
+	// Compute the update gate
+	m_block.m_update.forwardProp2(pPrev->m_h, input, m_buf1);
+	m_block.m_logistic.forwardProp(m_buf1, m_z);
+
+	// Compute the remember gate
+	m_block.m_remember.forwardProp2(pPrev->m_h, input, m_buf1);
+	m_block.m_logistic.forwardProp(m_buf1, m_r);
+
+	// Compute the value to write to memory
+	m_block.m_product.forwardProp2(m_r, pPrev->m_h, m_buf2);
+	m_block.m_val.forwardProp2(m_buf2, input, m_buf1);
+	m_block.m_tanh.forwardProp(m_buf1, m_t);
+
+	// Compute the output
+	m_block.m_switch.forwardProp3(m_z, m_t, pPrev->m_h, m_h);
+	if(output.data() != m_h.data())
+		output.copy(m_h);
+}
+
+void GContextGRU::backProp(GContextGRU* pPrev, const GVec& outBlame, GVec& inBlame)
+{
+	// Blame the output
+	m_blamez.fill(0.0);
+	m_blamet.fill(0.0);
+	m_block.m_switch.backProp3(m_z, m_t, pPrev->m_h, outBlame, m_blamez, m_blamet, pPrev->m_h);
+
+	// Blame the value written to memory
+	m_buf2.fill(0.0);
+	m_block.m_tanh.backProp(m_buf1/*ignored bogus value*/, m_t, m_blamet, m_buf2);
+	m_buf1.fill(0.0);
+	m_block.m_val.backProp2(m_buf2, inBlame, m_buf1);
+	m_block.m_product.backProp2(m_r, pPrev->m_h, m_buf1, m_blamer, pPrev->m_blameh);
+
+	// Blame the remember gate
+	m_buf2.fill(0.0);
+	m_block.m_logistic.backProp(m_buf1/*ignored bogus value*/, m_r, m_blamer, m_buf2);
+	m_block.m_remember.backProp2(m_buf2, pPrev->m_blameh, inBlame);
+
+	// Blame the update gate
+	m_buf2.fill(0.0);
+	m_block.m_logistic.backProp(m_buf1/*ignored bogus value*/, m_z, m_blamez, m_buf2);
+	m_block.m_update.backProp2(m_buf2, pPrev->m_blameh, inBlame);
+}
 
 
 

@@ -17,7 +17,6 @@
 */
 
 #include "GBlock.h"
-#include "GBlockWeightless.h"
 #include "GLearner.h"
 #include <stdlib.h>
 #include <string.h>

@@ -31,7 +31,7 @@ class GActionPath;
 class GAction;
 class GRand;
 class GNeuralNet;
-class GNeuralNetContext;
+class GContextNeuralNet;
 
 
 /// A loss function used to train a differentiable function.
@@ -80,7 +80,7 @@ class GNeuralNetOptimizer
 protected:
 	GObjective* m_objective;
 	GNeuralNet& m_model;
-	GNeuralNetContext* m_pContext;
+	GContextNeuralNet* m_pContext;
 
 	// variables for convenience training methods
 	GRand* m_rand;
@@ -96,7 +96,7 @@ public:
 	/// Returns the default context for training the model.
 	/// (Note: It is allocated lazily. This should not be called before layers are added to the model.
 	/// For multi-threaded optimization, a separate context should be allocated for each thread.)
-	GNeuralNetContext& context();
+	GContextNeuralNet& context();
 
 	/// Prepare for optimization (i.e. allocate delta vectors).
 	virtual void prepareForOptimizing() = 0;
