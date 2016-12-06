@@ -20,9 +20,10 @@
 #ifndef __GBLOCK_H__
 #define __GBLOCK_H__
 
-#include <vector>
 #include "GMatrix.h"
+#include <vector>
 #include <ostream>
+#include <cmath>
 
 namespace GClasses {
 

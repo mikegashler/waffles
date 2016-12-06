@@ -783,7 +783,7 @@ GPassiveConsole::GPassiveConsole(bool echo)
 		throw Ex("Error setting stdin to non-blocking");
 }
 
-GPassiveConsole::~GPassiveConsole()
+GPassiveConsole::~GPassiveConsole() noexcept(false)
 {
 	if(tcsetattr(0, TCSANOW, &m_old) < 0)
 		throw Ex("Error restoring terminal settings");

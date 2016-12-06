@@ -71,7 +71,7 @@ GFolderSerializer::GFolderSerializer(const char* szPath, bool compress)
 	m_bytesOut = 0;
 }
 
-GFolderSerializer::~GFolderSerializer()
+GFolderSerializer::~GFolderSerializer() noexcept(false)
 {
 	if(chdir(m_szOrigPath) != 0)
 		throw Ex("Failed to restore original path");

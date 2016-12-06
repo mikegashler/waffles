@@ -772,7 +772,7 @@ public:
 		m_testTimes << s;
 	}
 
-	~GTestHarness()
+	~GTestHarness() noexcept(false)
 	{
 		// Append the new measurements to perf.log
 #ifndef _DEBUG // Don't log time in debug mode, since that would look like a performance regression
