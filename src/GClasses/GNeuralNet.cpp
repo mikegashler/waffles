@@ -236,7 +236,7 @@ GContextLayer::GContextLayer(const GLayer& layer)
 		if(b->type() == GBlock::block_neuralnet)
 			m_components.push_back(((GNeuralNet*)b)->newContext());
 		else if(b->isRecurrent())
-			m_recurrents.push_back(((GBlockRecurrent*)b)->newContext());
+			m_recurrents.push_back(new GContextRecurrent(*(GBlockRecurrent*)b));
 	}
 }
 

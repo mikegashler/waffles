@@ -88,6 +88,8 @@ GBlock* GBlock::deserialize(GDomNode* pNode)
 		case block_restrictedboltzmannmachine: return new GBlockRestrictedBoltzmannMachine(pNode);
 		case block_convolutional1d: return new GBlockConvolutional1D(pNode);
 		//case block_convolutional2d: return new GBlockConvolutional2D(pNode);
+		case block_lstm: return new GBlockLSTM(pNode);
+		case block_gru: return new GBlockGRU(pNode);
 		default: throw Ex("Unrecognized neural network layer type: ", GClasses::to_str((int)e));
 	}
 }
@@ -558,7 +560,6 @@ void GBlockLinear::resize(size_t in, size_t out)
 	m_weights.resize(in + 1, out);
 }
 
-/// Makes a string representation of this layer
 std::string GBlockLinear::to_str() const
 {
 	std::ostringstream oss;
@@ -620,6 +621,27 @@ void GBlockLinear::updateGradient(const GVec& input, const GVec& outBlame, GVec 
 		*delta++ += outBlame[j];
 }
 
+void GBlockLinear::updateGradient2(const GVec& in1, const GVec& in2, const GVec& outBlame, GVec &gradient) const
+{
+	GAssert(gradient.size() == weightCount(), "gradient must match the dimensions of weights!");
+	GAssert(in1.size() + in2.size() == inputs());
+	double *delta = gradient.data();
+	for(size_t i = 0; i < in1.size(); ++i)
+	{
+		double act = in1[i];
+		for(size_t j = 0; j < outputs(); ++j)
+			*delta++ += outBlame[j] * act;
+	}
+	for(size_t i = 0; i < in2.size(); ++i)
+	{
+		double act = in2[i];
+		for(size_t j = 0; j < outputs(); ++j)
+			*delta++ += outBlame[j] * act;
+	}
+	for(size_t j = 0; j < outputs(); ++j)
+		*delta++ += outBlame[j];
+}
+
 void GBlockLinear::step(double learningRate, const GVec &gradient)
 {
 	GAssert(gradient.size() == weightCount(), "gradient must match the dimensions of weights!");
@@ -630,42 +652,6 @@ void GBlockLinear::step(double learningRate, const GVec &gradient)
 			m_weights[i][j] += learningRate * *delta++;
 	for(size_t j = 0; j < outputs(); ++j)
 		b[j] += learningRate * *delta++;
-}
-
-void GBlockLinear::scaleWeights(double factor, bool scaleBiases)
-{
-	for(size_t i = 0; i < inputs(); i++)
-		m_weights[i] *= factor;
-	if(scaleBiases)
-		bias() *= factor;
-}
-
-void GBlockLinear::diminishWeights(double amount, bool regularizeBiases)
-{
-	for(size_t i = 0; i < inputs(); i++)
-		m_weights[i].regularizeL1(amount);
-	if(regularizeBiases)
-		bias().regularizeL1(amount);
-}
-
-void GBlockLinear::contractWeights(double factor, bool contractBiases, const GVec& output)
-{
-	GVec& b = bias();
-	size_t outputCount = outputs();
-	for(size_t i = 0; i < outputCount; i++)
-	{
-		// (Note that the official implementation of contractive regularization multiplies by the
-		// derivative of the activation function, but we separate activation functions into separate
-		// layers, and I don't think they should depend on each other, so this implementation
-		// assumes the tanh activation function for regularization purposes.)
-		double activ = tanh(output[i]);
-		double aprime = 1.0 - (activ * activ);
-		double f = 1.0 - factor * aprime;
-		for(size_t j = 0; j < inputs(); j++)
-			m_weights[j][i] *= f;
-		if(contractBiases)
-			b[i] *= f;
-	}
 }
 
 size_t GBlockLinear::weightCount() const
@@ -740,6 +726,42 @@ void GBlockLinear::maxNorm(double min, double max)
 			for(size_t j = 0; j < inputCount; j++)
 				m_weights[j][i] *= scal;
 		}
+	}
+}
+
+void GBlockLinear::scaleWeights(double factor, bool scaleBiases)
+{
+	for(size_t i = 0; i < inputs(); i++)
+		m_weights[i] *= factor;
+	if(scaleBiases)
+		bias() *= factor;
+}
+
+void GBlockLinear::diminishWeights(double amount, bool regularizeBiases)
+{
+	for(size_t i = 0; i < inputs(); i++)
+		m_weights[i].regularizeL1(amount);
+	if(regularizeBiases)
+		bias().regularizeL1(amount);
+}
+
+void GBlockLinear::contractWeights(double factor, bool contractBiases, const GVec& output)
+{
+	GVec& b = bias();
+	size_t outputCount = outputs();
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		// (Note that the official implementation of contractive regularization multiplies by the
+		// derivative of the activation function, but we separate activation functions into separate
+		// layers, and I don't think they should depend on each other, so this implementation
+		// assumes the tanh activation function for regularization purposes.)
+		double activ = tanh(output[i]);
+		double aprime = 1.0 - (activ * activ);
+		double f = 1.0 - factor * aprime;
+		for(size_t j = 0; j < inputs(); j++)
+			m_weights[j][i] *= f;
+		if(contractBiases)
+			b[i] *= f;
 	}
 }
 
@@ -1975,10 +1997,8 @@ void GBlockConvolutional2D::updateOutputSize()
 
 
 
-// virtual
-GContextRecurrent::~GContextRecurrent()
-{
-}
+
+
 
 // virtual
 void GBlockRecurrent::forwardProp(const GVec& input, GVec& output) const
@@ -1992,31 +2012,131 @@ void GBlockRecurrent::backProp(const GVec& input, const GVec& output, const GVec
 	throw Ex("This method should not be called. Call GContextRecurrent::backProp instead.");
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-GContextRecurrent::GContextRecurrent()
+// virtual
+void GBlockRecurrent::updateGradient(const GVec& input, const GVec& outBlame, GVec& gradient) const
 {
+	throw Ex("This method should not be called. Call GContextRecurrent::updateGradient instead.");
+}
+
+
+
+
+
+
+
+
+GContextRecurrent::GContextRecurrent(GBlockRecurrent& block)
+: m_block(block), m_emptyBlame(block.outputs()), m_bogusBlame(block.inputs()), m_pos(0)
+{
+	m_pInitialInstance = m_block.newContext();
+	m_emptyBlame.fill(0.0);
+	m_bogusBlame.fill(0.0);
+}
+
+GContextRecurrent::~GContextRecurrent()
+{
+	delete(m_pInitialInstance);
+	for(size_t i = 0; i < m_contextHistory.size(); i++)
+		delete(m_contextHistory[i]);
+	for(size_t i = 0; i < m_inputHistory.size(); i++)
+		delete(m_inputHistory[i]);
+	for(size_t i = 0; i < m_contextSpares.size(); i++)
+		delete(m_contextSpares[i]);
+	for(size_t i = 0; i < m_inputSpares.size(); i++)
+		delete(m_inputSpares[i]);
+}
+
+void GContextRecurrent::resetState()
+{
+	GAssert(m_contextHistory.size() == m_inputHistory.size());
+	while(m_contextHistory.size() > 0)
+	{
+		m_contextSpares.push_back(m_contextHistory.back());
+		m_contextHistory.pop_back();
+		m_inputSpares.push_back(m_inputHistory.back());
+		m_inputSpares.pop_back();
+	}
 }
 
 void GContextRecurrent::forwardProp(const GVec& input, GVec& output)
 {
-	
+	throw Ex("not implemented yet");
 }
 
 void GContextRecurrent::forwardPropThroughTime(const GVec& input, GVec& output)
 {
-	resetState();
-	
+	// Store the input
+	GAssert(m_contextHistory.size() == m_inputHistory.size());
+	if(m_contextHistory.size() < m_block.depth())
+	{
+		if(m_contextSpares.size() > 0)
+		{
+			GAssert(m_inputSpares.size() == m_contextSpares.size());
+			m_contextHistory.push_back(m_contextSpares.back());
+			m_contextSpares.pop_back();
+			m_inputHistory.push_back(m_inputSpares.back());
+			m_inputSpares.pop_back();
+		}
+		else
+		{
+			m_contextHistory.push_back(m_block.newContext());
+			m_inputHistory.push_back(new GVec(input.size()));
+		}
+	}
+	else
+		m_pos = (m_pos + 1) % m_contextHistory.size();
+	size_t lastIndex = (m_pos + m_contextHistory.size() - 1) % m_contextHistory.size();
+	(*m_inputHistory[lastIndex]).copy(input);
+
+	// Do the forward propagation
+	GContextRecurrentInstance* pPrev = m_pInitialInstance;
+	for(size_t i = 0; i < m_contextHistory.size(); i++)
+	{
+		size_t index = (m_pos + i) % m_contextHistory.size();
+		GContextRecurrentInstance* pCur = m_contextHistory[index];
+		pCur->forwardProp(pPrev, *m_inputHistory[index], output);
+		pPrev = pCur;
+	}
+}
+
+void GContextRecurrent::backPropThroughTime(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame)
+{
+	const GVec* pOutBlame = &outBlame;
+	GVec* pInBlame = &inBlame;
+	GContextRecurrentInstance* pPrev;
+	m_contextHistory[(m_pos + m_contextHistory.size() - 1) % m_contextHistory.size()]->clearBlame(); // Clear blame for the current context
+	for(size_t i = m_contextHistory.size() - 1; i < m_contextHistory.size(); i--)
+	{
+		// Clear the blame in the previous context
+		if(i == 0)
+			pPrev = m_pInitialInstance;
+		else
+		{
+			size_t prevIndex = (m_pos + i + m_contextHistory.size() - 1) % m_contextHistory.size();
+			pPrev = m_contextHistory[prevIndex];
+		}
+		pPrev->clearBlame();
+
+		// Backpropagate
+		size_t index = (m_pos + i) % m_contextHistory.size();
+		m_contextHistory[index]->backProp(pPrev, *pOutBlame, *pInBlame);
+
+		pOutBlame = &m_emptyBlame;
+		pInBlame = &m_bogusBlame;
+	}
+}
+
+void GContextRecurrent::updateGradient(const GVec& input, const GVec& outBlame, GVec& gradient) const
+{
+	GAssert(gradient.size() == m_block.weightCount(), "gradient size must match the number of weights!");
+	GContextRecurrentInstance* pPrev = m_pInitialInstance;
+	for(size_t i = 0; i < m_contextHistory.size(); i++)
+	{
+		size_t index = (m_pos + i) % m_contextHistory.size();
+		GContextRecurrentInstance* pCur = m_contextHistory[index];
+		pCur->updateGradient(pPrev, *m_inputHistory[index], gradient);
+		pPrev = pCur;
+	}
 }
 
 
@@ -2026,20 +2146,37 @@ void GContextRecurrent::forwardPropThroughTime(const GVec& input, GVec& output)
 
 
 
-
-
-GBlockLSTM::GBlockLSTM(size_t units)
-: m_product(units), m_switch(units), m_write(0ul), m_val(0ul), m_read(0ul)
+GBlockLSTM::GBlockLSTM(size_t outputs, size_t inputs)
+: GBlockRecurrent(),
+m_product(outputs),
+m_switch(outputs),
+m_logistic(outputs),
+m_tanh(outputs),
+m_write(outputs, inputs),
+m_val(outputs, inputs),
+m_read(outputs, inputs)
 {
-	if(units > 0)
-		resize(units, units);
+}
+
+GBlockLSTM::GBlockLSTM(GDomNode* pNode)
+: GBlockRecurrent(pNode),
+m_product(pNode->field("product")),
+m_switch(pNode->field("switch")),
+m_logistic(pNode->field("logsitic")),
+m_tanh(pNode->field("tanh")),
+m_write(pNode->field("write")),
+m_val(pNode->field("val")),
+m_read(pNode->field("read"))
+{
+	size_t units = m_write.outputs();
+	resize(units, units);
 }
 
 GBlockLSTM::~GBlockLSTM()
 {
 }
 
-GContextRecurrent* GBlockLSTM::newContext()
+GContextRecurrentInstance* GBlockLSTM::newContext()
 {
 	return new GContextLSTM(*this);
 }
@@ -2058,8 +2195,116 @@ void GBlockLSTM::resize(size_t inputs, size_t outputs)
 	m_read.resize(outputs, outputs);
 }
 
+// virtual
+GDomNode* GBlockLSTM::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "product", m_product.serialize(pDoc));
+	pNode->addField(pDoc, "switch", m_switch.serialize(pDoc));
+	pNode->addField(pDoc, "logistic", m_logistic.serialize(pDoc));
+	pNode->addField(pDoc, "tanh", m_tanh.serialize(pDoc));
+	pNode->addField(pDoc, "write", m_write.serialize(pDoc));
+	pNode->addField(pDoc, "val", m_val.serialize(pDoc));
+	pNode->addField(pDoc, "read", m_read.serialize(pDoc));
+	return pNode;	
+}
+
+std::string GBlockLSTM::to_str() const
+{
+	std::ostringstream oss;
+	oss << "[GBlockLSTM:" << inputs() << "->" << outputs() << "]";
+	return oss.str();
+}
+
+size_t GBlockLSTM::weightCount() const
+{
+	return m_write.weightCount() + m_val.weightCount() + m_read.weightCount();
+}
+
+size_t GBlockLSTM::weightsToVector(double* pOutVector) const
+{
+	double* pStart = pOutVector;
+	pOutVector += m_write.weightsToVector(pOutVector);
+	pOutVector += m_val.weightsToVector(pOutVector);
+	pOutVector += m_read.weightsToVector(pOutVector);
+	return pOutVector - pStart;
+}
+
+size_t GBlockLSTM::vectorToWeights(const double* pVector)
+{
+	const double* pStart = pVector;
+	pVector += m_write.vectorToWeights(pVector);
+	pVector += m_val.vectorToWeights(pVector);
+	pVector += m_read.vectorToWeights(pVector);
+	return pVector - pStart;
+}
+
+void GBlockLSTM::copyWeights(const GBlock* pSource)
+{
+	GBlockLSTM* src = (GBlockLSTM*)pSource;
+	m_write.copyWeights(&src->m_write);
+	m_val.copyWeights(&src->m_val);
+	m_read.copyWeights(&src->m_read);
+}
+
+void GBlockLSTM::resetWeights(GRand& rand)
+{
+	m_write.resetWeights(rand);
+	m_val.resetWeights(rand);
+	m_read.resetWeights(rand);
+}
+
+void GBlockLSTM::perturbWeights(GRand &rand, double deviation)
+{
+	m_write.perturbWeights(rand, deviation);
+	m_val.perturbWeights(rand, deviation);
+	m_read.perturbWeights(rand, deviation);
+}
+
+void GBlockLSTM::maxNorm(double min, double max)
+{
+	m_write.maxNorm(min, max);
+	m_val.maxNorm(min, max);
+	m_read.maxNorm(min, max);
+}
+
+void GBlockLSTM::scaleWeights(double factor, bool scaleBiases)
+{
+	m_write.scaleWeights(factor, scaleBiases);
+	m_val.scaleWeights(factor, scaleBiases);
+	m_read.scaleWeights(factor, scaleBiases);
+}
+
+void GBlockLSTM::diminishWeights(double amount, bool regularizeBiases)
+{
+	m_write.diminishWeights(amount, regularizeBiases);
+	m_val.diminishWeights(amount, regularizeBiases);
+	m_read.diminishWeights(amount, regularizeBiases);
+}
+
+void GBlockLSTM::step(double learningRate, const GVec &gradient)
+{
+	GAssert(gradient.size() == weightCount(), "gradient must match the dimensions of weights!");
+	size_t wcWrite = m_write.weightCount();
+	size_t wcVal = m_val.weightCount();
+	size_t wcRead = m_read.weightCount();
+	GConstVecWrapper g(gradient.data(), wcWrite);
+	m_write.step(learningRate, g.vec());
+	g.setData(gradient.data() + wcWrite, wcVal);
+	m_val.step(learningRate, g.vec());
+	g.setData(gradient.data() + wcWrite + wcVal, wcRead);
+	m_read.step(learningRate, g.vec());
+}
+	
 
 
+#ifndef MIN_PREDICT
+// static
+void GBlockLSTM::test()
+{
+	GBlockLSTM block(10);
+}
+#endif
 
 
 
@@ -2068,7 +2313,7 @@ void GBlockLSTM::resize(size_t inputs, size_t outputs)
 
 
 GContextLSTM::GContextLSTM(GBlockLSTM& block)
-: GContextRecurrent(),
+: GContextRecurrentInstance(),
 m_block(block)
 {
 	size_t units = block.outputs();
@@ -2084,17 +2329,14 @@ m_block(block)
 	m_blameo.resize(units);
 	m_buf1.resize(units);
 	m_buf2.resize(units);
-}
-
-// virtual
-void GContextLSTM::resetState()
-{
 	m_c.fill(0.0);
 	m_h.fill(0.0);
 }
 
-void GContextLSTM::forwardProp(GContextLSTM* pPrev, const GVec& input, GVec& output)
+void GContextLSTM::forwardProp(GContextRecurrentInstance* prev, const GVec& input, GVec& output)
 {
+	GContextLSTM* pPrev = (GContextLSTM*)prev;
+
 	// Compute how much to write into the memory
 	m_block.m_write.forwardProp2(pPrev->m_h, input, m_buf1);
 	m_block.m_logistic.forwardProp(m_buf1, m_f);
@@ -2117,12 +2359,22 @@ void GContextLSTM::forwardProp(GContextLSTM* pPrev, const GVec& input, GVec& out
 		output.copy(m_h);
 }
 
-void GContextLSTM::backProp(GContextLSTM* pPrev, const GVec& outBlame, GVec& inBlame)
+void GContextLSTM::clearBlame()
 {
+	m_blamec.fill(0.0);
+	m_blameh.fill(0.0);
+	m_blamef.fill(0.0);
+	m_blamet.fill(0.0);
+	m_blameo.fill(0.0);
+}
+
+void GContextLSTM::backProp(GContextRecurrentInstance* prev, const GVec& outBlame, GVec& inBlame)
+{
+	GContextLSTM* pPrev = (GContextLSTM*)prev;
+
 	// Blame the read gate
 	m_blameh += outBlame;
 	m_buf2.fill(0.0);
-	m_blameo.fill(0.0);
 	m_block.m_product.backProp2(m_o, m_buf1, m_blameh, m_blameo, m_buf2);
 	m_block.m_tanh.backProp(m_c, m_buf1, m_buf2, m_blamec);
 
@@ -2131,8 +2383,6 @@ void GContextLSTM::backProp(GContextLSTM* pPrev, const GVec& outBlame, GVec& inB
 	m_block.m_read.backProp2(m_buf1, pPrev->m_blameh, inBlame);
 
 	// Blame the memory
-	m_blamef.fill(0.0);
-	m_blamet.fill(0.0);
 	m_block.m_switch.backProp3(m_f, pPrev->m_c, m_t, m_blamec, m_blamef, pPrev->m_blamec, m_blamet);
 
 	// Blame the value written to memory
@@ -2146,24 +2396,58 @@ void GContextLSTM::backProp(GContextLSTM* pPrev, const GVec& outBlame, GVec& inB
 	m_block.m_write.backProp2(m_buf2, pPrev->m_blameh, inBlame);
 }
 
-
-
-
-
-
-
-GBlockGRU::GBlockGRU(size_t units)
-: m_product(units), m_switch(units), m_update(0ul), m_remember(0ul), m_val(0ul)
+void GContextLSTM::updateGradient(GContextRecurrentInstance* prev, const GVec& input, GVec& gradient) const
 {
-	if(units > 0)
-		resize(units, units);
+	GContextLSTM* pPrev = (GContextLSTM*)prev;
+	GAssert(gradient.size() == m_block.weightCount(), "gradient size must match the number of weights!");
+	size_t wcWrite = m_block.m_write.weightCount();
+	size_t wcVal = m_block.m_val.weightCount();
+	size_t wcRead = m_block.m_read.weightCount();
+	GVecWrapper g(gradient.data(), wcWrite);
+	m_block.m_write.updateGradient2(pPrev->m_h, input, m_blamef, g.vec());
+	g.setData(gradient.data() + wcWrite, wcVal);
+	m_block.m_val.updateGradient2(pPrev->m_h, input, m_blamet, g.vec());
+	g.setData(gradient.data() + wcWrite + wcVal, wcRead);
+	m_block.m_read.updateGradient2(pPrev->m_h, input, m_blameo, g.vec());
+}
+
+
+
+
+
+
+
+
+
+GBlockGRU::GBlockGRU(size_t outputs, size_t inputs)
+: GBlockRecurrent(),
+m_product(outputs),
+m_switch(outputs),
+m_logistic(outputs),
+m_tanh(outputs),
+m_update(outputs, inputs),
+m_remember(outputs, inputs),
+m_val(outputs, inputs)
+{
+}
+
+GBlockGRU::GBlockGRU(GDomNode* pNode)
+: GBlockRecurrent(pNode),
+m_product(pNode->field("product")),
+m_switch(pNode->field("switch")),
+m_logistic(pNode->field("logistic")),
+m_tanh(pNode->field("tanh")),
+m_update(pNode->field("update")),
+m_remember(pNode->field("remember")),
+m_val(pNode->field("val"))
+{
 }
 
 GBlockGRU::~GBlockGRU()
 {
 }
 
-GContextRecurrent* GBlockGRU::newContext()
+GContextRecurrentInstance* GBlockGRU::newContext()
 {
 	return new GContextGRU(*this);
 }
@@ -2182,6 +2466,107 @@ void GBlockGRU::resize(size_t inputs, size_t outputs)
 	m_val.resize(outputs, outputs);
 }
 
+// virtual
+GDomNode* GBlockGRU::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "product", m_product.serialize(pDoc));
+	pNode->addField(pDoc, "switch", m_switch.serialize(pDoc));
+	pNode->addField(pDoc, "logistic", m_logistic.serialize(pDoc));
+	pNode->addField(pDoc, "tanh", m_tanh.serialize(pDoc));
+	pNode->addField(pDoc, "update", m_update.serialize(pDoc));
+	pNode->addField(pDoc, "remember", m_remember.serialize(pDoc));
+	pNode->addField(pDoc, "val", m_val.serialize(pDoc));
+	return pNode;	
+}
+
+std::string GBlockGRU::to_str() const
+{
+	std::ostringstream oss;
+	oss << "[GBlockGRU:" << inputs() << "->" << outputs() << "]";
+	return oss.str();
+}
+
+size_t GBlockGRU::weightCount() const
+{
+	return m_update.weightCount() + m_remember.weightCount() + m_val.weightCount();
+}
+
+size_t GBlockGRU::weightsToVector(double* pOutVector) const
+{
+	double* pStart = pOutVector;
+	pOutVector += m_update.weightsToVector(pOutVector);
+	pOutVector += m_remember.weightsToVector(pOutVector);
+	pOutVector += m_val.weightsToVector(pOutVector);
+	return pOutVector - pStart;
+}
+
+size_t GBlockGRU::vectorToWeights(const double* pVector)
+{
+	const double* pStart = pVector;
+	pVector += m_update.vectorToWeights(pVector);
+	pVector += m_remember.vectorToWeights(pVector);
+	pVector += m_val.vectorToWeights(pVector);
+	return pVector - pStart;
+}
+
+void GBlockGRU::copyWeights(const GBlock* pSource)
+{
+	GBlockGRU* src = (GBlockGRU*)pSource;
+	m_update.copyWeights(&src->m_update);
+	m_remember.copyWeights(&src->m_remember);
+	m_val.copyWeights(&src->m_val);
+}
+
+void GBlockGRU::resetWeights(GRand& rand)
+{
+	m_update.resetWeights(rand);
+	m_remember.resetWeights(rand);
+	m_val.resetWeights(rand);
+}
+
+void GBlockGRU::perturbWeights(GRand &rand, double deviation)
+{
+	m_update.perturbWeights(rand, deviation);
+	m_remember.perturbWeights(rand, deviation);
+	m_val.perturbWeights(rand, deviation);
+}
+
+void GBlockGRU::maxNorm(double min, double max)
+{
+	m_update.maxNorm(min, max);
+	m_remember.maxNorm(min, max);
+	m_val.maxNorm(min, max);
+}
+
+void GBlockGRU::scaleWeights(double factor, bool scaleBiases)
+{
+	m_update.scaleWeights(factor, scaleBiases);
+	m_remember.scaleWeights(factor, scaleBiases);
+	m_val.scaleWeights(factor, scaleBiases);
+}
+
+void GBlockGRU::diminishWeights(double amount, bool regularizeBiases)
+{
+	m_update.diminishWeights(amount, regularizeBiases);
+	m_remember.diminishWeights(amount, regularizeBiases);
+	m_val.diminishWeights(amount, regularizeBiases);
+}
+
+void GBlockGRU::step(double learningRate, const GVec& gradient)
+{
+	GAssert(gradient.size() == weightCount(), "gradient must match the dimensions of weights!");
+	size_t wcUpdate = m_update.weightCount();
+	size_t wcRemember = m_remember.weightCount();
+	size_t wcVal = m_val.weightCount();
+	GConstVecWrapper g(gradient.data(), wcUpdate);
+	m_update.step(learningRate, g.vec());
+	g.setData(gradient.data() + wcUpdate, wcRemember);
+	m_remember.step(learningRate, g.vec());
+	g.setData(gradient.data() + wcUpdate + wcRemember, wcVal);
+	m_val.step(learningRate, g.vec());
+}
+
 
 
 
@@ -2192,7 +2577,7 @@ void GBlockGRU::resize(size_t inputs, size_t outputs)
 
 
 GContextGRU::GContextGRU(GBlockGRU& block)
-: GContextRecurrent(),
+: GContextRecurrentInstance(),
 m_block(block)
 {
 	size_t units = block.outputs();
@@ -2206,16 +2591,13 @@ m_block(block)
 	m_blamet.resize(units);
 	m_buf1.resize(units);
 	m_buf2.resize(units);
-}
-
-// virtual
-void GContextGRU::resetState()
-{
 	m_h.fill(0.0);
 }
 
-void GContextGRU::forwardProp(GContextGRU* pPrev, const GVec& input, GVec& output)
+void GContextGRU::forwardProp(GContextRecurrentInstance* prev, const GVec& input, GVec& output)
 {
+	GContextGRU* pPrev = (GContextGRU*)prev;
+
 	// Compute the update gate
 	m_block.m_update.forwardProp2(pPrev->m_h, input, m_buf1);
 	m_block.m_logistic.forwardProp(m_buf1, m_z);
@@ -2235,11 +2617,19 @@ void GContextGRU::forwardProp(GContextGRU* pPrev, const GVec& input, GVec& outpu
 		output.copy(m_h);
 }
 
-void GContextGRU::backProp(GContextGRU* pPrev, const GVec& outBlame, GVec& inBlame)
+void GContextGRU::clearBlame()
 {
-	// Blame the output
+	m_blameh.fill(0.0);
 	m_blamez.fill(0.0);
+	m_blamer.fill(0.0);
 	m_blamet.fill(0.0);
+}
+
+void GContextGRU::backProp(GContextRecurrentInstance* prev, const GVec& outBlame, GVec& inBlame)
+{
+	GContextGRU* pPrev = (GContextGRU*)prev;
+
+	// Blame the output
 	m_block.m_switch.backProp3(m_z, m_t, pPrev->m_h, outBlame, m_blamez, m_blamet, pPrev->m_h);
 
 	// Blame the value written to memory
@@ -2260,6 +2650,20 @@ void GContextGRU::backProp(GContextGRU* pPrev, const GVec& outBlame, GVec& inBla
 	m_block.m_update.backProp2(m_buf2, pPrev->m_blameh, inBlame);
 }
 
+void GContextGRU::updateGradient(GContextRecurrentInstance* prev, const GVec& input, GVec& gradient) const
+{
+	GContextGRU* pPrev = (GContextGRU*)prev;
+	GAssert(gradient.size() == m_block.weightCount(), "gradient size must match the number of weights!");
+	size_t wcUpdate = m_block.m_update.weightCount();
+	size_t wcRemember = m_block.m_remember.weightCount();
+	size_t wcVal = m_block.m_val.weightCount();
+	GVecWrapper g(gradient.data(), wcUpdate);
+	m_block.m_update.updateGradient2(pPrev->m_h, input, m_blamez, g.vec());
+	g.setData(gradient.data() + wcUpdate, wcRemember);
+	m_block.m_remember.updateGradient2(pPrev->m_h, input, m_blamer, g.vec());
+	g.setData(gradient.data() + wcUpdate + wcRemember, wcVal);
+	m_block.m_val.updateGradient2(pPrev->m_h, input, m_blamet, g.vec());
+}
 
 
 
