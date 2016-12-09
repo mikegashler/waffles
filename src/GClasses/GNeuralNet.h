@@ -225,7 +225,7 @@ public:
 	virtual size_t outputs() const override { return outputLayer().outputs(); }
 
 	/// Take a step to descend the gradient by updating the weights.
-	void step(double learningRate, const GVec &gradient);
+	virtual void step(double learningRate, const GVec &gradient) override;
 
 	/// Recounts the number of weights.
 	void recount();
@@ -317,7 +317,7 @@ public:
 //	static GNeuralNet* fourier(GMatrix& series, double period = 1.0);
 
 protected:
-	/// Deliberately protected.
+	/// Deliberately protected
 	/// Throws an exception telling you to call GContextNeuralNet::forwardProp instead.
 	virtual void forwardProp(const GVec& input, GVec& output) const override;
 

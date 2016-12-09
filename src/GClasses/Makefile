@@ -26,12 +26,14 @@ else
 endif
 
 # Set shared compiler flags
-CFLAGS = -Wall -Werror -Wshadow -Wno-error=unused-variable -pedantic -std=c++11
+CFLAGS = -Wall -Wshadow -pedantic -std=c++11
 
 # Add platform-specific compiler flags
 ifeq ($(UNAME),Darwin)
 	DARWIN_BASE ?= /usr/X11
 	CFLAGS += -DDARWIN -I$(DARWIN_BASE)/include
+else
+	CFLAGS += -Werror -Wno-error=unused-variable
 endif
 
 # Add compiler-specific flags
