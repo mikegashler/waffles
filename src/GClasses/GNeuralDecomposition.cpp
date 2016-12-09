@@ -22,6 +22,7 @@
 #include "GNeuralDecomposition.h"
 #include "GActivation.h"
 #include "GDom.h"
+#include "GBlock.h"
 
 namespace GClasses {
 
@@ -42,7 +43,8 @@ m_sigmoidUnits(10),
 m_sinusoidUnits(100),
 m_epochs(1000),
 m_filterLogarithm(false),
-m_autoFilter(true)
+m_autoFilter(true),
+m_lockPairs(false)
 {
 }
 
@@ -65,6 +67,7 @@ GNeuralDecomposition::GNeuralDecomposition(const GDomNode *pNode)
 	m_epochs = (size_t)pNode->field("epochs")->asInt();
 	m_filterLogarithm = pNode->field("filterLogarithm")->asBool();
 	m_autoFilter = pNode->field("autoFilter")->asBool();
+	m_lockPairs = pNode->field("lockPairs")->asBool();
 }
 
 GNeuralDecomposition::~GNeuralDecomposition()
@@ -149,6 +152,7 @@ GDomNode *GNeuralDecomposition::serialize(GDom *pDoc) const
 	pNode->addField(pDoc, "epochs", pDoc->newInt(m_epochs));
 	pNode->addField(pDoc, "filterLogarithm", pDoc->newBool(m_filterLogarithm));
 	pNode->addField(pDoc, "autoFilter", pDoc->newBool(m_autoFilter));
+	pNode->addField(pDoc, "lockPairs", pDoc->newBool(m_lockPairs));
 	return pNode;
 }
 
@@ -279,7 +283,7 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 		{
 			bias[j] = 0.0;
 			for(size_t i = 0; i < featureRel.size(); i++)
-				weights[i][j] = rand().normal() * 0.03;
+				weights[i][j] = rand().normal() * 0.3;
 		}
 	}
 
@@ -315,6 +319,26 @@ void GNeuralDecomposition::trainIncremental(const GVec& pIn, const GVec& pOut)
 
 	// Backpropagation
 	m_pOptimizer->optimizeIncremental(in, out);
+
+	// Lock pairs
+	if(m_lockPairs)
+	{
+		// initialize sinusoid nodes inspired by the DFT
+		GVec& bias = ((GBlockLinear*)&m_nn->layer(0).block(0))->bias();
+		GMatrix& weights = ((GBlockLinear*)&m_nn->layer(0).block(0))->weights();
+		for(size_t i = 0; i < m_sinusoidUnits / 2; i++)
+		{
+			for(size_t j = 0; j < weights.rows(); j++)
+			{
+				double t = 0.5 * (weights[j][2 * i] + weights[j][2 * i + 1]);
+				weights[j][2 * i] = t;
+				weights[j][2 * i + 1] = t;
+			}
+			bias[2 * i] = 0.5 * M_PI;
+			bias[2 * i + 1] = M_PI;
+		}
+	}
+
 }
 
 void GNeuralDecomposition::trainSparse(GSparseMatrix &features, GMatrix &labels)

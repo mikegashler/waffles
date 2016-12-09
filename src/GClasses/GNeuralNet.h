@@ -193,18 +193,18 @@ public:
 	/// Marshal this object into a dom node.
 	GDomNode* serialize(GDom* pDoc) const;
 
-	/// Allocates a new GContextNeuralNet object, which can be used to train or predict with this component.
+	/// Allocates a new GContextNeuralNet object, which can be used to train or predict with this neural net.
 	/// (Behavior is undefined if you add or modify any layers after you call newContext.)
 	GContextNeuralNet* newContext() const;
 
-	/// Adds a new layer to this component, and returns a reference to it.
+	/// Adds a new layer, and returns a reference to it.
 	GLayer& newLayer();
 
-	/// Returns the number of layers in this component.
-	/// (If one or more layers contain components, which contain more layers, those are not included in the count.)
+	/// Returns the number of layers in this neural net.
+	/// (Layers within neural networks embedded within this one are not counted.)
 	size_t layerCount() const { return m_layers.size(); }
 
-	/// Returns the specified layer in this component.
+	/// Returns the specified layer.
 	GLayer& layer(size_t i) { return *m_layers[i]; }
 	const GLayer& layer(size_t i) const { return *m_layers[i]; }
 
@@ -212,7 +212,7 @@ public:
 	GLayer& outputLayer() { return *m_layers[m_layers.size() - 1]; }
 	const GLayer& outputLayer() const { return *m_layers[m_layers.size() - 1]; }
 
-	/// Returns a string representation of this component
+	/// Returns a string representation of this object
 	virtual std::string to_str() const override;
 
 	/// Resizes this layer.
@@ -227,10 +227,10 @@ public:
 	/// Take a step to descend the gradient by updating the weights.
 	void step(double learningRate, const GVec &gradient);
 
-	/// Recounts the number of weights in this component.
+	/// Recounts the number of weights.
 	void recount();
 
-	/// Returns the number of weights in this component.
+	/// Returns the number of weights.
 	virtual size_t weightCount() const override;
 
 	/// Serializes the network weights into an array of doubles. The
@@ -243,11 +243,11 @@ public:
 	virtual size_t vectorToWeights(const double* pWeights) override;
 
 	/// Copy the weights from pOther. It is assumed (but not checked) that
-	/// pOther already is a GNeuralNet with the same structure as this component.
+	/// pOther already is a GNeuralNet with the same structure as this one.
 	/// This method is faster than copyStructure.
 	virtual void copyWeights(const GBlock* pOther) override;
 
-	/// Makes this component into a deep copy of pOther, including layers, nodes, settings and weights.
+	/// Makes this object into a deep copy of pOther, including layers, nodes, settings and weights.
 	void copyStructure(const GNeuralNet* pOther);
 
 	/// Initialize the weights, usually with small random values.
@@ -341,11 +341,11 @@ class GContextNeuralNet : public GContext
 {
 friend class GNeuralNet;
 protected:
-	const GNeuralNet& m_component;
+	const GNeuralNet& m_nn;
 	std::vector<GContextLayer*> m_layers;
 	GContextLayer* m_pOutputLayer; // redundant pointer to the last layer for efficiency purposes
 
-	GContextNeuralNet(const GNeuralNet& component); // deliberately protected. Call GNeuralNet::newContext to construct one.
+	GContextNeuralNet(const GNeuralNet& nn); // deliberately protected. Call GNeuralNet::newContext to construct one.
 
 public:
 	~GContextNeuralNet();
@@ -393,10 +393,10 @@ public:
 	GNeuralNetLearner(const GDomNode* pNode);
 	virtual ~GNeuralNetLearner();
 
-	/// Returns a referene to the main component
+	/// Returns a reference to the neural net that this class wraps
 	GNeuralNet& nn() { return m_nn; }
 
-	/// Lazily creates an optimizer for the main component and returns a reference to it.
+	/// Lazily creates an optimizer for the neural net that this class wraps, and returns a reference to it.
 	GNeuralNetOptimizer& optimizer();
 
 	/// Convenience method. Adds a layer and returns a reference to it.

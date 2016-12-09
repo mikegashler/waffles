@@ -928,14 +928,14 @@ GNeuralNet* GNeuralNet::fourier(GMatrix& series, double period)
 
 
 
-GContextNeuralNet::GContextNeuralNet(const GNeuralNet& component)
-: m_component(component)
+GContextNeuralNet::GContextNeuralNet(const GNeuralNet& nn)
+: m_nn(nn)
 {
-	if(component.layerCount() < 1)
+	if(nn.layerCount() < 1)
 		throw Ex("No layers have been added to this neural network");
-	for(size_t i = 0; i < component.layerCount(); i++)
+	for(size_t i = 0; i < nn.layerCount(); i++)
 	{
-		const GLayer& lay = component.layer(i);
+		const GLayer& lay = nn.layer(i);
 		m_layers.push_back(lay.newContext());
 	}
 	m_pOutputLayer = m_layers[m_layers.size() - 1];
@@ -958,9 +958,9 @@ void GContextNeuralNet::resetState()
 
 void GContextNeuralNet::forwardProp(const GVec& input, GVec& output) const
 {
-	GAssert(input.size() == m_component.layer(0).inputs());
-	GAssert(output.size() == m_component.outputLayer().outputs());
-	GAssert(layerCount() == m_component.layerCount());
+	GAssert(input.size() == m_nn.layer(0).inputs());
+	GAssert(output.size() == m_nn.outputLayer().outputs());
+	GAssert(layerCount() == m_nn.layerCount());
 	const GVec* pInput = &input;
 	size_t lastLayer = m_layers.size() - 1;
 	for(size_t i = 0; i < lastLayer; i++)
@@ -974,9 +974,9 @@ void GContextNeuralNet::forwardProp(const GVec& input, GVec& output) const
 
 void GContextNeuralNet::forwardProp_training(const GVec& input, GVec& output) const
 {
-	GAssert(input.size() == m_component.layer(0).inputs());
-	GAssert(output.size() == m_component.outputLayer().outputs());
-	GAssert(layerCount() == m_component.layerCount());
+	GAssert(input.size() == m_nn.layer(0).inputs());
+	GAssert(output.size() == m_nn.outputLayer().outputs());
+	GAssert(layerCount() == m_nn.layerCount());
 	const GVec* pInput = &input;
 	size_t lastLayer = m_layers.size() - 1;
 	for(size_t i = 0; i < lastLayer; i++)
@@ -1022,7 +1022,7 @@ void GContextNeuralNet::updateGradient(const GVec& input, const GVec& outBlame, 
 		pInput = &pLayer->m_activation;
 		gradPos += wc;
 	}
-	GAssert(gradPos == m_component.weightCount());
+	GAssert(gradPos == m_nn.weightCount());
 }
 
 

@@ -29,8 +29,8 @@
 	<li>A <b>GNeuralNet</b> contains one or more GLayer objects.</li>
 	<li>Each <b>GLayer</b> contains one or more GBlock objects.
 	<li>Each <b>GBlock</b> represents a block of network units, or artificial neurons.
-		There are many types of blocks: GBlockLinear contains linear units. GBlockTanh contains tanh units. Etc.
-		GNeuralNet is also a type of GBlock, so you can nest entire neural networks inside of neural networks.</li>
+		There are many types of blocks: GBlockLinear contains linear units. GBlockTanh contains tanh units. Etc.</li>
+	<li>GNeuralNet is also a type of GBlock, so you can nest entire neural networks inside of neural networks.</li>
 	<li><b>GNeuralNetOptimizer</b> is the base class for methods that train the weights of a GNeuralNet.
 		There are several types of GNeuralNetOptimizer. For example, GSGDOptimizer trains the neural net with stochastic gradient descent.</li>
 	<li><b>GNeuralNetContext</b> holds all of the context buffers that a thread needs to use (or train) a GNeuralNet in a thread-safe manner.

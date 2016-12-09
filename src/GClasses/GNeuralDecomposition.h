@@ -35,7 +35,7 @@ private:
 	GSGDOptimizer* m_pOptimizer;
 	double m_regularization, m_learningRate, m_featureScale, m_featureBias, m_outputScale, m_outputBias;
 	size_t m_linearUnits, m_softplusUnits, m_sigmoidUnits, m_sinusoidUnits, m_epochs;
-	bool m_filterLogarithm, m_autoFilter;
+	bool m_filterLogarithm, m_autoFilter, m_lockPairs;
 
 public:
 	GNeuralDecomposition();
@@ -59,7 +59,8 @@ public:
 	void setEpochs(size_t newepochs) { m_epochs = newepochs; }
 	void setFilterLogarithm(bool filter_Logarithm) { m_filterLogarithm = filter_Logarithm; }
 	void setAutoFilter(bool auto_Filter) { m_autoFilter = auto_Filter; }
-	
+	void setLockPairs(bool lockPairs) { m_lockPairs = lockPairs; }
+
 	GNeuralNet &nn() const { return *m_nn; }
 	double regularization() const { return m_regularization; }
 	double learningRate() const { return m_learningRate; }
