@@ -404,7 +404,7 @@ public:
 	GBlockActivation(GDomNode* pNode);
 
 	/// Returns true iff this block operates only on individual elements
-	virtual bool elementWise() const { return true; }
+	virtual bool elementWise() const override { return true; }
 
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
@@ -1210,7 +1210,7 @@ public:
 	virtual ~GBlockRecurrent() {}
 
 	/// Returns true.
-	virtual bool isRecurrent() const { return true; }
+	virtual bool isRecurrent() const override { return true; }
 
 	/// Returns the number of instances of this block unfolded through time that will be used during training.
 	virtual size_t depth() = 0;
@@ -1416,7 +1416,7 @@ public:
 	virtual size_t outputs() const override { return m_update.inputs(); }
 
 	/// Makes a new context object for this block
-	GContextRecurrentInstance* newContext();
+	GContextRecurrentInstance* newContext() override;
 
 	/// Resizes this block.
 	virtual void resize(size_t inputs, size_t outputs) override;

@@ -191,7 +191,7 @@ public:
 	virtual BlockType type() const override { return block_neuralnet; }
 
 	/// Marshal this object into a dom node.
-	GDomNode* serialize(GDom* pDoc) const;
+	GDomNode* serialize(GDom* pDoc) const override;
 
 	/// Allocates a new GContextNeuralNet object, which can be used to train or predict with this neural net.
 	/// (Behavior is undefined if you add or modify any layers after you call newContext.)
