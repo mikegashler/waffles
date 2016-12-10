@@ -357,6 +357,7 @@ bool GFile::localStorageDirectory(char *toHere)
 	GApp::appPath(toHere, 360, true);
 	return true;
 #	else
+	char* szReturnValue;
 	szReturnValue = getenv("HOME");
 	if(!szReturnValue)
 		szReturnValue = getenv("HOMEPATH");
