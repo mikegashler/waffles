@@ -1,4 +1,8 @@
+# Waffles
+Waffles is a comprehensive machine learning and data mining library. It includes many tools and algorithms from neural networks to recommender systems.
+
 # Build Instructions
+You may be interested in a more stable but older build of Waffles, check out the release for Waffles v1.0.
 
 ## Linux and OS X
 
