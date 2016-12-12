@@ -63,7 +63,7 @@ protected:
 public:
 	/// szPath can be a filename or a foldername
 	GFolderSerializer(const char* szPath, bool compress);
-	~GFolderSerializer() noexcept(false);
+	~GFolderSerializer();
 
 	/// Returns a pointer to the next chunk of bytes. Returns NULL
 	/// if it is done.

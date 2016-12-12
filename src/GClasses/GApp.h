@@ -187,7 +187,7 @@ protected:
 public:
 	/// If echo is true, then keys pressed will be echoed to the screen.
 	GPassiveConsole(bool echo);
-	~GPassiveConsole() noexcept(false);
+	~GPassiveConsole();
 
 	/// Returns the char of the next key that was pressed. (This method
 	/// does not block.) If no keys have been pressed, it returns the zero char.

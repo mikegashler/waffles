@@ -783,12 +783,18 @@ GPassiveConsole::GPassiveConsole(bool echo)
 		throw Ex("Error setting stdin to non-blocking");
 }
 
-GPassiveConsole::~GPassiveConsole() noexcept(false)
+GPassiveConsole::~GPassiveConsole()
 {
 	if(tcsetattr(0, TCSANOW, &m_old) < 0)
-		throw Ex("Error restoring terminal settings");
+	{
+		std::cerr << "Error restoring terminal settings. Terminating.";
+		exit(1);
+	}
 	if(fcntl(m_stdin, F_SETFL, m_oldStreamFlags) == -1)
-		throw Ex("Error restoring stdin flags");
+	{
+		std::cerr << "Error restoring stdin flags. Termination.";
+		exit(1);
+	}
 }
 
 char GPassiveConsole::getChar()

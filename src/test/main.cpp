@@ -772,7 +772,7 @@ public:
 		m_testTimes << s;
 	}
 
-	~GTestHarness() noexcept(false)
+	~GTestHarness()
 	{
 		// Append the new measurements to perf.log
 #ifndef _DEBUG // Don't log time in debug mode, since that would look like a performance regression
@@ -787,7 +787,8 @@ public:
 		}
 		catch(const std::exception&)
 		{
-			throw Ex("Error creating file: perf.log");
+			std::cerr << "Error creating file: perf.log. Terminating.";
+			exit(1);
 		}
 
 		if(!exists)

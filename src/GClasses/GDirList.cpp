@@ -71,10 +71,13 @@ GFolderSerializer::GFolderSerializer(const char* szPath, bool compress)
 	m_bytesOut = 0;
 }
 
-GFolderSerializer::~GFolderSerializer() noexcept(false)
+GFolderSerializer::~GFolderSerializer()
 {
 	if(chdir(m_szOrigPath) != 0)
-		throw Ex("Failed to restore original path");
+	{
+		std::cerr << "Failed to restore original path. Terminating.\n";
+		exit(1);
+	}
 	delete[] m_szOrigPath;
 	delete[] m_pBuf;
 	delete(m_pInStream);
