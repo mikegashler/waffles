@@ -42,12 +42,11 @@ void do_decision_tree(GMatrix& features, GMatrix& labels, GVec& test_features, G
 
 void do_neural_network(GMatrix& features, GMatrix& labels, GVec& test_features, GVec& predicted_labels)
 {
-	GNeuralNet nn;
-	GLayerLinear* pLay1 = new GLayerLinear(FLEXIBLE_SIZE, 3);
-	GLayerActivation* pLay2 = new GLayerActivation();
-	GLayerLinear* pLay3 = new GLayerLinear(3, FLEXIBLE_SIZE);
-	GLayerActivation* pLay4 = new GLayerActivation();
-	nn.addLayers(pLay1, pLay2, pLay3, pLay4);
+	GNeuralNetLearner nn;
+	nn.newLayer().add(new GBlockLinear(3));
+	nn.newLayer().add(new GBlockTanh());
+	nn.newLayer().add(new GBlockLinear(0ul));
+	nn.newLayer().add(new GBlockTanh());
 	GAutoFilter af(&nn, false);
 	af.train(features, labels);
 	af.predict(test_features, predicted_labels);

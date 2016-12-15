@@ -78,8 +78,8 @@ protected:
 	bool m_animate;
 	GMatrix* m_pTrainingFeatures;
 	GMatrix* m_pTrainingLabels;
-	volatile GNeuralNet* m_pNNForTraining;
-	GNeuralNet* m_pNNCopyForVisualizing;
+	volatile GNeuralNetLearner* m_pNNForTraining;
+	GNeuralNetLearner* m_pNNCopyForVisualizing;
 	GSupervisedLearner* m_pTrainedModel;
 	GSpinLock m_weightsLock;
 	volatile size_t m_workerMode; // 0 = exit, 1 = hybernate, 2 = yield, 3 = train
@@ -248,7 +248,7 @@ public:
 	}
 
 	// takes ownership of pNN
-	void doBackProp(GNeuralNet* pNN)
+	void doBackProp(GNeuralNetLearner* pNN)
 	{
 		m_workerMode = 2; // yield
 		GUniformRelation featureRel(2);
@@ -262,8 +262,8 @@ public:
 				pNN->getLayer(i)->setActivationFunction(new GActivationSoftPlus());
 			pNN->setLearningRate(0.005);*/
 			delete(m_pNNCopyForVisualizing);
-			m_pNNCopyForVisualizing = new GNeuralNet();
-			m_pNNCopyForVisualizing->copyStructure(pNN);
+			m_pNNCopyForVisualizing = new GNeuralNetLearner();
+			m_pNNCopyForVisualizing->nn().copyStructure(&pNN->nn());
 		}
 		m_workerMode = 3; // train
 	}
@@ -379,21 +379,20 @@ public:
 		}
 		else if(index == 12)
 		{
-			GNeuralNet* pModel = new GNeuralNet();
-			pModel->addLayers(new GLayerLinear(FLEXIBLE_SIZE, FLEXIBLE_SIZE), new GLayerActivation());
+			GNeuralNetLearner* pModel = new GNeuralNetLearner();
+			pModel->newLayer().add(new GBlockLinear(0ul));
+			pModel->newLayer().add(new GBlockTanh());
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 13)
 		{
-			GNeuralNet* pNN = new GNeuralNet();
-
-			pNN->addLayers(new GLayerLinear(FLEXIBLE_SIZE, 30),
-					new GLayerActivation(),
-					new GLayerLinear(30, 256),
-					new GLayerActivation(),
-					new GLayerLinear(256, FLEXIBLE_SIZE),
-					new GLayerActivation()
-      				);
+			GNeuralNetLearner* pNN = new GNeuralNetLearner();
+			pNN->newLayer().add(new GBlockLinear(30));
+			pNN->newLayer().add(new GBlockTanh());
+			pNN->newLayer().add(new GBlockLinear(256));
+			pNN->newLayer().add(new GBlockTanh());
+			pNN->newLayer().add(new GBlockLinear(0ul));
+			pNN->newLayer().add(new GBlockTanh());
 
 			doBackProp(pNN);
 		}
@@ -413,10 +412,10 @@ public:
 	void workerThread()
 	{
 		GAssert(m_workerWorking);
-		GNeuralNet* pNN = (GNeuralNet*)m_pNNForTraining;
+		GNeuralNetLearner* pNN = (GNeuralNetLearner*)m_pNNForTraining;
 		GSGDOptimizer* pOpt = NULL;
 		if(pNN)
-			pOpt = new GSGDOptimizer(*pNN);
+			pOpt = new GSGDOptimizer(pNN->nn());
 		std::unique_ptr<GSGDOptimizer> hOpt(pOpt);
 		while(m_workerMode > 0)
 		{
@@ -451,8 +450,8 @@ public:
 			m_workerMode = 2; // yield
 			{
 				GSpinLockHolder hLock(&m_weightsLock, "updating display");
-				GNeuralNet* pNN = (GNeuralNet*)m_pNNForTraining;
-				m_pNNCopyForVisualizing->copyWeights(pNN);
+				GNeuralNetLearner* pNN = (GNeuralNetLearner*)m_pNNForTraining;
+				m_pNNCopyForVisualizing->nn().copyWeights(&pNN->nn());
 			}
 			m_workerMode = 3; // train
 
