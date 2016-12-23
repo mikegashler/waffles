@@ -156,77 +156,6 @@ GNaiveInstance* InstantiateNaiveInstance(GArgReader& args)
 	return pModel;
 }
 
-GNeuralNet* InstantiateNeuralNet(GArgReader& args)
-{
-	GNeuralNet* pModel = new GNeuralNet();
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-addlayer"))
-			pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, args.pop_uint()));
-		else if(args.if_pop("-learningrate"))
-			pModel->setLearningRate(args.pop_double());
-		else if(args.if_pop("-momentum"))
-			pModel->setMomentum(args.pop_double());
-		else if(args.if_pop("-windowepochs"))
-			pModel->setWindowSize(args.pop_uint());
-		else if(args.if_pop("-minwindowimprovement"))
-			pModel->setImprovementThresh(args.pop_double());
-/*		else if(args.if_pop("-activation"))
-		{
-			const char* szSF = args.pop_string();
-			GActivationFunction* pSF = NULL;
-			if(strcmp(szSF, "logistic") == 0)
-				pSF = new GActivationLogistic();
-			else if(strcmp(szSF, "arctan") == 0)
-				pSF = new GActivationArcTan();
-			else if(strcmp(szSF, "tanh") == 0)
-				pSF = new GActivationTanH();
-			else if(strcmp(szSF, "algebraic") == 0)
-				pSF = new GActivationAlgebraic();
-			else if(strcmp(szSF, "identity") == 0)
-				pSF = new GActivationIdentity();
-			else if(strcmp(szSF, "gaussian") == 0)
-				pSF = new GActivationGaussian();
-			else if(strcmp(szSF, "sinc") == 0)
-				pSF = new GActivationSinc();
-			else if(strcmp(szSF, "bend") == 0)
-				pSF = new GActivationBend();
-			else if(strcmp(szSF, "bidir") == 0)
-				pSF = new GActivationBiDir();
-			else if(strcmp(szSF, "piecewise") == 0)
-				pSF = new GActivationPiecewise();
-			else
-				throw Ex("Unrecognized activation function: ", szSF);
-			pModel->setActivationFunction(pSF, true);
-		}*/
-		else
-			throw Ex("Invalid neuralnet option: ", args.peek());
-	}
-	pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	return pModel;
-}
-/*
-GNeuralTransducer* InstantiateNeuralTransducer(GArgReader& args)
-{
-	GNeuralTransducer* pTransducer = new GNeuralTransducer();
-	vector<size_t> paramDims;
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-addlayer"))
-			pTransducer->neuralNet()->addLayer(args.pop_uint());
-		else if(args.if_pop("-params"))
-		{
-			size_t count = args.pop_uint();
-			for(size_t i = 0; i < count; i++)
-				paramDims.push_back(args.pop_uint());
-		}
-		else
-			throw Ex("Invalid option: ", args.peek());
-	}
-	pTransducer->setParams(paramDims);
-	return pTransducer;
-}
-*/
 void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
 {
 	cerr << "_________________________________\n";
@@ -273,10 +202,6 @@ GTransducer* InstantiateAlgorithm(GArgReader& args)
 			return InstantiateLinearRegressor(args);
 		else if(args.if_pop("naivebayes"))
 			return InstantiateNaiveBayes(args);
-//		else if(args.if_pop("naiveinstance"))
-//			return InstantiateNaiveInstance(args);
-		else if(args.if_pop("neuralnet"))
-			return InstantiateNeuralNet(args);
 		throw Ex("Unrecognized algorithm name: ", args.peek());
 	}
 	catch(const std::exception& e)

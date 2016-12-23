@@ -26,12 +26,14 @@ else
 endif
 
 # Set shared compiler flags
-CFLAGS = -Wall -Werror -Wshadow -Wno-error=unused-variable -pedantic -std=c++11
+CFLAGS = -Wall -Wshadow -pedantic -std=c++11
 
 # Add platform-specific compiler flags
 ifeq ($(UNAME),Darwin)
 	DARWIN_BASE ?= /usr/X11
 	CFLAGS += -DDARWIN -I$(DARWIN_BASE)/include
+else
+	CFLAGS += -Werror -Wno-error=unused-variable
 endif
 
 # Add compiler-specific flags
@@ -53,13 +55,13 @@ CPP_FILES = \
 	GActivation.cpp\
 	GApp.cpp\
 	GAssignment.cpp\
-	GAssociative.cpp\
 	GBayesianNetwork.cpp\
 	GBezier.cpp\
 	GBigInt.cpp\
 	GBits.cpp\
 	GBitTable.cpp\
 	GBlob.cpp\
+	GBlock.cpp\
 	GCluster.cpp\
 	GCrypto.cpp\
 	GDecisionTree.cpp\
@@ -91,7 +93,6 @@ CPP_FILES = \
 	GKernelTrick.cpp\
 	GKeyPair.cpp\
 	GKNN.cpp\
-	GLayer.cpp\
 	GLearner.cpp\
 	GLearnerLib.cpp\
 	GLinear.cpp\

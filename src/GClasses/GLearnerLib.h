@@ -124,8 +124,6 @@ public:
 
         static GNeighborTransducer* InstantiateNeighborTransducer(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GNeuralNet* InstantiateNeuralNet(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
-
         static GRandomForest* InstantiateRandomForest(GArgReader& args);
 
         static GReservoirNet* InstantiateReservoirNet(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);

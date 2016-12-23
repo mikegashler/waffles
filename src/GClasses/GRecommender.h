@@ -575,47 +575,6 @@ protected:
 
 
 
-/// An experimental collaborative filtering algorithm
-class GLogNet : public GCollaborativeFilter
-{
-protected:
-	size_t m_intrinsicDims;
-	GNeuralNet* m_pModel;
-	GMatrix* m_pP;
-	GMatrix* m_pQ;
-	GVec m_input;
-
-public:
-	/// General-purpose constructor
-	GLogNet(size_t intrinsicDims);
-
-	/// Deserialization constructor
-	GLogNet(const GDomNode* pNode, GLearnerLoader& ll);
-
-	/// Destructor
-	virtual ~GLogNet();
-
-	/// Returns a pointer to the neural net that is used to model the recommendation space.
-	/// You may want to use this method to add layers to the network. (At least one layer
-	/// is necessary). You may also use it to set the learning rate, or change
-	/// activation functions before the model is trained.
-	GNeuralNet* model() { return m_pModel; }
-
-	/// See the comment for GCollaborativeFilter::train
-	virtual void train(GMatrix& data);
-
-	/// See the comment for GCollaborativeFilter::predict
-	virtual double predict(size_t user, size_t item);
-
-	/// See the comment for GCollaborativeFilter::impute
-	virtual void impute(GVec& vec, size_t dims);
-
-	/// See the comment for GCollaborativeFilter::serialize
-	virtual GDomNode* serialize(GDom* pDoc) const;
-};
-
-
-
 /// This class performs bootstrap aggregation with collaborative filtering algorithms.
 class GBagOfRecommenders : public GCollaborativeFilter
 {

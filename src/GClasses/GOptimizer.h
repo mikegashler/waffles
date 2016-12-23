@@ -2,6 +2,7 @@
   The contents of this file are dedicated by all of its authors, including
 
     Michael S. Gashler,
+    Luke B. Godfrey,
     anonymous contributors,
 
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
@@ -21,6 +22,7 @@
 
 #include "GError.h"
 #include "GMatrix.h"
+#include "GRand.h"
 #include <vector>
 
 namespace GClasses {
@@ -28,6 +30,213 @@ namespace GClasses {
 class GActionPath;
 class GAction;
 class GRand;
+class GNeuralNet;
+class GContextNeuralNet;
+
+
+/// A loss function used to train a differentiable function.
+class GObjective
+{
+public:
+	GObjective() : m_slack(0), m_useSlack(false) {}
+	virtual ~GObjective() {}
+	
+	/// Calculate the error.
+	virtual void evaluate(const GVec &prediction, const GVec &label, GVec &loss) = 0;
+	
+	/// Calculate the error term (a.k.a. blame) associated with the activation of this layer
+	virtual void calculateOutputLayerBlame(const GVec &prediction, const GVec &label, GVec &blame) = 0;
+	
+	/// Enable the use of slack (a margin-of-error).
+	virtual void setSlack(const GVec &slack)
+	{
+		m_slack.copy(slack);
+		m_useSlack = true;
+	}
+
+protected:
+	GVec m_slack;
+	bool m_useSlack;
+};
+
+
+
+/// The default loss function is squared error.
+class GSquaredError : public GObjective
+{
+public:
+	/// Calculate the error.
+	virtual void evaluate(const GVec &prediction, const GVec &label, GVec &loss) override;
+	
+	/// Calculate the error term (a.k.a. blame) associated with the activation of this layer
+	virtual void calculateOutputLayerBlame(const GVec &prediction, const GVec &label, GVec &blame) override;
+};
+
+
+
+/// Optimizes the parameters of a differentiable function using an objective function.
+class GNeuralNetOptimizer
+{
+protected:
+	GObjective* m_objective;
+	GNeuralNet& m_model;
+	GContextNeuralNet* m_pContext;
+
+	// variables for convenience training methods
+	GRand* m_rand;
+	bool m_ownsRand;
+	size_t m_batchSize, m_batchesPerEpoch, m_epochs, m_windowSize;
+	double m_minImprovement;
+	double m_learningRate;
+
+public:
+	GNeuralNetOptimizer(GNeuralNet& model, GObjective* objective = NULL);
+	virtual ~GNeuralNetOptimizer();
+
+	/// Returns the default context for training the model.
+	/// (Note: It is allocated lazily. This should not be called before layers are added to the model.
+	/// For multi-threaded optimization, a separate context should be allocated for each thread.)
+	GContextNeuralNet& context();
+
+	/// Prepare for optimization (i.e. allocate delta vectors).
+	virtual void prepareForOptimizing() = 0;
+	
+	/// Evaluate feat and lab, and update the model's gradient.
+	virtual void updateDeltas(const GVec &feat, const GVec &lab) = 0;
+	
+	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
+	virtual void applyDeltas(double learningRate) = 0;
+	
+	/// Update and apply the gradient for a single training sample (on-line).
+	virtual void optimizeIncremental(const GVec &feat, const GVec &lab);
+	
+	/// Update and apply the gradient for a single batch in order.
+	virtual void optimizeBatch(const GMatrix &features, const GMatrix &labels, size_t start, size_t batchSize);
+	void optimizeBatch(const GMatrix &features, const GMatrix &labels, size_t start);
+	
+	/// Update and apply the gradient for a single batch in randomized order.
+	virtual void optimizeBatch(const GMatrix &features, const GMatrix &labels, GRandomIndexIterator &ii, size_t batchSize);
+	void optimizeBatch(const GMatrix &features, const GMatrix &labels, GRandomIndexIterator &ii);
+	
+	// convenience training methods
+	
+	void optimize(const GMatrix &features, const GMatrix &labels);
+	void optimizeWithValidation(const GMatrix &features, const GMatrix &labels, const GMatrix &validationFeat, const GMatrix &validationLab);
+	void optimizeWithValidation(const GMatrix &features, const GMatrix &labels, double validationPortion = 0.35);
+	double sumLoss(const GMatrix &features, const GMatrix &labels);
+	
+	// getters/setters
+	
+	GNeuralNet& model() { return m_model; }
+	
+	void setObjective(GObjective *objective) { delete m_objective; m_objective = (objective != NULL ? objective : new GSquaredError()); }
+	GObjective *objective() { return m_objective; }
+	
+	void setRand(GRand *r) { if(m_ownsRand) { delete m_rand; m_ownsRand = false; }; m_rand = r; }
+	GRand *rand() { return m_rand; }
+	
+	void setBatchSize(size_t b) { m_batchSize = b; }
+	size_t batchSize() const { return m_batchSize; }
+	
+	void setBatchesPerEpoch(size_t b) { m_batchesPerEpoch = b; }
+	size_t batchesPerEpoch() const { return m_batchesPerEpoch; }
+	
+	void setEpochs(size_t e) { m_epochs = e; }
+	size_t epochs() const { return m_epochs; }
+	
+	void setWindowSize(size_t w) { m_windowSize = w; }
+	size_t windowSize() const { return m_windowSize; }
+	
+	void setImprovementThresh(double m) { m_minImprovement = m; }
+	double improvementThresh() const { return m_minImprovement; }
+
+	void setLearningRate(double l) { m_learningRate = l; }
+	double learningRate() const { return m_learningRate; }
+};
+
+
+/// Trains a neural network by stochastic gradient descent.
+class GSGDOptimizer : public GNeuralNetOptimizer
+{
+public:
+	GSGDOptimizer(GNeuralNet& model, GObjective *error = NULL);
+	
+	/// Prepare for optimization (i.e. allocate buffers).
+	virtual void prepareForOptimizing() override;
+	
+	/// Evaluate feat and lab, and update the model's gradient.
+	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
+	
+	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
+	virtual void applyDeltas(double learningRate) override;
+	
+	void setMomentum(double m) { m_momentum = m; }
+	double momentum() const { return m_momentum; }
+
+private:
+	GVec m_gradient;
+	double m_momentum;
+};
+
+
+
+/// Trains a neural network by ADAM.
+/// See Diederik P. Kingma and Jimmy Lei Ba, "Adam: A Method for Stochastic Optimization", 2015.
+class GAdamOptimizer : public GNeuralNetOptimizer
+{
+public:
+	GAdamOptimizer(GNeuralNet& model, GObjective *error = NULL);
+	
+	/// Prepare for optimization (i.e. allocate buffers).
+	virtual void prepareForOptimizing() override;
+	
+	/// Evaluate feat and lab, and update the model's gradient.
+	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
+	
+	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
+	virtual void applyDeltas(double learningRate) override;
+	
+	void setBeta1(double b) { m_beta1 = b; }
+	double beta1() const { return m_beta1; }
+	void setBeta2(double b) { m_beta2 = b; }
+	double beta2() const { return m_beta2; }
+	void setEpsilon(double e) { m_epsilon = e; }
+	double epsilon() const { return m_epsilon; }
+
+private:
+	GVec m_gradient, m_deltas, m_sqdeltas;
+	double m_correct1, m_correct2, m_beta1, m_beta2, m_epsilon;
+};
+
+
+
+/// Trains a neural network with RMS-prop.
+class GRMSPropOptimizer : public GNeuralNetOptimizer
+{
+public:
+	GRMSPropOptimizer(GNeuralNet& model, GObjective* error = NULL);
+	
+	/// Prepare for optimization (i.e. allocate buffers).
+	virtual void prepareForOptimizing() override;
+	
+	/// Evaluate feat and lab, and update the model's gradient.
+	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
+	
+	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
+	virtual void applyDeltas(double learningRate) override;
+	
+	void setMomentum(double m) { m_momentum = m; }
+	double momentum() const { return m_momentum; }
+	void setGamma(double g) { m_gamma = g; }
+	double gamma() const { return m_gamma; }
+
+private:
+	GVec m_gradient, m_meanSquare;
+	double m_momentum, m_gamma, m_epsilon;
+};
+
+
+
 
 
 /// The optimizer seeks to find values that minimize this target function.

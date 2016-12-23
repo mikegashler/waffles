@@ -176,6 +176,14 @@ GVec& GVec::operator*=(double scalar)
 	return *this;
 }
 
+GVec& GVec::operator*=(const GVec& that)
+{
+	GAssert(size() == that.size());
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] *= that[i];
+	return *this;
+}
+
 GVec& GVec::operator/=(double scalar)
 {
 	for(size_t i = 0; i < m_size; i++)
@@ -444,7 +452,7 @@ void GVec::addScaled(double scalar, const GVec& that)
 		(*this)[i] += (scalar * that[i]);
 }
 
-void GVec::regularize_L1(double amount)
+void GVec::regularizeL1(double amount)
 {
 	for(size_t i = 0; i < m_size; i++)
 	{
@@ -599,6 +607,15 @@ void GVec::swapContents(GVec& that)
 
 // static
 void GVec::setAll(double* pVector, double value, size_t dims)
+{
+	for(size_t i = 0; i < dims; i++)
+	{
+		*pVector = value;
+		pVector++;
+	}
+}
+
+void GVec::fill(double* pVector, double value, size_t dims)
 {
 	for(size_t i = 0; i < dims; i++)
 	{

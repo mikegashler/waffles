@@ -539,7 +539,7 @@ GFloydWarshall::GFloydWarshall(size_t nodes)
 {
 	m_nodes = nodes;
 	m_pCosts = new GMatrix(nodes, nodes);
-	m_pCosts->setAll(1e300);
+	m_pCosts->fill(1e300);
 	for(size_t i = 0; i < nodes; i++)
 		m_pCosts->row(i)[i] = 0;
 	m_pPaths = new size_t[nodes * nodes];

@@ -1123,7 +1123,9 @@ public:
 			}
 			pAc++;
 		}
-		GVec::multiply(pCentroid, 1.0 / accCount, topic.size());
+		double t = 1.0 / accCount;
+		for(size_t i = 0; i < topic.size(); i++)
+			pCentroid[i] *= t;
 
 		// Measure the sum-squared error with the centroid
 		double sse = 0.0;

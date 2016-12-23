@@ -1892,14 +1892,14 @@ void GMatrix::singularValueDecompositionHelper(GMatrix** ppU, double** ppDiag, G
 	double scale = 0.0;
 	GMatrix* pU = new GMatrix(m, m);
 	std::unique_ptr<GMatrix> hU(pU);
-	pU->setAll(0.0);
+	pU->fill(0.0);
 	GAssert((*this)[this->rows() - 1][this->cols() - 1] != UNKNOWN_REAL_VALUE);
 	pU->copyBlock(*this, 0, 0, m, n, 0, 0, false);
 	double* pSigma = new double[n];
 	std::unique_ptr<double[]> hSigma(pSigma);
 	GMatrix* pV = new GMatrix(n, n);
 	std::unique_ptr<GMatrix> hV(pV);
-	pV->setAll(0.0);
+	pV->fill(0.0);
 	GTEMPBUF(double, temp, n);
 
 	// Householder reduction to bidiagonal form
@@ -2210,7 +2210,7 @@ GMatrix* GMatrix::pseudoInverse()
 	std::unique_ptr<double[]> hDiag(pDiag);
 	std::unique_ptr<GMatrix> hV(pV);
 	GMatrix sigma(rowCount < (size_t)colCount ? colCount : rowCount, rowCount < (size_t)colCount ? rowCount : colCount);
-	sigma.setAll(0.0);
+	sigma.fill(0.0);
 	size_t m = std::min(rowCount, colCount);
 	for(size_t i = 0; i < m; i++)
 	{
@@ -2569,7 +2569,7 @@ void GMatrix::fromVector(const double* pVec, size_t nRows)
 	}
 }
 
-void GMatrix::toVector(double* pVec)
+void GMatrix::toVector(double* pVec) const
 {
 	size_t nCols = cols();
 	for(size_t i = 0; i < rows(); i++)
@@ -2579,7 +2579,7 @@ void GMatrix::toVector(double* pVec)
 	}
 }
 
-void GMatrix::setAll(double val, size_t colStart, size_t colCount)
+void GMatrix::fill(double val, size_t colStart, size_t colCount)
 {
 	size_t count = std::min(cols() - colStart, colCount);
 	for(size_t i = 0; i < rows(); i++)
@@ -4649,9 +4649,9 @@ void GMatrix_testLUDecomposition(GRand& prng)
 	b.copy(&a);
 	b.LUDecomposition();
 	GMatrix l(5, 5);
-	l.setAll(0.0);
+	l.fill(0.0);
 	GMatrix u(5, 5);
-	u.setAll(0.0);
+	u.fill(0.0);
 	for(size_t i = 0; i < 5; i++)
 	{
 		for(size_t j = 0; j < 5; j++)

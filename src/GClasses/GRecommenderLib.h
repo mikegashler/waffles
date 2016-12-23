@@ -74,8 +74,6 @@ public:
 	
 	static GSparseClusterRecommender* InstantiateSparseClusterRecommender(GArgReader& args);
 	
-	static GLogNet* InstantiateLogNet(GArgReader& args);
-	
 	static GMatrixFactorization* InstantiateMatrixFactorization(GArgReader& args);
 	
 //	static GNonlinearPCA* InstantiateNonlinearPCA(GArgReader& args);

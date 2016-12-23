@@ -41,6 +41,7 @@
 #include <string>
 #include <cmath>
 #include <memory>
+#include "GBlock.h"
 
 namespace GClasses {
 
@@ -143,6 +144,8 @@ GMatrix* GIncrementalTransform::transformBatch(const GMatrix& in)
 
 GVec& GIncrementalTransform::innerBuf()
 {
+	if(!m_pRelationAfter)
+		throw Ex("Attempted to use a transform that was not trained");
 	m_innerBuf.resize(m_pRelationAfter->size());
 	return m_innerBuf;
 }
@@ -536,7 +539,7 @@ GReservoir::GReservoir(double weightDeviation, size_t outputs, size_t hiddenLaye
 GReservoir::GReservoir(const GDomNode* pNode)
 : GIncrementalTransform(pNode)
 {
-	m_pNN = new GNeuralNet(pNode->field("nn"));
+	m_pNN = new GNeuralNetLearner(pNode->field("nn"));
 	m_outputs = m_pNN->relLabels().size();
 	m_deviation = pNode->field("dev")->asDouble();
 	m_hiddenLayers = (size_t)pNode->field("hl")->asInt();
@@ -571,16 +574,20 @@ GRelation* GReservoir::trainInner(const GMatrix& data)
 GRelation* GReservoir::trainInner(const GRelation& relation)
 {
 	delete(m_pNN);
-	GNeuralNet* pNN = new GNeuralNet();
+	GNeuralNetLearner* pNN = new GNeuralNetLearner();
 	for(size_t i = 0; i < m_hiddenLayers; i++)
-		pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, m_outputs));
-	pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	{
+		pNN->newLayer().add(new GBlockLinear(m_outputs));
+		pNN->newLayer().add(new GBlockTanh());
+	}
+	pNN->newLayer().add(new GBlockLinear((size_t)0));
+	pNN->newLayer().add(new GBlockTanh());
 	GUniformRelation* pRel = new GUniformRelation(m_outputs);
 	m_pNN = pNN;
 	if(!relation.areContinuous())
 		m_pNN = new GFeatureFilter(m_pNN, new GNominalToCat());
 	m_pNN->beginIncrementalLearning(relation, *pRel);
-	pNN->perturbAllWeights(m_deviation);
+	pNN->nn().perturbWeights(pNN->rand(), m_deviation);
 	return pRel;
 }
 
@@ -748,17 +755,22 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		std::unique_ptr<GMatrix> hLabels2(pLabels2);
 
 		// Train a single-layer neural network with the normalized remaining data
-		GNeuralNet nn;
-		nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+		GNeuralNetLearner nn;
+		nn.newLayer().add(new GBlockLinear((size_t)0));
+		nn.newLayer().add(new GBlockTanh());
 		nn.rand().setSeed(m_seed);
+		nn.beginIncrementalLearning(pFeatures2->relation(), pLabels2->relation());
 		m_seed += 77152487;
 		m_seed *= 37152487;
-		nn.setWindowSize(30);
-		nn.setImprovementThresh(0.002);
-		nn.train(*pFeatures2, *pLabels2);
+		
+		GSGDOptimizer optimizer(nn.nn());
+		optimizer.setWindowSize(30);
+		optimizer.setImprovementThresh(0.002);
+		optimizer.optimizeWithValidation(*pFeatures2, *pLabels2);
 
 		// Identify the weakest attribute
-		GLayerClassic& layer = *(GLayerClassic*)&nn.layer(nn.layerCount() - 1);
+		GLayer& lay = nn.nn().layer(nn.nn().layerCount() - 2);
+		GBlockLinear& layer = *(GBlockLinear*)&lay.block(0);
 		size_t pos = 0;
 		double weakest = 1e308;
 		size_t weakestIndex = 0;

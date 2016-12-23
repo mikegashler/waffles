@@ -45,10 +45,11 @@ protected:
 	double m_deviations;
 	size_t m_noiseBlocks;
 	struct ComplexNumber* m_pNoise;
+	bool m_neural;
 
 public:
 	AmbientNoiseReducer(GWave& noise, size_t blockSize, double deviations)
-	: GFourierWaveProcessor(blockSize), m_deviations(deviations)
+	: GFourierWaveProcessor(blockSize), m_deviations(deviations), m_neural(false)
 	{
 		if(noise.channels() != 1)
 			throw Ex("Sorry, ", to_str(noise.channels()), "-channel ambient noise files are not yet supported");
@@ -72,6 +73,11 @@ public:
 	virtual ~AmbientNoiseReducer()
 	{
 		delete[] m_pNoise;
+	}
+
+	void useNeuralApproach()
+	{
+		m_neural = true;
 	}
 
 protected:
@@ -379,16 +385,19 @@ void reduceAmbientNoise(GArgReader& args)
 	// Parse params
 	size_t blockSize = 2048;
 	double deviations = 2.5;
+	bool neuralDecomposition = false;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-blocksize"))
 			blockSize = args.pop_uint();
 		else if(args.if_pop("-deviations"))
 			deviations = args.pop_double();
+		else if(args.if_pop("-neural"))
+			neuralDecomposition = true;
 		else
 			throw Ex("Unrecognized option: ", args.pop_string());
 	}
-	if(!GBits::isPowerOfTwo((unsigned int)blockSize))
+	if(!neuralDecomposition && !GBits::isPowerOfTwo((unsigned int)blockSize))
 		throw Ex("the block size must be a power of 2");
 
 	GWave wNoise;
@@ -396,6 +405,8 @@ void reduceAmbientNoise(GArgReader& args)
 	GWave wSignal;
 	wSignal.load(signalFilename);
 	AmbientNoiseReducer denoiser(wNoise, blockSize, deviations);
+	if(neuralDecomposition)
+		denoiser.useNeuralApproach();
 	denoiser.reduce(wSignal);
 	wSignal.save(outputFilename);
 }

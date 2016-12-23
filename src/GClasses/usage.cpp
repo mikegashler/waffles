@@ -742,15 +742,6 @@ UsageNode* makeDimRedUsageTree()
 		pOpts->add("-squareddistances", "The distances in the distance matrix are squared distances, instead of just distances.");
 	}
 	{
-		UsageNode* pNeuroPCA = pRoot->add("neuropca [dataset] [target_dims] <options>", "Projects the data into the specified number of dimensions with a non-linear generalization of principle component analysis. (Prints results to stdout. The input file is not modified.)");
-		UsageNode* pOpts = pNeuroPCA->add("<options>");
-		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");
-		pOpts->add("-clampbias", "Do not let the bias drift from the centroid. (Leaving the bias unclamped typically gives better results with non-linear activation functions. Clamping them to the centroid is necessary if you want results equivalent with PCA.)");
-		pOpts->add("-linear", "Use a linear activation function instead of the default logistic activation function. (The logistic activation function typically gives better results with most problems, but the linear activation function may be used to obtain results equivalent to PCA.)");
-		pNeuroPCA->add("[dataset]=in.arff", "The filename of the high-dimensional data to reduce.");
-		pNeuroPCA->add("[target_dims]=2", "The number of dimensions to reduce the data into.");
-	}
-	{
 		UsageNode* pPCA = pRoot->add("pca [dataset] [target_dims] <options>", "Projects the data into the specified number of dimensions with principle component analysis. (Prints results to stdout. The input file is not modified.)");
 		UsageNode* pOpts = pPCA->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator.");

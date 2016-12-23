@@ -16,6 +16,7 @@
   our code to be useful, the Waffles team would love to hear how you use it.
 */
 
+#include "GBlock.h"
 #include "GLearner.h"
 #include <stdlib.h>
 #include <string.h>
@@ -317,7 +318,7 @@ void GTransducer::transductiveConfusionMatrix(const GMatrix& trainFeatures, cons
 		if(vals > 0)
 		{
 			stats[j] = new GMatrix(vals, vals);
-			stats[j]->setAll(0.0);
+			stats[j]->fill(0.0);
 		}
 		else
 			stats[j] = NULL;
@@ -490,7 +491,7 @@ void GSupervisedLearner::confusion(GMatrix& features, GMatrix& labels, std::vect
 		if(vals > 0)
 		{
 			stats[j] = new GMatrix(vals, vals);
-			stats[j]->setAll(0.0);
+			stats[j]->fill(0.0);
 		}
 		else
 			stats[j] = NULL;
@@ -770,7 +771,7 @@ void GSupervisedLearner::test()
 	}
 
 	// Train the model
-	GNeuralNet model;
+	GNeuralNetLearner model;
 	model.addLayer(new GNeuralNetLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
 	model.train(f, l);
 	GPrediction out;
@@ -1052,8 +1053,8 @@ GSupervisedLearner* GLearnerLoader::loadLearner(const GDomNode* pNode)
 						return new GNaiveInstance(pNode);
 					else if(strcmp(szClass, "GNeuralDecomposition") == 0)
 						return new GNeuralDecomposition(pNode);
-					else if(strcmp(szClass, "GNeuralNet") == 0)
-						return new GNeuralNet(pNode);
+					else if(strcmp(szClass, "GNeuralNetLearner") == 0)
+						return new GNeuralNetLearner(pNode);
 				}
 				else
 				{
@@ -1682,36 +1683,6 @@ void GAutoFilter::trainIncremental(const GVec& in, const GVec& out)
 	m_pIncrementalLearner->trainIncremental(in, out);
 }
 
-#ifndef MIN_PREDICT
-void GAutoFilter::test()
-{
-	// This test trains a neural network (which only handles continuous values)
-	// in an incremental manner to implement a simple autoencoder for categorical values.
-	// This demonstrates that GAutoFilter picks the right filters, applies them, and
-	// works with incremental learning.
-	GNeuralNet* pNN = new GNeuralNet();
-	pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	GAutoFilter af(pNN);
-	GUniformRelation rel(1, 3);
-	af.beginIncrementalLearning(rel, rel);
-	GRand rand(0);
-	GVec pat(1);
-	for(size_t i = 0; i < 500; i++)
-	{
-		pat[0] = (double)rand.next(3);
-		af.trainIncremental(pat, pat);
-	}
-	GVec pred(1);
-	for(size_t i = 0; i < 10; i++)
-	{
-		pat[0] = (double)rand.next(3);
-		af.predict(pat, pred);
-		if(std::abs(pred[0] - pat[0]) > 1e-12)
-			throw Ex("failed");
-	}
-}
-#endif // MIN_PREDICT
-
 
 
 // ---------------------------------------------------------------
@@ -1756,8 +1727,8 @@ void GCalibrator::trainInner(const GMatrix& features, const GMatrix& labels)
 
 	// Calibrate
 	size_t labelDims = m_pRelLabels->size();
-	vector<GNeuralNet*> calibrations;
-	VectorOfPointersHolder<GNeuralNet> hCalibrations(calibrations);
+	vector<GNeuralNetLearner*> calibrations;
+	VectorOfPointersHolder<GNeuralNetLearner> hCalibrations(calibrations);
 	size_t neighbors = std::max(size_t(4), std::min(size_t(100), (size_t)sqrt(double(features.rows()))));
 	GPrediction* out = new GPrediction[labelDims];
 	std::unique_ptr<GPrediction[]> hOut(out);
@@ -1806,15 +1777,16 @@ void GCalibrator::trainInner(const GMatrix& features, const GMatrix& labels)
 		}
 
 		// Train a layer of logistic units to map from the before distribution to the after distribution
-		GNeuralNet* pNN = new GNeuralNet();
-		pNN->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+		GNeuralNetLearner* pNN = new GNeuralNetLearner();
 		calibrations.push_back(pNN);
+		pNN->newLayer().add(new GBlockLinear((size_t)0));
+		pNN->newLayer().add(new GBlockTanh());
 		pNN->train(tmpBefore, tmpAfter);
 	}
 
 	// Store the resulting calibration functions
 	GAssert(calibrations.size() == labelDims);
-	m_pCalibrations = new GNeuralNet*[labelDims];
+	m_pCalibrations = new GNeuralNetLearner*[labelDims];
 	for(size_t i = 0; i < labelDims; i++)
 	{
 		m_pCalibrations[i] = calibrations[i];

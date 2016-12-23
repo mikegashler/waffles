@@ -31,7 +31,7 @@ namespace GClasses {
 struct GManifoldSculptingNeighbor;
 class GNeighborFinder;
 class GNeighborFinderGeneralizing;
-class GNeuralNet;
+class GNeuralNetLearner;
 class GNeuralNetLayer;
 class GNeighborGraph;
 
@@ -290,57 +290,6 @@ protected:
 
 
 
-/// This class is a generalization of PCA. When the bias is clamped,
-/// and the activation function is "identity", it is strictly equivalent
-/// to PCA. By default, however, the bias is allowed to drift from the
-/// mean, which gives better results. Also, by default, the activation
-/// function is "logistic", which enables it to find non-linear
-/// components in the data. (GUnsupervisedBackProp is a
-/// multi-layer generalization of this algorithm.)
-class GNeuroPCA : public GTransform
-{
-protected:
-	size_t m_targetDims;
-	GMatrix* m_pWeights;
-	GVec m_eigVals;
-	GRand* m_pRand;
-	GActivationFunction* m_pActivation;
-	bool m_updateBias;
-
-public:
-	GNeuroPCA(size_t targetDims, GRand* pRand);
-
-	virtual ~GNeuroPCA();
-
-	/// Returns the weight vectors
-	GMatrix* weights() { return m_pWeights; }
-
-	/// Specify to compute the eigenvalues during training. This
-	/// method must be called before reduce is called.
-	void computeEigVals();
-
-	/// Returns the eigenvalues. Returns NULL if computeEigVals was not called.
-	GVec& eigVals() { return m_eigVals; }
-
-	/// Returns the number of principal components to find.
-	size_t targetDims() { return m_targetDims; }
-
-	/// Specify to not update the bias values.
-	void clampBias() { m_updateBias = false; }
-
-	/// Sets the activation function. (Takes ownership of pActivation.)
-	void setActivation(GActivationFunction* pActivation);
-
-	/// See the comment for GTransform::reduce
-	virtual GMatrix* reduce(const GMatrix& in);
-
-protected:
-	void computeComponent(const GMatrix* pIn, GMatrix* pOut, size_t col, GMatrix* pPreprocess);
-	double computeSumSquaredErr(const GMatrix* pIn, GMatrix* pOut, size_t cols);
-};
-
-
-
 
 
 /// This is a nonlinear dimensionality reduction algorithm loosely inspired by
@@ -384,7 +333,7 @@ public:
 
 	/// Unfolds the points in intrinsic, such that distances specified in nf are preserved.
 	/// If pVisible is non-NULL, then pEncoder will be incrementally trained to encode pVisible to intrinsic.
-	void unfold(GMatrix& intrinsic, GNeighborGraph& nf, size_t encoderTrainIters = 0, GNeuralNet* pEncoder = NULL, GNeuralNet* pDecoder = NULL, const GMatrix* pVisible = NULL);
+	void unfold(GMatrix& intrinsic, GNeighborGraph& nf, size_t encoderTrainIters = 0, GNeuralNetLearner* pEncoder = NULL, GNeuralNetLearner* pDecoder = NULL, const GMatrix* pVisible = NULL);
 
 	/// Perform a single pass over all the edges and attempt to restore local relationships
 	static void restore_local_distances_pass(GMatrix& intrinsic, GNeighborGraph& ng, size_t neighborCount, GRand& rand);

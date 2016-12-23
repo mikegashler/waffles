@@ -33,7 +33,6 @@
 #include "../GClasses/GActivation.h"
 #include "../GClasses/GApp.h"
 #include "../GClasses/GAssignment.h"
-#include "../GClasses/GAssociative.h"
 #include "../GClasses/GBayesianNetwork.h"
 #include "../GClasses/GBezier.h"
 #include "../GClasses/GBits.h"
@@ -788,7 +787,8 @@ public:
 		}
 		catch(const std::exception&)
 		{
-			throw Ex("Error creating file: perf.log");
+			std::cerr << "Error creating file: perf.log. Terminating.";
+			exit(1);
 		}
 
 		if(!exists)
@@ -886,16 +886,12 @@ public:
 	void runAllTests()
 	{
 		// Class tests
-		runTest("GActivationHinge", GActivationHinge::test);
-		runTest("GActivationSoftExponential", GActivationSoftExponential::test);
 		runTest("GAgglomerativeClusterer", GAgglomerativeClusterer::test);
 		runTest("GAnnealing", GAnnealing::test);
 		runTest("GAssignment - linearAssignment", testLinearAssignment);
 		runTest("GAssignment - GSimpleAssignment", GSimpleAssignment::test);
-		runTest("GAssociative", GAssociative::test);
 		runTest("GAtomicCycleFinder", GAtomicCycleFinder::test);
 		runTest("GAttributeSelector", GAttributeSelector::test);
-		runTest("GAutoFilter", GAutoFilter::test);
 		runTest("GBag", GBag::test);
 		runTest("GBagOfRecommenders", GBagOfRecommenders::test);
 		runTest("GBallTree", GBallTree::test);
@@ -948,7 +944,7 @@ public:
 		runTest("GNaiveBayes", GNaiveBayes::test);
 		runTest("GNaiveInstance", GNaiveInstance::test);
 		runTest("GNeuralDecomposition", GNeuralDecomposition::test);
-		runTest("GNeuralNet", GNeuralNet::test);
+		runTest("GNeuralNetLearner", GNeuralNetLearner::test);
 //		runTest("GNonlinearPCA", GNonlinearPCA::test);
 		runTest("GPackageServer", GPackageServer::test);
 		runTest("GPolynomial", GPolynomial::test);

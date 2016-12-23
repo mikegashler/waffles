@@ -617,10 +617,10 @@ public:
 #ifndef MIN_PREDICT
 	/// \brief Loads an ARFF file and replaces the contents of this matrix with it.
 	void loadArff(const char* szFilename);
-	
+
 	/// \brief Loads a raw (binary) file and replaces the contents of this matrix with it.
 	void loadRaw(const char* szFilename);
-	
+
 	/// \brief Loads a file and automatically detects ARFF or raw (binary)
 	void load(const char* szFilename);
 
@@ -715,7 +715,7 @@ public:
 #ifndef MIN_PREDICT
 	/// \brief Saves the dataset to a file in ARFF format
 	void saveArff(const char* szFilename);
-	
+
 	/// \brief Saves the dataset to a file in raw (binary) format
 	void saveRaw(const char* szFilename);
 #endif // MIN_PREDICT
@@ -769,7 +769,7 @@ public:
 	/// \brief Copies all the data from this dataset into pVector.
 	///
 	/// pVector must be big enough to hold rows() * cols() doubles.
-	void toVector(double* pVector);
+	void toVector(double* pVector) const;
 
 #ifndef MIN_PREDICT
 	/// \brief Marshalls this object to a DOM, which may be saved to a variety of serial formats.
@@ -805,10 +805,11 @@ public:
 	/// \brief Returns a pointer to the first row
 	inline GVec& front() { return *m_rows[0]; }
 	inline const GVec& front() const { return *m_rows[0]; }
-	
-	/// \brief Returns a pointer to the last row
-	inline GVec& back() { return *m_rows[m_rows.size() - 1]; }
-	inline const GVec& back() const { return *m_rows[m_rows.size() - 1]; }
+
+	/// \brief Returns a pointer to a row indexed from the back of the matrix.
+	/// index 0 (default) is the last row, index 1 is the second-to-last row, etc.
+	inline GVec& back(size_t reverse_index = 0) { return *m_rows[m_rows.size() - 1 - reverse_index]; }
+	inline const GVec& back(size_t reverse_index = 0) const { return *m_rows[m_rows.size() - 1 - reverse_index]; }
 
 	/// \brief Returns a pointer to the specified row
 	inline GVec& operator [](size_t index) { return *m_rows[index]; }
@@ -818,7 +819,7 @@ public:
 
 	/// \brief Fills all elements in the specified range of columns with the specified value.
 	/// If no column ranges are specified, the default is to set all of them.
-	void setAll(double val, size_t colStart = 0, size_t colCount = INVALID_INDEX);
+	void fill(double val, size_t colStart = 0, size_t colCount = INVALID_INDEX);
 
 	/// \brief Fills all elements with random values from a uniform distribution.
 	void fillUniform(GRand& rand, double min = 0.0, double max = 1.0);

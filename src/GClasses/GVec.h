@@ -114,13 +114,13 @@ public:
 	GVec& operator*=(double scalar);
 
 	/// Scales this vector.
+	GVec& operator*=(const GVec& that);
+
+	/// Scales this vector.
 	GVec& operator/=(double scalar);
 
 	/// Sets the data in this vector.
 	void set(const double* pSource, size_t size);
-
-// standard deviation
-// add divide method, plus for scalars,
 
 	/// Returns the mean of all of the elements in this vector.
 	double mean() const;
@@ -210,7 +210,7 @@ public:
 	void addScaled(double scalar, const GVec& that);
 
 	/// Applies L1 regularization to this vector.
-	void regularize_L1(double amount);
+	void regularizeL1(double amount);
 
 	/// Puts a copy of that at the specified location in this.
 	/// Throws an exception if it does not fit there.
@@ -275,6 +275,7 @@ public:
 
 	/// Sets all the elements to the specified value
 	static void setAll(double* pVector, double value, size_t dims);
+	static void fill(double* pVector, double value, size_t dims);
 
 	/// Adds Gaussian noise with the specified deviation to each element in the vector
 	static void perturb(double* pDest, double deviation, size_t dims, GRand& rand);
@@ -300,7 +301,7 @@ protected:
 	GVec m_v;
 
 public:
-	GConstVecWrapper(const double* buf, size_t size)
+	GConstVecWrapper(const double* buf = nullptr, size_t size = 0)
 	{
 		m_v.m_data = (double*)buf;
 		m_v.m_size = size;
@@ -310,6 +311,22 @@ public:
 	{
 		m_v.m_data = NULL;
 		m_v.m_size = 0;
+	}
+
+	void setData(const double* buf)
+	{
+		m_v.m_data = (double*)buf;
+	}
+
+	void setData(const double* buf, size_t size)
+	{
+		m_v.m_data = (double*)buf;
+		m_v.m_size = size;
+	}
+
+	void setSize(size_t size)
+	{
+		m_v.m_size = size;
 	}
 
 	const GVec& vec()
@@ -328,7 +345,7 @@ protected:
 	GVec m_v;
 
 public:
-	GVecWrapper(double* buf, size_t size)
+	GVecWrapper(double* buf = nullptr, size_t size = 0)
 	{
 		m_v.m_data = buf;
 		m_v.m_size = size;
@@ -340,10 +357,24 @@ public:
 		m_v.m_size = 0;
 	}
 
-	GVec& vec()
+	void setData(double* buf)
 	{
-		return m_v;
+		m_v.m_data = buf;
 	}
+
+	void setData(double* buf, size_t size)
+	{
+		m_v.m_data = buf;
+		m_v.m_size = size;
+	}
+
+	void setSize(size_t size)
+	{
+		m_v.m_size = size;
+	}
+
+	GVec& vec() { return m_v; }
+	const GVec& vec() const { return m_v; }
 };
 
 
@@ -376,16 +407,16 @@ public:
 	}
 
 
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
+
+
+
 	/// Makes a vector of ints where each element contains its index (starting with zero, of course)
 	static void makeIndexVec(size_t* pVec, size_t size);
 

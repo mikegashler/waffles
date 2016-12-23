@@ -32,6 +32,8 @@
 #include "../../GClasses/GRect.h"
 #include "../../GClasses/GDom.h"
 #include "../../GClasses/usage.h"
+#include "../../GClasses/GString.h"
+
 #include <time.h>
 #include <iostream>
 #include <sstream>
@@ -1204,6 +1206,12 @@ void cranePath(GArgReader& args)
 		GImage* pImage = makeCraneImage(craneYaw, ballHeight, wid, hgt, ballRadius, front);
 		if(blur > 0)
 			pImage->blur(blur);
+		
+		string sFilename = "crane";
+		sFilename += pre_pad(5, '0', to_str(i));
+		sFilename += ".png";
+		savePng(pImage, sFilename.c_str());
+		
 		std::unique_ptr<GImage> hImage(pImage);
 		GVec& pRow = data.newRow();
 		size_t pos = 0;

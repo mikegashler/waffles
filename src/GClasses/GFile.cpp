@@ -337,7 +337,6 @@ bool GFile::copyFile(const char* szSrcPath, const char* szDestPath)
 
 bool GFile::localStorageDirectory(char *toHere)
 {
-	char *szReturnValue = NULL;
 	toHere[0] = '\0';
 #ifdef WINDOWS
 	TCHAR szPath[MAX_PATH];
@@ -358,6 +357,7 @@ bool GFile::localStorageDirectory(char *toHere)
 	GApp::appPath(toHere, 360, true);
 	return true;
 #	else
+	char* szReturnValue;
 	szReturnValue = getenv("HOME");
 	if(!szReturnValue)
 		szReturnValue = getenv("HOMEPATH");

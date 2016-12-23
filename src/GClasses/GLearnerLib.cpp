@@ -33,6 +33,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include "GBlock.h"
 
 using namespace GClasses;
 
@@ -545,7 +546,7 @@ GBayesianModelCombination* GLearnerLib::InstantiateHodgePodge(GArgReader& args, 
 	GNaiveInstance* pNI = new GNaiveInstance();
 	pEnsemble->addLearner(pNI);
 
-	GNeuralNet* pNN = new GNeuralNet();
+	GNeuralNetLearner* pNN = new GNeuralNetLearner();
 	pEnsemble->addLearner(pNN);
 
 	GBaselineLearner* pBL = new GBaselineLearner();
@@ -716,64 +717,6 @@ GNeighborTransducer* GLearnerLib::InstantiateNeighborTransducer(GArgReader& args
 	return pTransducer;
 }
 
-GNeuralNet* GLearnerLib::InstantiateNeuralNet(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
-{
-	GNeuralNet* pModel = new GNeuralNet();
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-autotune"))
-		{
-			if(!pFeatures || !pLabels)
-				throw Ex("Insufficient data to support automatic tuning");
-			pModel->autoTune(*pFeatures, *pLabels);
-		}
-		else if(args.if_pop("-addlayer"))
-			pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, args.pop_uint()));
-		else if(args.if_pop("-learningrate"))
-			pModel->setLearningRate(args.pop_double());
-		else if(args.if_pop("-momentum"))
-			pModel->setMomentum(args.pop_double());
-		else if(args.if_pop("-windowepochs"))
-			pModel->setWindowSize(args.pop_uint());
-		else if(args.if_pop("-minwindowimprovement"))
-			pModel->setImprovementThresh(args.pop_double());
-		else if(args.if_pop("-holdout"))
-			pModel->setValidationPortion(args.pop_double());
-/*		else if(args.if_pop("-activation"))
-		{
-			const char* szSF = args.pop_string();
-			GActivationFunction* pSF = NULL;
-			if(strcmp(szSF, "logistic") == 0)
-				pSF = new GActivationLogistic();
-			else if(strcmp(szSF, "arctan") == 0)
-				pSF = new GActivationArcTan();
-			else if(strcmp(szSF, "tanh") == 0)
-				pSF = new GActivationTanH();
-			else if(strcmp(szSF, "algebraic") == 0)
-				pSF = new GActivationAlgebraic();
-			else if(strcmp(szSF, "identity") == 0)
-				pSF = new GActivationIdentity();
-			else if(strcmp(szSF, "gaussian") == 0)
-				pSF = new GActivationGaussian();
-			else if(strcmp(szSF, "sinc") == 0)
-				pSF = new GActivationSinc();
-			else if(strcmp(szSF, "bend") == 0)
-				pSF = new GActivationBend();
-			else if(strcmp(szSF, "bidir") == 0)
-				pSF = new GActivationBiDir();
-			else if(strcmp(szSF, "piecewise") == 0)
-				pSF = new GActivationPiecewise();
-			else
-				throw Ex("Unrecognized activation function: ", szSF);
-			pModel->setActivationFunction(pSF, true);
-		}*/
-		else
-			throw Ex("Invalid option: ", args.peek());
-	}
-	pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
-	return pModel;
-}
-
 GRandomForest* GLearnerLib::InstantiateRandomForest(GArgReader& args)
 {
 	size_t trees = args.pop_uint();
@@ -809,56 +752,24 @@ GReservoirNet* GLearnerLib::InstantiateReservoirNet(GArgReader& args, GMatrix* p
 GWag* GLearnerLib::InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	GWag* pWag = new GWag(0);
-	GNeuralNet* pModel = pWag->model();
+	GNeuralNetLearner* pModel = pWag->model();
 	size_t modelCount = 10;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-noalign"))
 			pWag->noAlign();
 		else if(args.if_pop("-addlayer"))
-			pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, args.pop_uint()));
-		else if(args.if_pop("-learningrate"))
-			pModel->setLearningRate(args.pop_double());
-		else if(args.if_pop("-momentum"))
-			pModel->setMomentum(args.pop_double());
+		{
+			pModel->newLayer().add(new GBlockLinear(args.pop_uint()));
+			pModel->newLayer().add(new GBlockTanh());
+		}
 		else if(args.if_pop("-models"))
 			modelCount = args.pop_uint();
-		else if(args.if_pop("-windowepochs"))
-			pModel->setWindowSize(args.pop_uint());
-		else if(args.if_pop("-minwindowimprovement"))
-			pModel->setImprovementThresh(args.pop_double());
-/*		else if(args.if_pop("-activation"))
-		{
-			const char* szSF = args.pop_string();
-			GActivationFunction* pSF = NULL;
-			if(strcmp(szSF, "logistic") == 0)
-				pSF = new GActivationLogistic();
-			else if(strcmp(szSF, "arctan") == 0)
-				pSF = new GActivationArcTan();
-			else if(strcmp(szSF, "tanh") == 0)
-				pSF = new GActivationTanH();
-			else if(strcmp(szSF, "algebraic") == 0)
-				pSF = new GActivationAlgebraic();
-			else if(strcmp(szSF, "identity") == 0)
-				pSF = new GActivationIdentity();
-			else if(strcmp(szSF, "gaussian") == 0)
-				pSF = new GActivationGaussian();
-			else if(strcmp(szSF, "sinc") == 0)
-				pSF = new GActivationSinc();
-			else if(strcmp(szSF, "bend") == 0)
-				pSF = new GActivationBend();
-			else if(strcmp(szSF, "bidir") == 0)
-				pSF = new GActivationBiDir();
-			else if(strcmp(szSF, "piecewise") == 0)
-				pSF = new GActivationPiecewise();
-			else
-				throw Ex("Unrecognized activation function: ", szSF);
-			pModel->setActivationFunction(pSF, true);
-		}*/
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	pModel->addLayer(new GLayerClassic(FLEXIBLE_SIZE, FLEXIBLE_SIZE));
+	pModel->newLayer().add(new GBlockLinear(pLabels->cols()));
+	pModel->newLayer().add(new GBlockTanh());
 	pWag->setModelCount(modelCount);
 	return pWag;
 }
@@ -940,8 +851,6 @@ GTransducer* GLearnerLib::InstantiateAlgorithm(GArgReader& args, GMatrix* pFeatu
 			pAlg = InstantiateNaiveInstance(args, pFeatures, pLabels);
 		else if(args.if_pop("neighbortransducer"))
 			pAlg = InstantiateNeighborTransducer(args, pFeatures, pLabels);
-		else if(args.if_pop("neuralnet"))
-			pAlg = InstantiateNeuralNet(args, pFeatures, pLabels);
 		else if(args.if_pop("randomforest"))
 			pAlg = InstantiateRandomForest(args);
 		else if(args.if_pop("reservoir"))
@@ -990,26 +899,7 @@ void GLearnerLib::autoTuneKNN(GMatrix& features, GMatrix& labels)
 
 void GLearnerLib::autoTuneNeuralNet(GMatrix& features, GMatrix& labels)
 {
-	cout << "Warning: Because neural nets take a long time to train, it could take hours to train with enough parameter variations to determine with confidence which parameters are best. (If possible, I would strongly advise running this as a background process while you do something else, rather than sit around waiting for it to finish.)";
-	cout.flush();
-	GNeuralNet nn;
-	nn.autoTune(features, labels);
-//	const char* szCurrent = "logistic";
-	cout << "neuralnet";
-	for(size_t i = 0; i < nn.layerCount(); i++)
-	{
-/*		const char* szActivationName = nn.layer(i).m_pActivationFunction->name();
-		if(strcmp(szActivationName, szCurrent) != 0)
-		{
-			cout << " -activation " << szActivationName;
-			szCurrent = szActivationName;
-		}*/
-		if(i < nn.layerCount() - 1)
-			cout << " -addlayer " << nn.layer(i).outputs();
-	}
-	if(nn.momentum() > 0.0)
-		cout << " -momentum " << nn.momentum();
-	cout << "\n";
+	throw Ex("Cannot autotune neural net at this time. Recent changes to the way optimization works have broken this functionality.");
 }
 
 void GLearnerLib::autoTuneNaiveBayes(GMatrix& features, GMatrix& labels)
@@ -1153,7 +1043,7 @@ void GLearnerLib::predict(GArgReader& args)
 		throw Ex("The model was trained with ", to_str(pModeler->relLabels().size()), " label dims, but the specified dataset has ", to_str(pLabels->cols()));
 	if(!pFeatures->relation().isCompatible(pModeler->relFeatures()) || !pLabels->relation().isCompatible(pModeler->relLabels()))
 		throw Ex("This data is not compatible with the data that was used to train the model. (The column meta-data is different.)");
-	pLabels->setAll(0.0); // Wipe out the existing labels, just to be absolutely certain that we don't somehow accidentally let them influence the predictions
+	pLabels->fill(0.0); // Wipe out the existing labels, just to be absolutely certain that we don't somehow accidentally let them influence the predictions
 
 	// Test
 	for(size_t i = 0; i < pFeatures->rows(); i++)

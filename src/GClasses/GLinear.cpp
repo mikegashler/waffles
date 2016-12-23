@@ -324,12 +324,12 @@ void GLinearDistribution::trainInner(const GMatrix& features, const GMatrix& lab
 	// Init A with the inverse of the weights prior covariance matrix
 	size_t dims = features.cols();
 	GMatrix a(dims, dims);
-	a.setAll(0.0);
+	a.fill(0.0);
 
 	// Init XY
 	size_t labelDims = labels.cols();
 	GMatrix xy(dims, labelDims);
-	xy.setAll(0.0);
+	xy.fill(0.0);
 
 	// Train on each instance
 	double w = 1.0 / (m_noiseDev * m_noiseDev);
@@ -665,7 +665,7 @@ bool GLinearProgramming::simplexMethod(GMatrix* pA, const double* pB, int leCons
 	if((size_t)leConstraints + (size_t)geConstraints > pA->rows())
 		throw Ex("The number of constraints must be >= leConstraints + geConstraints");
 	GMatrix aa(pA->rows() + 3, pA->cols() + 2);
-	aa.setAll(0.0);
+	aa.fill(0.0);
 	aa[1][1] = 0.0;
 	memcpy(aa.row(1).data() + 2, pC, sizeof(double) * pA->cols());
 	for(size_t i = 1; i <= pA->rows(); i++)

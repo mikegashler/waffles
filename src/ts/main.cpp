@@ -121,7 +121,7 @@ void Train(GArgReader &args)
 	
 	// Parse options
 	GNeuralDecomposition *nd = new GNeuralDecomposition();
-	nd->nn().rand().setSeed(time(NULL));
+	nd->rand().setSeed(time(NULL));
 	
 	while(args.next_is_flag())
 	{
@@ -142,7 +142,7 @@ void Train(GArgReader &args)
 		else if(args.if_pop("-filterLogarithm"))
 			nd->setFilterLogarithm(true);
 		else if(args.if_pop("-seed"))
-			nd->nn().rand().setSeed(args.pop_uint());
+			nd->rand().setSeed(args.pop_uint());
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
@@ -187,7 +187,7 @@ void Extrapolate(GArgReader &args)
 	double length = 1.0;
 	double step = 0.0002;
 	bool useFeatures = false;
-	bool outputFeatures = true;
+	bool outputFeatures = false;
 	
 	GNeuralDecomposition *nd = (GNeuralDecomposition *) pLearner;
 	std::unique_ptr<GMatrix> hFeatures;
