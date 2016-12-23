@@ -508,7 +508,7 @@ void GKNN::interpolateMean(size_t nc, const GVec& in, GPrediction* out, GVec* pO
 			if(out)
 				out[i].makeCategorical()->setValues(nValueCount, m_valueCounts.data());
 			if(pOut2)
-				(*pOut2)[i] = m_valueCounts.indexOfMax((size_t)0, nValueCount);
+				(*pOut2)[i] = (double)m_valueCounts.indexOfMax((size_t)0, nValueCount);
 		}
 	}
 }

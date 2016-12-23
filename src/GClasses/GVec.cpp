@@ -699,8 +699,8 @@ void GVec::test()
 	GVec v5(10);
 	for(size_t i = 0; i < 10; i++ )
 	{
-		v4[i] = i;
-		v5[i] = 20 - i;
+		v4[i] = (double)i;
+		v5[i] = (double)(20 - i);
 	}
 	double max = v4.max();
 	if ( max != 9 )

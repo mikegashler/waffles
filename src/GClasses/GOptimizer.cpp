@@ -195,7 +195,7 @@ void GNeuralNetOptimizer::optimizeWithValidation(const GMatrix &features, const 
 
 void GNeuralNetOptimizer::optimizeWithValidation(const GMatrix &features, const GMatrix &labels, double validationPortion)
 {
-	size_t validationRows = validationPortion * features.rows();
+	size_t validationRows = (size_t)(validationPortion * features.rows());
 	size_t trainRows = features.rows() - validationRows;
 	if(validationRows > 0)
 	{

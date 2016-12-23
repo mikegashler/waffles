@@ -192,7 +192,6 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ClCompile Include="GAssignment.cpp" />
-    <ClCompile Include="GAssociative.cpp" />
     <ClCompile Include="GBayesianNetwork.cpp" />
     <ClCompile Include="GBezier.cpp" />
     <ClCompile Include="GBigInt.cpp" />
@@ -217,6 +216,7 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ClCompile Include="GBlob.cpp" />
+    <ClCompile Include="GBlock.cpp" />
     <ClCompile Include="GCluster.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -338,7 +338,6 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <ClCompile Include="GLayer.cpp" />
     <ClCompile Include="GLearner.cpp" />
     <ClCompile Include="GLearnerLib.cpp" />
     <ClCompile Include="GLinear.cpp" />
@@ -507,13 +506,13 @@
     <ClInclude Include="GActivation.h" />
     <ClInclude Include="GApp.h" />
     <ClInclude Include="GAssignment.h" />
-    <ClInclude Include="GAssociative.h" />
     <ClInclude Include="GBayesianNetwork.h" />
     <ClInclude Include="GBezier.h" />
     <ClInclude Include="GBigInt.h" />
     <ClInclude Include="GBits.h" />
     <ClInclude Include="GBitTable.h" />
     <ClInclude Include="GBlob.h" />
+    <ClInclude Include="GBlock.h" />
     <ClInclude Include="GCluster.h" />
     <ClInclude Include="GCrypto.h" />
     <ClInclude Include="GDecisionTree.h" />
