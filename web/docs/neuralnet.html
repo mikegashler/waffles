@@ -323,7 +323,6 @@ So, let's do an example with it. Here is some code:</p>
 #include &lt;GClasses/GTransform.h&gt;
 #include &lt;GClasses/GVec.h&gt;
 #include &lt;GClasses/GHolders.h&gt;
-#include &lt;GClasses/GBlockWeightless.h&gt;
 
 using namespace GClasses;
 using std::cerr;
@@ -362,11 +361,8 @@ int main(int argc, char *argv[])
 	// Print some stats
 	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
-	cout &lt;&lt; "% Topology: " &lt;&lt; to_str(nn.inputs());
-	for(size_t i = 0; i &lt; nn.layerCount(); i++)
-		cout &lt;&lt; " -&gt; " + to_str(nn.layer(i).outputs());
-	cout &lt;&lt; "\n";
-	cout &lt;&lt; "% Total weights: " &lt;&lt; to_str(nn.weightCount()) &lt;&lt; "\n";
+	cout &lt;&lt; "% Topology:\n";
+	cout &lt;&lt; nn.to_str("% ") &lt;&lt; "\n";
 
 	// Train
 	cout &lt;&lt; "@RELATION neural_net_training\n";

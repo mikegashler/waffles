@@ -518,9 +518,9 @@ protected:
 	GRand* m_pRand;
 	std::vector<size_t> m_ranks;
 	bool m_preserveUnknowns;
-
+	double m_lo, m_hi;
 public:
-	GNominalToCat(size_t valueCap = 12);
+	GNominalToCat(size_t valueCap = 12, double lo = 0.0, double hi = 1.0);
 
 	/// Load from a DOM.
 	GNominalToCat(const GDomNode* pNode);

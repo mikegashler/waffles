@@ -2970,6 +2970,17 @@ void GMatrix::mergeVert(GMatrix* pData, bool ignoreMismatchingName)
 	}
 }
 
+double GMatrix::columnSum(size_t col) const
+{
+	double sum = 0;
+	for(size_t i = 0; i < rows(); i++)
+	{
+		if((*this)[i][col] != UNKNOWN_REAL_VALUE)
+			sum += (*this)[i][col];
+	}
+	return sum;
+}
+
 double GMatrix::columnMean(size_t nAttribute, const double* pWeights, bool throwIfEmpty) const
 {
 	if(nAttribute >= cols())
@@ -3124,6 +3135,12 @@ double GMatrix::columnMax(size_t nAttribute) const
 			d = (*this)[i][nAttribute];
 	}
 	return d;
+}
+
+void GMatrix::scaleColumn(size_t col, double scalar)
+{
+	for(size_t i = 0; i < rows(); i++)
+		(*this)[i][col] *= scalar;
 }
 
 void GMatrix::normalizeColumn(size_t column, double dInMin, double dInMax, double dOutMin, double dOutMax)

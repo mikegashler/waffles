@@ -103,10 +103,15 @@ GContextNeuralNet& GNeuralNetOptimizer::context()
 {
 	if(!m_pContext)
 	{
-		m_pContext = m_model.newContext();
+		m_pContext = m_model.newContext(*m_rand);
 		prepareForOptimizing();
 	}
 	return *m_pContext;
+}
+
+void GNeuralNetOptimizer::resetState()
+{
+	context().resetState();
 }
 
 void GNeuralNetOptimizer::optimizeIncremental(const GVec &feat, const GVec &lab)
@@ -212,7 +217,7 @@ double GNeuralNetOptimizer::sumLoss(const GMatrix &features, const GMatrix &labe
 	double sum = 0.0;
 	for(size_t i = 0; i < features.rows(); ++i)
 	{
-		m_pContext->forwardProp(features[i], pred);
+		m_model.forwardProp(*m_pContext, features[i], pred);
 		m_objective->evaluate(pred, labels[i], loss);
 		sum += loss.sum();
 	}
@@ -241,11 +246,11 @@ void GSGDOptimizer::prepareForOptimizing()
 void GSGDOptimizer::updateDeltas(const GVec& feat, const GVec& lab)
 {
 	GContextNeuralNet& ctx = context();
-	ctx.forwardProp(feat, ctx.predBuf());
+	m_model.forwardProp_training(ctx, feat, ctx.predBuf());
 	m_objective->calculateOutputLayerBlame(ctx.predBuf(), lab, ctx.blameBuf());
-	ctx.backProp(feat, ctx.predBuf(), ctx.blameBuf(), nullptr);
+	m_model.backProp(ctx, feat, ctx.predBuf(), ctx.blameBuf(), ctx.blameBuf());
 	m_gradient *= m_momentum;
-	ctx.updateGradient(feat, ctx.blameBuf(), m_gradient);
+	m_model.updateGradient(ctx, feat, ctx.blameBuf(), m_gradient);
 }
 
 void GSGDOptimizer::applyDeltas(double learningRate)
@@ -280,11 +285,11 @@ void GAdamOptimizer::prepareForOptimizing()
 void GAdamOptimizer::updateDeltas(const GVec& feat, const GVec& lab)
 {
 	GContextNeuralNet& ctx = context();
-	ctx.forwardProp(feat, ctx.predBuf());
+	m_model.forwardProp_training(ctx, feat, ctx.predBuf());
 	m_objective->calculateOutputLayerBlame(ctx.predBuf(), lab, ctx.blameBuf());
-	m_pContext->backProp(feat, lab, ctx.blameBuf(), nullptr);
+	m_model.backProp(ctx, feat, lab, ctx.blameBuf(), ctx.blameBuf());
 	m_gradient.fill(0.0);
-	m_pContext->updateGradient(feat, ctx.blameBuf(), m_gradient);
+	m_model.updateGradient(ctx, feat, ctx.blameBuf(), m_gradient);
 	m_correct1 *= m_beta1;
 	m_correct2 *= m_beta2;
 	for(size_t i = 0; i < m_gradient.size(); i++)
@@ -331,11 +336,11 @@ void GRMSPropOptimizer::prepareForOptimizing()
 void GRMSPropOptimizer::updateDeltas(const GVec& feat, const GVec& lab)
 {
 	GContextNeuralNet& ctx = context();
-	ctx.forwardProp(feat, ctx.predBuf());
+	m_model.forwardProp_training(ctx, feat, ctx.predBuf());
 	m_objective->calculateOutputLayerBlame(ctx.predBuf(), lab, ctx.blameBuf());
-	m_pContext->backProp(feat, ctx.predBuf(), ctx.blameBuf(), nullptr);
+	m_model.backProp(ctx, feat, ctx.predBuf(), ctx.blameBuf(), ctx.blameBuf());
 	m_gradient *= m_momentum;
-	m_pContext->updateGradient(feat, ctx.blameBuf(), m_gradient);
+	m_model.updateGradient(ctx, feat, ctx.blameBuf(), m_gradient);
 }
 
 void GRMSPropOptimizer::applyDeltas(double learningRate)

@@ -950,6 +950,9 @@ public:
 	/// Returns -1e300 if there are no known values in the column.
 	double columnMax(size_t nAttribute) const;
 
+	/// \brief Returns the sum of the values in the specified column.
+	double columnSum(size_t col) const;
+
 	/// \brief Computes the arithmetic mean of the values in the specified column
 	/// If pWeights is NULL, then each row is given equal weight.
 	/// If pWeights is non-NULL, then it is assumed to be a vector of weights, one for each row in this matrix.
@@ -962,6 +965,9 @@ public:
 
 	/// \brief Computes the sample variance of a single attribute
 	double columnVariance(size_t nAttr, double mean) const;
+
+	/// \brief Scales the column by the specified scalar.
+	void scaleColumn(size_t col, double scalar);
 
 #ifndef MIN_PREDICT
 	/// \brief Computes the median of the values in the specified column

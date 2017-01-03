@@ -106,7 +106,11 @@ public:
 	
 	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
 	virtual void applyDeltas(double learningRate) = 0;
-	
+
+	/// Flushes the memory in any recurrent units in the network.
+	/// This method should be called when beginning a new training sequence with neural networks that contain any recurrent blocks.
+	void resetState();
+
 	/// Update and apply the gradient for a single training sample (on-line).
 	virtual void optimizeIncremental(const GVec &feat, const GVec &lab);
 	

@@ -846,8 +846,8 @@ void GAttributeSelector::test()
 
 // --------------------------------------------------------------------------
 
-GNominalToCat::GNominalToCat(size_t nValueCap)
-: GIncrementalTransform(), m_valueCap(nValueCap), m_preserveUnknowns(false)
+GNominalToCat::GNominalToCat(size_t nValueCap, double lo, double hi)
+: GIncrementalTransform(), m_valueCap(nValueCap), m_preserveUnknowns(false), m_lo(lo), m_hi(hi)
 {
 }
 
@@ -856,6 +856,8 @@ GNominalToCat::GNominalToCat(const GDomNode* pNode)
 {
 	m_valueCap = (size_t)pNode->field("valueCap")->asInt();
 	m_preserveUnknowns = pNode->field("pu")->asBool();
+	m_lo = pNode->field("lo")->asDouble();
+	m_hi = pNode->field("hi")->asDouble();
 }
 
 GRelation* GNominalToCat::init()
@@ -900,6 +902,8 @@ GDomNode* GNominalToCat::serialize(GDom* pDoc) const
 	GDomNode* pNode = baseDomNode(pDoc, "GNominalToCat");
 	pNode->addField(pDoc, "valueCap", pDoc->newInt(m_valueCap));
 	pNode->addField(pDoc, "pu", pDoc->newBool(m_preserveUnknowns));
+	pNode->addField(pDoc, "lo", pDoc->newDouble(m_lo));
+	pNode->addField(pDoc, "hi", pDoc->newDouble(m_hi));
 	return pNode;
 }
 
@@ -920,7 +924,7 @@ void GNominalToCat::transform(const GVec& in, GVec& out)
 				if(in[i] == UNKNOWN_DISCRETE_VALUE)
 					out[j++] = UNKNOWN_REAL_VALUE;
 				else
-					out[j++] = 0;
+					out[j++] = m_lo;
 			}
 			else
 			{
@@ -929,7 +933,7 @@ void GNominalToCat::transform(const GVec& in, GVec& out)
 					if(m_preserveUnknowns)
 						out[j++] = UNKNOWN_REAL_VALUE;
 					else
-						out[j++] = 0.5;
+						out[j++] = 0.5 * (m_lo + m_hi);
 				}
 				else
 					out[j++] = in[i];
@@ -940,15 +944,15 @@ void GNominalToCat::transform(const GVec& in, GVec& out)
 			if(in[i] >= 0)
 			{
 				GAssert(in[i] < nValues);
-				GVec::setAll(out.data() + j, 0.0, nValues);
-				out[j + (int)in[i]] = 1.0;
+				GVec::setAll(out.data() + j, m_lo, nValues);
+				out[j + (int)in[i]] = m_hi;
 			}
 			else
 			{
 				if(m_preserveUnknowns)
 					GVec::setAll(out.data() + j, UNKNOWN_REAL_VALUE, nValues);
 				else
-					GVec::setAll(out.data() + j, 1.0 / nValues, nValues);
+					GVec::setAll(out.data() + j, (m_hi - m_lo) / nValues + m_lo, nValues);
 			}
 			j += nValues;
 		}
@@ -986,7 +990,7 @@ void GNominalToCat::untransform(const GVec& in, GVec& out)
 				if(in[j] == UNKNOWN_REAL_VALUE)
 					out[i] = UNKNOWN_DISCRETE_VALUE;
 				else
-					out[i] = (in[j] < 0.5 ? 0 : 1);
+					out[i] = (in[j] + in[j] < m_lo + m_hi ? 0 : 1);
 				j++;
 			}
 		}
@@ -1044,8 +1048,9 @@ void GNominalToCat::untransformToDistribution(const GVec& in, GPrediction* out)
 				else
 				{
 					GVec& vals = pCat->values(2);
-					vals[0] = 1.0 - in[j];
-					vals[1] = in[j];
+					double t = (in[j] - m_lo) / (m_hi - m_lo);
+					vals[0] = 1.0 - t;
+					vals[1] = t;
 					pCat->normalize(); // We have to normalize to ensure the values are properly clipped.
 				}
 			}

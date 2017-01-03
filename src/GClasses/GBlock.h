@@ -27,8 +27,10 @@
 
 namespace GClasses {
 
+class GContext;
 class GContextRecurrent;
 class GContextRecurrentInstance;
+class GNeuralNet;
 
 
 /// Represents a block of network units (artificial neurons) in a neural network.
@@ -53,6 +55,9 @@ public:
 		block_leakyrectifier,
 		block_softplus,
 		block_linear,
+		block_featureselector,
+		block_allpairings,
+		block_fuzzy,
 		block_activation,
 		block_scalarproduct,
 		block_scalarsum,
@@ -73,6 +78,12 @@ public:
 
 	/// Returns the type of this block
 	virtual BlockType type() const = 0;
+
+	/// Returns the name of this block in the form of a string
+	virtual std::string name() const = 0;
+
+	/// Returns a string representation of this block
+	virtual std::string to_str() const;
 
 	/// Returns true iff this block operates only on individual elements
 	virtual bool elementWise() const { return false; }
@@ -95,9 +106,6 @@ public:
 	/// Sets the starting offset in the previous layer's output where values will be fed as input to this block.
 	void setInPos(size_t n) { m_inPos = n; };
 
-	/// Makes a string representation of this block
-	virtual std::string to_str() const = 0;
-
 	/// Resizes this block.
 	virtual void resize(size_t inputs, size_t outputs) = 0;
 
@@ -108,11 +116,11 @@ public:
 	virtual size_t outputs() const = 0;
 
 	/// Evaluates the input, sets the output.
-	virtual void forwardProp(const GVec& input, GVec& output) const = 0;
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const = 0;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const = 0;
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const = 0;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const = 0;
@@ -143,13 +151,16 @@ public:
 	virtual void diminishWeights(double amount, bool regularizeBiases) = 0;
 
 	/// Evaluate the input and outBlame, update the gradient for updating the weights by gradient descent.
-	virtual void updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient) const = 0;
+	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const = 0;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) = 0;
 
 protected:
 	GDomNode* baseDomNode(GDom* pDoc) const;
+
+	/// Exercises some basic functionality that all blocks have in common
+	void basicTest();
 };
 
 
@@ -172,7 +183,7 @@ public:
 	virtual void maxNorm(double min, double max) override {}
 	virtual void scaleWeights(double factor, bool scaleBiases) override {}
 	virtual void diminishWeights(double amount, bool regularizeBiases) override {}
-	virtual void updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient) const override {}
+	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override {}
 	virtual void step(double learningRate, const GVec &gradient) override {}
 };
 
@@ -198,11 +209,11 @@ public:
 	/// Returns the type of this block
 	virtual BlockType type() const override { return block_scalarsum; }
 
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockScalarSum"; }
+
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
-
-	/// Makes a string representation of this block
-	virtual std::string to_str() const override;
 
 	/// Resizes this block. outputs must be 2*inputs.
 	virtual void resize(size_t inputs, size_t outputs) override;
@@ -214,14 +225,14 @@ public:
 	virtual size_t outputs() const override { return m_outputCount; }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
 
 	/// A special forward prop that accepts two vectors of the same size.
 	void forwardProp2(const GVec& in1, const GVec& in2, GVec& output) const;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
 	/// A convenience version of backProp that mirrors forwardProp2.
 	void backProp2(const GVec& outBlame, GVec& inBlame1, GVec& inBlame2) const;
@@ -249,11 +260,11 @@ public:
 	/// Returns the type of this block
 	virtual BlockType type() const override { return block_scalarproduct; }
 
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockScalarProduct"; }
+
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
-
-	/// Makes a string representation of this block
-	virtual std::string to_str() const override;
 
 	/// Resizes this block. outputs must be 2*inputs.
 	virtual void resize(size_t inputs, size_t outputs) override;
@@ -265,14 +276,14 @@ public:
 	virtual size_t outputs() const override { return m_outputCount; }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
 
 	/// A special forward prop that accepts two vectors of the same size.
 	void forwardProp2(const GVec& in1, const GVec& in2, GVec& output) const;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
 	/// A convenience version of backProp pthat mirrors forwardProp2.
 	void backProp2(const GVec& input1, const GVec& input2, const GVec& outBlame, GVec& inBlame1, GVec& inBlame2) const;
@@ -302,11 +313,11 @@ public:
 	/// Returns the type of this block
 	virtual BlockType type() const override { return block_switch; }
 
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockSwitch"; }
+
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
-
-	/// Makes a string representation of this block
-	virtual std::string to_str() const override;
 
 	/// Resizes this block. outputs must be 2*inputs.
 	virtual void resize(size_t inputs, size_t outputs) override;
@@ -318,14 +329,14 @@ public:
 	virtual size_t outputs() const override { return m_outputCount; }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
 
 	/// A special forward prop that accepts three vectors of the same size.
 	void forwardProp3(const GVec& inA, const GVec& inB, const GVec& inC, GVec& output) const;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
 	/// A convenience version of backProp that mirrors forwardProp3
 	void backProp3(const GVec& inA, const GVec& inB, const GVec& inC, const GVec& outBlame, GVec& inBlameA, GVec& inBlameB, GVec& inBlameC) const;
@@ -361,11 +372,11 @@ public:
 	/// Returns the type of this block
 	virtual BlockType type() const override { return block_maxpooling; }
 
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockMaxPooling"; }
+
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
-
-	/// Makes a string representation of this block
-	virtual std::string to_str() const override;
 
 	/// Resizes this block.
 	virtual void resize(size_t inputs, size_t outputs) override;
@@ -377,11 +388,11 @@ public:
 	virtual size_t outputs() const override { return m_inputRows * m_inputCols * m_inputChannels / (m_regionSize * m_regionSize); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 };
 
 
@@ -409,9 +420,6 @@ public:
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
 
-	/// Makes a string representation of this block
-	virtual std::string to_str() const override;
-
 	/// Resizes this block.
 	virtual void resize(size_t inputs, size_t outputs) override;
 
@@ -422,11 +430,11 @@ public:
 	virtual size_t outputs() const override { return m_units; }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
 	/// Evaluates the activation function
 	virtual double eval(double x) const = 0;
@@ -445,6 +453,7 @@ public:
 	GBlockIdentity(size_t size = 0) : GBlockActivation(size) {}
 	GBlockIdentity(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_identity; }
+	virtual std::string name() const { return "GBlockIdentity"; }
 	virtual double eval(double x) const override { return x; }
 	virtual double derivative(double x, double f_x) const override { return 1.0; }
 };
@@ -472,6 +481,7 @@ public:
 	GBlockTanh(size_t size = 0) : GBlockActivation(size) {}
 	GBlockTanh(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_tanh; }
+	virtual std::string name() const { return "GBlockTanh"; }
 	virtual double eval(double x) const override { return std::tanh(x); }
 	virtual double derivative(double x, double f_x) const override { return 1.0 - (f_x * f_x); }
 };
@@ -485,6 +495,7 @@ public:
 	GBlockLogistic(size_t size = 0) : GBlockActivation(size) {}
 	GBlockLogistic(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_logistic; }
+	virtual std::string name() const { return "GBlockLogistic"; }
 	virtual double eval(double x) const override
 	{
 		if(x >= 700.0) // Don't trigger a floating point exception
@@ -508,6 +519,7 @@ public:
 	GBlockBentIdentity(size_t size = 0) : GBlockActivation(size) {}
 	GBlockBentIdentity(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_bentidentity; }
+	virtual std::string name() const { return "GBlockBentIdentity"; }
 	virtual double eval(double x) const override { return BEND_AMOUNT * (std::sqrt(x * x + BEND_SIZE * BEND_SIZE) - BEND_SIZE) + x; }
 	virtual double derivative(double x, double f_x) const override { return BEND_AMOUNT * x / std::sqrt(x * x + BEND_SIZE * BEND_SIZE) + 1.0; }
 };
@@ -522,6 +534,7 @@ public:
 	GBlockSigExp(size_t size = 0) : GBlockActivation(size) {}
 	GBlockSigExp(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_sigexp; }
+	virtual std::string name() const { return "GBlockSigExp"; }
 	virtual double eval(double x) const override { return (x <= 0.0 ? exp(x) - 1.0 : std::log(x + 1.0)); }
 	virtual double derivative(double x, double f_x) const override { return (x <= 0.0 ? std::exp(x) : 1.0 / (x + 1.0)); }
 };
@@ -535,6 +548,7 @@ public:
 	GBlockGaussian(size_t size = 0) : GBlockActivation(size) {}
 	GBlockGaussian(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_gaussian; }
+	virtual std::string name() const { return "GBlockGaussian"; }
 	virtual double eval(double x) const override { return std::exp(-(x * x)); }
 	virtual double derivative(double x, double f_x) const override { return -2.0 * x * std::exp(-(x * x)); }
 };
@@ -548,6 +562,7 @@ public:
 	GBlockSine(size_t size = 0) : GBlockActivation(size) {}
 	GBlockSine(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_sine; }
+	virtual std::string name() const { return "GBlockSine"; }
 	virtual double eval(double x) const override { return std::sin(x); }
 	virtual double derivative(double x, double f_x) const override { return std::cos(x); }
 };
@@ -562,6 +577,7 @@ public:
 	GBlockRectifier(size_t size = 0) : GBlockActivation(size) {}
 	GBlockRectifier(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_rectifier; }
+	virtual std::string name() const { return "GBlockRectifier"; }
 	virtual double eval(double x) const override { return std::max(0.0, x); }
 	virtual double derivative(double x, double f_x) const override { return (x >= 0.0 ? 1.0 : 0.0); }
 };
@@ -576,6 +592,7 @@ public:
 	GBlockLeakyRectifier(size_t size = 0) : GBlockActivation(size) {}
 	GBlockLeakyRectifier(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_leakyrectifier; }
+	virtual std::string name() const { return "GBlockLeakyRectifier"; }
 	virtual double eval(double x) const override { return x >= 0.0 ? x : 0.01 * x; }
 	virtual double derivative(double x, double f_x) const override { return x >= 0.0 ? 1.0 : 0.01; }
 };
@@ -590,6 +607,7 @@ public:
 	GBlockSoftPlus(size_t size = 0) : GBlockActivation(size) {}
 	GBlockSoftPlus(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_softplus; }
+	virtual std::string name() const { return "GBlockSoftPlus"; }
 	virtual double eval(double x) const override { return x > 500 ? x : log(1.0 + exp(x)); }
 	virtual double derivative(double x, double f_x) const override { return 1.0 / (1.0 + exp(-x)); }
 };
@@ -608,6 +626,7 @@ public:
 	GBlockSoftRoot(size_t size = 0) : GBlockActivation(size) {}
 	GBlockSoftRoot(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_softroot; }
+	virtual std::string name() const { return "GBlockSoftRoot"; }
 	virtual double eval(double x) const override
 	{
 		double d = std::sqrt(x * x + 1.0);
@@ -641,11 +660,11 @@ public:
 	/// Returns the type of this block
 	virtual BlockType type() const override { return block_linear; }
 
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockLinear"; }
+
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
-
-	/// Makes a string representation of this block
-	virtual std::string to_str() const override;
 
 	/// Resizes this block.
 	virtual void resize(size_t inputs, size_t outputs) override;
@@ -657,21 +676,21 @@ public:
 	virtual size_t outputs() const override { return m_weights.cols(); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
 
 	/// A convenience method that concatenates two vectors before feeding into this block
 	void forwardProp2(const GVec& in1, const GVec& in2, GVec& output) const;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
 	/// A convenience method that mirrors forwardProp2.
 	void backProp2(const GVec& outBlame, GVec& inBlame1, GVec& inBlame2) const;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
 
 	/// A convenience method that goes with forwardProp2 and backProp2.
 	void updateGradient2(const GVec& in1, const GVec& in2, const GVec& outBlame, GVec &gradient) const;
@@ -730,10 +749,235 @@ public:
 
 	/// Adjusts weights such that values in the new range will result in the
 	/// same behavior that previously resulted from values in the old range.
-	virtual void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
+	void renormalizeInput(size_t input, double oldMin, double oldMax, double newMin = 0.0, double newMax = 1.0);
+
+	/// Drops an input from this block
+	void dropInput(size_t input);
+
+	/// Drops an output from this block
+	void dropOutput(size_t output);
 };
 
 
+
+
+
+/// A linear block with no bias. All weights are constrained to fall between 0 and 1, and to sum to 1.
+/// Regularization is implicitly applied during training to drive the weights such that
+/// each output will settle on giving a weight of 1 to exactly one input unit.
+class GBlockFeatureSelector : public GBlock
+{
+protected:
+	GMatrix m_weights; // An inputs-by-outputs matrix of weights. The last row contains the bias values.
+	double m_lambda;
+
+public:
+	GBlockFeatureSelector(size_t outputs, double lambda, size_t inputs = 0);
+	GBlockFeatureSelector(GDomNode* pNode);
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_featureselector; }
+
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockFeatureSelector"; }
+
+	/// Marshall this block into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const override;
+
+	/// Resizes this block.
+	virtual void resize(size_t inputs, size_t outputs) override;
+
+	/// Returns the number of inputs this block consumes
+	virtual size_t inputs() const override { return m_weights.rows(); }
+
+	/// Returns the number of outputs this block produces
+	virtual size_t outputs() const override { return m_weights.cols(); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+
+	/// Add the weight and bias gradient to the weights.
+	virtual void step(double learningRate, const GVec &gradient) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Serialize the weights in this block into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector) const override;
+
+	/// Deserialize from a vector to the weights in this block. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector) override;
+
+	/// Copy the weights from pSource to this block. (Assumes pSource is the same type of block.)
+	virtual void copyWeights(const GBlock* pSource) override;
+
+	/// Initialize the weights with small random values.
+	virtual void resetWeights(GRand& rand) override;
+
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise. The
+	/// default values apply the perturbation to all units.
+	virtual void perturbWeights(GRand& rand, double deviation) override;
+
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
+	virtual void maxNorm(double min, double max) override;
+
+	/// Multiplies all the weights by the specified factor.
+	virtual void scaleWeights(double factor, bool scaleBiases) override;
+
+	/// Moves all weights in the direction of zero by the specified amount.
+	virtual void diminishWeights(double amount, bool regularizeBiases) override;
+
+	/// Get the entire weights matrix
+	GMatrix &weights() { return m_weights; }
+
+	/// Get the entire weights matrix
+	const GMatrix &weights() const { return m_weights; }
+};
+
+
+
+
+
+/// Consumes n values and produces a big vector in the form of two vectors (concatenated together)
+/// whose corresponding values form all pairs of inputs, plus each input is also paired with each of "lo" and "hi".
+/// Example: If the input is {1,2,3}, then the output will be {1,1,1,1,2,2,2,3,3,    2,3,lo,hi,3,lo,hi,lo,hi}.
+/// Thus, if there are n inputs, there will be n(n-1)+4n outputs.
+class GBlockAllPairings : public GBlockWeightless
+{
+protected:
+	size_t m_inputCount;
+	double m_lo, m_hi;
+
+public:
+	/// General-purpose constructor.
+	GBlockAllPairings(size_t inputs, double lo, double hi);
+
+	/// Deserializing constructor
+	GBlockAllPairings(GDomNode* pNode);
+	~GBlockAllPairings();
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_allpairings; }
+
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockAllPairings"; }
+
+	/// Marshall this block into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const override;
+
+	/// Resizes this block. outputs must be 2*inputs.
+	virtual void resize(size_t inputs, size_t outputs) override;
+
+	/// Returns the number of inputs this block consumes
+	virtual size_t inputs() const override { return m_inputCount; }
+
+	/// Returns the number of outputs this block produces
+	virtual size_t outputs() const override { return m_inputCount * (m_inputCount - 1) + 4 * m_inputCount; }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+
+	/// Returns the input unit that is connected with the specifed output unit.
+	/// Returns inputs() for "lo", and inputs()+1 for "hi".
+	/// (The current implementation is not very efficient.)
+	size_t findSource(size_t outputUnit);
+};
+
+
+
+
+
+/// A block of fuzzy logic units.
+/// Treats the inputs as two concatenated vectors, whose corresponding values each form a pair
+/// to be combined with fuzzy logic to produce one output value.
+/// Example: The input {1,2,3,4,5,6} will apply fuzzy logic to the three pairs {1,4}, {2,5} and {3,6} to produce a vector of 3 output values.
+class GBlockFuzzy : public GBlock
+{
+protected:
+	GVec m_alpha;
+
+public:
+	GBlockFuzzy(size_t outputs);
+	GBlockFuzzy(GDomNode* pNode);
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_fuzzy; }
+
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockFuzzy"; }
+
+	/// Marshall this block into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const override;
+
+	/// Resizes this block.
+	virtual void resize(size_t inputs, size_t outputs) override;
+
+	/// Returns the number of inputs this block consumes
+	virtual size_t inputs() const override { return m_alpha.size() * 2; }
+
+	/// Returns the number of outputs this block produces
+	virtual size_t outputs() const override { return m_alpha.size(); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+
+	/// Add the weight and bias gradient to the weights.
+	virtual void step(double learningRate, const GVec &gradient) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Serialize the weights in this block into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector) const override;
+
+	/// Deserialize from a vector to the weights in this block. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector) override;
+
+	/// Copy the weights from pSource to this block. (Assumes pSource is the same type of block.)
+	virtual void copyWeights(const GBlock* pSource) override;
+
+	/// Initialize the weights with small random values.
+	virtual void resetWeights(GRand& rand) override;
+
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise. The
+	/// default values apply the perturbation to all units.
+	virtual void perturbWeights(GRand& rand, double deviation) override;
+
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
+	virtual void maxNorm(double min, double max) override;
+
+	/// Multiplies all the weights by the specified factor.
+	virtual void scaleWeights(double factor, bool scaleBiases) override;
+
+	/// Moves all weights in the direction of zero by the specified amount.
+	virtual void diminishWeights(double amount, bool regularizeBiases) override;
+
+	/// Returns the vector of fuzzy logic parameters.
+	GVec& alpha() { return m_alpha; }
+
+	/// Returns the vector of fuzzy logic parameters.
+	const GVec& alpha() const { return m_alpha; }
+};
 
 
 
@@ -757,11 +1001,11 @@ public:
 	/// Returns the type of this block
 	virtual BlockType type() const override { return block_maxout; }
 
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockMaxOut"; }
+
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
-
-	/// Makes a string representation of this block
-	virtual std::string to_str() const override;
 
 	/// Resizes this block.
 	virtual void resize(size_t inputs, size_t outputs) override;
@@ -773,15 +1017,15 @@ public:
 	virtual size_t outputs() const override { return m_weights.cols(); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
@@ -864,11 +1108,11 @@ public:
 	/// Returns the type of this block
 	virtual BlockType type() const override { return block_restrictedboltzmannmachine; }
 
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockRestrictedBoltzmannMachine"; }
+
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
-
-	/// Makes a string representation of this block
-	virtual std::string to_str() const override;
 
 	/// Resizes this block.
 	virtual void resize(size_t inputs, size_t outputs) override;
@@ -880,18 +1124,18 @@ public:
 	virtual size_t outputs() const override { return m_weights.rows(); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
 	/// Feed a vector backwards through this block.
 	void feedBackward(const GVec& output, GVec& input) const;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
@@ -949,7 +1193,7 @@ public:
 	/// Draws a sample observation from "iters" iterations of Gibbs sampling.
 	/// The resulting sample is placed in activationReverse(), and the corresponding
 	/// encoding will be in activation().
-	void drawSample(GRand& rand, size_t iters, GVec& output, GVec& input);
+	void drawSample(GContext& ctx, size_t iters, GVec& output, GVec& input);
 
 	
 /*  *** Note that these two commented-out methods are pretty-much the whole point of RBMs, so this class is pretty-much useless until they are restored. ***
@@ -992,11 +1236,11 @@ public:
 	/// Returns the type of this block
 	virtual BlockType type() const override { return block_convolutional1d; }
 
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockConvolutional1D"; }
+
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
-
-	/// Makes a string representation of this block
-	virtual std::string to_str() const override;
 
 	/// Resizes this block.
 	virtual void resize(size_t inputs, size_t outputs) override;
@@ -1008,15 +1252,15 @@ public:
         virtual size_t outputs() const override { return m_outputSamples * m_inputChannels * m_kernelsPerChannel; }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
@@ -1123,23 +1367,26 @@ public:
 	GBlockConvolutional2D(GDomNode* pNode);
 
 	virtual BlockType type() const override { return block_convolutional2d; }
+
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockConvolutional2D"; }
+
 	virtual GDomNode* serialize(GDom* pDoc) const override;
-	virtual std::string to_str() const override;
 	virtual void resize(size_t inputs, size_t outputs) override;
         virtual size_t inputs() const override { return m_width * m_height * m_channels; }
         virtual size_t outputs() const override { return m_outputWidth * m_outputHeight * m_bias.size(); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
@@ -1217,28 +1464,59 @@ public:
 
 	/// Returns a new context object for this recurrent block.
 	/// The recurrent state should be initialized to the starting state.
-	virtual GContextRecurrentInstance* newContext() = 0;
+	virtual GContextRecurrentInstance* newContext(GRand& rand) = 0;
 
 protected:
 	/// Deliberately protected.
 	/// Throws an exception telling you to call GContextRecurrent::forwardProp instead.
-	virtual void forwardProp(const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
 
 	/// Deliberately protected.
 	/// Throws an exception telling you to call GContextRecurrent::backProp instead.
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
 	/// Deliberately protected.
 	/// Throws an exception telling you to call GContextRecurrent::updateGradient instead.
-	virtual void updateGradient(const GVec& input, const GVec& outBlame, GVec& gradient) const override;
+	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const override;
+
+#ifndef MIN_PREDICT
+	static double testEngine(GNeuralNet& nn);
+#endif
+
 };
 
+
+
+
+
+
+/// The base class for the buffers that a thread needs to
+/// use (train or predict with) a neural network component.
+class GContext
+{
+public:
+	GRand& m_rand;
+
+	GContext(GRand& rand) : m_rand(rand) {};
+	virtual ~GContext() {}
+
+	/// Resets the state of all recurrent blocks.
+	/// (This is called whenever a recurrent neural network begins with a new sequence,
+	/// either for training or testing.)
+	virtual void resetState() = 0;
+};
+
+
+
+
+
+
+
 /// A special context object for recurrent blocks
-class GContextRecurrent
+class GContextRecurrent : public GContext
 {
 public:
 	GBlockRecurrent& m_block;
-	GContextRecurrentInstance* m_pInitialInstance;
 	GVec m_emptyBlame;
 	GVec m_bogusBlame;
 	std::vector<GContextRecurrentInstance*> m_contextHistory; // Stores recent context objects
@@ -1247,10 +1525,10 @@ public:
 	std::vector<GVec*> m_inputSpares; // Stores unused vector objects
 	size_t m_pos; // Position of the oldest recorded input vector in the history
 
-	GContextRecurrent(GBlockRecurrent& block);
+	GContextRecurrent(GRand& rand, GBlockRecurrent& block);
 	virtual ~GContextRecurrent();
 
-	void resetState();
+	virtual void resetState() override;
 
 	void forwardProp(const GVec& input, GVec& output);
 
@@ -1263,9 +1541,10 @@ public:
 };
 
 /// A single instance of a recurrent context that has been unfolded through time
-class GContextRecurrentInstance
+class GContextRecurrentInstance : public GContext
 {
 public:
+	GContextRecurrentInstance(GRand& rand) : GContext(rand) {}
 	virtual ~GContextRecurrentInstance() {}
 
 	virtual void clearBlame() = 0;
@@ -1295,28 +1574,28 @@ public:
 	virtual ~GBlockLSTM();
 
 	/// Returns the type of this block
-	virtual BlockType type() const override { return block_gru; }
+	virtual BlockType type() const override { return block_lstm; }
+
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockLSTM"; }
 
 	/// Returns the number of instances of this block unfolded through time that will be used during training.
 	virtual size_t depth() override { return 4; }
 
 	/// Returns the number of inputs this block consumes
-	virtual size_t inputs() const override { return m_write.outputs(); }
+	virtual size_t inputs() const override { return m_write.inputs() - m_write.outputs(); }
 
 	/// Returns the number of outputs this block produces
-	virtual size_t outputs() const override { return m_write.inputs(); }
+	virtual size_t outputs() const override { return m_write.outputs(); }
 
 	/// Makes a new context object for this block
-	virtual GContextRecurrentInstance* newContext() override;
+	virtual GContextRecurrentInstance* newContext(GRand& rand) override;
 
 	/// Resizes this block.
 	virtual void resize(size_t inputs, size_t outputs) override;
 
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
-
-	/// Returns a string representation of this block
-	virtual std::string to_str() const override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
@@ -1373,10 +1652,11 @@ public:
 	GVec m_buf1;
 	GVec m_buf2;
 
-	GContextLSTM(GBlockLSTM& block);
+	GContextLSTM(GRand& rand, GBlockLSTM& block);
 
-	virtual void forwardProp(GContextRecurrentInstance* pPrev, const GVec& input, GVec& output) override;
+	virtual void resetState() override;
 	virtual void clearBlame() override;
+	virtual void forwardProp(GContextRecurrentInstance* pPrev, const GVec& input, GVec& output) override;
 	virtual void backProp(GContextRecurrentInstance* pPrev, const GVec& outBlame, GVec& inBlame) override;
 	virtual void updateGradient(GContextRecurrentInstance* prev, const GVec& input, GVec& gradient) const override;
 };
@@ -1406,26 +1686,26 @@ public:
 	/// Returns the type of this block
 	virtual BlockType type() const override { return block_gru; }
 
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockGRU"; }
+
 	/// Returns the number of instances of this block unfolded through time that will be used during training.
 	virtual size_t depth() override { return 4; }
 
 	/// Returns the number of inputs this block consumes
-	virtual size_t inputs() const override { return m_update.outputs(); }
+	virtual size_t inputs() const override { return m_update.inputs() - m_update.outputs(); }
 
 	/// Returns the number of outputs this block produces
-	virtual size_t outputs() const override { return m_update.inputs(); }
+	virtual size_t outputs() const override { return m_update.outputs(); }
 
 	/// Makes a new context object for this block
-	GContextRecurrentInstance* newContext() override;
+	virtual GContextRecurrentInstance* newContext(GRand& rand) override;
 
 	/// Resizes this block.
 	virtual void resize(size_t inputs, size_t outputs) override;
 
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
-
-	/// Returns a string representation of this block
-	virtual std::string to_str() const override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
@@ -1457,6 +1737,10 @@ public:
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
+
+#ifndef MIN_PREDICT
+	static void test();
+#endif
 };
 
 /// Context class for GRU blocks
@@ -1475,9 +1759,10 @@ public:
 	GVec m_buf1;
 	GVec m_buf2;
 
-	GContextGRU(GBlockGRU& block);
+	GContextGRU(GRand& rand, GBlockGRU& block);
 
 	virtual void forwardProp(GContextRecurrentInstance* pPrev, const GVec& input, GVec& output) override;
+	virtual void resetState() override;
 	virtual void clearBlame() override;
 	virtual void backProp(GContextRecurrentInstance* pPrev, const GVec& outBlame, GVec& inBlame) override;
 	virtual void updateGradient(GContextRecurrentInstance* prev, const GVec& input, GVec& gradient) const override;

@@ -54,7 +54,7 @@ public:
 
 	/// Allocates a new GContextLayer object, which can be used to train or predict with this layer.
 	/// (Behavior is undefined if you add any blocks after you call newContext.)
-	GContextLayer* newContext() const;
+	GContextLayer* newContext(GRand& rand) const;
 
 	/// Returns the number of blocks in this layer.
 	size_t blockCount() const { return m_blocks.size(); }
@@ -103,27 +103,20 @@ public:
 	/// Moves all weights by a constant amount toward 0
 	void diminishWeights(double amount, bool diminishBiases);
 
+	/// Feeds input forward through the layer that was used to construct this object.
+	void forwardProp(GContextLayer& ctx, const GVec& input, GVec& output) const;
+
+	/// Identical to forwardProp, except recurrent blocks additionally propagate through time during training.
+	void forwardProp_training(GContextLayer& ctx, const GVec& input, GVec& output) const;
+
+	/// Backpropagates the blame through the layer that was used to construct this object.
+	void backProp(GContextLayer& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const;
+
+	/// Updates the gradient for the layer that was used to construct this object.
+	void updateGradient(GContextLayer& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const;
+
 	/// Take a step to descend the gradient by updating the weights.
 	void step(double learningRate, const GVec &gradient);
-};
-
-
-
-
-
-
-/// The base class for the buffers that a thread needs to
-/// use (train or predict with) a neural network component.
-class GContext
-{
-public:
-	GContext() {};
-	virtual ~GContext() {}
-
-	/// Resets the state of all recurrent blocks.
-	/// (This is called whenever a recurrent neural network begins with a new sequence,
-	/// either for training or testing.)
-	virtual void resetState() = 0;
 };
 
 
@@ -145,26 +138,13 @@ public:
 	std::vector<GContextNeuralNet*> m_components;
 
 protected:
-	GContextLayer(const GLayer& layer); // deliberately protected. Call GLayer::newContext to construct one.
+	GContextLayer(GRand& rand, const GLayer& layer); // deliberately protected. Call GLayer::newContext to construct one.
 
 public:
 	~GContextLayer();
 
 	/// See the comment for GContext::resetState.
 	virtual void resetState() override;
-
-	/// Feeds input forward through the layer that was used to construct this object.
-	void forwardProp(const GVec& input, GVec& output);
-
-	/// Identical to forwardProp, except recurrent blocks additionally propagate through time during training.
-	void forwardProp_training(const GVec& input, GVec& output);
-
-	/// Backpropagates the blame through the layer that was used to construct this object.
-	void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame);
-
-	/// Updates the gradient for the layer that was used to construct this object.
-	void updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient) const;
-
 };
 
 
@@ -190,12 +170,15 @@ public:
 	/// Returns the type of this layer
 	virtual BlockType type() const override { return block_neuralnet; }
 
+	/// Returns the name of this block
+	virtual std::string name() const { return "GNeuralNet"; }
+
 	/// Marshal this object into a dom node.
 	GDomNode* serialize(GDom* pDoc) const override;
 
 	/// Allocates a new GContextNeuralNet object, which can be used to train or predict with this neural net.
 	/// (Behavior is undefined if you add or modify any layers after you call newContext.)
-	GContextNeuralNet* newContext() const;
+	GContextNeuralNet* newContext(GRand& rand) const;
 
 	/// Adds a new layer, and returns a reference to it.
 	GLayer& newLayer();
@@ -214,6 +197,9 @@ public:
 
 	/// Returns a string representation of this object
 	virtual std::string to_str() const override;
+
+	/// Same as to_str, but it lets the use specify a string to prepend to each line
+	std::string to_str(const std::string& line_prefix) const;
 
 	/// Resizes this layer.
 	virtual void resize(size_t inputs, size_t outputs) override;
@@ -316,18 +302,19 @@ public:
 	/// beginIncrementalLearning called.
 //	static GNeuralNet* fourier(GMatrix& series, double period = 1.0);
 
-protected:
-	/// Deliberately protected
-	/// Throws an exception telling you to call GContextNeuralNet::forwardProp instead.
-	virtual void forwardProp(const GVec& input, GVec& output) const override;
+	/// Evaluates input, computes output.
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
 
-	/// Deliberately protected.
-	/// Throws an exception telling you to call GContextNeuralNet::backProp instead.
-	virtual void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	/// Evaluates input, computes output.
+	/// This method differs from forwardProp in that it unfolds recurrent blocks through time.
+	void forwardProp_training(GContext& ctx, const GVec& input, GVec& output) const;
 
-	/// Deliberately protected.
-	/// Throws an exception telling you to call GContextNeuralNet::updateGradient instead.
-	void updateGradient(const GVec &x, const GVec& outBlame, GVec& inBlame) const override;
+	/// Evaluates outBlame, computes inBlame.
+	/// For efficiency reasons, as a special case, if inBlame.data() == outBlame.data(), then inBlame will not be computed.
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+
+	/// Updates the gradient.
+	virtual void updateGradient(GContext& ctx, const GVec &x, const GVec& outBlame, GVec& inBlame) const override;
 };
 
 
@@ -345,7 +332,7 @@ protected:
 	std::vector<GContextLayer*> m_layers;
 	GContextLayer* m_pOutputLayer; // redundant pointer to the last layer for efficiency purposes
 
-	GContextNeuralNet(const GNeuralNet& nn); // deliberately protected. Call GNeuralNet::newContext to construct one.
+	GContextNeuralNet(GRand& rand, const GNeuralNet& nn); // deliberately protected. Call GNeuralNet::newContext to construct one.
 
 public:
 	~GContextNeuralNet();
@@ -355,19 +342,6 @@ public:
 
 	/// See the comment for GContext::resetState.
 	virtual void resetState() override;
-
-	/// Feeds input forward through the component that was used to construct this object.
-	void forwardProp(const GVec& input, GVec& output) const;
-
-	/// Idential to forwardProp, except recurrent blocks additionally propagate through time during training.
-	void forwardProp_training(const GVec& input, GVec& output) const;
-
-	/// Backpropagates the blame across the component that was used to construct this object.
-	/// (If pInBlame is non-NULL, it will also compute the blame for the inputs.)
-	void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec* pInBlame);
-
-	/// Updates the gradient for the component that was used to construct this object.
-	void updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient) const;
 
 	/// Returns the activation buffer for the output layer
 	GVec& predBuf() { return m_pOutputLayer->m_activation; }

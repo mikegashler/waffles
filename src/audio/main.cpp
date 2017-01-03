@@ -16,8 +16,6 @@
   our code to be useful, the Waffles team would love to hear how you use it.
 */
 
-#include <exception>
-#include <iostream>
 #include "../GClasses/GApp.h"
 #include "../GClasses/GBits.h"
 #include "../GClasses/GError.h"
@@ -28,8 +26,12 @@
 #include "../GClasses/GMath.h"
 #include "../GClasses/GVec.h"
 #include "../GClasses/GWave.h"
-#include <cmath>
+#include "../GClasses/GMatrix.h"
+#include "../GClasses/GNeuralDecomposition.h"
 #include "../GClasses/usage.h"
+#include <exception>
+#include <iostream>
+#include <cmath>
 
 using namespace GClasses;
 using std::cerr;
@@ -45,11 +47,10 @@ protected:
 	double m_deviations;
 	size_t m_noiseBlocks;
 	struct ComplexNumber* m_pNoise;
-	bool m_neural;
 
 public:
 	AmbientNoiseReducer(GWave& noise, size_t blockSize, double deviations)
-	: GFourierWaveProcessor(blockSize), m_deviations(deviations), m_neural(false)
+	: GFourierWaveProcessor(blockSize), m_deviations(deviations)
 	{
 		if(noise.channels() != 1)
 			throw Ex("Sorry, ", to_str(noise.channels()), "-channel ambient noise files are not yet supported");
@@ -73,11 +74,6 @@ public:
 	virtual ~AmbientNoiseReducer()
 	{
 		delete[] m_pNoise;
-	}
-
-	void useNeuralApproach()
-	{
-		m_neural = true;
 	}
 
 protected:
@@ -376,6 +372,81 @@ void pitchShift(GArgReader& args)
 	wSignal.save(outputFilename);
 }
 
+void reduceAmbientNoiseWithNeuralApproach(GWave& wNoise, GWave& wSignal, size_t blockSize, const char* outputFilename)
+{
+	blockSize = 512;
+
+	// Copy the central block of the noise into a buffer
+	if(blockSize > wNoise.sampleCount())
+		throw Ex("Not enough noise");
+	size_t noiseStart = (wNoise.sampleCount() - blockSize) / 2;
+	GWaveIterator itNoise(wNoise);
+	itNoise.advance(noiseStart);
+	GMatrix data(0, 1);
+	for(size_t i = 0; i < blockSize; i++)
+	{
+		data.newRow()[0] = itNoise.current()[0];
+		if(!itNoise.advance())
+			throw Ex("ran past the end of the noise file");
+	}
+
+	// Decompose the noise block into sinusoid waves
+	GNeuralDecomposition nd;
+//nd.setRegularization(0.1);
+	nd.setLinearUnits(0);
+	nd.setSoftplusUnits(0);
+	nd.setSigmoidUnits(0);
+	nd.setEpochs(2000);
+	nd.setSinusoidUnits(blockSize);
+	nd.setLockPairs(true);
+	std::cout << "Training on the noise...\n";
+	nd.trainOnSeries(data);
+
+	// Freeze the noise
+	nd.freeze();
+	nd.setLockPairs(false);
+
+	// Remove the noise from the signal
+	size_t len = wSignal.sampleCount() - wSignal.sampleCount() % blockSize;
+	GWave wClean;
+	wClean.setData(new unsigned char[len * wSignal.bitsPerSample() / 8], wSignal.bitsPerSample(), len, 1, wSignal.sampleRate());
+	GWaveIterator itSignal(wSignal);
+	GWaveIterator itClean(wClean);
+	std::cout << "Processing the signal...\n";
+	while(itSignal.remaining() >= blockSize)
+	{
+		// Display progress
+		std::cout << to_str(100.0 * (1.0 - ((double)itSignal.remaining() / wSignal.sampleCount()))) << "%\n";
+
+		// Encode
+		for(size_t i = 0; i < blockSize; i++)
+		{
+			data[i][0] = itSignal.current()[0];
+			if(!itSignal.advance())
+				throw Ex("ran past the end of the signal file");
+		}
+
+		// Decompose	
+		nd.trainOnSeries(data);
+
+		// Remove the noise
+//		nd.clearFrozen();
+
+		// Reassemble
+		GVec in(1);
+		GVec out(1);
+		for(size_t i = 0; i < blockSize; i++)
+		{
+			in[0] = (double)i / blockSize;
+			nd.predict(in, out);
+			itClean.set(out.data());
+			if(!itClean.advance())
+				throw Ex("ran past the end of the clean file");
+		}
+	}
+	wClean.save(outputFilename);
+}
+
 void reduceAmbientNoise(GArgReader& args)
 {
 	const char* noiseFilename = args.pop_string();
@@ -404,11 +475,14 @@ void reduceAmbientNoise(GArgReader& args)
 	wNoise.load(noiseFilename);
 	GWave wSignal;
 	wSignal.load(signalFilename);
-	AmbientNoiseReducer denoiser(wNoise, blockSize, deviations);
 	if(neuralDecomposition)
-		denoiser.useNeuralApproach();
-	denoiser.reduce(wSignal);
-	wSignal.save(outputFilename);
+		reduceAmbientNoiseWithNeuralApproach(wNoise, wSignal, blockSize, outputFilename);
+	else
+	{
+		AmbientNoiseReducer denoiser(wNoise, blockSize, deviations);
+		denoiser.reduce(wSignal);
+		wSignal.save(outputFilename);
+	}
 }
 
 void sanitize(GArgReader& args)
