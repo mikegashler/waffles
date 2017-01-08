@@ -1225,7 +1225,6 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-thickness [t]=2", "Specify the thickness of the bars. (Note that the whole chart will be stretched to fit the width, so adjusting the width may also affect bar thickness.)");
 		pOpts->add("-spacing [s]=1", "Specify how much space to place between the bars.");
 		pOpts->add("-textsize [d]=1.0", "Specify the size of the font to use for the text labels.");
-		pOpts->add("-noserifs", "Use a font with no serifs. (Generally, this makes the chart look a little cleaner.)");
 		pOpts->add("-marks [n]=30", "Specify the maximum number of horizontal lines to use to mark positions on the vertical axis. (Set to 0 if you do not want any markings.)");
 		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 960 540.)");
 		pOpts->add("-labels [l0] [l1] [l2] [etc]", "Specify label strings to use instead of the attribute names. The number of labels specified should match the number of columns in the data.");
@@ -1242,7 +1241,6 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-novmarks", "Do not draw any horizontal lines to mark position on the vertical axis.");
 		pOpts->add("-notext", "Do not draw any text labels.");
 		pOpts->add("-nogrid", "Do not draw any horizontal or vertical grid lines.");
-		pOpts->add("-noserifs", "Use a font with no serifs. (This generally makes charts look a little cleaner.)");
 		pOpts->add("-aspect", "Adjust the range to preserve the aspect ratio. In other words, make sure that both axes visually have the same scale.");
 		pOpts->add("-thickness [size]=1", "Specify the thickness of the lines.");
 		pEquat->add("[equations]=\"f1(x)=sin(x)/x\"", "A set of equations separated by semicolons. Since '^' is a special character for many shells, it's usually a good idea to put your equations inside quotation marks. Here are some examples:\n      "
@@ -1253,6 +1251,9 @@ UsageNode* makePlotUsageTree()
 		"Built in functions include: +, -, *, /, %, ^, abs, acos, acosh, asin, asinh, atan, atanh, ceil, cos, cosh, erf, floor, gamma, lgamma, log, max, min, normal, sin, sinh, sqrt, tan, and tanh."
 		" These generally have the same meaning as in C, except '^' means exponent, \"gamma\" is the gamma function, \"normal\" is the standard normal pdf, and max and min can support any number (>=1) of parameters. (Some of these functions may not not be available on Windows, but most of them are.) You can override any built in constants or "
 		"functions with your own variables or functions, so you don't need to worry too much about name collisions. Variables must begin with an alphabet character or an underscore. Multiplication is never implicit, so you must use a '*' character to multiply. Whitespace is ignored.");
+	}
+	{
+		UsageNode* pGraph = pRoot->add("graph", "Opens an interactive graphing tool in the web browser");
 	}
 	{
 		UsageNode* pHist = pRoot->add("histogram [dataset] <options>", "Make a histogram. Print the plot to stdout in SVG format.");

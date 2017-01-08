@@ -497,11 +497,8 @@ double GMath::functionInverse(double (*func)(const double* params, double x), co
 // static
 double GMath::fuzzy(double x, double y, double alpha)
 {
-	double n = (x + alpha - 1.0) * (y + alpha - 1.0) + (alpha - alpha * alpha);
-	if(alpha < 0.5)
-		return n / (1.0 - alpha);
-	else
-		return n / alpha;
+	double t = std::abs(alpha);
+	return (x + alpha) * (y + alpha) / (t + 1) - t;
 }
 
 #ifndef NO_TEST_CODE
@@ -512,39 +509,39 @@ double ComputeCosine(void* pThis, double d)
 
 void GMath_testFuzzy()
 {
+	/*
 	// Print a truth table
-/*
-	for(double a = 0.0; a <= 1.0; a += 0.5)
+	for(double a = -1.0; a <= 1.0; a += 1.0)
 	{
-		for(double x = 0.0; x < 2.0; x++)
+		for(double x = -1.0; x <= 1.0; x += 2.0)
 		{
-			for(double y = 0.0; y < 2.0; y++)
+			for(double y = -1.0; y <= 1.0; y += 2.0)
 			{
 				std::cout << to_str(x) << " (" << to_str(a) << ") " << to_str(y) << " = " << to_str(GMath::fuzzy(x, y, a)) << "\n";
 			}
 		}
 	}
-*/
+	*/
 
 	// Test pure logic cases
 	const double in[] = {
 	//	x	y	and	or	xor	nand	nor	nxor
-		0.0,	0.0,	0.0,	0.0,	0.0,	1.0,	1.0,	1.0,
-		0.0,	1.0,	0.0,	1.0,	1.0,	1.0,	0.0,	0.0,
-		1.0,	0.0,	0.0,	1.0,	1.0,	1.0,	0.0,	0.0,
-		1.0,	1.0, 	1.0,	1.0,	0.0,	0.0,	0.0,	1.0
+		-1.0,	-1.0,	-1.0,	-1.0,	-1.0,	1.0,	1.0,	1.0,
+		-1.0,	1.0,	-1.0,	1.0,	1.0,	1.0,	-1.0,	-1.0,
+		1.0,	-1.0,	-1.0,	1.0,	1.0,	1.0,	-1.0,	-1.0,
+		1.0,	1.0, 	1.0,	1.0,	-1.0,	-1.0,	-1.0,	1.0
 	};
 
 	for(size_t i = 0; i < 4; i++)
 	{
 		double x = in[8 * i];
 		double y = in[8 * i + 1];
-		if(GMath::fuzzy(x, y, 1) != in[8 * i + 2]) throw Ex("and wrong, ", to_str(i));
-		if(1.0 - GMath::fuzzy(x, y, 0) != in[8 * i + 3]) throw Ex("or wrong, ", to_str(i));
-		if(1.0 - GMath::fuzzy(x, y, 0.5) != in[8 * i + 4]) throw Ex("xor wrong, ", to_str(i));
-		if(1.0 - GMath::fuzzy(x, y, 1) != in[8 * i + 5]) throw Ex("nand wrong, ", to_str(i));
-		if(GMath::fuzzy(x, y, 0) != in[8 * i + 6]) throw Ex("nor wrong, ", to_str(i));
-		if(GMath::fuzzy(x, y, 0.5) != in[8 * i + 7]) throw Ex("nxor wrong, ", to_str(i));
+		if(GMath::fuzzy(x, y, 1.0) != in[8 * i + 2]) throw Ex("and wrong, ", to_str(i));
+		if(-GMath::fuzzy(x, y, -1.0) != in[8 * i + 3]) throw Ex("or wrong, ", to_str(i));
+		if(-GMath::fuzzy(x, y, 0.0) != in[8 * i + 4]) throw Ex("xor wrong, ", to_str(i));
+		if(-GMath::fuzzy(x, y, 1.0) != in[8 * i + 5]) throw Ex("nand wrong, ", to_str(i));
+		if(GMath::fuzzy(x, y, -1.0) != in[8 * i + 6]) throw Ex("nor wrong, ", to_str(i));
+		if(GMath::fuzzy(x, y, 0.0) != in[8 * i + 7]) throw Ex("nxor wrong, ", to_str(i));
 	}
 
 	// Test compliance with DeMorgan's law
@@ -554,7 +551,7 @@ void GMath_testFuzzy()
 		double alpha = rand.normal();
 		double x = rand.normal();
 		double y = rand.normal();
-		if(std::abs(GMath::fuzzy(x, y, 1 - alpha) - GMath::fuzzy(1.0 - x, 1.0 - y, alpha)) > 1e-8)
+		if(std::abs(GMath::fuzzy(x, y, -alpha) - GMath::fuzzy(-x, -y, alpha)) > 1e-8)
 			throw Ex("DeMorgan's law failed");
 	}
 
@@ -565,7 +562,7 @@ void GMath_testFuzzy()
 		double x = rand.uniform();
 		double y = rand.uniform();
 		double val = GMath::fuzzy(x, y, alpha);
-		if(val < 0.0 || val > 1.0)
+		if(val < -1.0 || val > 1.0)
 			throw Ex("Out of range");
 	}
 /*

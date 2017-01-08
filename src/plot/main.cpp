@@ -25,6 +25,7 @@
 #include "../GClasses/GError.h"
 #include "../GClasses/GMatrix.h"
 #include "../GClasses/GDecisionTree.h"
+#include "../GClasses/GDynamicPage.h"
 #include "../GClasses/GRand.h"
 #include "../GClasses/GFile.h"
 #include "../GClasses/GHistogram.h"
@@ -37,6 +38,8 @@
 #include "../GClasses/GPlot.h"
 #include "../GClasses/GFunction.h"
 #include "../GClasses/GLearner.h"
+#include "../GClasses/GTime.h"
+#include "../GClasses/GThread.h"
 #include "../GClasses/GNeuralNet.h"
 #include "../GClasses/GManifold.h"
 #include "../GClasses/GSelfOrganizingMap.h"
@@ -381,7 +384,7 @@ void PlotBar(GArgReader& args)
 	svg.print(cout);
 }
 
-void PlotEquation(GArgReader& args)
+void PlotEquation(GArgReader& args, std::ostream& stream = std::cout)
 {
 	// Parse options
 	size_t width = 960;
@@ -393,7 +396,6 @@ void PlotEquation(GArgReader& args)
 	double ymin = -5;
 	double xmax = 10;
 	double ymax = 5;
-	bool serifs = true;
 	bool aspect = false;
 	bool horizMarks = true;
 	bool vertMarks = true;
@@ -430,8 +432,6 @@ void PlotEquation(GArgReader& args)
 			horizMarks = false;
 			vertMarks = false;
 		}
-		else if(args.if_pop("-noserifs"))
-			serifs = false;
 		else if(args.if_pop("-aspect"))
 			aspect = true;
 		else if(args.if_pop("-thickness"))
@@ -475,10 +475,6 @@ void PlotEquation(GArgReader& args)
 			maxVertMarks = maxHorizMarks * height / width;
 		svg.vertMarks((int)maxVertMarks, !text);
 	}
-
-	// Draw the equation as the label under the graph
-	if(text)
-		svg.text(0.5 * (xmin + xmax), svg.horizLabelPos(), expr.c_str(), 1.5, GSVG::Middle, 0xff000000, 0, serifs);
 
 	// Count the equations
 	size_t equationCount = 0;
@@ -532,7 +528,7 @@ void PlotEquation(GArgReader& args)
 	}
 
 	// output the plot
-	svg.print(cout);
+	svg.print(stream);
 }
 
 class ScatterCol
@@ -1764,6 +1760,225 @@ void printRandomForest(GArgReader& args)
 		((GRandomForest*)pModeler)->print(cout);
 }
 
+
+
+
+
+
+class GraphConnection : public GDynamicPageConnection
+{
+public:
+	GraphConnection(SOCKET sock, GDynamicPageServer* pServer) : GDynamicPageConnection(sock, pServer)
+	{
+	}
+	
+	virtual ~GraphConnection()
+	{
+	}
+
+	virtual void handleRequest(GDynamicPageSession* pSession, std::ostream& response);
+};
+
+class GraphServer : public GDynamicPageServer
+{
+protected:
+	vector<UsageNode*> m_globals;
+	int m_port;
+
+public:
+	std::string m_basePath;
+
+	GraphServer(int port, GRand* pRand);
+	virtual ~GraphServer();
+	void pump();
+	virtual void onEverySixHours() {}
+	virtual void onStateChange() {}
+	virtual void onShutDown() {}
+
+	virtual GDynamicPageConnection* makeConnection(SOCKET sock)
+	{
+		return new GraphConnection(sock, this);
+	}
+};
+
+GraphServer::GraphServer(int port, GRand* pRand) : GDynamicPageServer(port, pRand), m_port(port)
+{
+	char buf[300];
+	GApp::appPath(buf, 256, true);
+	strcat(buf, "web/");
+	GFile::condensePath(buf);
+	m_basePath = buf;
+}
+
+// virtual
+GraphServer::~GraphServer()
+{
+}
+
+void GraphServer::pump()
+{
+	double dLastActivity = GTime::seconds();
+	GSignalHandler sh;
+	while(m_bKeepGoing && sh.check() == 0)
+	{
+		if(process())
+			dLastActivity = GTime::seconds();
+		else
+		{
+			if(GTime::seconds() - dLastActivity > 1800) // 30 minutes
+			{
+				cout << "Shutting down due to inactivity for 30 minutes.\n";
+				m_bKeepGoing = false;
+			}
+			else
+				GThread::sleep(100);
+		}
+	}
+	onShutDown();
+}
+
+// virtual
+void GraphConnection::handleRequest(GDynamicPageSession* pDPSession, std::ostream& response)
+{
+	if(strcmp(m_szUrl, "/favicon.ico") == 0)
+		return;
+
+	GHttpParamParser pp(pDPSession->params(), false);
+	const char* funcs = pp.find("funcs");
+	if(!funcs)
+		funcs = "-size 600 400\n-range -5 -1 5 4\n-aspect\n\"\nf1(x) = (g1(x) + 1) / (x^2 + a);\nf2(x) = sin(g1(x + 2));\na = pi / 4;\ng1(x) = abs(x + a);\n\"";
+	const char* cursorpos = pp.find("cursorpos");
+
+	response << "<table width=\"100%\"><tr><td>\n";
+	
+	// Parse funcs into an argument list
+	char* funcs2 = new char[strlen(funcs) + 1];
+	std::unique_ptr<char[]> hfuncs2(funcs2);
+	strcpy(funcs2, funcs);
+	vector<char*> args;
+	if(funcs[0] != '\0')
+	{
+		args.push_back(funcs2);
+		bool quot = false;
+		for(size_t i = 1; funcs[i] != '\0'; i++)
+		{
+			if(!quot && funcs[i] > ' ' && funcs[i] != '\"' && funcs2[i - 1] <= ' ')
+				args.push_back(funcs2 + i);
+			if(!quot && funcs[i] <= ' ')
+				funcs2[i] = '\0';
+			if(funcs[i] == '\"')
+			{
+				quot = !quot;
+				funcs2[i] = '\0';
+				if(quot)
+					args.push_back(funcs2 + i + 1);
+			}
+		}
+	}
+	GArgReader eqargs(args.size(), args.data());
+
+	// Plot it
+	response << "\n\n\n<!-- BEGIN SVG FILE --->\n";
+	try
+	{
+		PlotEquation(eqargs, response);
+	}
+	catch(const std::exception& e)
+	{
+		response << "<pre>" << e.what() << "</pre>";
+	}
+	response << "<!-- END SVG FILE --->\n\n\n";
+	response << "</td><td>\n";
+	response << "<form id=\"theform\" method=\"post\">\n";
+	response << "	<textarea name=\"funcs\" id=\"ta\" cols=\"65\" rows=\"20\" autofocus>" << funcs << "</textarea><br>\n";
+	response << "	<input type=\"submit\" name=\"plotbutton\" value=\"Plot\"> (or press \"\\\")\n";
+	response << "</form>\n";
+	response << "</td></tr></table>\n";
+	
+	response << "<br>\n<br>\n<h3>Built in constants</h3>\ne, pi.<br><h3>Built in functions</h3>\n+, -, *, /, %, ^, abs, acos, acosh, asin, asinh, atan, atanh, ceil, cos, cosh, erf, floor, gamma, lgamma, log, max, min, sin, sinh, sqrt, tan, and tanh. These generally have the same meaning as in C, except '^' means exponent, \"gamma\" is the gamma function, and max and min can support any number of parameters >= 1. \"ifzero\" returns its second parameter if its first parameter is zero (when rounded), otherwise returns its third parameter. \"ifnegative\" returns its second parameter if its first parameter is negative, otherwise returns its third parameter.\n";
+
+	response << "\n\n<script>\n";
+	response << "document.getElementById(\"ta\").addEventListener(\"keypress\", handleKey);\n";
+	if(cursorpos)
+	{
+		response << "\n";
+		response << "var range = document.getElementById(\"ta\").setSelectionRange(" << cursorpos << ", " << cursorpos << ");\n";
+/*		response << "alert(\"adid it\");\n";
+		response << "range.move('character', " << cursorpos << ");\n";
+		response << "alert(\"bdid it\");\n";
+		response << "range.select();\n";
+		response << "alert(\"cdid it\");\n";*/
+	}
+	
+	response << "\n";
+	response << "function handleKey(event)\n";
+	response << "{\n";
+	response << "	if(event.which === 92) // backslash\n";
+	response << "	{\n";
+	response << "		// swallow the key\n";
+	response << "		event.preventDefault();";
+	response << "\n";
+	response << "		// Add a hidden field containing the cursor position\n";
+	response << "		var input = document.createElement(\"input\");\n";
+	response << "		input.setAttribute(\"type\", \"hidden\");\n";
+	response << "		input.setAttribute(\"name\", \"cursorpos\");\n";
+	response << "		input.setAttribute(\"value\", \"\" + document.getElementById(\"ta\").selectionStart);\n";
+	response << "		document.getElementById(\"ta\").appendChild(input)\n";
+	response << "\n";
+	response << "		// submit the form\n";
+	response << "		document.getElementById(\"theform\").submit();\n";
+	response << "	}\n";
+	response << "}\n";
+	response << "</script>\n";
+
+}
+
+void LaunchBrowser(const char* szAddress)
+{
+	size_t addrLen = strlen(szAddress);
+	GTEMPBUF(char, szUrl, addrLen + 20);
+	strcpy(szUrl, szAddress);
+	strcpy(szUrl + addrLen, "/graph");
+	cout << "Opening browser to: " << szUrl << "\n";
+	if(!GApp::openUrlInBrowser(szUrl))
+	{
+		cout << "Failed to open the URL: " << szUrl << "\nPlease open this URL manually.\n";
+		cout.flush();
+	}
+}
+
+void graph(GArgReader& args)
+{
+	int port = 8421;
+	size_t seed = (size_t)(getpid() * (unsigned int)time(NULL));
+	GRand prng(seed);
+	bool serverStarted = false;
+	try
+	{
+		GraphServer server(port, &prng);
+		serverStarted = true;
+		string s = "http://localhost:";
+		s += to_str(port);
+		LaunchBrowser(s.c_str());
+
+		// Pump incoming HTTP requests (this is the main loop)
+		server.pump();
+	}
+	catch(std::exception& e)
+	{
+		if(serverStarted)
+			throw e;
+		else
+		{
+			cout << "Failed to launch the server. Typically, this means there is already another instance running on port " << port << ", so I am just going to open the browser and then exit.\n";
+			string s = "http://localhost:";
+			s += to_str(port);
+			LaunchBrowser(s.c_str());
+		}
+	}
+	cout << "Goodbye.\n";
+}
+
 void ShowUsage(const char* appName)
 {
 	cout << "Full Usage Information\n";
@@ -1826,6 +2041,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("usage")) ShowUsage(appName);
 		else if(args.if_pop("bar")) PlotBar(args);
 		else if(args.if_pop("equation")) PlotEquation(args);
+		else if(args.if_pop("graph")) graph(args);
 		else if(args.if_pop("histogram")) makeHistogram(args);
 		else if(args.if_pop("percentsame")) percentSame(args);
 		else if(args.if_pop("printdecisiontree")) printDecisionTree(args);

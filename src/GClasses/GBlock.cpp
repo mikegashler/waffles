@@ -934,7 +934,7 @@ void GBlockFeatureSelector::resetWeights(GRand& rand)
 	{
 		GVec& w = m_weights[i];
 		for(size_t j = 0; j < w.size(); j++)
-			w[j] = b + 0.1 * b * rand.normal();
+			w[j] = b;// + 0.1 * b * rand.normal();
 		w.clip(0.0, 1.0);
 	}
 	for(size_t j = 0; j < outputs(); j++)
@@ -961,7 +961,15 @@ void GBlockFeatureSelector::diminishWeights(double amount, bool regularizeBiases
 	throw Ex("Not implemented");
 }
 
-
+bool GBlockFeatureSelector::hasConverged()
+{
+	for(size_t i = 0; i < m_weights.cols(); i++)
+	{
+		if(m_weights.columnMax(i) < 1.0)
+			return false;
+	}
+	return true;
+}
 
 
 
@@ -1119,16 +1127,8 @@ void GBlockFuzzy::backProp(GContext& ctx, const GVec& input, const GVec& output,
 	for(size_t i = 0; i < outBlame.size(); i++)
 	{
 		double a = m_alpha[i];
-		if(a < 0.5)
-		{
-			inBlame[i] *= (input[output.size() + i] + a - 1.0) / (1.0 - a);
-			inBlame[outBlame.size() + i] *= (input[i] + a - 1.0) / (1.0 - a);
-		}
-		else
-		{
-			inBlame[i] *= (input[output.size() + i] + a - 1.0) / a;
-			inBlame[outBlame.size() + i] *= (input[i] + a - 1.0) / a;
-		}
+		inBlame[i] *= (input[output.size() + i] + a) / (std::abs(a) + 1.0);
+		inBlame[outBlame.size() + i] *= (input[i] + a) / (std::abs(a) + 1.0);
 	}
 }
 
@@ -1138,23 +1138,19 @@ void GBlockFuzzy::updateGradient(GContext& ctx, const GVec& input, const GVec& o
 	for(size_t i = 0; i < m_alpha.size(); i++)
 	{
 		double a = m_alpha[i];
+		double aa = std::abs(m_alpha[i]);
 		double x = input[i];
 		double y = input[m_alpha.size() + i];
-		if(a < 0.499)
-			gradient[i] += outBlame[i] * ((x + y - 1.0 + GMath::fuzzy(x, y, a)) / (1.0 - a));
-		else if(a > 0.501)
-			gradient[i] += outBlame[i] * ((x + y - 1.0 - GMath::fuzzy(x, y, a)) / a);
-		else if(ctx.m_rand.next(2) == 0)
-			gradient[i] += outBlame[i] * ((x + y - 1.0 + GMath::fuzzy(x, y, a)) / (1.0 - a));
-		else
-			gradient[i] += outBlame[i] * ((x + y - 1.0 - GMath::fuzzy(x, y, a)) / a);
+		if(aa < 0.001)
+			a = -a; // This makes it robust to the discontinuity in the derivative that occurs when a=0.
+		gradient[i] += outBlame[i] * (aa * (x + y) - a * (x * y + 1.0)) / (aa * (aa + 1.0) * (aa + 1.0));
 	}
 }
 
 void GBlockFuzzy::step(double learningRate, const GVec &gradient)
 {
 	m_alpha.addScaled(learningRate, gradient);
-	m_alpha.clip(0.0, 1.0);
+	m_alpha.clip(-1.0, 1.0);
 }
 
 size_t GBlockFuzzy::weightCount() const
@@ -1185,14 +1181,14 @@ void GBlockFuzzy::copyWeights(const GBlock* pSource)
 void GBlockFuzzy::resetWeights(GRand& rand)
 {
 	for(size_t i = 0; i < m_alpha.size(); i++)
-		m_alpha[i] = rand.uniform();
+		m_alpha[i] = rand.uniform() * 2.0 - 1.0;
 }
 
 void GBlockFuzzy::perturbWeights(GRand &rand, double deviation)
 {
 	for(size_t i = 0; i < m_alpha.size(); i++)
 		m_alpha[i] += rand.normal() * deviation;
-	m_alpha.clip(0.0, 1.0);
+	m_alpha.clip(-1.0, 1.0);
 }
 
 void GBlockFuzzy::maxNorm(double min, double max)

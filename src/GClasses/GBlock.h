@@ -840,6 +840,9 @@ public:
 
 	/// Get the entire weights matrix
 	const GMatrix &weights() const { return m_weights; }
+
+	/// Returns true iff all of the units in this layer have assigned all of their weight to just one unit.
+	bool hasConverged();
 };
 
 
