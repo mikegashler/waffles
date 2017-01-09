@@ -1937,11 +1937,20 @@ void GBlockConvolutional1D::maxNorm(double min, double max)
 
 
 
-/*
+
 size_t GBlockConvolutional2D::Image::npos = (size_t) -1;
 
-GBlockConvolutional2D::Image::Image(GVec *_data, size_t _width, size_t _height, size_t _channels)
-: data(_data), width(_width), height(_height), channels(_channels), interlaced(true), dx(0), dy(0), dz(0), px(0), py(0), sx(1), sy(1), invertStride(false), flip(false) {}
+GBlockConvolutional2D::Image::Image(size_t _width, size_t _height, size_t _channels)
+: data(nullptr), width(_width), height(_height), channels(_channels),
+interlaced(true), dx(0), dy(0), dz(0), px(0), py(0), sx(1), sy(1), invertStride(false), flip(false)
+{}
+
+GBlockConvolutional2D::Image::Image(GVec* _data, const Image& copyMyParams)
+: data(_data), width(copyMyParams.width), height(copyMyParams.height), channels(copyMyParams.channels),
+interlaced(copyMyParams.interlaced), dx(copyMyParams.dx), dy(copyMyParams.dy), dz(copyMyParams.dz),
+px(copyMyParams.px), py(copyMyParams.py), sx(copyMyParams.sx), sy(copyMyParams.sy),
+invertStride(copyMyParams.invertStride), flip(copyMyParams.flip)
+{}
 
 size_t GBlockConvolutional2D::Image::index(size_t x, size_t y, size_t z) const
 {
@@ -2003,27 +2012,29 @@ GBlockConvolutional2D::GBlockConvolutional2D(size_t width, size_t height, size_t
   m_outputWidth(width - kWidth + 1), m_outputHeight(height - kHeight + 1),
   m_bias(kCount),
   m_kernels(kCount, kWidth * kHeight * channels),
-  m_activation(2, m_outputWidth * m_outputHeight * kCount),
-  m_kernelImage(NULL, kWidth, kHeight, channels), m_deltaImage(NULL, kWidth, kHeight, channels),
-  m_inputImage(NULL, width, height, channels), m_upStreamErrorImage(NULL, width, height, channels),
-  m_actImage(&m_activation[0], m_outputWidth, m_outputHeight, kCount), m_errImage(&m_activation[1], m_outputWidth, m_outputHeight, kCount)
+  m_kernelImage(kWidth, kHeight, channels),
+  m_deltaImage(kWidth, kHeight, channels),
+  m_inputImage(width, height, channels),
+  m_upStreamErrorImage(width, height, channels),
+  m_actImage(m_outputWidth, m_outputHeight, kCount),
+  m_errImage(m_outputWidth, m_outputHeight, kCount)
 {
-	m_input.setData(nullptr, width * height * channels);
-	m_output.setData(nullptr, m_outputWidth * m_outputHeight * kCount);	
 }
 
 
 GBlockConvolutional2D::GBlockConvolutional2D(size_t kWidth, size_t kHeight, size_t kCount)
 : GBlock(),
-  m_width(FLEXIBLE_SIZE), m_height(FLEXIBLE_SIZE), m_channels(FLEXIBLE_SIZE),
+  m_width(0), m_height(0), m_channels(0),
   m_kWidth(kWidth), m_kHeight(kHeight),
   m_outputWidth(0), m_outputHeight(0),
   m_bias(kCount),
   m_kernels(kCount, 0),
-  m_activation(2, 0),
-  m_kernelImage(NULL, kWidth, kHeight, 0), m_deltaImage(NULL, kWidth, kHeight, 0),
-  m_inputImage(NULL, 0, 0, 0), m_upStreamErrorImage(NULL, 0, 0, 0),
-  m_actImage(&m_activation[0], 0, 0, 0), m_errImage(&m_activation[1], 0, 0, 0)
+  m_kernelImage(kWidth, kHeight, 0),
+  m_deltaImage(kWidth, kHeight, 0),
+  m_inputImage(0, 0, 0),
+  m_upStreamErrorImage(0, 0, 0),
+  m_actImage(0, 0, 0),
+  m_errImage(0, 0, 0)
 {}
 
 GBlockConvolutional2D::GBlockConvolutional2D(GDomNode* pNode)
@@ -2033,10 +2044,12 @@ GBlockConvolutional2D::GBlockConvolutional2D(GDomNode* pNode)
   m_outputWidth(pNode->field("outputWidth")->asInt()), m_outputHeight(pNode->field("outputHeight")->asInt()),
   m_bias(pNode->field("bias")),
   m_kernels(pNode->field("kernels")),
-  m_activation(2, m_outputWidth * m_outputHeight * m_kernels.rows()),
-  m_kernelImage(NULL, m_kWidth, m_kHeight, m_channels), m_deltaImage(NULL, m_kWidth, m_kHeight, m_channels),
-  m_inputImage(NULL, m_width, m_height, m_channels), m_upStreamErrorImage(NULL, m_width, m_height, m_channels),
-  m_actImage(&m_activation[0], m_outputWidth, m_outputHeight, m_kernels.rows()), m_errImage(&m_activation[1], m_outputWidth, m_outputHeight, m_kernels.rows())
+  m_kernelImage(m_kWidth, m_kHeight, m_channels),
+  m_deltaImage(m_kWidth, m_kHeight, m_channels),
+  m_inputImage(m_width, m_height, m_channels),
+  m_upStreamErrorImage(m_width, m_height, m_channels),
+  m_actImage(m_outputWidth, m_outputHeight, m_kernels.rows()),
+  m_errImage(m_outputWidth, m_outputHeight, m_kernels.rows())
 {
 	m_inputImage.sx	= pNode->field("strideX")->asInt();
 	m_inputImage.sy	= pNode->field("strideY")->asInt();
@@ -2109,28 +2122,26 @@ void GBlockConvolutional2D::resize(size_t inputSize, size_t outputSize)
 
 void GBlockConvolutional2D::forwardProp(GContext& ctx, const GVec& input, GVec& output) const
 {
-	m_inputImage.data = const_cast<GVec *>(&in);
-
-	Image &n = m_actImage;
-	n.data->fill(0.0);
+	Image inputImage(const_cast<GVec*>(&input), m_inputImage);
+	Image n(&output, m_actImage);
+	Image k(nullptr, m_kernelImage);
+	output.fill(0.0);
 	for(n.dz = 0; n.dz < n.channels; ++n.dz)
 	{
-		m_kernelImage.data = &m_kernels[n.dz];
-		convolve(m_inputImage, m_kernelImage, n);
+		k.data = const_cast<GVec*>(&m_kernels[n.dz]);
+		convolve(inputImage, k, n);
 		for(size_t y = 0; y < n.height; ++y)
 			for(size_t x = 0; x < n.width; ++x)
 				n.at(x, y) += m_bias[n.dz];
 	}
-	n.dz = 0;
 }
 
 void GBlockConvolutional2D::backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
 {
-	Image &err = m_errImage;
-	Image &upErr = m_upStreamErrorImage;
-
-	upErr.data = &pUpStreamLayer->error();
-	upErr.data->fill(0.0);
+	Image err(const_cast<GVec*>(&outBlame), m_errImage);
+	Image upErr(&inBlame, m_upStreamErrorImage);
+	Image k(nullptr, m_kernelImage);
+	inBlame.fill(0.0);
 	upErr.px = m_inputImage.px;
 	upErr.py = m_inputImage.py;
 
@@ -2139,41 +2150,35 @@ void GBlockConvolutional2D::backProp(GContext& ctx, const GVec& input, const GVe
 	{
 		for(err.dz = 0; err.dz < err.channels; ++err.dz)
 		{
-			m_kernelImage.data = &m_kernels[err.dz];
-			m_kernelImage.flip = true, m_kernelImage.dz = upErr.dz;
-			convolveFull(err, m_kernelImage, upErr, 1);
-			m_kernelImage.flip = false, m_kernelImage.dz = 0;
+			k.data = const_cast<GVec*>(&m_kernels[err.dz]);
+			k.flip = true, k.dz = upErr.dz;
+			convolveFull(err, k, upErr, 1);
+			k.flip = false, k.dz = 0;
 		}
 	}
-	err.sx = err.sy = 1, err.invertStride = false;
-	err.dz = 0;
-	upErr.dz = 0;
-	upErr.px = upErr.py = 0;
 }
 
 void GBlockConvolutional2D::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const
 {
-	Image &err = m_errImage;
-	Image &in = m_inputImage;
-	in.data = const_cast<GVec *>(&upStreamActivation);
+	Image err(const_cast<GVec*>(&outBlame), m_errImage);
+	Image in(const_cast<GVec*>(&input), m_inputImage);
 	size_t count = m_kernels.cols();
 	GVecWrapper delta(gradient.data(), count);
-	m_deltaImage.data = &delta.vec();
+	Image delt(&delta.vec(), m_deltaImage);
 	for(err.dz = 0; err.dz < err.channels; ++err.dz)
 	{
-		double *biasDelta = m_deltaImage.data->data() + count;
-		m_deltaImage.data->fill(0.0);
-		for(in.dz = m_deltaImage.dz = 0; in.dz < in.channels; ++in.dz, ++m_deltaImage.dz)
+		double* biasDelta = delt.data->data() + count;
+		delta.vec().fill(0.0);
+		for(in.dz = delt.dz = 0; in.dz < in.channels; ++in.dz, ++delt.dz)
 			for(in.dy = 0; in.dy < err.height; ++in.dy)
 				for(in.dx = 0; in.dx < err.width; ++in.dx)
 				{
-					addScaled(in, err.read(in.dx, in.dy), m_deltaImage);
+					addScaled(in, err.read(in.dx, in.dy), delt);
 					*biasDelta += err.read(in.dx, in.dy);
 				}
-		m_deltaImage.dz = 0;
+		delt.dz = 0;
 		delta.setData(delta.vec().data() + count + 1);
 	}
-	in.dz = 0;
 }
 
 void GBlockConvolutional2D::step(double learningRate, const GVec &gradient)
@@ -2300,7 +2305,7 @@ void GBlockConvolutional2D::addKernels(size_t n)
 		addKernel();
 }
 
-double GBlockConvolutional2D::filterSum(const Image &in, const Image &filter, size_t channels)
+double GBlockConvolutional2D::filterSum(const Image &in, const Image &filter, size_t channels) const
 {
 	double output = 0.0;
 	for(size_t z = 0; z < channels; ++z)
@@ -2310,14 +2315,14 @@ double GBlockConvolutional2D::filterSum(const Image &in, const Image &filter, si
 	return output;
 }
 
-void GBlockConvolutional2D::addScaled(const Image &in, double scalar, Image &out)
+void GBlockConvolutional2D::addScaled(const Image &in, double scalar, Image &out) const
 {
 	for(size_t y = 0; y < out.height; ++y)
 		for(size_t x = 0; x < out.width; ++x)
 			out.at(x, y) += in.read(x, y) * scalar;
 }
 
-void GBlockConvolutional2D::convolve(const Image &in, const Image &filter, Image &out, size_t channels)
+void GBlockConvolutional2D::convolve(const Image &in, const Image &filter, Image &out, size_t channels) const
 {
 	size_t x, y;
 	if(channels == none)
@@ -2328,7 +2333,7 @@ void GBlockConvolutional2D::convolve(const Image &in, const Image &filter, Image
 	in.dx = in.dy = 0;
 }
 
-void GBlockConvolutional2D::convolveFull(const Image &in, const Image &filter, Image &out, size_t channels)
+void GBlockConvolutional2D::convolveFull(const Image &in, const Image &filter, Image &out, size_t channels) const
 {
 	size_t px = in.px, py = in.py;
 	in.px = (in.px + filter.width - 1) / in.sx, in.py = (in.py + filter.height - 1) / in.sy;
@@ -2340,17 +2345,14 @@ void GBlockConvolutional2D::updateOutputSize()
 {
 	m_outputWidth = (m_width - m_kWidth + 2 * m_inputImage.px) / m_inputImage.sx + 1;
 	m_outputHeight = (m_height - m_kHeight + 2 * m_inputImage.py) / m_inputImage.sy + 1;
-	m_activation.resize(2, m_outputWidth * m_outputHeight * m_kernels.rows());
 
-	m_actImage.data = &m_activation[0];
 	m_actImage.width = m_outputWidth;
 	m_actImage.height = m_outputHeight;
 
-	m_errImage.data = &m_activation[1];
 	m_errImage.width = m_outputWidth;
 	m_errImage.height = m_outputHeight;
 }
-*/
+
 
 
 

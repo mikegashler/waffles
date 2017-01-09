@@ -1305,7 +1305,7 @@ public:
 
 
 
-/*
+
 class GBlockConvolutional2D : public GBlock
 {
 protected:
@@ -1314,13 +1314,14 @@ protected:
 	{
 		static size_t npos;
 
-		Image(GVec *data, size_t width, size_t height, size_t channels);
+		Image(size_t width, size_t height, size_t channels);
+		Image(GVec* data, const Image& copyMyParams);
 		size_t index(size_t x, size_t y, size_t z) const;
 		double read(size_t x, size_t y, size_t z = 0) const;
-		double &at(size_t x, size_t y, size_t z = 0);
+		double& at(size_t x, size_t y, size_t z = 0);
 
 		/// image data
-		GVec *data;
+		GVec* data;
 		size_t width, height, channels;
 		bool interlaced;
 
@@ -1352,10 +1353,10 @@ protected:
 
 private:
 	/// Helper functions for convolution
-	double filterSum(const Image &in, const Image &filter, size_t channels);
-	void addScaled(const Image &in, double scalar, Image &out);
-	void convolve(const Image &in, const Image &filter, Image &out, size_t channels = none);
-	void convolveFull(const Image &in, const Image &filter, Image &out, size_t channels = none);
+	double filterSum(const Image &in, const Image &filter, size_t channels) const;
+	void addScaled(const Image &in, double scalar, Image &out) const;
+	void convolve(const Image &in, const Image &filter, Image &out, size_t channels = none) const;
+	void convolveFull(const Image &in, const Image &filter, Image &out, size_t channels = none) const;
 	void updateOutputSize();
 
 public:
@@ -1431,7 +1432,7 @@ public:
 	const GVec &bias() const { return m_bias; }
 	GVec &bias() { return m_bias; }
 };
-*/
+
 
 
 
