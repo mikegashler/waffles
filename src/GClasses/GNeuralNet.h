@@ -180,8 +180,12 @@ public:
 	/// (Behavior is undefined if you add or modify any layers after you call newContext.)
 	GContextNeuralNet* newContext(GRand& rand) const;
 
-	/// Adds a new layer, and returns a reference to it.
-	GLayer& newLayer();
+	/// Adds a block as a new layer to this neural network.
+	void add(GBlock* pBlock);
+
+	/// Concatenates a block to the last (output-most) layer in this neural network.
+	/// (inPos specifies the starting position of the inputs into this block.)
+	void concat(GBlock* pBlock, size_t inPos = 0);
 
 	/// Returns the number of layers in this neural net.
 	/// (Layers within neural networks embedded within this one are not counted.)
@@ -372,9 +376,6 @@ public:
 
 	/// Lazily creates an optimizer for the neural net that this class wraps, and returns a reference to it.
 	GNeuralNetOptimizer& optimizer();
-
-	/// Convenience method. Adds a layer and returns a reference to it.
-	GLayer& newLayer() { return m_nn.newLayer(); }
 
 	virtual void trainIncremental(const GVec &in, const GVec &out) override;
 	virtual void trainSparse(GSparseMatrix &features, GMatrix &labels) override;

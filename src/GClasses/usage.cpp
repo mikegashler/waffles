@@ -1253,7 +1253,7 @@ UsageNode* makePlotUsageTree()
 		"functions with your own variables or functions, so you don't need to worry too much about name collisions. Variables must begin with an alphabet character or an underscore. Multiplication is never implicit, so you must use a '*' character to multiply. Whitespace is ignored.");
 	}
 	{
-		UsageNode* pGraph = pRoot->add("graph", "Opens an interactive graphing tool in the web browser");
+		pRoot->add("graph", "Opens an interactive graphing tool in the web browser");
 	}
 	{
 		UsageNode* pHist = pRoot->add("histogram [dataset] <options>", "Make a histogram. Print the plot to stdout in SVG format.");

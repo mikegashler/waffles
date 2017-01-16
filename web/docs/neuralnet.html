@@ -99,8 +99,8 @@ The activation function is specified as a separate layer:</p>
 
 <pre class="code">
 	GNeuralNet nn;
-	nn.newLayer().add(new GBlockLinear(3));
-	nn.newLayer().add(new GBlockLogistic());
+	nn.add(new GBlockLinear(3));
+	nn.add(new GBlockLogistic());
 </pre>
 
 To train our model, we will create an optimizer. We wil use stochastic gradient descent (SGD). We also set the learning rate here:
@@ -145,8 +145,8 @@ we can use the GAutoFilter class to turn the neural network into a classifier:</
 
 <pre class="code">
 	GNeuralNetLearner learner;
-	learner.nn().newLayer().add(new GBlockLinear(3));
-	learner.nn().newLayer().add(new GBlockLogistic());
+	learner.nn().add(new GBlockLinear(3));
+	learner.nn().add(new GBlockLogistic());
 	GAutoFilter af(&amp;learner, false); // false means the auto-filter does not need to "delete(&amp;nn)" when it is destroyed.
 </pre>
 
@@ -185,14 +185,14 @@ It is common to alternate between layers with blocks that have weights (such as 
 Example:</p>
 
 <pre class="code">
-	nn.newLayer().add(new GBlockLinear(1000));
-	nn.newLayer().add(new GBlockTanh);
-	nn.newLayer().add(new GBlockLinear(300));
-	nn.newLayer().add(new GBlockTanh);
-	nn.newLayer().add(new GBlockLinear(90));
-	nn.newLayer().add(new GBlockTanh);
-	nn.newLayer().add(new GBlockLinear(10));
-	nn.newLayer().add(new GBlockTanh);
+	nn.add(new GBlockLinear(1000));
+	nn.add(new GBlockTanh);
+	nn.add(new GBlockLinear(300));
+	nn.add(new GBlockTanh);
+	nn.add(new GBlockLinear(90));
+	nn.add(new GBlockTanh);
+	nn.add(new GBlockLinear(10));
+	nn.add(new GBlockTanh);
 </pre>
 
 <p>The layers may be resized as needed when the enclosing neural network is resized to fit the training data.</p>
@@ -341,12 +341,12 @@ int main(int argc, char *argv[])
 	// Make the network
 	GNeuralNetLearner learner;
 	GNeuralNet&amp; nn = learner.nn();
-	nn.newLayer().add(new GBlockLinear(80));
-	nn.newLayer().add(new GBlockTanh());
-	nn.newLayer().add(new GBlockLinear(30));
-	nn.newLayer().add(new GBlockTanh());
-	nn.newLayer().add(new GBlockLinear(10));
-	nn.newLayer().add(new GBlockTanh());
+	nn.add(new GBlockLinear(80));
+	nn.add(new GBlockTanh());
+	nn.add(new GBlockLinear(30));
+	nn.add(new GBlockTanh());
+	nn.add(new GBlockLinear(10));
+	nn.add(new GBlockTanh());
 
 	GAutoFilter af(&amp;learner, false);
 	af.beginIncrementalLearning(sTrain.features(), sTrain.labels());

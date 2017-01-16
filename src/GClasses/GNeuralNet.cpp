@@ -470,12 +470,19 @@ std::string GNeuralNet::to_str() const
 	return to_str("");
 }
 
-GLayer& GNeuralNet::newLayer()
+void GNeuralNet::add(GBlock* pBlock)
 {
-	GAssert(m_weightCount == 0, "in inaccurate weight count was previously given");
+	GAssert(m_weightCount == 0, "weights were counted before all blocks were added");
 	GLayer* pNewLayer = new GLayer();
 	m_layers.push_back(pNewLayer);
-	return *pNewLayer;
+	pNewLayer->add(pBlock);
+}
+
+void GNeuralNet::concat(GBlock* pBlock, size_t inPos)
+{
+	GAssert(m_weightCount == 0, "weights were counted before all blocks were added");
+	GLayer* pLastLayer = m_layers[m_layers.size() - 1];
+	pLastLayer->add(pBlock, inPos);
 }
 
 void GNeuralNet::resize(size_t inputs, size_t outputs)
@@ -1186,10 +1193,10 @@ void GNeuralNet_testMath()
 	GBlockTanh* b1 = new GBlockTanh();
 	GBlockLinear* b2 = new GBlockLinear(1);
 	GBlockTanh* b3 = new GBlockTanh();
-	nn.newLayer().add(b0);
-	nn.newLayer().add(b1);
-	nn.newLayer().add(b2);
-	nn.newLayer().add(b3);
+	nn.nn().add(b0);
+	nn.nn().add(b1);
+	nn.nn().add(b2);
+	nn.nn().add(b3);
 	nn.beginIncrementalLearning(features.relation(), labels.relation());
 
 	GSGDOptimizer optimizer(nn.nn());
@@ -1273,8 +1280,8 @@ void GNeuralNet_testBinaryClassification(GRand* pRand)
 		labels.newRow()[0] = 1.0 - d;
 	}
 	GNeuralNetLearner* pNN = new GNeuralNetLearner();
-	pNN->newLayer().add(new GBlockLinear(1));
-	pNN->newLayer().add(new GBlockTanh());
+	pNN->nn().add(new GBlockLinear(1));
+	pNN->nn().add(new GBlockTanh());
 	GAutoFilter af(pNN);
 	af.train(features, labels);
 	double r = af.sumSquaredError(features, labels);
@@ -1298,11 +1305,11 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 		GNeuralNetLearner nn;
 		for(size_t j = 0; j < layers; j++)
 		{
-			nn.newLayer().add(new GBlockLinear(layerSize));
-			nn.newLayer().add(new GBlockTanh());
+			nn.nn().add(new GBlockLinear(layerSize));
+			nn.nn().add(new GBlockTanh());
 		}
-		nn.newLayer().add(new GBlockLinear(TEST_INVERT_INPUTS));
-		nn.newLayer().add(new GBlockTanh());
+		nn.nn().add(new GBlockLinear(TEST_INVERT_INPUTS));
+		nn.nn().add(new GBlockTanh());
 		GUniformRelation rel(TEST_INVERT_INPUTS);
 		nn.beginIncrementalLearning(rel, rel);
 		nn.nn().perturbWeights(nn.rand(), 0.5);
@@ -1327,15 +1334,15 @@ void GNeuralNet_testInvertAndSwap(GRand& rand)
 		GNeuralNetLearner nn2;
 		for(size_t j = 0; j < layers; j++)
 		{
-			nn1.newLayer().add(new GBlockLinear(layerSize));
-			nn1.newLayer().add(new GBlockTanh());
-			nn2.newLayer().add(new GBlockLinear(layerSize));
-			nn2.newLayer().add(new GBlockTanh());
+			nn1.nn().add(new GBlockLinear(layerSize));
+			nn1.nn().add(new GBlockTanh());
+			nn2.nn().add(new GBlockLinear(layerSize));
+			nn2.nn().add(new GBlockTanh());
 		}
-		nn1.newLayer().add(new GBlockLinear(TEST_INVERT_INPUTS));
-		nn1.newLayer().add(new GBlockTanh());
-		nn2.newLayer().add(new GBlockLinear(TEST_INVERT_INPUTS));
-		nn2.newLayer().add(new GBlockTanh());
+		nn1.nn().add(new GBlockLinear(TEST_INVERT_INPUTS));
+		nn1.nn().add(new GBlockTanh());
+		nn2.nn().add(new GBlockLinear(TEST_INVERT_INPUTS));
+		nn2.nn().add(new GBlockTanh());
 		GUniformRelation rel(TEST_INVERT_INPUTS);
 		nn1.beginIncrementalLearning(rel, rel);
 		nn2.beginIncrementalLearning(rel, rel);
@@ -1401,13 +1408,13 @@ void GNeuralNet_testNormalizeInput(GRand& rand)
 	{
 		GNeuralNetLearner nn;
 		GBlockLinear* pLayerIn = new GBlockLinear(5);
-		nn.newLayer().add(pLayerIn);
+		nn.nn().add(pLayerIn);
 		GBlockTanh* pLayerAct = new GBlockTanh();
-		nn.newLayer().add(pLayerAct);
+		nn.nn().add(pLayerAct);
 		GBlockLinear* pLayerOut = new GBlockLinear(1);
-		nn.newLayer().add(pLayerOut);
+		nn.nn().add(pLayerOut);
 		GBlockTanh* pLayerOutAct = new GBlockTanh();
-		nn.newLayer().add(pLayerOutAct);
+		nn.nn().add(pLayerOutAct);
 		GUniformRelation relIn(5);
 		GUniformRelation relOut(1);
 		nn.beginIncrementalLearning(relIn, relOut);
@@ -1441,9 +1448,9 @@ void GNeuralNet_testTransformWeights(GRand& prng)
 		// Set up
 		GNeuralNetLearner nn;
 		GBlockLinear* pLayerInput = new GBlockLinear(3);
-		nn.newLayer().add(pLayerInput);
+		nn.nn().add(pLayerInput);
 		GBlockTanh* pLayerAct = new GBlockTanh();
-		nn.newLayer().add(pLayerAct);
+		nn.nn().add(pLayerAct);
 		GUniformRelation in(2);
 		GUniformRelation out(3);
 		nn.beginIncrementalLearning(in, out);
@@ -1676,8 +1683,8 @@ void GNeuralNetLearner::test()
 	// Test with no hidden layers (logistic regression)
 	{
 		GNeuralNetLearner* pNN = new GNeuralNetLearner();
-		pNN->newLayer().add(new GBlockLinear((size_t)0));
-		pNN->newLayer().add(new GBlockTanh());
+		pNN->nn().add(new GBlockLinear((size_t)0));
+		pNN->nn().add(new GBlockTanh());
 		GAutoFilter af(pNN);
 		af.basicTest(0.78, 0.895);
 	}
@@ -1685,10 +1692,10 @@ void GNeuralNetLearner::test()
 	// Test NN with one hidden layer
 	{
 		GNeuralNetLearner* pNN = new GNeuralNetLearner();
-		pNN->newLayer().add(new GBlockLinear(3));
-		pNN->newLayer().add(new GBlockTanh());
-		pNN->newLayer().add(new GBlockLinear((size_t)0));
-		pNN->newLayer().add(new GBlockTanh());
+		pNN->nn().add(new GBlockLinear(3));
+		pNN->nn().add(new GBlockTanh());
+		pNN->nn().add(new GBlockLinear((size_t)0));
+		pNN->nn().add(new GBlockTanh());
 		GAutoFilter af(pNN);
 		af.basicTest(0.76, 0.92);
 	}
@@ -1767,8 +1774,8 @@ void GReservoirNet::trainInner(const GMatrix& features, const GMatrix& labels)
 
 	delete(m_pModel);
 	GNeuralNetLearner* pNN = new GNeuralNetLearner();
-	pNN->newLayer().add(new GBlockLinear((size_t)0));
-	pNN->newLayer().add(new GBlockTanh());
+	pNN->nn().add(new GBlockLinear((size_t)0));
+	pNN->nn().add(new GBlockTanh());
 	GReservoir* pRes = new GReservoir(m_weightDeviation, m_augments, m_reservoirLayers);
 	GDataAugmenter* pAug = new GDataAugmenter(pRes);
 	m_pModel = new GFeatureFilter(pNN, pAug);
@@ -1792,8 +1799,8 @@ void GReservoirNet::beginIncrementalLearningInner(const GRelation& featureRel, c
 {
 	delete(m_pModel);
 	m_pNN = new GNeuralNetLearner();
-	m_pNN->newLayer().add(new GBlockLinear((size_t)0));
-	m_pNN->newLayer().add(new GBlockTanh());
+	m_pNN->nn().add(new GBlockLinear((size_t)0));
+	m_pNN->nn().add(new GBlockTanh());
 	GDataAugmenter* pAug = new GDataAugmenter(new GReservoir(m_weightDeviation, m_augments, m_reservoirLayers));
 	m_pModel = new GFeatureFilter(m_pNN, pAug);
 	m_pModel->beginIncrementalLearning(featureRel, labelRel);

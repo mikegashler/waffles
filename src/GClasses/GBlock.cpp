@@ -2724,20 +2724,20 @@ void GBlockLSTM::step(double learningRate, const GVec &gradient)
 void GBlockLSTM::test()
 {
 	GNeuralNet nnBaseline;
-	nnBaseline.newLayer().add(new GBlockLinear(4));
-	nnBaseline.newLayer().add(new GBlockTanh());
-	nnBaseline.newLayer().add(new GBlockLinear(4));
-	nnBaseline.newLayer().add(new GBlockTanh());
-	nnBaseline.newLayer().add(new GBlockLinear(1));
-	nnBaseline.newLayer().add(new GBlockTanh());
+	nnBaseline.add(new GBlockLinear(4));
+	nnBaseline.add(new GBlockTanh());
+	nnBaseline.add(new GBlockLinear(4));
+	nnBaseline.add(new GBlockTanh());
+	nnBaseline.add(new GBlockLinear(1));
+	nnBaseline.add(new GBlockTanh());
 
 	GNeuralNet nnLSTM;
-	nnLSTM.newLayer().add(new GBlockLinear(4));
-	nnLSTM.newLayer().add(new GBlockTanh());
-	nnLSTM.newLayer().add(new GBlockLSTM(4));
-	nnLSTM.newLayer().add(new GBlockTanh());
-	nnLSTM.newLayer().add(new GBlockLinear(1));
-	nnLSTM.newLayer().add(new GBlockTanh());
+	nnLSTM.add(new GBlockLinear(4));
+	nnLSTM.add(new GBlockTanh());
+	nnLSTM.add(new GBlockLSTM(4));
+	nnLSTM.add(new GBlockTanh());
+	nnLSTM.add(new GBlockLinear(1));
+	nnLSTM.add(new GBlockTanh());
 
 	double rmseBaseline = testEngine(nnBaseline);
 std::cout << "Baseline: " << GClasses::to_str(rmseBaseline) << "\n";
@@ -3009,20 +3009,20 @@ void GBlockGRU::step(double learningRate, const GVec& gradient)
 void GBlockGRU::test()
 {
 	GNeuralNet nnBaseline;
-	nnBaseline.newLayer().add(new GBlockLinear(4));
-	nnBaseline.newLayer().add(new GBlockTanh());
-	nnBaseline.newLayer().add(new GBlockLinear(4));
-	nnBaseline.newLayer().add(new GBlockTanh());
-	nnBaseline.newLayer().add(new GBlockLinear(1));
-	nnBaseline.newLayer().add(new GBlockTanh());
+	nnBaseline.add(new GBlockLinear(4));
+	nnBaseline.add(new GBlockTanh());
+	nnBaseline.add(new GBlockLinear(4));
+	nnBaseline.add(new GBlockTanh());
+	nnBaseline.add(new GBlockLinear(1));
+	nnBaseline.add(new GBlockTanh());
 
 	GNeuralNet nnGRU;
-	nnGRU.newLayer().add(new GBlockLinear(4));
-	nnGRU.newLayer().add(new GBlockTanh());
-	nnGRU.newLayer().add(new GBlockGRU(4));
-	nnGRU.newLayer().add(new GBlockTanh());
-	nnGRU.newLayer().add(new GBlockLinear(1));
-	nnGRU.newLayer().add(new GBlockTanh());
+	nnGRU.add(new GBlockLinear(4));
+	nnGRU.add(new GBlockTanh());
+	nnGRU.add(new GBlockGRU(4));
+	nnGRU.add(new GBlockTanh());
+	nnGRU.add(new GBlockLinear(1));
+	nnGRU.add(new GBlockTanh());
 
 	double rmseBaseline = testEngine(nnBaseline);
 std::cout << "Baseline: " << GClasses::to_str(rmseBaseline) << "\n";

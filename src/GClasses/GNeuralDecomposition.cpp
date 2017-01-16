@@ -239,25 +239,22 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 	delete(m_nn);
 	m_nn = new GNeuralNet();
 
-	GLayer& l1 = m_nn->newLayer();
 	size_t frozenUnits = 0;
 	if(m_pFrozen)
 		frozenUnits = m_pFrozen->rows();
 	GBlockLinear* b1 = new GBlockLinear(m_sinusoidUnits + frozenUnits + m_linearUnits + m_softplusUnits + m_sigmoidUnits);
-	l1.add(b1);
+	m_nn->add(b1);
 
-	GLayer& l2 = m_nn->newLayer();
-	l2.add(new GBlockSine(m_sinusoidUnits + frozenUnits), 0);
+	m_nn->add(new GBlockSine(m_sinusoidUnits + frozenUnits));
 	if(m_linearUnits > 0)
-		l2.add(new GBlockIdentity(m_linearUnits), m_sinusoidUnits + frozenUnits);
+		m_nn->concat(new GBlockIdentity(m_linearUnits), m_sinusoidUnits + frozenUnits);
 	if(m_softplusUnits > 0)
-		l2.add(new GBlockSoftPlus(m_softplusUnits), m_sinusoidUnits + frozenUnits + m_linearUnits);
+		m_nn->concat(new GBlockSoftPlus(m_softplusUnits), m_sinusoidUnits + frozenUnits + m_linearUnits);
 	if(m_sigmoidUnits > 0)
-		l2.add(new GBlockTanh(m_sigmoidUnits), m_sinusoidUnits + frozenUnits + m_linearUnits + m_softplusUnits);
+		m_nn->concat(new GBlockTanh(m_sigmoidUnits), m_sinusoidUnits + frozenUnits + m_linearUnits + m_softplusUnits);
 
-	GLayer& l3 = m_nn->newLayer();
 	GBlockLinear* b3 = new GBlockLinear(labelRel.size());
-	l3.add(b3);
+	m_nn->add(b3);
 
 	// Prepare for learning
 	delete(m_pOptimizer);

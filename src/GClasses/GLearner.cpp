@@ -1779,8 +1779,8 @@ void GCalibrator::trainInner(const GMatrix& features, const GMatrix& labels)
 		// Train a layer of logistic units to map from the before distribution to the after distribution
 		GNeuralNetLearner* pNN = new GNeuralNetLearner();
 		calibrations.push_back(pNN);
-		pNN->newLayer().add(new GBlockLinear((size_t)0));
-		pNN->newLayer().add(new GBlockTanh());
+		pNN->nn().add(new GBlockLinear((size_t)0));
+		pNN->nn().add(new GBlockTanh());
 		pNN->train(tmpBefore, tmpAfter);
 	}
 

@@ -760,16 +760,16 @@ GWag* GLearnerLib::InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix*
 			pWag->noAlign();
 		else if(args.if_pop("-addlayer"))
 		{
-			pModel->newLayer().add(new GBlockLinear(args.pop_uint()));
-			pModel->newLayer().add(new GBlockTanh());
+			pModel->nn().add(new GBlockLinear(args.pop_uint()));
+			pModel->nn().add(new GBlockTanh());
 		}
 		else if(args.if_pop("-models"))
 			modelCount = args.pop_uint();
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	pModel->newLayer().add(new GBlockLinear(pLabels->cols()));
-	pModel->newLayer().add(new GBlockTanh());
+	pModel->nn().add(new GBlockLinear(pLabels->cols()));
+	pModel->nn().add(new GBlockTanh());
 	pWag->setModelCount(modelCount);
 	return pWag;
 }
