@@ -338,9 +338,40 @@ int main(int argc, char *argv[])
 	test.loadArff("/somepath/data/mnist/test.arff");
 	GDataColSplitter sTest(test, 1);
 
+	// Prep the data
+	GIncrementalTransform* pFeatTrans = GIncrementalTransform::autoTrans(sTrain.features(),
+		false, // allowMissing
+		false, // allowNominal
+		true, // allowContinuous
+		-1.0, // minVal
+		1.0); // maxVal
+	std::unique_ptr&lt;GIncrementalTransform&gt; hFeatTrans(pFeatTrans);
+	GIncrementalTransform* pLabTrans = GIncrementalTransform::autoTrans(sTrain.labels(),
+		false, // allowMissing
+		false, // allowNominal
+		true, // allowContinuous
+		-1.0, // minVal
+		1.0); // maxVal
+	std::unique_ptr&lt;GIncrementalTransform&gt; hLabTrans(pLabTrans);
+
+	GMatrix* pTrainFeatures = pFeatTrans-&gt;transformBatch(sTrain.features());
+	std::unique_ptr&lt;GMatrix&gt; hTrainFeatures(pTrainFeatures);
+	GMatrix&amp; trainFeatures = *pTrainFeatures;
+
+	GMatrix* pTrainLabels = pLabTrans-&gt;transformBatch(sTrain.labels());
+	std::unique_ptr&lt;GMatrix&gt; hTrainLabels(pTrainLabels);
+	GMatrix&amp; trainLabels = *pTrainLabels;
+
+	GMatrix* pTestFeatures = pFeatTrans-&gt;transformBatch(sTest.features());
+	std::unique_ptr&lt;GMatrix&gt; hTestFeatures(pTestFeatures);
+	GMatrix&amp; testFeatures = *pTestFeatures;
+
+	GMatrix* pTestLabels = pLabTrans-&gt;transformBatch(sTest.labels());
+	std::unique_ptr&lt;GMatrix&gt; hTestLabels(pTestLabels);
+	GMatrix&amp; testLabels = *pTestLabels;
+
 	// Make the network
-	GNeuralNetLearner learner;
-	GNeuralNet&amp; nn = learner.nn();
+	GNeuralNet nn;
 	nn.add(new GBlockLinear(80));
 	nn.add(new GBlockTanh());
 	nn.add(new GBlockLinear(30));
@@ -348,32 +379,22 @@ int main(int argc, char *argv[])
 	nn.add(new GBlockLinear(10));
 	nn.add(new GBlockTanh());
 
-	GAutoFilter af(&amp;learner, false);
-	af.beginIncrementalLearning(sTrain.features(), sTrain.labels());
-
-	// Prep the data
-	af.prefilterData(&amp;sTrain.features(), &amp;sTrain.labels(), &amp;sTest.features(), &amp;sTest.labels());
-	GMatrix&amp; trainFeatures = *af.data()[0];
-	GMatrix&amp; trainLabels = *af.data()[1];
-	GMatrix&amp; testFeatures = *af.data()[2];
-	GMatrix&amp; testLabels = *af.data()[3];
-
-	// Print some stats
+	// Prepare for training
+	GSGDOptimizer optimizer(nn);
+	optimizer.setLearningRate(0.01);
+	nn.init(trainFeatures.cols(), trainLabels.cols(), *optimizer.rand());
 	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Topology:\n";
 	cout &lt;&lt; nn.to_str("% ") &lt;&lt; "\n";
-
-	// Train
 	cout &lt;&lt; "@RELATION neural_net_training\n";
 	cout &lt;&lt; "@ATTRIBUTE internal_rmse_train real\n";
 	cout &lt;&lt; "@ATTRIBUTE internal_rmse_test real\n";
 	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
 	cout &lt;&lt; "@DATA\n";
 
-	GSGDOptimizer optimizer(nn);
-	optimizer.setLearningRate(0.01);
-	GRandomIndexIterator ii(trainFeatures.rows(), learner.rand());
+	// Train
+	GRandomIndexIterator ii(trainFeatures.rows(), *optimizer.rand());
 	for(size_t epoch = 0; epoch &lt; 10; epoch++)
 	{
 		// Validate
@@ -381,8 +402,8 @@ int main(int argc, char *argv[])
 		cout &lt;&lt; to_str(std::sqrt(sseTrain / trainFeatures.rows())) &lt;&lt; ", ";
 		double sseTest = nn.measureLoss(testFeatures, testLabels);
 		cout &lt;&lt; to_str(std::sqrt(sseTest / testFeatures.rows())) &lt;&lt; ", ";
-		double mis = af.sumSquaredError(sTest.features(), sTest.labels());
-		cout &lt;&lt; to_str((double)mis / sTest.features().rows()) &lt;&lt; "\n";
+		double mis = nn.measureLoss(testFeatures, sTest.labels());
+		cout &lt;&lt; to_str((double)mis / testFeatures.rows()) &lt;&lt; "\n";
 		cout.flush();
 
 		// Do an epoch of training

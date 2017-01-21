@@ -1519,12 +1519,12 @@ void GAutoFilter::setupDataDependentFilters(GSupervisedLearner* pLearner, const 
 		{
 			double dataMin = 1e300;
 			double dataMax = -1e300;
-			for(size_t i = 0; i < labels.cols(); i++)
+			for(size_t i = 0; i < features.cols(); i++)
 			{
 				if(features.relation().valueCount(i) != 0)
 					continue;
-				dataMin = std::min(labels.columnMin(i), dataMin);
-				dataMax = std::max(labels.columnMax(i), dataMax);
+				dataMin = std::min(features.columnMin(i), dataMin);
+				dataMax = std::max(features.columnMax(i), dataMax);
 			}
 			if(hasNominalLabels && !canImplicitlyHandleNominalLabels())
 			{

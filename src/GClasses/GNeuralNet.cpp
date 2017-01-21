@@ -527,6 +527,12 @@ void GNeuralNet::resize(size_t inputs, size_t outputs)
 		throw Ex("The last layer outputs ", GClasses::to_str(inCount), " values, but ", GClasses::to_str(outputs), " were expected");
 }
 
+void GNeuralNet::init(size_t inputs, size_t outputs, GRand& rand)
+{
+	resize(inputs, outputs);
+	resetWeights(rand);
+}
+
 void GNeuralNet::forwardProp(GContext& ctx, const GVec& input, GVec& output) const
 {
 	GAssert(input.size() == layer(0).inputs());
@@ -845,28 +851,54 @@ double GNeuralNet::measureLoss(const GMatrix& features, const GMatrix& labels, d
 	if(features.rows() != labels.rows())
 		throw Ex("Expected the features and labels to have the same number of rows");
 	if(features.cols() != inputs())
-		throw Ex("Unexpected number of inputs");
-	if(labels.cols() != outputs())
-		throw Ex("Unexpected number of outputs");
+		throw Ex("Mismatching number of inputs. Data has ", GClasses::to_str(features.cols()), ". Neural net expects ", GClasses::to_str(inputs()));
 	GRand rand(0);
 	GContextNeuralNet* pCtx = newContext(rand);
 	GVec& prediction = pCtx->predBuf();
 	double sae = 0.0;
 	double sse = 0.0;
-	for(size_t i = 0; i < features.rows(); i++)
+	if(labels.cols() == outputs())
 	{
-		forwardProp(*pCtx, features[i], prediction);
-		const GVec& targ = labels[i];
-		for(size_t j = 0; j < prediction.size(); j++)
+		// Regression. Compute SSE and SAE.
+		for(size_t i = 0; i < features.rows(); i++)
 		{
-			if(targ[j] != UNKNOWN_REAL_VALUE)
+			forwardProp(*pCtx, features[i], prediction);
+			const GVec& targ = labels[i];
+			for(size_t j = 0; j < prediction.size(); j++)
 			{
-				double d = targ[j] - prediction[j];
-				sse += (d * d);
-				sae += std::abs(d);
+				if(targ[j] != UNKNOWN_REAL_VALUE)
+				{
+					double d = targ[j] - prediction[j];
+					sse += (d * d);
+					sae += std::abs(d);
+				}
 			}
 		}
 	}
+	else if(labels.cols() == 1 && labels.relation().valueCount(0) == outputs())
+	{
+		// Classification. Count misclassifications.
+		for(size_t i = 0; i < features.rows(); i++)
+		{
+			forwardProp(*pCtx, features[i], prediction);
+			const GVec& targ = labels[i];
+			if(targ[0] >= 0.0)
+			{
+				size_t j = prediction.indexOfMax();
+				if(j != (size_t)targ[0])
+					sse++;
+			}
+		}
+		sae = sse;
+	}
+	else
+	{
+		if(labels.cols() == 1)
+			throw Ex("Mismatching number of outputs. Data has 1 column with ", GClasses::to_str(labels.relation().valueCount(0)), " categorical values. Neural net outputs ", GClasses::to_str(outputs()));
+		else
+			throw Ex("Mismatching number of outputs. Data has ", GClasses::to_str(labels.cols()), ". Neural net expects ", GClasses::to_str(outputs()));
+	}
+
 	if(pOutSAE)
 		*pOutSAE = sae;
 	return sse;

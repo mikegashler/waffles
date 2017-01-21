@@ -163,6 +163,84 @@ std::unique_ptr<GMatrix> GIncrementalTransform::untransformBatch(const GMatrix& 
 	return pOut;
 }
 
+GIncrementalTransform* GIncrementalTransform::autoTrans(GMatrix& data, bool allowMissing, bool allowNominal, bool allowContinuous, double minVal, double maxVal)
+{
+	// Determine what types are present in the data
+	bool hasNominal = false;
+	bool hasContinuous = false;
+	const GRelation& rel = data.relation();
+	for(size_t i = 0; i < rel.size(); i++)
+	{
+		if(rel.valueCount(i) == 0)
+		{
+			hasContinuous = true;
+			if(hasNominal)
+				break;
+		}
+		else
+		{
+			hasNominal = true;
+			if(hasContinuous)
+				break;
+		}
+	}
+
+	GIncrementalTransform* pTrans = nullptr;
+
+	// Impute features if necessary
+	if(!allowMissing && data.doesHaveAnyMissingValues())
+		pTrans = GIncrementalTransformChainer::chain(new GImputeMissingVals(), pTrans);
+
+	// Normalize labels if necessary
+	if(allowContinuous)
+	{
+		// Find the min and max
+		double dataMin = 1e300;
+		double dataMax = -1e300;
+		for(size_t i = 0; i < data.cols(); i++)
+		{
+			if(data.relation().valueCount(i) != 0)
+				continue;
+			dataMin = std::min(data.columnMin(i), dataMin);
+			dataMax = std::max(data.columnMax(i), dataMax);
+		}
+		if(hasNominal && !allowNominal)
+		{
+			minVal = std::min(0.0, minVal);
+			maxVal = std::max(1.0, maxVal);
+		}
+		bool normalizationIsNeeded = false;
+		if(dataMin < minVal || dataMax > maxVal)
+			normalizationIsNeeded = true;
+		else if((dataMax - dataMin) >= 1e-12 && (dataMax - dataMin) * 4 < maxVal - minVal)
+			normalizationIsNeeded = true;
+		if(normalizationIsNeeded)
+			pTrans = GIncrementalTransformChainer::chain(new GNormalize(minVal, maxVal), pTrans);
+	}
+
+	// Nomcat if necessary
+	if(!allowNominal && hasNominal)
+	{
+		if(!allowContinuous)
+			throw Ex("Either nominal or continuous values must be allowed");
+		pTrans = GIncrementalTransformChainer::chain(new GNominalToCat(16), pTrans);
+	}
+
+	// Discretize if necessary
+	if(!allowContinuous && hasContinuous)
+	{
+		if(!allowNominal)
+			throw Ex("Either nominal or continuous values must be allowed");
+		pTrans = GIncrementalTransformChainer::chain(new GDiscretize(), pTrans);
+	}
+	
+	// Train
+	if(pTrans)
+		pTrans->train(data);
+
+	return pTrans;
+}
+
 #ifndef MIN_PREDICT
 //static
 void GIncrementalTransform::test()
@@ -232,7 +310,6 @@ void GIncrementalTransform::test()
 
 
 
-
 GIncrementalTransformChainer::GIncrementalTransformChainer(GIncrementalTransform* pFirst, GIncrementalTransform* pSecond)
 : GIncrementalTransform(), m_pFirst(pFirst), m_pSecond(pSecond)
 {
@@ -250,6 +327,17 @@ GIncrementalTransformChainer::~GIncrementalTransformChainer()
 {
 	delete(m_pFirst);
 	delete(m_pSecond);
+}
+
+// static
+GIncrementalTransform* GIncrementalTransformChainer::chain(GIncrementalTransform* pA, GIncrementalTransform* pB)
+{
+	if(pA == nullptr)
+		return pB;
+	else if(pB == nullptr)
+		return pA;
+	else
+		return new GIncrementalTransformChainer(pA, pB);
 }
 
 #ifndef MIN_PREDICT

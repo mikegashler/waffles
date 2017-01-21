@@ -24,8 +24,6 @@
 
 namespace GClasses {
 
-class GActivationFunction;
-
 /// This is the base class of algorithms that transform data without supervision
 class GTransform
 {
@@ -58,6 +56,10 @@ public:
 	GIncrementalTransform() : GTransform(), m_pRelationBefore(NULL), m_pRelationAfter(NULL) {}
 	GIncrementalTransform(const GDomNode* pNode);
 	virtual ~GIncrementalTransform();
+
+	/// Automatically prepares and trains a minimal transform for the provided data to prep it to meet specified requirements.
+	/// Returns nullptr if no transformation is needed.
+	static GIncrementalTransform* autoTrans(GMatrix& data, bool allowMissing = false, bool allowNominal = false, bool allowContinuous = true, double minVal = -1.0, double maxVal = 1.0);
 
 #ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
@@ -155,7 +157,7 @@ protected:
 
 
 
-/// This wraps two two-way-incremental-transoforms to form a single combination transform
+/// This wraps two two-way-incremental-transforms to form a single combination transform
 class GIncrementalTransformChainer : public GIncrementalTransform
 {
 protected:
@@ -170,6 +172,9 @@ public:
 	GIncrementalTransformChainer(const GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GIncrementalTransformChainer();
 
+	/// If pA or pB is nullptr, returns the other one, else chains them together.
+	static GIncrementalTransform* chain(GIncrementalTransform* pA, GIncrementalTransform* pB);
+	
 #ifndef MIN_PREDICT
 	/// See the comment for GIncrementalTransform::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;

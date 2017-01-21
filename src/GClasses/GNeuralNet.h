@@ -208,6 +208,9 @@ public:
 	/// Resizes this layer.
 	virtual void resize(size_t inputs, size_t outputs) override;
 
+	/// Calls resize, then resetWeights.
+	void init(size_t inputs, size_t outputs, GRand& rand);
+
 	/// Returns the number of inputs this layer consumes
 	virtual size_t inputs() const override { return m_layers[0]->inputs(); }
 
@@ -282,8 +285,11 @@ public:
 	/// Prints weights in a human-readable format
 	void printWeights(std::ostream& stream);
 
-	/// Measures the loss with respect to some data.
-	/// Returns sum-squared error.
+	/// Measures the loss with respect to some data. Returns sum-squared error.
+	/// if pOutSAE is not nullptr, then sum-absolute error will be storead where it points.
+	/// As a special case, if labels have exactly one categorical column, then it will be assumed
+	/// that the maximum output unit of this neural network represents a categorical prediction,
+	/// and sum hamming loss will be returned.
 	double measureLoss(const GMatrix& features, const GMatrix& labels, double* pOutSAE = nullptr);
 
 	/// Performs principal component analysis (without reducing dimensionality) on the features to shift the
