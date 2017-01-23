@@ -57,10 +57,6 @@ public:
 	GIncrementalTransform(const GDomNode* pNode);
 	virtual ~GIncrementalTransform();
 
-	/// Automatically prepares and trains a minimal transform for the provided data to prep it to meet specified requirements.
-	/// Returns nullptr if no transformation is needed.
-	static GIncrementalTransform* autoTrans(GMatrix& data, bool allowMissing = false, bool allowNominal = false, bool allowContinuous = true, double minVal = -1.0, double maxVal = 1.0);
-
 #ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
@@ -152,6 +148,39 @@ protected:
 	/// This method returns a smart-pointer to a relation the represents
 	/// the form that the data will take after it is transformed.
 	virtual GRelation* trainInner(const GRelation& relation) = 0;
+};
+
+
+
+
+/// This class facilitates automatic data preprocessing.
+/// The constructor requires a dataset and some parameters that specify which portion of the data to use, and how the data should be transformed.
+/// A transform will automatically be generated to preprocess the data to meet the specified requirements, and the data will be transformed.
+/// Additional datasets can be added with the "add" method.
+/// These will be processed by the same transform.
+/// The processed data can be retrieved with the "get" method, with an index corresponding to the order of the data.
+class GDataPreprocessor
+{
+protected:
+	GIncrementalTransform* m_pTransform;
+	std::vector<GMatrix*> m_processedData;
+
+public:
+	/// Generates a transform and preprocesses the specified portion of source to meet the specified data requirements.
+	GDataPreprocessor(const GMatrix& source, size_t rowStart = 0, size_t colStart = 0, size_t rowCount = (size_t)-1, size_t colCount = (size_t)-1, bool allowMissing = false, bool allowNominal = false, bool allowContinuous = true, double minVal = -1.0, double maxVal = 1.0);
+
+	/// Adds another dataset, and transforms it with the same transform used to preprocess the original data.
+	void add(const GMatrix& source, size_t rowStart = 0, size_t colStart = 0, size_t rowCount = (size_t)-1, size_t colCount = (size_t)-1);
+
+	/// Returns the preprocessed version of the data.
+	/// index specifies which dataset, such that get(0) returns the preprocessed form of the original
+	/// data passed to the constructor, get(1) returns the preprocessed form of the first dataset added
+	/// by a call to "add", get(2) is the preprocessed form of the second dataset added, and so forth.
+	GMatrix& get(size_t index) { return *m_processedData[index]; }
+
+	/// Automatically prepares and trains a minimal transform for the provided data to prep it to meet specified requirements.
+	/// Returns nullptr if no transformation is needed.
+	static GIncrementalTransform* autoTrans(const GMatrix& data, bool allowMissing = false, bool allowNominal = false, bool allowContinuous = true, double minVal = -1.0, double maxVal = 1.0);
 };
 
 

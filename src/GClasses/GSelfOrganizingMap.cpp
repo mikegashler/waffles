@@ -685,7 +685,7 @@ namespace GClasses {
 
       //Copy the input
       GMatrix* pInputCopy = new GMatrix();
-      pInputCopy->copy(pInput);
+      pInputCopy->copy(*pInput);
       std::unique_ptr<GMatrix> inputCopy(pInputCopy);
 
       //For each iteration

@@ -233,9 +233,9 @@ void GLearnerLib::loadData(GArgReader& args, std::unique_ptr<GMatrix>& hFeatures
 	}
 
 	// Split data into a feature matrix and a label matrix
-	GMatrix* pFeatures = data.cloneSub(0, 0, data.rows(), data.cols() - labelDims);
+	GMatrix* pFeatures = new GMatrix(data, 0, 0, data.rows(), data.cols() - labelDims);
 	hFeaturesOut.reset(pFeatures);
-	GMatrix* pLabels = data.cloneSub(0, data.cols() - labelDims, data.rows(), labelDims);
+	GMatrix* pLabels = new GMatrix(data, 0, data.cols() - labelDims, data.rows(), labelDims);
 	hLabelsOut.reset(pLabels);
 }
 

@@ -1820,8 +1820,7 @@ GMatrix* GScalingUnfolder::reduce(const GMatrix& in)
 	GNeighborGraph nf(&kdtree, false, m_neighborCount);
 
 	// Make a copy of the data
-	GMatrix intrinsic;
-	intrinsic.copy(&in);
+	GMatrix intrinsic(in);
 	unfold(intrinsic, nf);
 
 	// Shift the variance into the first few dimensions

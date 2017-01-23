@@ -82,7 +82,7 @@ void LoadData(GArgReader &args, std::unique_ptr<GMatrix> &hOutput)
 	}
 	
 	// Split data into a feature matrix and a label matrix
-	GMatrix* pFeatures = data.cloneSub(0, 0, data.rows(), data.cols());
+	GMatrix* pFeatures = new GMatrix(data, 0, 0, data.rows(), data.cols());
 	hOutput.reset(pFeatures);
 }
 
@@ -108,8 +108,8 @@ void Train(GArgReader &args)
 	// Split features/labels
 	if(pSeries->cols() == 2)
 	{
-		GMatrix *pFeatures = pSeries->cloneSub(0, 0, pSeries->rows(), 1);
-		GMatrix *pLabels = pSeries->cloneSub(0, 1, pSeries->rows(), 1);
+		GMatrix *pFeatures = new GMatrix(*pSeries, 0, 0, pSeries->rows(), 1);
+		GMatrix *pLabels = new GMatrix(*pSeries, 0, 1, pSeries->rows(), 1);
 		hFeatures.reset(pFeatures);
 		hSeries.reset(pLabels);
 		pSeries = pLabels;

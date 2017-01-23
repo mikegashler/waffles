@@ -163,7 +163,117 @@ std::unique_ptr<GMatrix> GIncrementalTransform::untransformBatch(const GMatrix& 
 	return pOut;
 }
 
-GIncrementalTransform* GIncrementalTransform::autoTrans(GMatrix& data, bool allowMissing, bool allowNominal, bool allowContinuous, double minVal, double maxVal)
+#ifndef MIN_PREDICT
+//static
+void GIncrementalTransform::test()
+{
+	// Make an input matrix
+	vector<size_t> valCounts;
+	valCounts.push_back(0);
+	valCounts.push_back(1);
+	valCounts.push_back(2);
+	valCounts.push_back(3);
+	valCounts.push_back(0);
+	GMatrix m(valCounts);
+	m.newRows(2);
+	m[0][0] = 2.4; m[0][1] = 0; m[0][2] = 0; m[0][3] = 2; m[0][4] = 8.2;
+	m[1][0] = 0.0; m[1][1] = 0; m[1][2] = 1; m[1][3] = 0; m[1][4] = 2.2;
+
+	// Make an expected output matrix
+	GMatrix e(2, 7);
+	e[0][0] = 1; e[0][1] = 0; e[0][2] = 0; e[0][3] = 0; e[0][4] = 0; e[0][5] = 1; e[0][6] = 1;
+	e[1][0] = 0; e[1][1] = 0; e[1][2] = 1; e[1][3] = 1; e[1][4] = 0; e[1][5] = 0; e[1][6] = 0;
+
+	// Transform the input matrix and check it
+	GIncrementalTransformChainer trans(new GNormalize(), new GNominalToCat());
+	trans.train(m);
+	GMatrix* pA = trans.transformBatch(m);
+	std::unique_ptr<GMatrix> hA(pA);
+	if(pA->sumSquaredDifference(e) > 1e-12)
+		throw Ex("Expected:\n", to_str(e), "\nGot:\n", to_str(*pA));
+	if(!pA->relation().areContinuous())
+		throw Ex("failed");
+	auto pB = trans.untransformBatch(*pA);
+	if(pB->sumSquaredDifference(m) > 1e-12)
+		throw Ex("Expected:\n", to_str(m), "\nGot:\n", to_str(*pB));
+	if(!pB->relation().isCompatible(m.relation()) || !m.relation().isCompatible(pB->relation()))
+		throw Ex("failed");
+
+	// Round-trip it through serialization
+	GDom doc;
+	GDomNode* pNode = trans.serialize(&doc);
+	GRand rand(0);
+	GLearnerLoader ll;
+	GIncrementalTransform* pTrans = ll.loadIncrementalTransform(pNode);
+	std::unique_ptr<GIncrementalTransform> hTrans(pTrans);
+
+	// Transform the input matrix again, and check it
+	GMatrix* pC = pTrans->transformBatch(m);
+	std::unique_ptr<GMatrix> hC(pC);
+	if(pC->sumSquaredDifference(e) > 1e-12)
+		throw Ex("Expected:\n", to_str(e), "\nGot:\n", to_str(*pC));
+	if(!pC->relation().areContinuous())
+		throw Ex("failed");
+	auto pD = trans.untransformBatch(*pC);
+	if(pD->sumSquaredDifference(m) > 1e-12)
+		throw Ex("Expected:\n", to_str(m), "\nGot:\n", to_str(*pD));
+	if(!pD->relation().isCompatible(m.relation()) || !m.relation().isCompatible(pD->relation()))
+		throw Ex("failed");
+}
+#endif // MIN_PREDICT
+
+
+
+
+
+
+GDataPreprocessor::GDataPreprocessor(const GMatrix& source, size_t rowStart, size_t colStart, size_t rowCount, size_t colCount, bool allowMissing, bool allowNominal, bool allowContinuous, double minVal, double maxVal)
+{
+	if(rowStart > 0 || colStart > 0 || rowCount < source.rows() || colCount < source.cols())
+	{
+		GMatrix* pTemp = new GMatrix(source, rowStart, colStart, rowCount, colCount);
+		m_pTransform = autoTrans(*pTemp, allowMissing, allowNominal, allowContinuous, minVal, maxVal);
+		if(m_pTransform)
+		{
+			m_processedData.push_back(m_pTransform->transformBatch(*pTemp));
+			delete(pTemp);
+		}
+		else
+			m_processedData.push_back(pTemp);
+	}
+	else
+	{
+		m_pTransform = autoTrans(source, allowMissing, allowNominal, allowContinuous, minVal, maxVal);
+		if(m_pTransform)
+			m_processedData.push_back(m_pTransform->transformBatch(source));
+		else
+			m_processedData.push_back(new GMatrix(source));
+	}
+}
+
+void GDataPreprocessor::add(const GMatrix& source, size_t rowStart, size_t colStart, size_t rowCount, size_t colCount)
+{
+	if(rowStart > 0 || colStart > 0 || rowCount < source.rows() || colCount < source.cols())
+	{
+		GMatrix* pTemp = new GMatrix(source, rowStart, colStart, rowCount, colCount);
+		if(m_pTransform)
+		{
+			m_processedData.push_back(m_pTransform->transformBatch(*pTemp));
+			delete(pTemp);
+		}
+		else
+			m_processedData.push_back(pTemp);
+	}
+	else
+	{
+		if(m_pTransform)
+			m_processedData.push_back(m_pTransform->transformBatch(source));
+		else
+			m_processedData.push_back(new GMatrix(source));
+	}
+}
+
+GIncrementalTransform* GDataPreprocessor::autoTrans(const GMatrix& data, bool allowMissing, bool allowNominal, bool allowContinuous, double minVal, double maxVal)
 {
 	// Determine what types are present in the data
 	bool hasNominal = false;
@@ -240,65 +350,6 @@ GIncrementalTransform* GIncrementalTransform::autoTrans(GMatrix& data, bool allo
 
 	return pTrans;
 }
-
-#ifndef MIN_PREDICT
-//static
-void GIncrementalTransform::test()
-{
-	// Make an input matrix
-	vector<size_t> valCounts;
-	valCounts.push_back(0);
-	valCounts.push_back(1);
-	valCounts.push_back(2);
-	valCounts.push_back(3);
-	valCounts.push_back(0);
-	GMatrix m(valCounts);
-	m.newRows(2);
-	m[0][0] = 2.4; m[0][1] = 0; m[0][2] = 0; m[0][3] = 2; m[0][4] = 8.2;
-	m[1][0] = 0.0; m[1][1] = 0; m[1][2] = 1; m[1][3] = 0; m[1][4] = 2.2;
-
-	// Make an expected output matrix
-	GMatrix e(2, 7);
-	e[0][0] = 1; e[0][1] = 0; e[0][2] = 0; e[0][3] = 0; e[0][4] = 0; e[0][5] = 1; e[0][6] = 1;
-	e[1][0] = 0; e[1][1] = 0; e[1][2] = 1; e[1][3] = 1; e[1][4] = 0; e[1][5] = 0; e[1][6] = 0;
-
-	// Transform the input matrix and check it
-	GIncrementalTransformChainer trans(new GNormalize(), new GNominalToCat());
-	trans.train(m);
-	GMatrix* pA = trans.transformBatch(m);
-	std::unique_ptr<GMatrix> hA(pA);
-	if(pA->sumSquaredDifference(e) > 1e-12)
-		throw Ex("Expected:\n", to_str(e), "\nGot:\n", to_str(*pA));
-	if(!pA->relation().areContinuous())
-		throw Ex("failed");
-	auto pB = trans.untransformBatch(*pA);
-	if(pB->sumSquaredDifference(m) > 1e-12)
-		throw Ex("Expected:\n", to_str(m), "\nGot:\n", to_str(*pB));
-	if(!pB->relation().isCompatible(m.relation()) || !m.relation().isCompatible(pB->relation()))
-		throw Ex("failed");
-
-	// Round-trip it through serialization
-	GDom doc;
-	GDomNode* pNode = trans.serialize(&doc);
-	GRand rand(0);
-	GLearnerLoader ll;
-	GIncrementalTransform* pTrans = ll.loadIncrementalTransform(pNode);
-	std::unique_ptr<GIncrementalTransform> hTrans(pTrans);
-
-	// Transform the input matrix again, and check it
-	GMatrix* pC = pTrans->transformBatch(m);
-	std::unique_ptr<GMatrix> hC(pC);
-	if(pC->sumSquaredDifference(e) > 1e-12)
-		throw Ex("Expected:\n", to_str(e), "\nGot:\n", to_str(*pC));
-	if(!pC->relation().areContinuous())
-		throw Ex("failed");
-	auto pD = trans.untransformBatch(*pC);
-	if(pD->sumSquaredDifference(m) > 1e-12)
-		throw Ex("Expected:\n", to_str(m), "\nGot:\n", to_str(*pD));
-	if(!pD->relation().isCompatible(m.relation()) || !m.relation().isCompatible(pD->relation()))
-		throw Ex("failed");
-}
-#endif // MIN_PREDICT
 
 
 
@@ -454,7 +505,7 @@ GRelation* GPCA::trainInner(const GMatrix& data)
 
 	// Make a copy of the data
 	GMatrix tmpData(data.relation().cloneMinimal());
-	tmpData.copy(&data);
+	tmpData.copy(data);
 
 	// Compute the principle components
 	double sse = 0;
@@ -819,9 +870,9 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 	// Divide into features and labels
 	size_t curDims = data.cols() - m_labelDims;
 	m_ranks.resize(curDims);
-	GMatrix* pFeatures = pNormData->cloneSub(0, 0, data.rows(), data.cols() - m_labelDims);
+	GMatrix* pFeatures = new GMatrix(*pNormData, 0, 0, data.rows(), data.cols() - m_labelDims);
 	std::unique_ptr<GMatrix> hFeatures(pFeatures);
-	GMatrix* pLabels = pNormData->cloneSub(0, data.cols() - m_labelDims, data.rows(), m_labelDims);
+	GMatrix* pLabels = new GMatrix(*pNormData, 0, data.cols() - m_labelDims, data.rows(), m_labelDims);
 	std::unique_ptr<GMatrix> hLabels(pLabels);
 	vector<size_t> indexMap;
 	for(size_t i = 0; i < curDims; i++)
@@ -1577,7 +1628,7 @@ void GImputeMissingVals::untransformToDistribution(const GVec& in, GPrediction* 
 GMatrix* GImputeMissingVals::transformBatch(const GMatrix& in)
 {
 	GMatrix* out = new GMatrix();
-	out->copy(&in);
+	out->copy(in);
 	size_t dims = out->cols();
 	for(size_t i = 0; i < out->rows(); i++)
 	{

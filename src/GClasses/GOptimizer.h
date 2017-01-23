@@ -137,7 +137,7 @@ public:
 	GObjective *objective() { return m_objective; }
 	
 	void setRand(GRand *r) { if(m_ownsRand) { delete m_rand; m_ownsRand = false; }; m_rand = r; }
-	GRand *rand() { return m_rand; }
+	GRand& rand() { return *m_rand; }
 	
 	void setBatchSize(size_t b) { m_batchSize = b; }
 	size_t batchSize() const { return m_batchSize; }

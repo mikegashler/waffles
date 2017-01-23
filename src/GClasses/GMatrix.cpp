@@ -936,15 +936,15 @@ GMatrix::GMatrix(vector<size_t>& attrValues)
 	m_pRelation = new GMixedRelation(attrValues);
 }
 
-GMatrix::GMatrix(const GMatrix& orig)
+GMatrix::GMatrix(const GMatrix& orig, size_t rowStart, size_t colStart, size_t rowCount, size_t colCount)
 : m_pRelation(NULL)
 {
-	copy(&orig);
+	copy(orig, rowStart, colStart, rowCount, colCount);
 }
 
 GMatrix& GMatrix::operator=(const GMatrix& orig)
 {
-	copy(&orig);
+	copy(orig);
 	return *this;
 }
 
@@ -2251,11 +2251,9 @@ GMatrix* GMatrix::align(GMatrix* pA, GMatrix* pB)
 	size_t columns = pA->cols();
 	GVec mean(columns);
 	pA->centroid(mean);
-	GMatrix aa;
-	aa.copy(pA);
+	GMatrix aa(*pA);
 	aa.centerMeanAtOrigin();
-	GMatrix bb;
-	bb.copy(pB);
+	GMatrix bb(*pB);
 	bb.centerMeanAtOrigin();
 	GMatrix* pK = GMatrix::kabsch(&bb, &aa);
 	std::unique_ptr<GMatrix> hK(pK);
@@ -2276,7 +2274,7 @@ double GMatrix::determinant()
 	// Convert to a triangular matrix
 	double epsilon = 1e-10;
 	GMatrix C;
-	C.copy(this);
+	C.copy(*this);
 	GTEMPBUF(size_t, Kp, 2 * n);
 	size_t* Lp = Kp + n;
 	size_t l, ko, lo;
@@ -2456,7 +2454,7 @@ GMatrix* GMatrix::eigs(size_t nCount, GVec& eigenVals, GRand* pRand, bool mostSi
 	if(mostSignificant)
 	{
 		pA = new GMatrix();
-		pA->copy(this);
+		pA->copy(*this);
 	}
 	else
 		pA = pseudoInverse();
@@ -2598,23 +2596,13 @@ void GMatrix::fillNormal(GRand& rand, double deviation)
 		row(i).fillNormal(rand, deviation);
 }
 
-void GMatrix::copy(const GMatrix* pThat)
+void GMatrix::copy(const GMatrix& that, size_t rowStart, size_t colStart, size_t rowCount, size_t colCount)
 {
-	GAssert(pThat != this);
+	GAssert(this != &that);
 	flush();
-	setRelation(pThat->m_pRelation->clone());
-	newRows(pThat->rows());
-	copyBlock(*pThat, 0, 0, pThat->rows(), pThat->cols(), 0, 0, false);
-}
-
-GMatrix* GMatrix::cloneSub(size_t rowStart, size_t colStart, size_t rowCount, size_t colCount) const
-{
-	if(rowStart + rowCount > rows())
-		throw Ex("row index out of range");
-	GMatrix* pThat = new GMatrix(m_pRelation->cloneSub(colStart, colCount));
-	pThat->newRows(rowCount);
-	pThat->copyBlock(*this, rowStart, colStart, rowCount, colCount, 0, 0, false);
-	return pThat;
+	setRelation(that.m_pRelation->cloneSub(colStart, std::min(that.cols() - colStart, colCount)));
+	newRows(std::min(that.rows() - rowStart, rowCount));
+	copyBlock(that, rowStart, colStart, rowCount, colCount, 0, 0, false);
 }
 
 void GMatrix::copyBlock(const GMatrix& source, size_t srcRow, size_t srcCol, size_t hgt, size_t wid, size_t destRow, size_t destCol, bool checkMetaData)
@@ -3539,7 +3527,7 @@ size_t GMatrix::countPrincipalComponents(double d, GRand* pRand) const
 {
 	size_t dims = cols();
 	GMatrix tmpData(relation().cloneMinimal());
-	tmpData.copy(this);
+	tmpData.copy(*this);
 	tmpData.centerMeanAtOrigin();
 	GVec vec(dims);
 	GVec origin(tmpData.cols());
@@ -4662,8 +4650,7 @@ void GMatrix_testLUDecomposition(GRand& prng)
 		for(size_t j = 0; j < 5; j++)
 			a[i][j] = prng.normal();
 	}
-	GMatrix b;
-	b.copy(&a);
+	GMatrix b(a);
 	b.LUDecomposition();
 	GMatrix l(5, 5);
 	l.fill(0.0);

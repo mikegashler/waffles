@@ -182,6 +182,16 @@ public:
 
 	/// Adds a block as a new layer to this neural network.
 	void add(GBlock* pBlock);
+	void add(GBlock* a, GBlock* b) { add(a); add(b); }
+	void add(GBlock* a, GBlock* b, GBlock* c) { add(a); add(b, c); }
+	void add(GBlock* a, GBlock* b, GBlock* c, GBlock* d) { add(a); add(b, c, d); }
+	void add(GBlock* a, GBlock* b, GBlock* c, GBlock* d, GBlock* e) { add(a); add(b, c, d, e); }
+	void add(GBlock* a, GBlock* b, GBlock* c, GBlock* d, GBlock* e, GBlock* f) { add(a); add(b, c, d, e, f); }
+	void add(GBlock* a, GBlock* b, GBlock* c, GBlock* d, GBlock* e, GBlock* f, GBlock* g) { add(a); add(b, c, d, e, f, g); }
+	void add(GBlock* a, GBlock* b, GBlock* c, GBlock* d, GBlock* e, GBlock* f, GBlock* g, GBlock* h) { add(a); add(b, c, d, e, f, g, h); }
+	void add(GBlock* a, GBlock* b, GBlock* c, GBlock* d, GBlock* e, GBlock* f, GBlock* g, GBlock* h, GBlock* i) { add(a); add(b, c, d, e, f, g, h, i); }
+	void add(GBlock* a, GBlock* b, GBlock* c, GBlock* d, GBlock* e, GBlock* f, GBlock* g, GBlock* h, GBlock* i, GBlock* j) { add(a); add(b, c, d, e, f, g, h, i, j); }
+	void add(GBlock* a, GBlock* b, GBlock* c, GBlock* d, GBlock* e, GBlock* f, GBlock* g, GBlock* h, GBlock* i, GBlock* j, GBlock* k) { add(a); add(b, c, d, e, f, g, h, i, j, k); }
 
 	/// Concatenates a block to the last (output-most) layer in this neural network.
 	/// (inPos specifies the starting position of the inputs into this block.)

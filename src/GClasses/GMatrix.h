@@ -475,7 +475,7 @@ public:
 	///the rows (with the same content).
 	///
 	///\param orig the GMatrix object to copy
-	GMatrix(const GMatrix& orig);
+	GMatrix(const GMatrix& orig, size_t rowStart = 0, size_t colStart = 0, size_t rowCount = (size_t)-1, size_t colCount = (size_t)-1);
 
 
 	//I put the operator= right after the copy constructor because you
@@ -541,7 +541,7 @@ public:
 	void copyCols(const GMatrix& that, size_t firstCol, size_t colCount);
 
 	/// \brief Copies (deep) all the data and metadata from pThat.
-	void copy(const GMatrix* pThat);
+	void copy(const GMatrix& that, size_t rowStart = 0, size_t colStart = 0, size_t rowCount = (size_t)-1, size_t colCount = (size_t)-1);
 
 	/// \brief This computes the square root of this matrix. (If you
 	/// take the matrix that this returns and multiply it by its
@@ -553,10 +553,6 @@ public:
 	/// accurate results. If tolerant is false (the default) and this
 	/// matrix is not positive definite, it will throw an exception.
 	GMatrix* cholesky(bool tolerant = false);
-
-	/// \brief Makes a deep copy of the specified rectangular region of
-	/// this matrix
-	GMatrix* cloneSub(size_t rowStart, size_t colStart, size_t rowCount, size_t colCount) const;
 
 	/// \brief Copies the specified column into pOutVector
 	void col(size_t index, double* pOutVector);
@@ -1341,6 +1337,9 @@ public:
 		m_a.mergeVert(&m_b);
 	}
 };
+
+
+
 
 
 

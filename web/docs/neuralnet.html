@@ -333,56 +333,38 @@ int main(int argc, char *argv[])
 	// Load the data
 	GMatrix train;
 	train.loadArff("/somepath/data/mnist/train.arff");
-	GDataColSplitter sTrain(train, 1);
 	GMatrix test;
 	test.loadArff("/somepath/data/mnist/test.arff");
-	GDataColSplitter sTest(test, 1);
+	GMatrix rawTestLabels(test, 0, test.cols() - 1, test.rows(), 1);
 
-	// Prep the data
-	GIncrementalTransform* pFeatTrans = GIncrementalTransform::autoTrans(sTrain.features(),
-		false, // allowMissing
-		false, // allowNominal
-		true, // allowContinuous
-		-1.0, // minVal
-		1.0); // maxVal
-	std::unique_ptr&lt;GIncrementalTransform&gt; hFeatTrans(pFeatTrans);
-	GIncrementalTransform* pLabTrans = GIncrementalTransform::autoTrans(sTrain.labels(),
-		false, // allowMissing
-		false, // allowNominal
-		true, // allowContinuous
-		-1.0, // minVal
-		1.0); // maxVal
-	std::unique_ptr&lt;GIncrementalTransform&gt; hLabTrans(pLabTrans);
+	// Preprocess the data
+	GDataPreprocessor dpFeat(train,
+		0, 0, // rowStart, colStart
+		train.rows(), train.cols() - 1, // rowCount, colCount
+		false, false, true, // allowMissing, allowNominal, allowContinuous
+		-1.0, 1.0); // minVal, maxVal
+	dpFeat.add(test, 0, 0, test.rows(), test.cols() - 1);
+	GDataPreprocessor dpLab(train,
+		0, train.cols() - 1, // rowStart, colStart
+		train.rows(), 1, // rowCount, colCount
+		false, false, true, // allowMissing, allowNominal, allowContinuous
+		-1.0, 1.0); // minVal, maxVal
+	dpLab.add(test, 0, test.cols() - 1, test.rows(), 1);
+	GMatrix&amp; trainFeatures = dpFeat.get(0);
+	GMatrix&amp; trainLabels = dpLab.get(0);
+	GMatrix&amp; testFeatures = dpFeat.get(1);
+	GMatrix&amp; testLabels = dpLab.get(1);
 
-	GMatrix* pTrainFeatures = pFeatTrans-&gt;transformBatch(sTrain.features());
-	std::unique_ptr&lt;GMatrix&gt; hTrainFeatures(pTrainFeatures);
-	GMatrix&amp; trainFeatures = *pTrainFeatures;
-
-	GMatrix* pTrainLabels = pLabTrans-&gt;transformBatch(sTrain.labels());
-	std::unique_ptr&lt;GMatrix&gt; hTrainLabels(pTrainLabels);
-	GMatrix&amp; trainLabels = *pTrainLabels;
-
-	GMatrix* pTestFeatures = pFeatTrans-&gt;transformBatch(sTest.features());
-	std::unique_ptr&lt;GMatrix&gt; hTestFeatures(pTestFeatures);
-	GMatrix&amp; testFeatures = *pTestFeatures;
-
-	GMatrix* pTestLabels = pLabTrans-&gt;transformBatch(sTest.labels());
-	std::unique_ptr&lt;GMatrix&gt; hTestLabels(pTestLabels);
-	GMatrix&amp; testLabels = *pTestLabels;
-
-	// Make the network
+	// Make a neural network
 	GNeuralNet nn;
-	nn.add(new GBlockLinear(80));
-	nn.add(new GBlockTanh());
-	nn.add(new GBlockLinear(30));
-	nn.add(new GBlockTanh());
-	nn.add(new GBlockLinear(10));
-	nn.add(new GBlockTanh());
+	nn.add(new GBlockLinear(80), new GBlockTanh(),
+		new GBlockLinear(30), new GBlockTanh(),
+		new GBlockLinear(10), new GBlockTanh());
 
 	// Prepare for training
 	GSGDOptimizer optimizer(nn);
 	optimizer.setLearningRate(0.01);
-	nn.init(trainFeatures.cols(), trainLabels.cols(), *optimizer.rand());
+	nn.init(trainFeatures.cols(), trainLabels.cols(), optimizer.rand());
 	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Topology:\n";
@@ -394,7 +376,7 @@ int main(int argc, char *argv[])
 	cout &lt;&lt; "@DATA\n";
 
 	// Train
-	GRandomIndexIterator ii(trainFeatures.rows(), *optimizer.rand());
+	GRandomIndexIterator ii(trainFeatures.rows(), optimizer.rand());
 	for(size_t epoch = 0; epoch &lt; 10; epoch++)
 	{
 		// Validate
@@ -402,7 +384,7 @@ int main(int argc, char *argv[])
 		cout &lt;&lt; to_str(std::sqrt(sseTrain / trainFeatures.rows())) &lt;&lt; ", ";
 		double sseTest = nn.measureLoss(testFeatures, testLabels);
 		cout &lt;&lt; to_str(std::sqrt(sseTest / testFeatures.rows())) &lt;&lt; ", ";
-		double mis = nn.measureLoss(testFeatures, sTest.labels());
+		double mis = nn.measureLoss(testFeatures, rawTestLabels);
 		cout &lt;&lt; to_str((double)mis / testFeatures.rows()) &lt;&lt; "\n";
 		cout.flush();
 

@@ -1248,8 +1248,7 @@ void semanticMap(GArgReader& args){
   }else{
     //Find the best data indices using only the first inputDimensions of
     //the input data
-    GMatrix* pLessColumns = new GMatrix();
-	pLessColumns->copy(hData.get());
+    GMatrix* pLessColumns = new GMatrix(*hData.get());
     std::unique_ptr<GMatrix> lessColumns(pLessColumns);
     while(lessColumns->cols() > som.inputDimensions()){
       lessColumns->deleteColumns(lessColumns->cols()-1, 1);
