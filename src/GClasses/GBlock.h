@@ -210,7 +210,7 @@ public:
 	virtual BlockType type() const override { return block_scalarsum; }
 
 	/// Returns the name of this block
-	virtual std::string name() const { return "GBlockScalarSum"; }
+	virtual std::string name() const override { return "GBlockScalarSum"; }
 
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
@@ -314,7 +314,7 @@ public:
 	virtual BlockType type() const override { return block_switch; }
 
 	/// Returns the name of this block
-	virtual std::string name() const { return "GBlockSwitch"; }
+	virtual std::string name() const override { return "GBlockSwitch"; }
 
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
@@ -373,7 +373,7 @@ public:
 	virtual BlockType type() const override { return block_maxpooling; }
 
 	/// Returns the name of this block
-	virtual std::string name() const { return "GBlockMaxPooling"; }
+	virtual std::string name() const override { return "GBlockMaxPooling"; }
 
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
@@ -453,7 +453,7 @@ public:
 	GBlockIdentity(size_t size = 0) : GBlockActivation(size) {}
 	GBlockIdentity(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_identity; }
-	virtual std::string name() const { return "GBlockIdentity"; }
+	virtual std::string name() const override { return "GBlockIdentity"; }
 	virtual double eval(double x) const override { return x; }
 	virtual double derivative(double x, double f_x) const override { return 1.0; }
 };
@@ -481,7 +481,7 @@ public:
 	GBlockTanh(size_t size = 0) : GBlockActivation(size) {}
 	GBlockTanh(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_tanh; }
-	virtual std::string name() const { return "GBlockTanh"; }
+	virtual std::string name() const override { return "GBlockTanh"; }
 	virtual double eval(double x) const override { return std::tanh(x); }
 	virtual double derivative(double x, double f_x) const override { return 1.0 - (f_x * f_x); }
 };
@@ -495,7 +495,7 @@ public:
 	GBlockLogistic(size_t size = 0) : GBlockActivation(size) {}
 	GBlockLogistic(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_logistic; }
-	virtual std::string name() const { return "GBlockLogistic"; }
+	virtual std::string name() const override { return "GBlockLogistic"; }
 	virtual double eval(double x) const override
 	{
 		if(x >= 700.0) // Don't trigger a floating point exception
@@ -519,7 +519,7 @@ public:
 	GBlockBentIdentity(size_t size = 0) : GBlockActivation(size) {}
 	GBlockBentIdentity(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_bentidentity; }
-	virtual std::string name() const { return "GBlockBentIdentity"; }
+	virtual std::string name() const override { return "GBlockBentIdentity"; }
 	virtual double eval(double x) const override { return BEND_AMOUNT * (std::sqrt(x * x + BEND_SIZE * BEND_SIZE) - BEND_SIZE) + x; }
 	virtual double derivative(double x, double f_x) const override { return BEND_AMOUNT * x / std::sqrt(x * x + BEND_SIZE * BEND_SIZE) + 1.0; }
 };
@@ -534,7 +534,7 @@ public:
 	GBlockSigExp(size_t size = 0) : GBlockActivation(size) {}
 	GBlockSigExp(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_sigexp; }
-	virtual std::string name() const { return "GBlockSigExp"; }
+	virtual std::string name() const override { return "GBlockSigExp"; }
 	virtual double eval(double x) const override { return (x <= 0.0 ? exp(x) - 1.0 : std::log(x + 1.0)); }
 	virtual double derivative(double x, double f_x) const override { return (x <= 0.0 ? std::exp(x) : 1.0 / (x + 1.0)); }
 };
@@ -548,7 +548,7 @@ public:
 	GBlockGaussian(size_t size = 0) : GBlockActivation(size) {}
 	GBlockGaussian(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_gaussian; }
-	virtual std::string name() const { return "GBlockGaussian"; }
+	virtual std::string name() const override { return "GBlockGaussian"; }
 	virtual double eval(double x) const override { return std::exp(-(x * x)); }
 	virtual double derivative(double x, double f_x) const override { return -2.0 * x * std::exp(-(x * x)); }
 };
@@ -562,7 +562,7 @@ public:
 	GBlockSine(size_t size = 0) : GBlockActivation(size) {}
 	GBlockSine(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_sine; }
-	virtual std::string name() const { return "GBlockSine"; }
+	virtual std::string name() const override { return "GBlockSine"; }
 	virtual double eval(double x) const override { return std::sin(x); }
 	virtual double derivative(double x, double f_x) const override { return std::cos(x); }
 };
@@ -577,7 +577,7 @@ public:
 	GBlockRectifier(size_t size = 0) : GBlockActivation(size) {}
 	GBlockRectifier(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_rectifier; }
-	virtual std::string name() const { return "GBlockRectifier"; }
+	virtual std::string name() const override { return "GBlockRectifier"; }
 	virtual double eval(double x) const override { return std::max(0.0, x); }
 	virtual double derivative(double x, double f_x) const override { return (x >= 0.0 ? 1.0 : 0.0); }
 };
@@ -592,7 +592,7 @@ public:
 	GBlockLeakyRectifier(size_t size = 0) : GBlockActivation(size) {}
 	GBlockLeakyRectifier(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_leakyrectifier; }
-	virtual std::string name() const { return "GBlockLeakyRectifier"; }
+	virtual std::string name() const override { return "GBlockLeakyRectifier"; }
 	virtual double eval(double x) const override { return x >= 0.0 ? x : 0.01 * x; }
 	virtual double derivative(double x, double f_x) const override { return x >= 0.0 ? 1.0 : 0.01; }
 };
@@ -607,7 +607,7 @@ public:
 	GBlockSoftPlus(size_t size = 0) : GBlockActivation(size) {}
 	GBlockSoftPlus(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_softplus; }
-	virtual std::string name() const { return "GBlockSoftPlus"; }
+	virtual std::string name() const override { return "GBlockSoftPlus"; }
 	virtual double eval(double x) const override { return x > 500 ? x : log(1.0 + exp(x)); }
 	virtual double derivative(double x, double f_x) const override { return 1.0 / (1.0 + exp(-x)); }
 };
@@ -626,7 +626,7 @@ public:
 	GBlockSoftRoot(size_t size = 0) : GBlockActivation(size) {}
 	GBlockSoftRoot(GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual BlockType type() const override { return block_softroot; }
-	virtual std::string name() const { return "GBlockSoftRoot"; }
+	virtual std::string name() const override { return "GBlockSoftRoot"; }
 	virtual double eval(double x) const override
 	{
 		double d = std::sqrt(x * x + 1.0);
@@ -661,7 +661,7 @@ public:
 	virtual BlockType type() const override { return block_linear; }
 
 	/// Returns the name of this block
-	virtual std::string name() const { return "GBlockLinear"; }
+	virtual std::string name() const override { return "GBlockLinear"; }
 
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
@@ -779,7 +779,7 @@ public:
 	virtual BlockType type() const override { return block_featureselector; }
 
 	/// Returns the name of this block
-	virtual std::string name() const { return "GBlockFeatureSelector"; }
+	virtual std::string name() const override { return "GBlockFeatureSelector"; }
 
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
@@ -871,7 +871,7 @@ public:
 	virtual BlockType type() const override { return block_allpairings; }
 
 	/// Returns the name of this block
-	virtual std::string name() const { return "GBlockAllPairings"; }
+	virtual std::string name() const override { return "GBlockAllPairings"; }
 
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
@@ -919,7 +919,7 @@ public:
 	virtual BlockType type() const override { return block_fuzzy; }
 
 	/// Returns the name of this block
-	virtual std::string name() const { return "GBlockFuzzy"; }
+	virtual std::string name() const override { return "GBlockFuzzy"; }
 
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
@@ -1112,7 +1112,7 @@ public:
 	virtual BlockType type() const override { return block_restrictedboltzmannmachine; }
 
 	/// Returns the name of this block
-	virtual std::string name() const { return "GBlockRestrictedBoltzmannMachine"; }
+	virtual std::string name() const override { return "GBlockRestrictedBoltzmannMachine"; }
 
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
@@ -1240,7 +1240,7 @@ public:
 	virtual BlockType type() const override { return block_convolutional1d; }
 
 	/// Returns the name of this block
-	virtual std::string name() const { return "GBlockConvolutional1D"; }
+	virtual std::string name() const override { return "GBlockConvolutional1D"; }
 
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
@@ -1373,7 +1373,7 @@ public:
 	virtual BlockType type() const override { return block_convolutional2d; }
 
 	/// Returns the name of this block
-	virtual std::string name() const { return "GBlockConvolutional2D"; }
+	virtual std::string name() const override { return "GBlockConvolutional2D"; }
 
 	virtual GDomNode* serialize(GDom* pDoc) const override;
 	virtual void resize(size_t inputs, size_t outputs) override;
@@ -1581,7 +1581,7 @@ public:
 	virtual BlockType type() const override { return block_lstm; }
 
 	/// Returns the name of this block
-	virtual std::string name() const { return "GBlockLSTM"; }
+	virtual std::string name() const override { return "GBlockLSTM"; }
 
 	/// Returns the number of instances of this block unfolded through time that will be used during training.
 	virtual size_t depth() override { return 4; }
@@ -1691,7 +1691,7 @@ public:
 	virtual BlockType type() const override { return block_gru; }
 
 	/// Returns the name of this block
-	virtual std::string name() const { return "GBlockGRU"; }
+	virtual std::string name() const override { return "GBlockGRU"; }
 
 	/// Returns the number of instances of this block unfolded through time that will be used during training.
 	virtual size_t depth() override { return 4; }

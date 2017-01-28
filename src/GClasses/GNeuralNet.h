@@ -171,7 +171,7 @@ public:
 	virtual BlockType type() const override { return block_neuralnet; }
 
 	/// Returns the name of this block
-	virtual std::string name() const { return "GNeuralNet"; }
+	virtual std::string name() const override { return "GNeuralNet"; }
 
 	/// Marshal this object into a dom node.
 	GDomNode* serialize(GDom* pDoc) const override;
