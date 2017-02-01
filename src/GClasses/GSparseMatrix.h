@@ -98,8 +98,10 @@ public:
 	/// value, it removes the element from the matrix.)
 	void set(size_t row, size_t col, double val);
 
-	/// Copies values from "that" into "this". Any default-valued elements in
-	/// that will be left the same. Any non-default-valued elements will be
+	/// Copies values from "that" into "this".
+	/// Keeps values in "this" that are not overwritten by "that".
+	/// Any default-valued elements in that will be left the same.
+	/// Any non-default-valued elements will be
 	/// copied over the value in this. If the matrices are different
 	/// sizes, any non-overlapping elements will be left at the default value,
 	/// no-matter what value it has in that.
@@ -117,6 +119,9 @@ public:
 
 	/// Adds a new row to this matrix by copying the parameter row
 	void copyRow(SparseVec& row);
+
+	/// Empties the contents of this matrix.
+	void clear();
 
 	/// Converts to a full matrix
 	GMatrix* toFullMatrix();

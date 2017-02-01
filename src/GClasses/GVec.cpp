@@ -757,6 +757,26 @@ void GIndexVec::resize(size_t n)
 		m_data = new size_t[n];
 }
 
+void GIndexVec::fillIndexes()
+{
+	for(size_t i = 0; i < m_size; i++)
+		m_data[i] = i;
+}
+
+size_t GIndexVec::popRandom(GRand& rand)
+{
+	if(m_size == 0)
+		throw Ex("Nothing to pop");
+	size_t r = rand.next(m_size);
+	size_t v = m_data[r];
+	m_data[r] = m_data[m_size - 1];
+	m_size--;
+	return v;
+}
+
+
+
+
 // static
 void GIndexVec::makeIndexVec(size_t* pVec, size_t size)
 {

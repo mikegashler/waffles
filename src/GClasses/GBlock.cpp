@@ -82,6 +82,7 @@ GBlock* GBlock::deserialize(GDomNode* pNode)
 		case block_rectifier: return new GBlockRectifier(pNode);
 		case block_leakyrectifier: return new GBlockLeakyRectifier(pNode);
 		case block_softplus: return new GBlockSoftPlus(pNode);
+		case block_sparse: return new GBlockSparse(pNode);
 		case block_linear: return new GBlockLinear(pNode);
 		case block_featureselector: return new GBlockFeatureSelector(pNode);
 		case block_allpairings: return new GBlockAllPairings(pNode);
@@ -661,13 +662,13 @@ void GBlockLinear::step(double learningRate, const GVec &gradient)
 {
 	GAssert(gradient.size() == weightCount(), "gradient must match the dimensions of weights!");
 	const double *delta = gradient.data();
-	GVec &b = bias();
 	for(size_t i = 0; i < inputs(); ++i)
 	{
 		GVec& row = m_weights[i];
 		for(size_t j = 0; j < outputs(); ++j)
 			row[j] += learningRate * *delta++;
 	}
+	GVec &b = bias();
 	for(size_t j = 0; j < outputs(); ++j)
 		b[j] += learningRate * *delta++;
 }
@@ -827,6 +828,210 @@ void GBlockLinear::dropOutput(size_t output)
 {
 	m_weights.deleteColumns(output, 1);
 }
+
+
+
+
+
+
+
+
+
+
+GBlockSparse::GBlockSparse(size_t outputs, size_t inputs, GRand& rand, size_t connections)
+: m_weights(inputs, outputs)
+{
+	if(connections > inputs * outputs)
+		throw Ex("Too many connections. Room for ", GClasses::to_str(inputs * outputs), ", have ", GClasses::to_str(connections));
+	if(inputs >= outputs)
+	{
+		if(connections < inputs)
+			throw Ex("Not enough connections. Require at least ", GClasses::to_str(inputs), ", have only ", GClasses::to_str(connections));
+		GIndexVec** ppVecs = new GIndexVec*[inputs];
+		for(size_t i = 0; i < inputs; i++)
+		{
+			ppVecs[i] = new GIndexVec(outputs);
+			ppVecs[i]->fillIndexes();
+		}
+		for(size_t i = 0; i < connections; i++)
+		{
+			size_t in = i % inputs;
+			size_t out = (i < outputs ? i : rand.next(outputs));
+			m_weights.set(in, out, 1.0);
+		}
+		for(size_t i = 0; i < inputs; i++)
+			delete(ppVecs[i]);
+		delete(ppVecs);
+	}
+	else
+	{
+		if(connections < outputs)
+			throw Ex("Not enough connections. Require at least ", GClasses::to_str(outputs), ", have only ", GClasses::to_str(connections));
+		GIndexVec** ppVecs = new GIndexVec*[outputs];
+		for(size_t i = 0; i < outputs; i++)
+		{
+			ppVecs[i] = new GIndexVec(inputs);
+			ppVecs[i]->fillIndexes();
+		}
+		for(size_t i = 0; i < connections; i++)
+		{
+			size_t out = i % outputs;
+			size_t in = (i < inputs ? i : rand.next(inputs));
+			m_weights.set(in, out, 1.0);
+		}
+		for(size_t i = 0; i < outputs; i++)
+			delete(ppVecs[i]);
+		delete(ppVecs);
+	}
+}
+
+GBlockSparse::GBlockSparse(GDomNode* pNode)
+: GBlock(pNode), m_weights(pNode->field("weights")), m_bias(pNode->field("bias")), m_connections(pNode->field("connections")->asInt())
+{}
+
+GDomNode* GBlockSparse::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "weights", m_weights.serialize(pDoc));
+	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
+	pNode->addField(pDoc, "connections", pDoc->newInt(m_connections));
+	return pNode;
+}
+
+void GBlockSparse::resize(size_t in, size_t out)
+{
+	if(in != inputs() || out != outputs())
+		throw Ex("Sorry, GBlockSparse does not yet support resizing");
+}
+
+void GBlockSparse::forwardProp(GContext& ctx, const GVec& input, GVec& output) const
+{
+	GAssert(input.size() == m_weights.rows());
+	GAssert(output.size() == m_weights.cols());
+	output.copy(bias());
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		for(GSparseMatrix::Iter it = m_weights.rowBegin(i); it != m_weights.rowEnd(i); it++)
+			output[it->first] += input[i] * it->second;
+	}
+}
+
+void GBlockSparse::backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
+{
+	GAssert(outBlame.size() == m_weights.cols() && inBlame.size() == m_weights.rows());
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		for(GSparseMatrix::Iter it = m_weights.rowBegin(i); it != m_weights.rowEnd(i); it++)
+			inBlame[i] += outBlame[it->first] * it->second;
+	}
+}
+
+void GBlockSparse::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const
+{
+	GAssert(gradient.size() == m_connections + m_bias.size(), "gradient must match the number of connections plus bias values");
+	double *delta = gradient.data();
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		for(GSparseMatrix::Iter it = m_weights.rowBegin(i); it != m_weights.rowEnd(i); it++)
+			*delta++ += input[i] * outBlame[it->first];
+	}
+	for(size_t j = 0; j < outputs(); ++j)
+		*delta++ += outBlame[j];
+}
+
+void GBlockSparse::step(double learningRate, const GVec &gradient)
+{
+	GAssert(gradient.size() == m_connections + m_bias.size(), "gradient must match the number of connections plus bias values");
+	const double *delta = gradient.data();
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		for(SparseVec::iterator it = m_weights.row(i).begin(); it != m_weights.rowEnd(i); it++)
+			it->second += learningRate * *delta++;
+	}
+	GVec &b = bias();
+	for(size_t j = 0; j < outputs(); ++j)
+		b[j] += learningRate * *delta++;
+}
+
+size_t GBlockSparse::weightCount() const
+{
+	return m_connections + m_bias.size();
+}
+
+size_t GBlockSparse::weightsToVector(double* pOutVector) const
+{
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		for(GSparseMatrix::Iter it = m_weights.rowBegin(i); it != m_weights.rowEnd(i); it++)
+			*(pOutVector++) = it->second;
+	}
+	return weightCount();
+}
+
+size_t GBlockSparse::vectorToWeights(const double* pVector)
+{
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		for(SparseVec::iterator it = m_weights.row(i).begin(); it != m_weights.rowEnd(i); it++)
+			it->second = *(pVector++);
+	}
+	return weightCount();
+}
+
+void GBlockSparse::copyWeights(const GBlock* pSource)
+{
+	GBlockSparse* src = (GBlockSparse*)pSource;
+	m_weights.clear();
+	m_weights.copyFrom(&src->m_weights);
+	m_bias.copy(src->bias());
+	m_connections = src->m_connections;
+}
+
+void GBlockSparse::resetWeights(GRand& rand)
+{
+	double mag = std::max(0.03, 1.0 / sqrt((double)m_connections));
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		for(SparseVec::iterator it = m_weights.row(i).begin(); it != m_weights.rowEnd(i); it++)
+			it->second = rand.normal() * mag;
+	}
+}
+
+void GBlockSparse::perturbWeights(GRand &rand, double deviation)
+{
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		for(SparseVec::iterator it = m_weights.row(i).begin(); it != m_weights.rowEnd(i); it++)
+			it->second += deviation * rand.normal();
+	}
+	for(size_t i = 0; i < outputs(); i++)
+		m_bias[i] += deviation * rand.normal();
+}
+
+void GBlockSparse::maxNorm(double min, double max)
+{
+	throw Ex("Sorry, not implemented");
+}
+
+void GBlockSparse::scaleWeights(double factor, bool scaleBiases)
+{
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		for(SparseVec::iterator it = m_weights.row(i).begin(); it != m_weights.rowEnd(i); it++)
+			it->second *= factor;
+	}
+	if(scaleBiases)
+	{
+		for(size_t i = 0; i < outputs(); i++)
+			m_bias[i] *= factor;
+	}
+}
+
+void GBlockSparse::diminishWeights(double amount, bool regularizeBiases)
+{
+	throw Ex("Sorry, not implemented");
+}
+
 
 
 

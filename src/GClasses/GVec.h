@@ -406,8 +406,11 @@ public:
 		return m_data[index];
 	}
 
+	/// Fills this vector with the values 0, 1, 2, ...
+	void fillIndexes();
 
-
+	/// Picks a random element from this vector, removes it, and returns it
+	size_t popRandom(GRand& rand);
 
 
 

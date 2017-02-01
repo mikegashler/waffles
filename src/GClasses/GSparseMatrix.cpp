@@ -212,6 +212,12 @@ void GSparseMatrix::copyRow(SparseVec& r)
 	m = r;
 }
 
+void GSparseMatrix::clear()
+{
+	for(size_t r = 0; r < rows(); r++)
+		m_rows[r].clear();
+}
+
 GMatrix* GSparseMatrix::toFullMatrix()
 {
 	GMatrix* pData = new GMatrix(m_rows.size(), m_cols);
