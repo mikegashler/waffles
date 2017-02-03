@@ -171,6 +171,9 @@ public:
 	/// you want into the last position before you call this method.)
 	void deleteLastRow();
 
+	/// Modifies this matrix such that it now has dimensions 'rows' x 'cols'.
+    void resize(size_t rows, size_t cols);
+
 protected:
 	void singularValueDecompositionHelper(GSparseMatrix** ppU, double** ppDiag, GSparseMatrix** ppV, bool throwIfNoConverge, size_t maxIters);
 };

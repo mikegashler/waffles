@@ -853,6 +853,12 @@ void GSparseMatrix::deleteLastRow()
 	m_rows.pop_back();
 }
 
+void GSparseMatrix::resize(size_t rows, size_t cols)
+{
+    m_cols = cols;
+    m_rows.resize(rows);
+}
+
 #ifndef NO_TEST_CODE
 bool GSparseMatrix_testHelper(GSparseMatrix& sm)
 {

@@ -505,7 +505,7 @@ public:
 		else if(x < -700.0) // Don't trigger a floating point exception
 			return 0.0;
 		else return 1.0 / (std::exp(-x) + 1.0);
-		
+
 	}
 	virtual double derivative(double x, double f_x) const override { return f_x * (1.0 - f_x); }
 };
@@ -777,6 +777,11 @@ public:
 	/// connections must be >= max(inputs, outputs).
 	/// connections must be <= inputs * outputs.
 	GBlockSparse(size_t outputs, size_t inputs, GRand& rand, size_t connections);
+
+	// Create a sparse block that is 'fillPercentage' full. This value should
+	// be between 0.0 and 1.0.
+	GBlockSparse(size_t outputs, size_t inputs, GRand& rand, double fillPercentage);
+
 	GBlockSparse(GDomNode* pNode);
 
 	/// Returns the type of this block
@@ -1292,9 +1297,9 @@ public:
 	/// encoding will be in activation().
 	void drawSample(GContext& ctx, size_t iters, GVec& output, GVec& input);
 
-	
+
 /*  *** Note that these two commented-out methods are pretty-much the whole point of RBMs, so this class is pretty-much useless until they are restored. ***
-	/// Returns the free energy of this block. Assumes that a pattern has already been set in the 
+	/// Returns the free energy of this block. Assumes that a pattern has already been set in the
 	double freeEnergy(const GVec& visibleSample);
 
 	/// Refines this block by contrastive divergence.

@@ -44,6 +44,7 @@
 #include "GFourier.h"
 #include <memory>
 #include "GNeuralNet.h"
+#include <iostream>
 
 using std::vector;
 using std::ostream;
@@ -839,7 +840,7 @@ void GBlockLinear::dropOutput(size_t output)
 
 
 GBlockSparse::GBlockSparse(size_t outputs, size_t inputs, GRand& rand, size_t connections)
-: m_weights(inputs, outputs)
+: m_weights(inputs, outputs), m_bias(outputs), m_connections(connections)
 {
 	if(connections > inputs * outputs)
 		throw Ex("Too many connections. Room for ", GClasses::to_str(inputs * outputs), ", have ", GClasses::to_str(connections));
@@ -885,6 +886,9 @@ GBlockSparse::GBlockSparse(size_t outputs, size_t inputs, GRand& rand, size_t co
 	}
 }
 
+GBlockSparse::GBlockSparse(size_t outputs, size_t inputs, GRand& rand, double fillPercentage)
+	: GBlockSparse(outputs, inputs, rand, (size_t)(fillPercentage * (inputs * outputs))) {}
+
 GBlockSparse::GBlockSparse(GDomNode* pNode)
 : GBlock(pNode), m_weights(pNode->field("weights")), m_bias(pNode->field("bias")), m_connections(pNode->field("connections")->asInt())
 {}
@@ -901,7 +905,10 @@ GDomNode* GBlockSparse::serialize(GDom* pDoc) const
 void GBlockSparse::resize(size_t in, size_t out)
 {
 	if(in != inputs() || out != outputs())
-		throw Ex("Sorry, GBlockSparse does not yet support resizing");
+	{
+        m_weights.resize(in, out);
+        m_bias.resize(out);
+    }
 }
 
 void GBlockSparse::forwardProp(GContext& ctx, const GVec& input, GVec& output) const
@@ -2299,29 +2306,29 @@ void GBlockConvolutional2D::resize(size_t inputSize, size_t outputSize)
 // {
 // 	if(pUpStreamLayer->type() != block_convolutional2d)
 // 		throw Ex("GBlockConvolutional2D can only be resized given an upstream convolutional layer!");
-// 
+//
 // 	GBlockConvolutional2D &upstream = *((GBlockConvolutional2D *) pUpStreamLayer);
-// 
+//
 // 	m_width			= upstream.outputWidth();
 // 	m_height		= upstream.outputHeight();
 // 	m_channels		= upstream.outputChannels();
-// 
+//
 // 	m_kernels.resize(m_kernels.rows(), m_kWidth * m_kHeight * m_channels);
-// 
+//
 // 	m_bias.fill(0.0);
 // 	m_kernels.fill(0.0);
-// 
+//
 // 	m_inputImage.width = m_width;
 // 	m_inputImage.height = m_height;
 // 	m_inputImage.channels = m_channels;
-// 
+//
 // 	m_upStreamErrorImage.width = m_width;
 // 	m_upStreamErrorImage.height = m_height;
 // 	m_upStreamErrorImage.channels = m_channels;
-// 
+//
 // 	m_kernelImage.channels = m_channels;
 // 	m_deltaImage.channels = m_channels;
-// 
+//
 // 	updateOutputSize();
 // }
 
@@ -2839,7 +2846,7 @@ GDomNode* GBlockLSTM::serialize(GDom* pDoc) const
 	pNode->addField(pDoc, "write", m_write.serialize(pDoc));
 	pNode->addField(pDoc, "val", m_val.serialize(pDoc));
 	pNode->addField(pDoc, "read", m_read.serialize(pDoc));
-	return pNode;	
+	return pNode;
 }
 
 size_t GBlockLSTM::weightCount() const
@@ -2921,7 +2928,7 @@ void GBlockLSTM::step(double learningRate, const GVec &gradient)
 	g.setData(gradient.data() + wcWrite + wcVal, wcRead);
 	m_read.step(learningRate, g.vec());
 }
-	
+
 
 
 #ifndef MIN_PREDICT
@@ -3126,7 +3133,7 @@ GDomNode* GBlockGRU::serialize(GDom* pDoc) const
 	pNode->addField(pDoc, "update", m_update.serialize(pDoc));
 	pNode->addField(pDoc, "remember", m_remember.serialize(pDoc));
 	pNode->addField(pDoc, "val", m_val.serialize(pDoc));
-	return pNode;	
+	return pNode;
 }
 
 size_t GBlockGRU::weightCount() const
