@@ -857,7 +857,7 @@ GBlockSparse::GBlockSparse(size_t outputs, size_t inputs, GRand& rand, size_t co
 		for(size_t i = 0; i < connections; i++)
 		{
 			size_t in = i % inputs;
-			size_t out = (i < outputs ? i : rand.next(outputs));
+			size_t out = (i < outputs ? i : ppVecs[in]->popRandom(rand));
 			m_weights.set(in, out, 1.0);
 		}
 		for(size_t i = 0; i < inputs; i++)
@@ -877,7 +877,7 @@ GBlockSparse::GBlockSparse(size_t outputs, size_t inputs, GRand& rand, size_t co
 		for(size_t i = 0; i < connections; i++)
 		{
 			size_t out = i % outputs;
-			size_t in = (i < inputs ? i : rand.next(inputs));
+			size_t in = (i < inputs ? i : ppVecs[out]->popRandom(rand));
 			m_weights.set(in, out, 1.0);
 		}
 		for(size_t i = 0; i < outputs; i++)

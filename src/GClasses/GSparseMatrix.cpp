@@ -855,8 +855,9 @@ void GSparseMatrix::deleteLastRow()
 
 void GSparseMatrix::resize(size_t rows, size_t cols)
 {
-    m_cols = cols;
-    m_rows.resize(rows);
+	clear();
+	m_cols = cols;
+	m_rows.resize(rows);	
 }
 
 #ifndef NO_TEST_CODE

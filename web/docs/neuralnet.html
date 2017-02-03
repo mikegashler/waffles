@@ -358,7 +358,7 @@ int main(int argc, char *argv[])
 
 	// Make a neural network
 	GNeuralNet nn;
-	nn.add(new GBlockLinear(80), new GBlockTanh(),
+	nn.add( new GBlockLinear(80), new GBlockTanh(),
 		new GBlockLinear(30), new GBlockTanh(),
 		new GBlockLinear(10), new GBlockTanh());
 

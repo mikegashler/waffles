@@ -389,6 +389,9 @@ public:
 	GIndexVec(size_t n = 0);
 	~GIndexVec();
 
+	/// Returns the size of this vector.
+	size_t size() const { return m_size; }
+
 	/// Resizes this vector
 	void resize(size_t n);
 
