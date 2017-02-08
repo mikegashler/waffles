@@ -26,7 +26,7 @@ else
 endif
 
 # Set shared compiler flags
-CFLAGS = -Wall -Wshadow -pedantic -std=c++11
+CFLAGS = -Wall -pedantic -std=c++11
 
 # Add platform-specific compiler flags
 ifeq ($(UNAME),Darwin)
