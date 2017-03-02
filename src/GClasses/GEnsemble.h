@@ -350,7 +350,7 @@ public:
 	/// set). The default is 1.0.
 	void setTrainSize(double d) { m_trainSize = d; }
 
-	/// Specify the size of the ensemble. The default is 30.
+	/// Specify the maximum number of learners to ensemble. The default is 30.
 	void setSize(size_t n) { m_ensembleSize = n; }
 
 protected:
