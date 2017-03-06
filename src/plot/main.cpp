@@ -1339,7 +1339,7 @@ void makeHistogram(GArgReader& args)
 		
 		if(use_density_estimation)
 		{
-			size_t k = std::max((size_t)3, (size_t)sqrt(pData->rows()));
+			size_t k = std::max((size_t)3, pData->rows() / 7);
 
 			// Estimate the inverse density at each point
 			pData->sort(attr);
