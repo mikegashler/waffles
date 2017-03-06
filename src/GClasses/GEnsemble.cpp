@@ -740,7 +740,7 @@ void GResamplingAdaBoost::trainInnerInner(const GMatrix& features, const GMatrix
 		if(err >= 0.5)
 		{
 			delete(pClone);
-			break;
+			continue;
 		}
 		double weight = 0.5 * log((1.0 - err) / err);
 		m_models.push_back(new GWeightedModel(weight, pClone));
@@ -760,6 +760,10 @@ void GResamplingAdaBoost::trainInnerInner(const GMatrix& features, const GMatrix
 			pDistribution[i] *= exp(weight * (err * 2.0 - 1.0));
 		}
 		pDistribution.sumToOne();
+	}
+	if (m_models.empty()) 
+	{
+		throw Ex("No valid models found for AdaBoost");
 	}
 	normalizeWeights();
 }
