@@ -1698,7 +1698,7 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-separator [char]='#'", "Data elements are separated with the specified character.");
 		pOpts->add("-columnnames", "Use the first row of data for column names.");
 		pOpts->add("-maxvals [n]=200", "Specify the maximum number of unique values in a categorical attribute before parsing of that attribute will be aborted.");
-		pOpts->add("-time [attr] [format]", "Specify that a particular attribute is a date or time stamp in a particular format. Example format: \"YYYY-MM-DD hh:mm:ss\".");
+		pOpts->add("-time [attr] [format]", "Specify that a particular attribute is a date or time stamp in a particular format. Example format: \"YYYY-MM-DD hh:mm:ssssss\".");
 		pOpts->add("-nominal [attr]=0", "Indiciate that the specified attribute should be treated as nominal.");
 		pOpts->add("-real [attr]=0", "Indiciate that the specified attribute should be treated as real.");
 	}

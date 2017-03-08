@@ -1073,10 +1073,10 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 		if(*szFormat == '\0')
 			throw Ex("Invalid date format string");
 		szFormat++;
-		time_t t;
+		double t;
 		if(!GTime::fromString(&t, szVal, szFormat))
 			throw Ex("The string, ", szVal, " does not fit the specified date format, ", szFormat);
-		return (double)t;
+		return t;
 	}
 	else
 		throw Ex("Unexpected attribute type, ", to_str(vals));
@@ -5068,11 +5068,11 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 			for(size_t rowNum = m_columnNamesInFirstRow ? 1 : 0; rowNum < rows.size(); rowNum++)
 			{
 				const char* el = rows[rowNum].m_elements[attr];
-				time_t t;
+				double t;
 				if(*el == '\0')
 					outMatrix[i][attr] = UNKNOWN_REAL_VALUE;
 				else if(GTime::fromString(&t, el, szFormat))
-					outMatrix[i][attr] = (double)t;
+					outMatrix[i][attr] = t;
 				else
 				{
 					outMatrix[i][attr] = UNKNOWN_REAL_VALUE;

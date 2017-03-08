@@ -21,6 +21,7 @@
 #include "GTime.h"
 #include "GString.h"
 #include <time.h>
+#include <cmath>
 #ifdef WINDOWS
 #	include <windows.h>
 #else
@@ -103,7 +104,7 @@ void GTime_printTwoDigits(std::ostream& os, unsigned int n)
 	(*pS).append(os.str());
 }
 
-int GTime_parseVal(const char* buf, int min, int max, bool* pOk)
+int GTime_parseIntVal(const char* buf, int min, int max, bool* pOk)
 {
 	for(size_t i = 0; buf[i] != '\0'; i++)
 	{
@@ -116,8 +117,22 @@ int GTime_parseVal(const char* buf, int min, int max, bool* pOk)
 	return val;
 }
 
-/*static*/ bool GTime::fromString(time_t* pOutTime, const char* szData, const char* szFormat)
+double GTime_parseDoubleVal(const char* buf, double min, double max, bool* pOk)
 {
+	for(size_t i = 0; buf[i] != '\0'; i++)
+	{
+		if(buf[i] != '.' && (buf[i] < '0' || buf[i] > '9'))
+			*pOk = false;
+	}
+	double val = atof(buf);
+	if(val < min || val > max)
+		*pOk = false;
+	return val;
+}
+
+/*static*/ bool GTime::fromString(double* pOutTime, const char* szData, const char* szFormat)
+{
+	double fractional_seconds = 0.0;
 	struct tm ts;
 	ts.tm_sec = 0;
 	ts.tm_min = 0;
@@ -146,25 +161,29 @@ int GTime_parseVal(const char* buf, int min, int max, bool* pOk)
 		{
 			case 'y':
 			case 'Y':
-				ts.tm_year = GTime_parseVal(buf, 1000, 3000, &ok) - 1900;
+				ts.tm_year = GTime_parseIntVal(buf, 1000, 3000, &ok) - 1900;
 				break;
 			case 'M':
-				ts.tm_mon = GTime_parseVal(buf, 1, 12, &ok) - 1;
+				ts.tm_mon = GTime_parseIntVal(buf, 1, 12, &ok) - 1;
 				break;
 			case 'd':
 			case 'D':
-				ts.tm_mday = GTime_parseVal(buf, 1, 31, &ok);
+				ts.tm_mday = GTime_parseIntVal(buf, 1, 31, &ok);
 				break;
 			case 'h':
 			case 'H':
-				ts.tm_hour = GTime_parseVal(buf, 0, 23, &ok);
+				ts.tm_hour = GTime_parseIntVal(buf, 0, 23, &ok);
 				break;
 			case 'm':
-				ts.tm_min = GTime_parseVal(buf, 0, 59, &ok);
+				ts.tm_min = GTime_parseIntVal(buf, 0, 59, &ok);
 				break;
 			case 's':
 			case 'S':
-				ts.tm_sec = GTime_parseVal(buf, 0, 61, &ok);
+			{
+				double d = GTime_parseDoubleVal(buf, 0, 61, &ok);
+				ts.tm_sec = (int)std::floor(d);
+				fractional_seconds = d - std::floor(d);
+			}
 				break;
 			default:
 				for(size_t j = 0; j < i; j++)
@@ -179,7 +198,8 @@ int GTime_parseVal(const char* buf, int min, int max, bool* pOk)
 		szData += i;
 		szFormat += i;
 	}
-	*pOutTime = mktime(&ts);
+	time_t tt = mktime(&ts);
+	*pOutTime = (double)tt + fractional_seconds;
 	return true;
 }
 

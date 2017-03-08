@@ -43,12 +43,15 @@ public:
 	/// this to pS: "2009-12-31 23:59:59". If the separators are all "", then it would append "20091231235959".
 	static void appendTimeStampValue(std::string* pS, const char* sep1 = "-", const char* sep2 = " ", const char* sep3 = ":", bool bGreenwichMeanTime = false);
 
-	/// Parses szData into a time_t. The format of szData is specified in szFormat, where
+	/// Parses szData into a double representing the number of seconds since midnight, Jan 1, 1970.
+	/// The format of szData is specified in szFormat, where
 	/// Y=year, M=month, D=day, h=hour, m=minute, s=second, and all other characters are expected
 	/// to match exactly. For example, if szFormat is "YYYY-MM-DD hh:mm:ss" then szData might be
 	/// "2014-04-01 23:59:59". If the string fits, then *pOutTime will be set to the parsed time,
 	/// and true is returned. Otherwise, *pOutTime is unchanged, and false is returned.
-	static bool fromString(time_t* pOutTime, const char* szData, const char* szFormat);
+	/// As a special case, the "s" format also includes decimal values. For example, the string
+	/// "01/20/2015 16:07:23.000" could be parsed with the format "MM/DD/YYYY hh:mm:ssssss".
+	static bool fromString(double* pOutTime, const char* szData, const char* szFormat);
 };
 
 
