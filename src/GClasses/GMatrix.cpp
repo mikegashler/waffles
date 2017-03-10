@@ -3137,9 +3137,12 @@ void GMatrix::normalizeColumn(size_t column, double dInMin, double dInMax, doubl
 	double dScale = (dOutMax - dOutMin) / (dInMax - dInMin);
 	for(size_t i = 0; i < rows(); i++)
 	{
-		(*this)[i][column] -= dInMin;
-		(*this)[i][column] *= dScale;
-		(*this)[i][column] += dOutMin;
+		if((*this)[i][column] != UNKNOWN_REAL_VALUE)
+		{
+			(*this)[i][column] -= dInMin;
+			(*this)[i][column] *= dScale;
+			(*this)[i][column] += dOutMin;
+		}
 	}
 }
 

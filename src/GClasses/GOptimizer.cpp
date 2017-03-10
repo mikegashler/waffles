@@ -248,7 +248,7 @@ void GSGDOptimizer::updateDeltas(const GVec& feat, const GVec& lab)
 	GContextNeuralNet& ctx = context();
 	m_model.forwardProp_training(ctx, feat, ctx.predBuf());
 	m_objective->calculateOutputLayerBlame(ctx.predBuf(), lab, ctx.blameBuf());
-	m_model.backProp(ctx, feat, ctx.predBuf(), ctx.blameBuf(), ctx.blameBuf());
+	m_model.backProp(ctx, feat, ctx.predBuf(), ctx.blameBuf(), ctx.blameBuf()); // The last two parameters are deliberately the same, indicating not to compute the input blame
 	m_gradient *= m_momentum;
 	m_model.updateGradient(ctx, feat, ctx.blameBuf(), m_gradient);
 }
