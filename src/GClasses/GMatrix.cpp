@@ -3109,7 +3109,10 @@ double GMatrix::columnMin(size_t nAttribute) const
 		if((*this)[i][nAttribute] < d)
 			d = (*this)[i][nAttribute];
 	}
-	return d;
+	if(d == 1e300)
+		return UNKNOWN_REAL_VALUE;
+	else
+		return d;
 }
 
 double GMatrix::columnMax(size_t nAttribute) const
@@ -3122,7 +3125,10 @@ double GMatrix::columnMax(size_t nAttribute) const
 		if((*this)[i][nAttribute] > d)
 			d = (*this)[i][nAttribute];
 	}
-	return d;
+	if(d == -1e300)
+		return UNKNOWN_REAL_VALUE;
+	else
+		return d;
 }
 
 void GMatrix::scaleColumn(size_t col, double scalar)
