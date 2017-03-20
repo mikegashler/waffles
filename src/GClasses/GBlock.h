@@ -43,9 +43,11 @@ protected:
 public:
 	enum BlockType
 	{
+		block_neuralnet,
 		// activation functions
 		block_identity,
 		block_tanh,
+		block_scaledtanh,
 		block_logistic,
 		block_bentidentity,
 		block_sigexp,
@@ -74,7 +76,6 @@ public:
 		block_gru,
 		// block_softmax,
 		// block_maxout,
-		// block_neuralnet,
 		// block_activation,
 	};
 
@@ -498,6 +499,32 @@ public:
 	virtual std::string name() const override { return "GBlockTanh"; }
 	virtual double eval(double x) const override { return std::tanh(x); }
 	virtual double derivative(double x, double f_x) const override { return 1.0 - (f_x * f_x); }
+};
+
+
+
+/// Applies a scaled TanH function element-wise to the input. 
+/// | Equation  |
+/// | --------- |
+/// | \f[ f(x) = tanh(x \times 0.66666667) \times  1.7159\f] |
+/// LeCun et al. suggest scale_in=2/3 and scale_out=1.7159. By carefully matching 
+/// scale_in and scale_out, the nonlinearity can also be tuned to preserve the mean and variance of its input:
+/// - scale_in=0.5, scale_out=2.4: If the input is a random normal variable, the output will have zero mean and unit variance.
+/// - scale_in=1, scale_out=1.6: Same property, but with a smaller linear regime in input space.
+/// - scale_in=0.5, scale_out=2.27: If the input is a uniform normal variable, the output will have zero mean and unit variance.
+/// - scale_in=1, scale_out=1.48: Same property, but with a smaller linear regime in input space.
+///
+class GBlockScaledTanh : public GBlockActivation
+{
+	const double SCALE_IN = 0.66666667;
+	const double SCALE_OUT = 1.7159;
+public:
+	GBlockScaledTanh(size_t size = 0) : GBlockActivation(size) {}
+	GBlockScaledTanh(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual BlockType type() const override { return block_scaledtanh; }
+	virtual std::string name() const override { return "GBlockScaledTanh"; }
+	virtual double eval(double x) const override { return std::tanh(x * SCALE_IN) * SCALE_OUT; }
+	virtual double derivative(double x, double f_x) const override { return SCALE_IN/SCALE_OUT*(SCALE_OUT-f_x)*(SCALE_OUT+f_x); }
 };
 
 
