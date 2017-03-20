@@ -43,35 +43,39 @@ protected:
 public:
 	enum BlockType
 	{
-		block_neuralnet,
+		// activation functions
 		block_identity,
 		block_tanh,
 		block_logistic,
 		block_bentidentity,
-		block_softroot,
 		block_sigexp,
 		block_gaussian,
 		block_sine,
 		block_rectifier,
 		block_leakyrectifier,
 		block_softplus,
-		block_sparse,
+		block_softroot,
+		// weights transfer
 		block_linear,
+		block_sparse,
 		block_featureselector,
-		block_allpairings,
 		block_fuzzy,
-		block_activation,
-		block_scalarproduct,
-		block_scalarsum,
-		block_switch,
-		block_maxout,
-		block_softmax,
 		block_restrictedboltzmannmachine,
 		block_convolutional1d,
 		block_convolutional2d,
+		// weightless transfer
+		block_scalarsum,
+		block_scalarproduct,
+		block_switch,
 		block_maxpooling,
+		block_allpairings,
+		// recurrent
 		block_lstm,
 		block_gru,
+		// block_softmax,
+		// block_maxout,
+		// block_neuralnet,
+		// block_activation,
 	};
 
 	GBlock();
@@ -139,11 +143,11 @@ public:
 	/// Initialize the weights, usually with small random values.
 	virtual void resetWeights(GRand& rand) = 0;
 
-	/// Perturbs the weights that feed into the specifed units with Gaussian noise. The
+	/// Perturbs the weights that feed into the specified units with Gaussian noise. The
 	/// default values apply the perturbation to all units.
 	virtual void perturbWeights(GRand& rand, double deviation) = 0;
 
-	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
+	/// Scales weights if necessary such that the magnitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
 	virtual void maxNorm(double min, double max) = 0;
 
 	/// Multiplies all the weights by the specified factor.
@@ -447,8 +451,12 @@ public:
 };
 
 
-
-/// The identity function. Serves as a pass-through block of units in a neural network.
+/// Applies the [Identity function](https://en.wikipedia.org/wiki/Identity_function) element-wise to the input. 
+/// Serves as a pass-through block of units in a neural network.
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = x \f]   | ![](Activation_identity.png)
+///
 class GBlockIdentity : public GBlockActivation
 {
 public:
@@ -463,7 +471,11 @@ public:
 
 
 
-/// An element-wise nonlinearity block
+/// Applies the [TanH function](https://en.wikipedia.org/wiki/Hyperbolic_function#Hyperbolic_tangent) element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = tanh(x) \f]   | ![](Activation_tanh.png)
+///
 // (Note, the following code is a bit faster:
 // 		if(std::abs(x) >= 700.0)
 // 			return (x >= 0 ? 1.0 : -1.0);
@@ -490,7 +502,11 @@ public:
 
 
 
-/// An element-wise nonlinearity block
+/// Applies the [Logistic function](https://en.wikipedia.org/wiki/Logistic_function) element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = \frac{1}{1 + e^{-x}} \f]   | ![](Activation_logistic.png)
+///
 class GBlockLogistic : public GBlockActivation
 {
 public:
@@ -514,7 +530,11 @@ public:
 
 #define BEND_AMOUNT 0.5
 #define BEND_SIZE 0.5
-/// An element-wise nonlinearity block
+/// Applies the Bent identity element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = \frac{\sqrt{x^2+1}-1}{2}+x \f]   | ![](Activation_bent_identity.png)
+///
 class GBlockBentIdentity : public GBlockActivation
 {
 public:
@@ -543,7 +563,11 @@ public:
 
 
 
-/// An element-wise nonlinearity block
+/// Applies the [Gaussian function](https://en.wikipedia.org/wiki/Gaussian_function) element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = e^{-x^2} \f]   | ![](Activation_gaussian.png)
+///
 class GBlockGaussian : public GBlockActivation
 {
 public:
@@ -557,7 +581,11 @@ public:
 
 
 
-/// An element-wise nonlinearity block
+/// Applies the [Sinusoid](https://en.wikipedia.org/wiki/Sine_wave) element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = \sin(x) \f]   | ![](Activation_sinusoid.png)
+///
 class GBlockSine : public GBlockActivation
 {
 public:
@@ -572,7 +600,11 @@ public:
 
 
 
-/// An element-wise nonlinearity block
+/// Applies the [Rectified linear unit](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)) (ReLU) element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = \left \{ \begin{array}{rcl} 0 & \mbox{for} & x < 0 \\ x & \mbox{for} & x \ge 0\end{array} \right. \f]   | ![](Activation_rectified_linear.png)
+///
 class GBlockRectifier : public GBlockActivation
 {
 public:
@@ -587,7 +619,11 @@ public:
 
 
 
-/// An element-wise nonlinearity block
+/// Applies the Leaky rectified linear unit (Leaky ReLU) element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = \left \{ \begin{array}{rcl} 0.01x & \mbox{for} & x < 0\\ x & \mbox{for} & x \ge 0\end{array} \right. \f]   | ![](Activation_prelu.png)
+///
 class GBlockLeakyRectifier : public GBlockActivation
 {
 public:
@@ -601,7 +637,12 @@ public:
 
 
 
-/// An element-wise nonlinearity block
+
+/// Applies the SoftPlus function element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x)=\ln(1+e^x) \f]   | ![](Activation_softplus.png)
+///
 // (Note: A similar, but less well-known function is the integral of the logistic function. I think it is slightly faster to compute.)
 class GBlockSoftPlus : public GBlockActivation
 {
