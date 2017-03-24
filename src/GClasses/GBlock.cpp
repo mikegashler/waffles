@@ -73,6 +73,7 @@ GBlock* GBlock::deserialize(GDomNode* pNode)
 	switch(e)
 	{
 		case block_tanh: return new GBlockTanh(pNode);
+		case block_scaledtanh: return new GBlockScaledTanh(pNode);
 		case block_identity: return new GBlockIdentity(pNode);
 		case block_logistic: return new GBlockLogistic(pNode);
 		case block_bentidentity: return new GBlockBentIdentity(pNode);
