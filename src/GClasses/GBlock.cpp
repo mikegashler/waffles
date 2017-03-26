@@ -562,6 +562,138 @@ void GBlockActivation::backProp(GContext& ctx, const GVec& input, const GVec& ou
 
 
 
+GBlockSoftExp::GBlockSoftExp(double beta, size_t size)
+: m_beta(beta)
+{
+	resize(size, size);
+}
+
+GBlockSoftExp::GBlockSoftExp(GDomNode* pNode)
+: GBlock(pNode), m_alpha(pNode->field("alpha")), m_beta(pNode->field("beta")->asDouble())
+{}
+
+GDomNode* GBlockSoftExp::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "alpha", m_alpha.serialize(pDoc));
+	return pNode;
+}
+
+void GBlockSoftExp::resize(size_t in, size_t out)
+{
+	if(in != out)
+		throw Ex("Expected the same number of inputs as outputs.");
+	m_alpha.resize(out);
+}
+
+void GBlockSoftExp::forwardProp(GContext& ctx, const GVec& input, GVec& output) const
+{
+	GAssert(input.size() == m_alpha.size());
+	GAssert(output.size() == m_alpha.size());
+	for(size_t i = 0; i < input.size(); i++)
+	{
+		if(m_alpha[i] > 1.0e-7)
+			output[i] = (exp(std::min(4.6, m_alpha[i] * input[i]) - 1.0)) / m_alpha[i] + m_alpha[i] * m_beta;
+		else if(m_alpha[i] < -1.0e-7)
+			output[i] = -log(std::max(1e-43, m_alpha[i] * (-m_beta * m_alpha[i] - input[i]) + 1.0)) / m_alpha[i];
+		else
+			output[i] = input[i];
+	}
+}
+
+void GBlockSoftExp::backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
+{
+	GAssert(outBlame.size() == m_alpha.size() && inBlame.size() == m_alpha.size());
+	for(size_t i = 0; i < inBlame.size(); i++)
+	{
+		if(m_alpha[i] >= 0.0)
+			inBlame[i] += (outBlame[i] * exp(std::min(4.6, m_alpha[i] * input[i])));
+		else
+			inBlame[i] += (outBlame[i] * 1.0 / std::max(0.01, (1.0 - m_alpha[i] * (m_alpha[i] * m_beta + input[i]))));
+	}
+}
+
+void GBlockSoftExp::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const
+{
+	GAssert(gradient.size() == m_alpha.size(), "gradient size must match the number of weights!");
+	double *delta = gradient.data();
+	for(size_t i = 0; i < m_alpha.size(); ++i)
+	{
+		if(m_alpha[i] > 1.0e-6)
+			*delta++ += ((m_alpha[i] * m_alpha[i] * m_beta + (m_alpha[i] * input[i] - 1.0) * exp(m_alpha[i] * input[i]) + 1.0) / (m_alpha[i] * m_alpha[i]));
+		else if(m_alpha[i] < -1.0e-6)
+			*delta++ += (log(m_alpha[i] * m_alpha[i] * (-m_beta) - m_alpha[i] * input[i] + 1.0) / (m_alpha[i] * m_alpha[i]) + (2.0 * m_alpha[i] * m_beta + input[i]) / (m_alpha[i] * (m_alpha[i] * m_alpha[i] * (-m_beta) - m_alpha[i] * input[i] + 1.0)));
+		else
+			*delta++ += (input[i] * input[i] / 2.0 + m_beta);
+	}
+}
+
+void GBlockSoftExp::step(double learningRate, const GVec& gradient)
+{
+	GAssert(gradient.size() == m_alpha.size(), "gradient size must match the number of weights!");
+	for(size_t i = 0; i < m_alpha.size(); ++i)
+		m_alpha[i] = std::max(-1.0, std::min(1.0, m_alpha[i] + learningRate * gradient[i]));
+}
+
+size_t GBlockSoftExp::weightCount() const
+{
+	return m_alpha.size();
+}
+
+size_t GBlockSoftExp::weightsToVector(double* pOutVector) const
+{
+	for(size_t i = 0; i < m_alpha.size(); i++)
+		*(pOutVector++) = m_alpha[i];
+	return m_alpha.size();
+}
+
+size_t GBlockSoftExp::vectorToWeights(const double* pVector)
+{
+	for(size_t i = 0; i < m_alpha.size(); i++)
+		m_alpha[i] = *(pVector++);
+	return m_alpha.size();
+}
+
+void GBlockSoftExp::copyWeights(const GBlock* pSource)
+{
+	GBlockSoftExp* src = (GBlockSoftExp*)pSource;
+	m_alpha.copy(src->m_alpha);
+}
+
+void GBlockSoftExp::resetWeights(GRand& rand)
+{
+	m_alpha.fill(0.0);
+}
+
+void GBlockSoftExp::perturbWeights(GRand &rand, double deviation)
+{
+	m_alpha.perturbNormal(rand, deviation);
+}
+
+void GBlockSoftExp::maxNorm(double min, double max)
+{
+}
+
+void GBlockSoftExp::scaleWeights(double factor, bool scaleBiases)
+{
+	m_alpha *= factor;
+}
+
+void GBlockSoftExp::diminishWeights(double amount, bool regularizeBiases)
+{
+	m_alpha.regularizeL1(amount);
+}
+
+
+
+
+
+
+
+
+
+
+
 GBlockLinear::GBlockLinear(size_t outputs, size_t inputs)
 {
 	resize(inputs, outputs);
@@ -625,7 +757,7 @@ void GBlockLinear::backProp2(const GVec& outBlame, GVec& inBlame1, GVec& inBlame
 		inBlame2[i] += outBlame.dotProduct(m_weights[inBlame1.size() + i]);
 }
 
-void GBlockLinear::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const
+void GBlockLinear::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const
 {
 	GAssert(gradient.size() == weightCount(), "gradient must match the dimensions of weights!");
 	double *delta = gradient.data();
@@ -639,7 +771,7 @@ void GBlockLinear::updateGradient(GContext& ctx, const GVec& input, const GVec& 
 		*delta++ += outBlame[j];
 }
 
-void GBlockLinear::updateGradient2(const GVec& in1, const GVec& in2, const GVec& outBlame, GVec &gradient) const
+void GBlockLinear::updateGradient2(const GVec& in1, const GVec& in2, const GVec& outBlame, GVec& gradient) const
 {
 	GAssert(gradient.size() == weightCount(), "gradient must match the dimensions of weights!");
 	GAssert(in1.size() + in2.size() == inputs());
@@ -660,7 +792,7 @@ void GBlockLinear::updateGradient2(const GVec& in1, const GVec& in2, const GVec&
 		*delta++ += outBlame[j];
 }
 
-void GBlockLinear::step(double learningRate, const GVec &gradient)
+void GBlockLinear::step(double learningRate, const GVec& gradient)
 {
 	GAssert(gradient.size() == weightCount(), "gradient must match the dimensions of weights!");
 	const double *delta = gradient.data();
@@ -670,7 +802,7 @@ void GBlockLinear::step(double learningRate, const GVec &gradient)
 		for(size_t j = 0; j < outputs(); ++j)
 			row[j] += learningRate * *delta++;
 	}
-	GVec &b = bias();
+	GVec& b = bias();
 	for(size_t j = 0; j < outputs(); ++j)
 		b[j] += learningRate * *delta++;
 }
@@ -797,6 +929,26 @@ void GBlockLinear::renormalizeInput(size_t input, double oldMin, double oldMax, 
 	{
 		b[i] += (w[i] * g);
 		w[i] *= f;
+	}
+}
+
+void GBlockLinear::adjustOutput(const GVec& input, size_t outputIndex, double delta)
+{
+	double step = delta / (input.squaredMagnitude() + 1.0);
+	for(size_t i = 0; i < inputs(); i++)
+		m_weights[i][outputIndex] += step * input[i];
+	bias()[outputIndex] += step;
+}
+
+void GBlockLinear::clipOutput(const GVec& input, const GVec& output, double min, double max)
+{
+	GAssert(input.size() == inputs() && output.size() == outputs());
+	for(size_t i = 0; i < output.size(); i++)
+	{
+		if(output[i] < min)
+			adjustOutput(input, i, min - output[i]);
+		else if(output[i] > max)
+			adjustOutput(input, i, max - output[i]);
 	}
 }
 
@@ -934,7 +1086,7 @@ void GBlockSparse::backProp(GContext& ctx, const GVec& input, const GVec& output
 	}
 }
 
-void GBlockSparse::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const
+void GBlockSparse::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const
 {
 	GAssert(gradient.size() == m_connections + m_bias.size(), "gradient must match the number of connections plus bias values");
 	double *delta = gradient.data();
@@ -947,7 +1099,7 @@ void GBlockSparse::updateGradient(GContext& ctx, const GVec& input, const GVec& 
 		*delta++ += outBlame[j];
 }
 
-void GBlockSparse::step(double learningRate, const GVec &gradient)
+void GBlockSparse::step(double learningRate, const GVec& gradient)
 {
 	GAssert(gradient.size() == m_connections + m_bias.size(), "gradient must match the number of connections plus bias values");
 	const double *delta = gradient.data();
@@ -956,7 +1108,7 @@ void GBlockSparse::step(double learningRate, const GVec &gradient)
 		for(SparseVec::iterator it = m_weights.row(i).begin(); it != m_weights.rowEnd(i); it++)
 			it->second += learningRate * *delta++;
 	}
-	GVec &b = bias();
+	GVec& b = bias();
 	for(size_t j = 0; j < outputs(); ++j)
 		b[j] += learningRate * *delta++;
 }
@@ -1090,7 +1242,7 @@ void GBlockFeatureSelector::backProp(GContext& ctx, const GVec& input, const GVe
 		inBlame[i] += outBlame.dotProduct(m_weights[i]);
 }
 
-void GBlockFeatureSelector::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const
+void GBlockFeatureSelector::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const
 {
 	GAssert(gradient.size() == weightCount(), "gradient must match the dimensions of weights!");
 	double *delta = gradient.data();
@@ -1102,7 +1254,7 @@ void GBlockFeatureSelector::updateGradient(GContext& ctx, const GVec& input, con
 	}
 }
 
-void GBlockFeatureSelector::step(double learningRate, const GVec &gradient)
+void GBlockFeatureSelector::step(double learningRate, const GVec& gradient)
 {
 	GAssert(gradient.size() == weightCount(), "gradient must match the dimensions of weights!");
 	const double *delta = gradient.data();
@@ -1345,7 +1497,7 @@ void GBlockFuzzy::backProp(GContext& ctx, const GVec& input, const GVec& output,
 	}
 }
 
-void GBlockFuzzy::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const
+void GBlockFuzzy::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const
 {
 	GAssert(gradient.size() == m_alpha.size());
 	for(size_t i = 0; i < m_alpha.size(); i++)
@@ -1360,7 +1512,7 @@ void GBlockFuzzy::updateGradient(GContext& ctx, const GVec& input, const GVec& o
 	}
 }
 
-void GBlockFuzzy::step(double learningRate, const GVec &gradient)
+void GBlockFuzzy::step(double learningRate, const GVec& gradient)
 {
 	m_alpha.addScaled(learningRate, gradient);
 	m_alpha.clip(-1.0, 1.0);
@@ -1521,7 +1673,7 @@ void GBlockMaxOut::backProp(GContext& ctx, const GVec& input, const GVec& output
 	}
 }
 
-void GBlockMaxOut::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const
+void GBlockMaxOut::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const
 {
 	const GVec& err = outBlame();
 	const GVec& in = input();
@@ -1535,7 +1687,7 @@ void GBlockMaxOut::updateGradient(GContext& ctx, const GVec& input, const GVec& 
 	}
 }
 
-void GBlockMaxOut::step(double learningRate, const GVec &gradient)
+void GBlockMaxOut::step(double learningRate, const GVec& gradient)
 {
 	size_t outputCount = outputs();
 	GVec& bi = bias();
@@ -1815,7 +1967,7 @@ void GBlockRestrictedBoltzmannMachine::updateGradient(GContext& ctx, const GVec&
 	delta.vec() += outBlame;
 }
 
-void GBlockRestrictedBoltzmannMachine::step(double learningRate, const GVec &gradient)
+void GBlockRestrictedBoltzmannMachine::step(double learningRate, const GVec& gradient)
 {
 	size_t outputCount = outputs();
 	GConstVecWrapper delta(gradient.data(), m_weights.cols());
@@ -2023,7 +2175,7 @@ void GBlockConvolutional1D::backProp(GContext& ctx, const GVec& input, const GVe
 	}
 }
 
-void GBlockConvolutional1D::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const
+void GBlockConvolutional1D::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const
 {
 	size_t kernelSize = m_kernels.cols();
 	size_t errPos = 0;
@@ -2048,7 +2200,7 @@ void GBlockConvolutional1D::updateGradient(GContext& ctx, const GVec& input, con
 	}
 }
 
-void GBlockConvolutional1D::step(double learningRate, const GVec &gradient)
+void GBlockConvolutional1D::step(double learningRate, const GVec& gradient)
 {
 	size_t kernelSize = m_kernels.cols();
 	size_t errPos = 0;
@@ -2371,7 +2523,7 @@ void GBlockConvolutional2D::backProp(GContext& ctx, const GVec& input, const GVe
 	}
 }
 
-void GBlockConvolutional2D::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const
+void GBlockConvolutional2D::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const
 {
 	Image err(const_cast<GVec*>(&outBlame), m_errImage);
 	Image in(const_cast<GVec*>(&input), m_inputImage);
@@ -2394,7 +2546,7 @@ void GBlockConvolutional2D::updateGradient(GContext& ctx, const GVec& input, con
 	}
 }
 
-void GBlockConvolutional2D::step(double learningRate, const GVec &gradient)
+void GBlockConvolutional2D::step(double learningRate, const GVec& gradient)
 {
 	size_t count = m_kernels.cols();
 	GConstVecWrapper delta(gradient.data(), count);
@@ -2614,7 +2766,7 @@ double GBlockRecurrent::testEngine(GNeuralNet& nn)
 	// Train
 	nn.resize(f.cols(), l.cols());
 	nn.resetWeights(rand);
-	GSGDOptimizer opt(nn);
+	GSGDOptimizer opt(nn, rand);
 	opt.setLearningRate(0.01);
 	for(size_t epoch = 0; epoch < 5000; epoch++)
 	{
@@ -2916,7 +3068,7 @@ void GBlockLSTM::diminishWeights(double amount, bool regularizeBiases)
 	m_read.diminishWeights(amount, regularizeBiases);
 }
 
-void GBlockLSTM::step(double learningRate, const GVec &gradient)
+void GBlockLSTM::step(double learningRate, const GVec& gradient)
 {
 	GAssert(gradient.size() == weightCount(), "gradient must match the dimensions of weights!");
 	size_t wcWrite = m_write.weightCount();

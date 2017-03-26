@@ -1083,7 +1083,7 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 }
 
 #ifndef MIN_PREDICT
-void GMatrix::parseArff(GArffTokenizer& tok)
+void GMatrix::parseArff(GArffTokenizer& tok, size_t maxRows)
 {
 	// Parse the meta data
 	GArffRelation* pRelation = new GArffRelation();
@@ -1126,6 +1126,8 @@ void GMatrix::parseArff(GArffTokenizer& tok)
 	size_t colCount = pRelation->size();
 	while(true)
 	{
+		if(rows() >= maxRows)
+			break;
 		tok.skip(tok.m_whitespace);
 		char c = tok.peek();
 		if(c == '\0')
@@ -1215,10 +1217,10 @@ void GMatrix::parseArff(GArffTokenizer& tok)
 	}
 }
 
-void GMatrix::loadArff(const char* szFilename)
+void GMatrix::loadArff(const char* szFilename, size_t maxRows)
 {
 	GArffTokenizer tok(szFilename);
-	parseArff(tok);
+	parseArff(tok, maxRows);
 }
 
 void GMatrix::loadRaw(const char* szFilename)
@@ -1272,10 +1274,10 @@ void GMatrix::saveRaw(const char* szFilename)
 }
 
 // static
-void GMatrix::parseArff(const char* szFile, size_t nLen)
+void GMatrix::parseArff(const char* szFile, size_t nLen, size_t maxRows)
 {
 	GArffTokenizer tok(szFile, nLen);
-	parseArff(tok);
+	parseArff(tok, maxRows);
 }
 
 size_t GMatrix::countUniqueValues(size_t column, size_t maxCount) const

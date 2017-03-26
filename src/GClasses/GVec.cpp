@@ -264,6 +264,12 @@ void GVec::fillNormal(GRand& rand, double deviation)
 		(*this)[i] = rand.normal() * deviation;
 }
 
+void GVec::perturbNormal(GRand& rand, double deviation)
+{
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] += rand.normal() * deviation;
+}
+
 void GVec::fillSphericalShell(GRand& rand, double radius)
 {
 	fillNormal(rand);

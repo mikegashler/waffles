@@ -1120,7 +1120,7 @@ GNeuralNetLearner::~GNeuralNetLearner()
 GNeuralNetOptimizer& GNeuralNetLearner::optimizer()
 {
 	if(!m_pOptimizer)
-		m_pOptimizer = new GSGDOptimizer(m_nn);
+		m_pOptimizer = new GSGDOptimizer(m_nn, m_rand);
 	return *m_pOptimizer;
 }
 
@@ -1147,7 +1147,7 @@ void GNeuralNetLearner::trainSparse(GSparseMatrix &features, GMatrix &labels)
 void GNeuralNetLearner::trainInner(const GMatrix& features, const GMatrix& labels)
 {
 	beginIncrementalLearningInner(features.relation(), labels.relation());
-	GSGDOptimizer optimizer(m_nn);
+	GSGDOptimizer optimizer(m_nn, m_rand);
 	optimizer.optimizeWithValidation(features, labels);
 }
 
@@ -1231,7 +1231,7 @@ void GNeuralNet_testMath()
 	nn.nn().add(b3);
 	nn.beginIncrementalLearning(features.relation(), labels.relation());
 
-	GSGDOptimizer optimizer(nn.nn());
+	GSGDOptimizer optimizer(nn.nn(), nn.rand());
 	optimizer.setLearningRate(0.175);
 	optimizer.setMomentum(0.9);
 
@@ -1718,7 +1718,7 @@ void GNeuralNetLearner::test()
 		pNN->nn().add(new GBlockLinear((size_t)0));
 		pNN->nn().add(new GBlockTanh());
 		GAutoFilter af(pNN);
-		af.basicTest(0.78, 0.895);
+		af.basicTest(0.78, 0.93);
 	}
 
 	// Test NN with one hidden layer
@@ -1870,7 +1870,7 @@ GDomNode* GReservoirNet::serialize(GDom* pDoc) const
 void GReservoirNet::test()
 {
 	GAutoFilter af(new GReservoirNet());
-	af.basicTest(0.69, 0.74, 0.001, false, 0.9);
+	af.basicTest(0.58, 0.74, 0.001, false, 0.9);
 }
 #endif // MIN_PREDICT
 

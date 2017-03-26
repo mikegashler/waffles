@@ -44,6 +44,7 @@ public:
 	enum BlockType
 	{
 		block_neuralnet,
+
 		// activation functions
 		block_identity,
 		block_tanh,
@@ -57,6 +58,7 @@ public:
 		block_leakyrectifier,
 		block_softplus,
 		block_softroot,
+
 		// weights transfer
 		block_linear,
 		block_sparse,
@@ -65,18 +67,25 @@ public:
 		block_restrictedboltzmannmachine,
 		block_convolutional1d,
 		block_convolutional2d,
+		block_softexp,
+
 		// weightless transfer
 		block_scalarsum,
 		block_scalarproduct,
 		block_switch,
 		block_maxpooling,
 		block_allpairings,
+
 		// recurrent
 		block_lstm,
 		block_gru,
+
+		// still needed
 		// block_softmax,
 		// block_maxout,
-		// block_activation,
+		// block_batch_normalization,
+		// block_drop_out,
+		// block_drop_connect,
 	};
 
 	GBlock();
@@ -144,11 +153,11 @@ public:
 	/// Initialize the weights, usually with small random values.
 	virtual void resetWeights(GRand& rand) = 0;
 
-	/// Perturbs the weights that feed into the specified units with Gaussian noise. The
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise. The
 	/// default values apply the perturbation to all units.
 	virtual void perturbWeights(GRand& rand, double deviation) = 0;
 
-	/// Scales weights if necessary such that the magnitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
 	virtual void maxNorm(double min, double max) = 0;
 
 	/// Multiplies all the weights by the specified factor.
@@ -717,6 +726,93 @@ public:
 
 
 
+/// A parameterized activation function (a.k.a. adaptive transfer function).
+class GBlockSoftExp : public GBlock
+{
+protected:
+	GVec m_alpha;
+	double m_beta;
+
+public:
+	// When beta is 0, this activation function always approximates identity near the origin, but approximates e^x-1 when alpha is 1.
+	// When beta is 1, this activation function approximates e^x when alpha is 1.
+	GBlockSoftExp(double beta = 0.0, size_t size = 0);
+	GBlockSoftExp(GDomNode* pNode);
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_softexp; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockSoftExp"; }
+
+	/// Returns true iff this block operates only on individual elements
+	virtual bool elementWise() const { return true; }
+
+	/// Marshall this block into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const override;
+
+	/// Resizes this block.
+	virtual void resize(size_t inputs, size_t outputs) override;
+
+	/// Returns the number of inputs this block consumes
+	virtual size_t inputs() const override { return m_alpha.size(); }
+
+	/// Returns the number of outputs this block produces
+	virtual size_t outputs() const override { return m_alpha.size(); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+
+	/// Add the weight and bias gradient to the weights.
+	virtual void step(double learningRate, const GVec &gradient) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Serialize the weights in this block into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector) const override;
+
+	/// Deserialize from a vector to the weights in this block. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector) override;
+
+	/// Copy the weights from pSource to this block. (Assumes pSource is the same type of block.)
+	virtual void copyWeights(const GBlock* pSource) override;
+
+	/// Initialize the weights with small random values.
+	virtual void resetWeights(GRand& rand) override;
+
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise. The
+	/// default values apply the perturbation to all units.
+	virtual void perturbWeights(GRand& rand, double deviation) override;
+
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
+	virtual void maxNorm(double min, double max) override;
+
+	/// Multiplies all the weights by the specified factor.
+	virtual void scaleWeights(double factor, bool scaleBiases) override;
+
+	/// Moves all weights in the direction of zero by the specified amount.
+	virtual void diminishWeights(double amount, bool regularizeBiases) override;
+
+	/// Get the alpha vector
+	GVec& alpha() { return m_alpha; }
+
+	/// Get the alpha vector
+	const GVec& alpha() const { return m_alpha; }
+};
+
+
+
+
+
 /// Standard fully-connected block of weights. Often followed by a GBlockActivation.
 class GBlockLinear : public GBlock
 {
@@ -810,6 +906,13 @@ public:
 
 	/// Get the entire weights matrix
 	const GMatrix& weights() const { return m_weights; }
+
+	/// Adjusts the weights to change the specified output by amount delta.
+	void adjustOutput(const GVec& input, size_t outputIndex, double delta);
+
+	/// Adjusts the weights as needed to keep all output values in the range [min, max].
+	/// (Assumes output is the output vector computed by this layer when input is fed in.)
+	void clipOutput(const GVec& input, const GVec& output, double min, double max);
 
 	/// Transforms the weights of this block by the specified transformation matrix and offset vector.
 	/// transform should be the pseudoinverse of the transform applied to the inputs. pOffset should

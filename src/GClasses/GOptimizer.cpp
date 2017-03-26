@@ -83,27 +83,25 @@ void GSquaredError::calculateOutputLayerBlame(const GVec &prediction, const GVec
 
 
 
-GNeuralNetOptimizer::GNeuralNetOptimizer(GNeuralNet& model, GObjective* objective)
+GNeuralNetOptimizer::GNeuralNetOptimizer(GNeuralNet& model, GRand& rand, GObjective* objective)
 : m_objective(objective != NULL ? objective : new GSquaredError()),
   m_model(model),
   m_pContext(nullptr),
-  m_rand(new GRand(0)), m_ownsRand(true),
+  m_rand(rand),
   m_batchSize(1), m_batchesPerEpoch(INVALID_INDEX), m_epochs(100), m_windowSize(100), m_minImprovement(0.002), m_learningRate(0.05)
 {}
 
 GNeuralNetOptimizer::~GNeuralNetOptimizer()
 {
 	delete(m_pContext);
-	if(m_ownsRand)
-		delete(m_rand);
-	delete m_objective;
+	delete(m_objective);
 }
 
 GContextNeuralNet& GNeuralNetOptimizer::context()
 {
 	if(!m_pContext)
 	{
-		m_pContext = m_model.newContext(*m_rand);
+		m_pContext = m_model.newContext(m_rand);
 		prepareForOptimizing();
 	}
 	return *m_pContext;
@@ -118,16 +116,16 @@ void GNeuralNetOptimizer::optimizeIncremental(const GVec &feat, const GVec &lab)
 {
 	GAssert(feat.size() == m_model.layer(0).inputs() && lab.size() == m_model.outputLayer().outputs(), "Features/labels size mismatch!");
 	GAssert(feat.size() != 0 && lab.size() != 0, "Features/labels are empty!");
-	updateDeltas(feat, lab);
-	applyDeltas(m_learningRate);
+	computeGradient(feat, lab);
+	descendGradient(m_learningRate);
 }
 
 void GNeuralNetOptimizer::optimizeBatch(const GMatrix &features, const GMatrix &labels, size_t start, size_t batchSize)
 {
 	GAssert(features.cols() == m_model.layer(0).inputs() && labels.cols() == m_model.outputLayer().outputs(), "Features/labels size mismatch!");
 	for(size_t i = 0; i < batchSize; ++i)
-		updateDeltas(features[start + i], labels[start + i]);
-	applyDeltas(m_learningRate / batchSize);
+		computeGradient(features[start + i], labels[start + i]);
+	descendGradient(m_learningRate / batchSize);
 }
 
 void GNeuralNetOptimizer::optimizeBatch(const GMatrix &features, const GMatrix &labels, size_t start)
@@ -142,9 +140,9 @@ void GNeuralNetOptimizer::optimizeBatch(const GMatrix &features, const GMatrix &
 	for(size_t i = 0; i < batchSize; ++i)
 	{
 		if(!ii.next(j)) ii.reset(), ii.next(j);
-		updateDeltas(features[j], labels[j]);
+		computeGradient(features[j], labels[j]);
 	}
-	applyDeltas(m_learningRate / batchSize);
+	descendGradient(m_learningRate / batchSize);
 }
 
 void GNeuralNetOptimizer::optimizeBatch(const GMatrix &features, const GMatrix &labels, GRandomIndexIterator &ii)
@@ -160,7 +158,7 @@ void GNeuralNetOptimizer::optimize(const GMatrix &features, const GMatrix &label
 	if(m_batchesPerEpoch > features.rows())
 		batchesPerEpoch = features.rows();
 
-	GRandomIndexIterator ii(features.rows(), *m_rand);
+	GRandomIndexIterator ii(features.rows(), m_rand);
 	for(size_t i = 0; i < m_epochs; ++i)
 		for(size_t j = 0; j < batchesPerEpoch; ++j)
 			optimizeBatch(features, labels, ii, m_batchSize);
@@ -174,7 +172,7 @@ void GNeuralNetOptimizer::optimizeWithValidation(const GMatrix &features, const 
 
 	double bestError = 1e308, currentError;
 	size_t k = 0;
-	GRandomIndexIterator ii(features.rows(), *m_rand);
+	GRandomIndexIterator ii(features.rows(), m_rand);
 	for(size_t i = 0;; ++i, ++k)
 	{
 		for(size_t j = 0; j < batchesPerEpoch; ++j)
@@ -204,7 +202,7 @@ void GNeuralNetOptimizer::optimizeWithValidation(const GMatrix &features, const 
 	size_t trainRows = features.rows() - validationRows;
 	if(validationRows > 0)
 	{
-		GDataRowSplitter splitter(features, labels, *m_rand, trainRows);
+		GDataRowSplitter splitter(features, labels, m_rand, trainRows);
 		optimizeWithValidation(splitter.features1(), splitter.labels1(), splitter.features2(), splitter.labels2());
 	}
 	else
@@ -232,8 +230,8 @@ double GNeuralNetOptimizer::sumLoss(const GMatrix &features, const GMatrix &labe
 
 
 
-GSGDOptimizer::GSGDOptimizer(GNeuralNet& model, GObjective* objective)
-: GNeuralNetOptimizer(model, objective), m_momentum(0)
+GSGDOptimizer::GSGDOptimizer(GNeuralNet& model, GRand& rand, GObjective* objective)
+: GNeuralNetOptimizer(model, rand, objective), m_momentum(0)
 {
 }
 
@@ -243,7 +241,7 @@ void GSGDOptimizer::prepareForOptimizing()
 	m_gradient.fill(0.0);
 }
 
-void GSGDOptimizer::updateDeltas(const GVec& feat, const GVec& lab)
+void GSGDOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 {
 	GContextNeuralNet& ctx = context();
 	m_model.forwardProp_training(ctx, feat, ctx.predBuf());
@@ -253,7 +251,7 @@ void GSGDOptimizer::updateDeltas(const GVec& feat, const GVec& lab)
 	m_model.updateGradient(ctx, feat, ctx.blameBuf(), m_gradient);
 }
 
-void GSGDOptimizer::applyDeltas(double learningRate)
+void GSGDOptimizer::descendGradient(double learningRate)
 {
 	m_model.step(learningRate, m_gradient);
 }
@@ -268,8 +266,8 @@ void GSGDOptimizer::applyDeltas(double learningRate)
 
 
 
-GAdamOptimizer::GAdamOptimizer(GNeuralNet& model, GObjective* objective)
-: GNeuralNetOptimizer(model, objective), m_correct1(1.0), m_correct2(1.0), m_beta1(0.9), m_beta2(0.999), m_epsilon(1e-8)
+GAdamOptimizer::GAdamOptimizer(GNeuralNet& model, GRand& rand, GObjective* objective)
+: GNeuralNetOptimizer(model, rand, objective), m_correct1(1.0), m_correct2(1.0), m_beta1(0.9), m_beta2(0.999), m_epsilon(1e-8)
 {
 	m_learningRate = 0.001;
 }
@@ -282,7 +280,7 @@ void GAdamOptimizer::prepareForOptimizing()
 	m_gradient.fill(0.0);
 }
 
-void GAdamOptimizer::updateDeltas(const GVec& feat, const GVec& lab)
+void GAdamOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 {
 	GContextNeuralNet& ctx = context();
 	m_model.forwardProp_training(ctx, feat, ctx.predBuf());
@@ -301,7 +299,7 @@ void GAdamOptimizer::updateDeltas(const GVec& feat, const GVec& lab)
 	}
 }
 
-void GAdamOptimizer::applyDeltas(double learningRate)
+void GAdamOptimizer::descendGradient(double learningRate)
 {
 	double alpha1 = 1.0 / (1.0 - m_correct1);
 	double alpha2 = 1.0 / (1.0 - m_correct2);
@@ -320,8 +318,8 @@ void GAdamOptimizer::applyDeltas(double learningRate)
 
 
 
-GRMSPropOptimizer::GRMSPropOptimizer(GNeuralNet& model, GObjective* objective)
-: GNeuralNetOptimizer(model, objective), m_momentum(0), m_gamma(0.9), m_epsilon(1e-6)
+GRMSPropOptimizer::GRMSPropOptimizer(GNeuralNet& model, GRand& rand, GObjective* objective)
+: GNeuralNetOptimizer(model, rand, objective), m_momentum(0), m_gamma(0.9), m_epsilon(1e-6)
 {
 }
 
@@ -333,7 +331,7 @@ void GRMSPropOptimizer::prepareForOptimizing()
 	m_meanSquare.fill(0.0);
 }
 
-void GRMSPropOptimizer::updateDeltas(const GVec& feat, const GVec& lab)
+void GRMSPropOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 {
 	GContextNeuralNet& ctx = context();
 	m_model.forwardProp_training(ctx, feat, ctx.predBuf());
@@ -343,7 +341,7 @@ void GRMSPropOptimizer::updateDeltas(const GVec& feat, const GVec& lab)
 	m_model.updateGradient(ctx, feat, ctx.blameBuf(), m_gradient);
 }
 
-void GRMSPropOptimizer::applyDeltas(double learningRate)
+void GRMSPropOptimizer::descendGradient(double learningRate)
 {
 	for(size_t i = 0; i < m_meanSquare.size(); ++i)
 	{

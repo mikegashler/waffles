@@ -119,7 +119,7 @@ public:
 #endif
 	static double _floor(vector<double>& params) { return floor(params[0]); }
 	static double _gamma(vector<double>& params) { return GMath::gamma(params[0]); }
-	static double _ifzero(vector<double>& params) { return (std::abs(params[0]) < 0.5) ? params[1] : params[2]; }
+	static double _ifzero(vector<double>& params) { return (std::abs(params[0]) < 1e-12) ? params[1] : params[2]; }
 	static double _ifnegative(vector<double>& params) { return (params[0] < 0) ? params[1] : params[2]; }
 	static double _lgamma(vector<double>& params) { return GMath::logGamma(params[0]); }
 	static double _log(vector<double>& params) { return log(params[0]); }

@@ -258,7 +258,7 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 
 	// Prepare for learning
 	delete(m_pOptimizer);
-	m_pOptimizer = new GSGDOptimizer(*m_nn);
+	m_pOptimizer = new GSGDOptimizer(*m_nn, rand());
 	m_pOptimizer->setLearningRate(m_learningRate);
 	m_nn->resize(featureRel.size(), labelRel.size());
 	m_nn->resetWeights(rand());

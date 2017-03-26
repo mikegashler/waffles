@@ -612,7 +612,7 @@ public:
 
 #ifndef MIN_PREDICT
 	/// \brief Loads an ARFF file and replaces the contents of this matrix with it.
-	void loadArff(const char* szFilename);
+	void loadArff(const char* szFilename, size_t maxRows = (size_t)-1);
 
 	/// \brief Loads a raw (binary) file and replaces the contents of this matrix with it.
 	void loadRaw(const char* szFilename);
@@ -621,10 +621,10 @@ public:
 	void load(const char* szFilename);
 
 	/// \brief Parses an ARFF file and replaces the contents of this matrix with it.
-	void parseArff(const char* szFile, size_t nLen);
+	void parseArff(const char* szFile, size_t nLen, size_t maxRows = (size_t)-1);
 
 	/// \brief Parses an ARFF file and replaces the contents of this matrix with it.
-	void parseArff(GArffTokenizer& tok);
+	void parseArff(GArffTokenizer& tok, size_t maxRows = (size_t)-1);
 #endif // MIN_PREDICT
 
 

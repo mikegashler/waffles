@@ -106,7 +106,8 @@ The activation function is specified as a separate layer:</p>
 To train our model, we will create an optimizer. We wil use stochastic gradient descent (SGD). We also set the learning rate here:
 
 <pre class="code">
-	GSGDOptimizer optimizer(nn);
+	GRand(0);
+	GSGDOptimizer optimizer(nn, rand);
 	optimizer.setLearningRate(0.05);
 	optimizer.optimizeWithValidation(trainingFeatures, trainingLabels);
 </pre>
@@ -363,9 +364,10 @@ int main(int argc, char *argv[])
 		new GBlockLinear(10), new GBlockTanh());
 
 	// Prepare for training
-	GSGDOptimizer optimizer(nn);
+	GRand rand(0);
+	GSGDOptimizer optimizer(nn, rand);
 	optimizer.setLearningRate(0.01);
-	nn.init(trainFeatures.cols(), trainLabels.cols(), optimizer.rand());
+	nn.init(trainFeatures.cols(), trainLabels.cols(), rand);
 	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Topology:\n";
@@ -377,7 +379,7 @@ int main(int argc, char *argv[])
 	cout &lt;&lt; "@DATA\n";
 
 	// Train
-	GRandomIndexIterator ii(trainFeatures.rows(), optimizer.rand());
+	GRandomIndexIterator ii(trainFeatures.rows(), rand);
 	for(size_t epoch = 0; epoch &lt; 10; epoch++)
 	{
 		// Validate

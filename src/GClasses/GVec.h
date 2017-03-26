@@ -140,8 +140,11 @@ public:
 	/// Fills with random values from a uniform distribution.
 	void fillUniform(GRand& rand, double min = 0.0, double max = 1.0);
 
-	/// Fills with random values from a Normal distribution.
+	/// Fills with random values from a Gaussian distribution.
 	void fillNormal(GRand& rand, double deviation = 1.0);
+
+	/// Adds Gaussian noise to each element of this vector.
+	void perturbNormal(GRand& rand, double deviation = 1.0);
 
 	/// Fills with random values on the surface of a sphere.
 	void fillSphericalShell(GRand& rand, double radius = 1.0);

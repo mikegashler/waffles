@@ -83,14 +83,13 @@ protected:
 	GContextNeuralNet* m_pContext;
 
 	// variables for convenience training methods
-	GRand* m_rand;
-	bool m_ownsRand;
+	GRand& m_rand;
 	size_t m_batchSize, m_batchesPerEpoch, m_epochs, m_windowSize;
 	double m_minImprovement;
 	double m_learningRate;
 
 public:
-	GNeuralNetOptimizer(GNeuralNet& model, GObjective* objective = NULL);
+	GNeuralNetOptimizer(GNeuralNet& model, GRand& rand, GObjective* objective = NULL);
 	virtual ~GNeuralNetOptimizer();
 
 	/// Returns the default context for training the model.
@@ -102,10 +101,10 @@ public:
 	virtual void prepareForOptimizing() = 0;
 	
 	/// Evaluate feat and lab, and update the model's gradient.
-	virtual void updateDeltas(const GVec &feat, const GVec &lab) = 0;
+	virtual void computeGradient(const GVec &feat, const GVec &lab) = 0;
 	
 	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
-	virtual void applyDeltas(double learningRate) = 0;
+	virtual void descendGradient(double learningRate) = 0;
 
 	/// Flushes the memory in any recurrent units in the network.
 	/// This method should be called when beginning a new training sequence with neural networks that contain any recurrent blocks.
@@ -136,8 +135,7 @@ public:
 	void setObjective(GObjective *objective) { delete m_objective; m_objective = (objective != NULL ? objective : new GSquaredError()); }
 	GObjective *objective() { return m_objective; }
 	
-	void setRand(GRand *r) { if(m_ownsRand) { delete m_rand; m_ownsRand = false; }; m_rand = r; }
-	GRand& rand() { return *m_rand; }
+	GRand& rand() { return m_rand; }
 	
 	void setBatchSize(size_t b) { m_batchSize = b; }
 	size_t batchSize() const { return m_batchSize; }
@@ -163,16 +161,16 @@ public:
 class GSGDOptimizer : public GNeuralNetOptimizer
 {
 public:
-	GSGDOptimizer(GNeuralNet& model, GObjective *error = NULL);
+	GSGDOptimizer(GNeuralNet& model, GRand& rand, GObjective *error = NULL);
 	
 	/// Prepare for optimization (i.e. allocate buffers).
 	virtual void prepareForOptimizing() override;
 	
 	/// Evaluate feat and lab, and update the model's gradient.
-	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
+	virtual void computeGradient(const GVec &feat, const GVec &lab) override;
 	
 	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
-	virtual void applyDeltas(double learningRate) override;
+	virtual void descendGradient(double learningRate) override;
 	
 	void setMomentum(double m) { m_momentum = m; }
 	double momentum() const { return m_momentum; }
@@ -189,16 +187,16 @@ private:
 class GAdamOptimizer : public GNeuralNetOptimizer
 {
 public:
-	GAdamOptimizer(GNeuralNet& model, GObjective *error = NULL);
+	GAdamOptimizer(GNeuralNet& model, GRand& rand, GObjective *error = NULL);
 	
 	/// Prepare for optimization (i.e. allocate buffers).
 	virtual void prepareForOptimizing() override;
 	
 	/// Evaluate feat and lab, and update the model's gradient.
-	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
+	virtual void computeGradient(const GVec &feat, const GVec &lab) override;
 	
 	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
-	virtual void applyDeltas(double learningRate) override;
+	virtual void descendGradient(double learningRate) override;
 	
 	void setBeta1(double b) { m_beta1 = b; }
 	double beta1() const { return m_beta1; }
@@ -218,16 +216,16 @@ private:
 class GRMSPropOptimizer : public GNeuralNetOptimizer
 {
 public:
-	GRMSPropOptimizer(GNeuralNet& model, GObjective* error = NULL);
+	GRMSPropOptimizer(GNeuralNet& model, GRand& rand, GObjective* error = NULL);
 	
 	/// Prepare for optimization (i.e. allocate buffers).
 	virtual void prepareForOptimizing() override;
 	
 	/// Evaluate feat and lab, and update the model's gradient.
-	virtual void updateDeltas(const GVec &feat, const GVec &lab) override;
+	virtual void computeGradient(const GVec &feat, const GVec &lab) override;
 	
 	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
-	virtual void applyDeltas(double learningRate) override;
+	virtual void descendGradient(double learningRate) override;
 	
 	void setMomentum(double m) { m_momentum = m; }
 	double momentum() const { return m_momentum; }

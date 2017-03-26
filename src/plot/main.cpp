@@ -1845,7 +1845,7 @@ void GraphConnection::handleRequest(GDynamicPageSession* pDPSession, std::ostrea
 	GHttpParamParser pp(pDPSession->params(), false);
 	const char* funcs = pp.find("funcs");
 	if(!funcs)
-		funcs = "-size 600 400\n-range -5 -1 5 4\n-aspect\n\"\nf1(x) = (g1(x) + 1) / (x^2 + a);\nf2(x) = sin(g1(x + 2));\na = pi / 4;\ng1(x) = abs(x + a);\n\"";
+		funcs = "-size 600 400\n-range -5 -1 5 4\n-aspect\n\"\ng(a,x) = ifnegative(a,-log(a*(-x)+1)/a,ifzero(a,x,(e^(a*x)-1)/a));\nf1(x) = g(-1,x);\nf2(x) = g(-0.5,x);\nf3(x) = g(0,x);\nf4(x) = g(0.5,x);\nf5(x) = g(1,x);\n\"";
 	const char* cursorpos = pp.find("cursorpos");
 
 	response << "<table width=\"100%\"><tr><td>\n";

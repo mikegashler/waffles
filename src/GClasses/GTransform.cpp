@@ -901,8 +901,8 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		nn.beginIncrementalLearning(pFeatures2->relation(), pLabels2->relation());
 		m_seed += 77152487;
 		m_seed *= 37152487;
-		
-		GSGDOptimizer optimizer(nn.nn());
+
+		GSGDOptimizer optimizer(nn.nn(), nn.rand());
 		optimizer.setWindowSize(30);
 		optimizer.setImprovementThresh(0.002);
 		optimizer.optimizeWithValidation(*pFeatures2, *pLabels2);
