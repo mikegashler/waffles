@@ -497,8 +497,11 @@ public:
 	/// Transform a label matrix to the form for presenting to the inner learner
 	GMatrix* prefilterLabels(const GMatrix& in);
 
-	/// Returns a pointer to the inner learner
+	/// Returns a pointer to the inner learner (could be another GFilter)
 	GSupervisedLearner* innerLearner() { return m_pLearner; }
+
+	/// Returns a pointer to the base larner
+	GSupervisedLearner* baseLearner() { return m_pOriginal; }
 #ifndef MIN_PREDICT
 	/// Throws an exception
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
