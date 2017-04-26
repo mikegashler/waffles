@@ -278,6 +278,8 @@ void GAdamOptimizer::prepareForOptimizing()
 	m_deltas.resize(m_gradient.size());
 	m_sqdeltas.resize(m_gradient.size());
 	m_gradient.fill(0.0);
+	m_deltas.fill(0.0);
+	m_sqdeltas.fill(0.0);
 }
 
 void GAdamOptimizer::computeGradient(const GVec& feat, const GVec& lab)
@@ -285,7 +287,7 @@ void GAdamOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 	GContextNeuralNet& ctx = context();
 	m_model.forwardProp_training(ctx, feat, ctx.predBuf());
 	m_objective->calculateOutputLayerBlame(ctx.predBuf(), lab, ctx.blameBuf());
-	m_model.backProp(ctx, feat, lab, ctx.blameBuf(), ctx.blameBuf());
+	m_model.backProp(ctx, feat, ctx.predBuf(), ctx.blameBuf(), ctx.blameBuf());
 	m_gradient.fill(0.0);
 	m_model.updateGradient(ctx, feat, ctx.blameBuf(), m_gradient);
 	m_correct1 *= m_beta1;
