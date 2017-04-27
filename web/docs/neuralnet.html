@@ -26,15 +26,18 @@
 <br>
 <center><img src="nndiagram.svg" width=400></center><br>
 <ul>
-	<li>A <b>GNeuralNet</b> contains one or more GLayer objects.</li>
-	<li>Each <b>GLayer</b> contains one or more GBlock objects.
-	<li>Each <b>GBlock</b> represents a block of network units, or artificial neurons.
-		There are many types of blocks: GBlockLinear contains linear units. GBlockTanh contains tanh units. Etc.</li>
-	<li>GNeuralNet is also a type of GBlock, so you can nest entire neural networks inside of neural networks.</li>
+	<li>Some traditional textbooks consider each layer in a neural network to contain weights and a nonlinearity (a.k.a. activation function, a.k.a. transfer function).
+		To enable greater flexibility, we treat these as two separate blocks of network units.</li>
+	<li>Each <b>GBlock</b> object represents a block of network units.
+		There are many types of blocks: GBlockLinear contains a fully-connected set of weights. GBlockTanh contains tanh units. Etc.</li>
+	<li>A <b>GNeuralNet</b> contains many GBlock objects, organized into layers.</li>
+	<li>You can call GNeuralNet::add to add a block to your neural network. It will be added on the output-most end as a new layer.</li>
+	<li>Alternatively, you can call GNeuralNet::concatenate to append a block to the last existing layer.</li>
+	<li>GNeuralNet is also a type of GBlock, so you can nest entire neural networks inside of neural networks if you want to.</li>
 	<li><b>GNeuralNetOptimizer</b> is the base class for methods that train the weights of a GNeuralNet.
 		There are several types of GNeuralNetOptimizer. For example, GSGDOptimizer trains the neural net with stochastic gradient descent.</li>
-	<li><b>GNeuralNetContext</b> holds all of the context buffers that a thread needs to use (or train) a GNeuralNet in a thread-safe manner.
-		(For example, two threads may feed a vector through the neural net without stomping over the activations of the other one.)</li>
+	<li><b>GNeuralNetContext</b> holds all of the buffers that a thread needs to train or evaluate a GNeuralNet in a thread-safe manner.
+		(For example it enables two threads to simultaneously feed a vector through the neural net without stomping over the activations of the other thread.)</li>
 	<li><b>GNeuralNetLearner</b> is a wrapper around GNeuralNet that implements GIncrementalLearner (which implements GSupervisedLearner).
 		This class enables using a GNeuralNet in place of any other learning algorithm in Waffles.</li>
 </ul>
@@ -430,6 +433,56 @@ You can get much better accuracy using bigger layers, but then training will tak
 
 
 
+
+
+
+<br><br>
+<h3>Training more directly</h3>
+
+<p>If you want more fine-grained control, you can train your neural network manually, instead of using one of the pre-built optimizers.
+Here are some changes to the training section of the previous example to train the neural network with more direct calls:</p>
+
+<pre class="code">
+	// Train
+<font color="red">	double learningRate = 0.01;
+	double momentum = 0.0;
+	GVec prediction(trainLabels.cols());
+	GVec blame(trainLabels.cols());
+	GVec gradient(nn.weightCount());
+	gradient.fill(0.0);
+	GContextNeuralNet* pCtx = nn.newContext(rand);
+	std::unique_ptr&lt;GContextNeuralNet&gt; hCtx(pCtx);</font>
+	GRandomIndexIterator ii(trainFeatures.rows(), rand);
+	for(size_t epoch = 0; epoch &lt; 10; epoch++)
+	{
+		// Validate
+		double sseTrain = nn.measureLoss(trainFeatures, trainLabels);
+		cout &lt;&lt; to_str(std::sqrt(sseTrain / trainFeatures.rows())) &lt;&lt; ", ";
+		double sseTest = nn.measureLoss(testFeatures, testLabels);
+		cout &lt;&lt; to_str(std::sqrt(sseTest / testFeatures.rows())) &lt;&lt; ", ";
+		double mis = nn.measureLoss(testFeatures, rawTestLabels);
+		cout &lt;&lt; to_str((double)mis / testFeatures.rows()) &lt;&lt; "\n";
+		cout.flush();
+
+		// Do an epoch of training
+		ii.reset();
+		size_t index;
+		while(ii.next(index))
+<font color="red">		{
+			nn.forwardProp(*pCtx, trainFeatures[index], prediction);
+			blame.copy(trainLabels[index]);
+			blame -= prediction;
+			nn.backProp(*pCtx, trainFeatures[index], prediction, blame, blame);
+			gradient *= momentum;
+			nn.updateGradient(*pCtx, trainFeatures[index], blame, gradient);
+			nn.step(learningRate, gradient);
+		}</font>
+	}
+	return 0;
+</pre>
+
+<p>If you want to get more direct than that, you will probably have to start digging into the code itself.
+I have worked hard to keep the code clean and easy to read, but I would welcome suggestions for improving it.</p>
 
 
 
