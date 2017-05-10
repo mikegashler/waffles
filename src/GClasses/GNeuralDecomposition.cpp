@@ -163,7 +163,7 @@ void GNeuralDecomposition::predict(const GVec& pIn, GVec& pOut)
 {
 	if(!m_pContext)
 		m_pContext = m_nn->newContext(m_rand);
-	m_nn->forwardProp(*m_pContext, pIn, pOut);
+	pOut.copy(m_pContext->forwardProp(pIn));
 	if(m_filterLogarithm)
 	{
 		pOut[0] = exp((pOut[0] * 0.1 * m_outputScale + m_outputBias) * log(10));

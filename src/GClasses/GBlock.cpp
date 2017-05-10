@@ -549,6 +549,7 @@ void GBlockActivation::forwardProp(GContext& ctx, const GVec& input, GVec& outpu
 
 void GBlockActivation::backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
 {
+	GAssert(outBlame.size() == output.size() && inBlame.size() == input.size());
 	for(size_t i = 0; i < inBlame.size(); i++)
 		inBlame[i] += outBlame[i] * derivative(input[i], output[i]);
 }
@@ -700,13 +701,14 @@ GBlockLinear::GBlockLinear(size_t outputs, size_t inputs)
 }
 
 GBlockLinear::GBlockLinear(GDomNode* pNode)
-: GBlock(pNode), m_weights(pNode->field("weights"))
+: GBlock(pNode), m_weights(pNode->field("weights")), m_bias(pNode->field("bias"))
 {}
 
 GDomNode* GBlockLinear::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc);
 	pNode->addField(pDoc, "weights", m_weights.serialize(pDoc));
+	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
 	return pNode;
 }
 
@@ -714,12 +716,13 @@ void GBlockLinear::resize(size_t in, size_t out)
 {
 	if(in == inputs() && out == outputs())
 		return;
-	m_weights.resize(in + 1, out);
+	m_weights.resize(in, out);
+	m_bias.resize(out);
 }
 
 void GBlockLinear::forwardProp(GContext& ctx, const GVec& input, GVec& output) const
 {
-	GAssert(input.size() == m_weights.rows() - 1);
+	GAssert(input.size() == m_weights.rows());
 	GAssert(output.size() == m_weights.cols());
 	output.copy(bias());
 	GAssert(output[outputs() - 1] > -1e100 && output[outputs() - 1] < 1e100);
@@ -730,7 +733,7 @@ void GBlockLinear::forwardProp(GContext& ctx, const GVec& input, GVec& output) c
 
 void GBlockLinear::forwardProp2(const GVec& in1, const GVec& in2, GVec& output) const
 {
-	GAssert(in1.size() + in2.size() == m_weights.rows() - 1);
+	GAssert(in1.size() + in2.size() == m_weights.rows());
 	GAssert(output.size() == m_weights.cols());
 	output.copy(bias());
 	GAssert(output[outputs() - 1] > -1e100 && output[outputs() - 1] < 1e100);
@@ -743,14 +746,14 @@ void GBlockLinear::forwardProp2(const GVec& in1, const GVec& in2, GVec& output) 
 
 void GBlockLinear::backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
 {
-	GAssert(outBlame.size() == m_weights.cols() && inBlame.size() == m_weights.rows() - 1);
+	GAssert(outBlame.size() == m_weights.cols() && inBlame.size() == m_weights.rows());
 	for(size_t i = 0; i < inBlame.size(); i++)
 		inBlame[i] += outBlame.dotProduct(m_weights[i]);
 }
 
 void GBlockLinear::backProp2(const GVec& outBlame, GVec& inBlame1, GVec& inBlame2) const
 {
-	GAssert(outBlame.size() == m_weights.cols() && inBlame1.size() + inBlame2.size() == m_weights.rows() - 1);
+	GAssert(outBlame.size() == m_weights.cols() && inBlame1.size() + inBlame2.size() == m_weights.rows());
 	for(size_t i = 0; i < inBlame1.size(); i++)
 		inBlame1[i] += outBlame.dotProduct(m_weights[i]);
 	for(size_t i = 0; i < inBlame2.size(); i++)
@@ -807,27 +810,76 @@ void GBlockLinear::step(double learningRate, const GVec& gradient)
 		b[j] += learningRate * *delta++;
 }
 
+#ifdef GCUDA
+void GBlockLinear::uploadCuda()
+{
+	m_weightsCuda.upload(m_weights);
+	m_biasCuda.upload(m_bias);
+}
+
+void GBlockLinear::downloadCuda()
+{
+	m_weightsCuda.download(m_weights);
+	m_biasCuda.download(m_bias);
+}
+
+void GBlockLinear::forwardPropCuda(GContext& ctx, const GCudaVector& input, GCudaVector& output) const
+{
+	GAssert(m_biasCuda.d_vals);
+	output.copy(ctx.cudaEngine(), m_biasCuda);
+	m_weightsCuda.feedIn(ctx.cudaEngine(), input, output, 0);
+}
+
+void GBlockLinear::backPropCuda(GContext& ctx, const GCudaVector& input, const GCudaVector& output, const GCudaVector& outBlame, GCudaVector& inBlame) const
+{
+	GAssert(outBlame.size() == m_weights.cols() && inBlame.size() == m_weights.rows());
+	m_weightsCuda.backPropError(ctx.cudaEngine(), outBlame, inBlame, 0);
+}
+
+void GBlockLinear::updateGradientCuda(GContext& ctx, const GCudaVector& input, const GCudaVector& outBlame, GCudaVector &gradient) const
+{
+	GAssert(gradient.size() == outBlame.size() * (input.size() + 1));
+	GCudaVector outBlameWeights(*(GCudaVector*)&outBlame, 0, input.size() * outBlame.size());
+	outBlameWeights.addOuterProduct(ctx.cudaEngine(), input, outBlame, 1.0);
+	GCudaVector outBlameBias(*(GCudaVector*)&outBlame, input.size() * outBlame.size(), outBlame.size());
+	outBlameBias.add(ctx.cudaEngine(), outBlame, 1.0);
+}
+
+void GBlockLinear::stepCuda(GContext& ctx, double learningRate, const GCudaVector& gradient)
+{
+	GAssert(gradient.size() == weightCount(), "gradient must match the dimensions of weights!");
+	GCudaVector weightsGrad(*(GCudaVector*)&gradient, 0, m_weights.rows() * m_weights.cols());
+	m_weightsCuda.add(ctx.cudaEngine(), weightsGrad, learningRate);
+	GCudaVector weightsBias(*(GCudaVector*)&gradient, m_weights.rows() * m_weights.cols(), m_weights.cols());
+	m_biasCuda.add(ctx.cudaEngine(), weightsBias, learningRate);
+}
+#endif
+
 size_t GBlockLinear::weightCount() const
 {
-	return m_weights.rows() * m_weights.cols();
+	return (m_weights.rows() + 1) * m_weights.cols();
 }
 
 size_t GBlockLinear::weightsToVector(double* pOutVector) const
 {
 	m_weights.toVector(pOutVector);
+	memcpy(pOutVector + (m_weights.rows() * m_weights.cols()), m_bias.data(), sizeof(double) * m_weights.cols());
 	return weightCount();
 }
 
 size_t GBlockLinear::vectorToWeights(const double* pVector)
 {
 	m_weights.fromVector(pVector, m_weights.rows());
+	pVector += (m_weights.rows() * m_weights.cols());
+	m_bias.set(pVector, m_weights.cols());
 	return weightCount();
 }
 
 void GBlockLinear::copyWeights(const GBlock* pSource)
 {
-	GBlockLinear *src = (GBlockLinear*) pSource;
+	GBlockLinear *src = (GBlockLinear*)pSource;
 	m_weights.copyBlock(src->m_weights, 0, 0, INVALID_INDEX, INVALID_INDEX, 0, 0, false);
+	m_bias.copy(src->m_bias);
 }
 
 void GBlockLinear::resetWeights(GRand& rand)
@@ -841,12 +893,15 @@ void GBlockLinear::resetWeights(GRand& rand)
 		for(size_t j = 0; j < outputCount; j++)
 			w[j] = rand.normal() * mag;
 	}
+	for(size_t j = 0; j < outputCount; j++)
+		m_bias[j] = rand.normal() * mag;
 }
 
 void GBlockLinear::perturbWeights(GRand &rand, double deviation)
 {
 	for(size_t j = 0; j < m_weights.rows(); j++)
-		GVec::perturb(m_weights[j].data(), deviation, m_weights.cols(), rand);
+		m_weights[j].perturbNormal(rand, deviation);
+	m_bias.perturbNormal(rand, deviation);
 }
 
 void GBlockLinear::maxNorm(double min, double max)
@@ -2790,7 +2845,7 @@ double GBlockRecurrent::testEngine(GNeuralNet& nn)
 		// predict
 		ctx->resetState();
 		for(size_t i = 0; i < 30; i++)
-			nn.forwardProp(*ctx, f[i], l[1000 + i]);
+			l[1000 + i].copy(ctx->forwardProp(f[i]));
 
 		// evaluate
 		for(size_t i = 5; i < 30; i++)

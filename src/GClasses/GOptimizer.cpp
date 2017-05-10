@@ -211,11 +211,11 @@ void GNeuralNetOptimizer::optimizeWithValidation(const GMatrix &features, const 
 
 double GNeuralNetOptimizer::sumLoss(const GMatrix &features, const GMatrix &labels)
 {
-	GVec pred(labels.cols()), loss(labels.cols());
+	GVec loss(labels.cols());
 	double sum = 0.0;
 	for(size_t i = 0; i < features.rows(); ++i)
 	{
-		m_model.forwardProp(*m_pContext, features[i], pred);
+		GVec& pred = m_pContext->forwardProp(features[i]);
 		m_objective->evaluate(pred, labels[i], loss);
 		sum += loss.sum();
 	}
@@ -244,11 +244,11 @@ void GSGDOptimizer::prepareForOptimizing()
 void GSGDOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 {
 	GContextNeuralNet& ctx = context();
-	m_model.forwardProp_training(ctx, feat, ctx.predBuf());
-	m_objective->calculateOutputLayerBlame(ctx.predBuf(), lab, ctx.blameBuf());
-	m_model.backProp(ctx, feat, ctx.predBuf(), ctx.blameBuf(), ctx.blameBuf()); // The last two parameters are deliberately the same, indicating not to compute the input blame
+	GVec& pred = ctx.forwardProp_training(feat);
+	m_objective->calculateOutputLayerBlame(pred, lab, ctx.blame());
+	ctx.backProp();
 	m_gradient *= m_momentum;
-	m_model.updateGradient(ctx, feat, ctx.blameBuf(), m_gradient);
+	ctx.updateGradient(feat, m_gradient);
 }
 
 void GSGDOptimizer::descendGradient(double learningRate)
@@ -285,11 +285,11 @@ void GAdamOptimizer::prepareForOptimizing()
 void GAdamOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 {
 	GContextNeuralNet& ctx = context();
-	m_model.forwardProp_training(ctx, feat, ctx.predBuf());
-	m_objective->calculateOutputLayerBlame(ctx.predBuf(), lab, ctx.blameBuf());
-	m_model.backProp(ctx, feat, ctx.predBuf(), ctx.blameBuf(), ctx.blameBuf());
+	GVec& pred = ctx.forwardProp_training(feat);
+	m_objective->calculateOutputLayerBlame(pred, lab, ctx.blame());
+	ctx.backProp();
 	m_gradient.fill(0.0);
-	m_model.updateGradient(ctx, feat, ctx.blameBuf(), m_gradient);
+	ctx.updateGradient(feat, m_gradient);
 	m_correct1 *= m_beta1;
 	m_correct2 *= m_beta2;
 	for(size_t i = 0; i < m_gradient.size(); i++)
@@ -336,11 +336,11 @@ void GRMSPropOptimizer::prepareForOptimizing()
 void GRMSPropOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 {
 	GContextNeuralNet& ctx = context();
-	m_model.forwardProp_training(ctx, feat, ctx.predBuf());
-	m_objective->calculateOutputLayerBlame(ctx.predBuf(), lab, ctx.blameBuf());
-	m_model.backProp(ctx, feat, ctx.predBuf(), ctx.blameBuf(), ctx.blameBuf());
+	GVec& pred = ctx.forwardProp_training(feat);
+	m_objective->calculateOutputLayerBlame(pred, lab, ctx.blame());
+	ctx.backProp();
 	m_gradient *= m_momentum;
-	m_model.updateGradient(ctx, feat, ctx.blameBuf(), m_gradient);
+	ctx.updateGradient(feat, m_gradient);
 }
 
 void GRMSPropOptimizer::descendGradient(double learningRate)

@@ -22,6 +22,7 @@
 
 #include "GMatrix.h"
 #include "GSparseMatrix.h"
+#include "GCudaMatrix.h"
 #include <vector>
 #include <ostream>
 #include <cmath>
@@ -32,6 +33,39 @@ class GContext;
 class GContextRecurrent;
 class GContextRecurrentInstance;
 class GNeuralNet;
+
+
+/// The base class for the buffers that a thread needs to
+/// use (train or predict with) a neural network component.
+class GContext
+{
+public:
+	GRand& m_rand;
+#ifdef GCUDA
+	GVec m_scratchIn;
+	GVec m_scratchOut;
+	GVec m_scratchInBlame;
+	GVec m_scratchOutBlame;
+	GVec m_scratchGradient;
+#endif
+
+	GContext(GRand& rand) : m_rand(rand) {};
+	virtual ~GContext() {}
+
+	/// Resets the state of all recurrent blocks.
+	/// (This is called whenever a recurrent neural network begins with a new sequence,
+	/// either for training or testing.)
+	virtual void resetState() = 0;
+
+#ifdef GCUDA
+	virtual GCudaEngine& cudaEngine() = 0;
+#endif
+};
+
+
+
+
+
 
 
 /// Represents a block of network units (artificial neurons) in a neural network.
@@ -107,9 +141,6 @@ public:
 	/// Returns true iff this block is recurrent
 	virtual bool isRecurrent() const { return false; }
 
-	/// Returns true iff this block does its computations in parallel on a GPU.
-	virtual bool usesGPU() { return false; }
-
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const = 0;
 
@@ -138,6 +169,59 @@ public:
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
 	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const = 0;
 
+	/// Evaluate the input and outBlame, update the gradient for updating the weights by gradient descent.
+	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const = 0;
+
+	/// Add the weight and bias gradient to the weights.
+	virtual void step(double learningRate, const GVec& gradient) = 0;
+
+#ifdef GCUDA
+	/// Uploads weights onto the GPU
+	virtual void uploadCuda()
+	{
+		// The default implementation just keeps weights on the CPU.
+	}
+
+	/// Downloads weights from the GPU
+	virtual void downloadCuda()
+	{
+		// The default implementation just keeps weights on the CPU.
+	}
+
+	virtual void forwardPropCuda(GContext& ctx, const GCudaVector& input, GCudaVector& output) const
+	{
+		input.download(ctx.m_scratchIn);
+		ctx.m_scratchOut.resize(output.size());
+		forwardProp(ctx, ctx.m_scratchIn, ctx.m_scratchOut);
+		output.upload(ctx.m_scratchOut);
+	}
+
+	virtual void backPropCuda(GContext& ctx, const GCudaVector& input, const GCudaVector& output, const GCudaVector& outBlame, GCudaVector& inBlame) const
+	{
+		input.download(ctx.m_scratchIn);
+		output.download(ctx.m_scratchOut);
+		outBlame.download(ctx.m_scratchOutBlame);
+		ctx.m_scratchInBlame.resize(input.size());
+		backProp(ctx, ctx.m_scratchIn, ctx.m_scratchOut, ctx.m_scratchOutBlame, ctx.m_scratchInBlame);
+		inBlame.upload(ctx.m_scratchInBlame);
+	}
+
+	virtual void updateGradientCuda(GContext& ctx, const GCudaVector& input, const GCudaVector& outBlame, GCudaVector& gradient) const
+	{
+		input.download(ctx.m_scratchIn);
+		outBlame.download(ctx.m_scratchOutBlame);
+		gradient.download(ctx.m_scratchGradient);
+		updateGradient(ctx, ctx.m_scratchIn, ctx.m_scratchOutBlame, ctx.m_scratchGradient);
+		gradient.upload(ctx.m_scratchGradient);
+	}
+
+	virtual void stepCuda(GContext& ctx, double learningRate, const GCudaVector& gradient)
+	{
+		gradient.download(ctx.m_scratchGradient);
+		step(learningRate, ctx.m_scratchGradient);
+	}
+#endif
+
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const = 0;
 
@@ -165,12 +249,6 @@ public:
 
 	/// Moves all weights in the direction of zero by the specified amount.
 	virtual void diminishWeights(double amount, bool regularizeBiases) = 0;
-
-	/// Evaluate the input and outBlame, update the gradient for updating the weights by gradient descent.
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const = 0;
-
-	/// Add the weight and bias gradient to the weights.
-	virtual void step(double learningRate, const GVec &gradient) = 0;
 
 protected:
 	GDomNode* baseDomNode(GDom* pDoc) const;
@@ -817,7 +895,12 @@ public:
 class GBlockLinear : public GBlock
 {
 protected:
-	GMatrix m_weights; // An (inputs+1)-by-outputs matrix of weights. The last row contains the bias values.
+	GMatrix m_weights; // An inputs-by-outputs matrix of weights. (Rows = inputs, Cols = outputs.)
+	GVec m_bias;
+#ifdef GCUDA
+	GCudaMatrix m_weightsCuda;
+	GCudaVector m_biasCuda;
+#endif
 
 public:
 	GBlockLinear(size_t outputs, size_t inputs = 0);
@@ -836,7 +919,7 @@ public:
 	virtual void resize(size_t inputs, size_t outputs) override;
 
 	/// Returns the number of inputs this block consumes
-	virtual size_t inputs() const override { return m_weights.rows() - 1; }
+	virtual size_t inputs() const override { return m_weights.rows(); }
 
 	/// Returns the number of outputs this block produces
 	virtual size_t outputs() const override { return m_weights.cols(); }
@@ -863,6 +946,25 @@ public:
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
+
+#ifdef GCUDA
+	/// Uploads weights onto the GPU
+	virtual void uploadCuda();
+
+	/// Downloads weights from the GPU
+	virtual void downloadCuda();
+
+	// Forwardprops on the GPU
+	virtual void forwardPropCuda(GContext& ctx, const GCudaVector& input, GCudaVector& output) const override;
+	
+	// Backprops on the GPU
+	virtual void backPropCuda(GContext& ctx, const GCudaVector& input, const GCudaVector& output, const GCudaVector& outBlame, GCudaVector& inBlame) const override;
+	
+	// Updates the gradient on the GPU
+	virtual void updateGradientCuda(GContext& ctx, const GCudaVector& input, const GCudaVector& outBlame, GCudaVector &gradient) const override;
+
+	virtual void stepCuda(GContext& ctx, double learningRate, const GCudaVector& gradient) override;
+#endif
 
 	/// Applies contractive regularization to the weights in this block.
 	void contractWeights(double factor, bool contractBiases, const GVec& output);
@@ -896,10 +998,10 @@ public:
 	virtual void diminishWeights(double amount, bool regularizeBiases) override;
 
 	/// Returns the bias vector of this block.
-	GVec& bias() { return m_weights.back(); }
+	GVec& bias() { return m_bias; }
 
 	/// Returns the bias vector of this block.
-	const GVec& bias() const { return m_weights.back(); }
+	const GVec& bias() const { return m_bias; }
 
 	/// Get the entire weights matrix
 	GMatrix& weights() { return m_weights; }
@@ -1764,28 +1866,6 @@ protected:
 
 
 
-/// The base class for the buffers that a thread needs to
-/// use (train or predict with) a neural network component.
-class GContext
-{
-public:
-	GRand& m_rand;
-
-	GContext(GRand& rand) : m_rand(rand) {};
-	virtual ~GContext() {}
-
-	/// Resets the state of all recurrent blocks.
-	/// (This is called whenever a recurrent neural network begins with a new sequence,
-	/// either for training or testing.)
-	virtual void resetState() = 0;
-};
-
-
-
-
-
-
-
 /// A special context object for recurrent blocks
 class GContextRecurrent : public GContext
 {
@@ -1811,6 +1891,33 @@ public:
 	void backPropThroughTime(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame);
 
 	void updateGradient(const GVec& input, const GVec& outBlame, GVec& gradient) const;
+
+#ifdef GCUDA
+	virtual GCudaEngine& cudaEngine()
+	{
+		throw Ex("Sorry, not implemented");
+	}
+
+	void forwardPropCuda(const GCudaVector& input, GCudaVector& output)
+	{
+		throw Ex("Sorry, not implemented");
+	}
+
+	void forwardPropThroughTimeCuda(const GCudaVector& input, GCudaVector& output)
+	{
+			throw Ex("Sorry, not implemented");
+	}
+
+	void backPropThroughTimeCuda(const GCudaVector& input, const GCudaVector& output, const GCudaVector& outBlame, GCudaVector& inBlame)
+	{
+                throw Ex("Sorry, not implemented");
+	}
+
+	void updateGradientCuda(const GCudaVector& input, const GCudaVector& outBlame, GCudaVector& gradient) const
+	{
+                throw Ex("Sorry, not implemented");
+	}
+#endif
 
 };
 
@@ -1933,6 +2040,13 @@ public:
 	virtual void forwardProp(GContextRecurrentInstance* pPrev, const GVec& input, GVec& output) override;
 	virtual void backProp(GContextRecurrentInstance* pPrev, const GVec& outBlame, GVec& inBlame) override;
 	virtual void updateGradient(GContextRecurrentInstance* prev, const GVec& input, GVec& gradient) const override;
+
+#ifdef GCUDA
+	virtual GCudaEngine& cudaEngine()
+	{
+		throw Ex("Sorry, not implemented");
+	}
+#endif
 };
 
 
@@ -2041,6 +2155,12 @@ public:
 	virtual void backProp(GContextRecurrentInstance* pPrev, const GVec& outBlame, GVec& inBlame) override;
 	virtual void updateGradient(GContextRecurrentInstance* prev, const GVec& input, GVec& gradient) const override;
 
+#ifdef GCUDA
+	virtual GCudaEngine& cudaEngine()
+	{
+		throw Ex("Sorry, not implemented");
+	}
+#endif
 };
 
 

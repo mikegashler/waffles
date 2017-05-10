@@ -5,7 +5,8 @@ SHELL = /bin/bash
 TARGET_PATH = ../../lib
 TARGET_NAME_OPT = libGClasses.a
 TARGET_NAME_DBG = libGClassesDbg.a
-#TARGET_NAME_GCOV= GClassesGcov.a
+TARGET_NAME_CUDA = libGClassesCuda.a
+TARGET_NAME_CUDA_DBG = libGClassesCudaDbg.a
 OBJ_PATH = ../../obj/GClasses
 INSTALL_LOCATION_LIB ?= /usr/local/lib
 INSTALL_LOCATION_INCLUDE ?= /usr/local/include
@@ -63,6 +64,7 @@ CPP_FILES = \
 	GBlock.cpp\
 	GCluster.cpp\
 	GCrypto.cpp\
+	GCudaMatrix.cpp\
 	GDecisionTree.cpp\
 	GDiff.cpp\
 	GDirList.cpp\
@@ -138,14 +140,21 @@ CPP_FILES = \
 	sha2.cpp\
 	usage.cpp\
 
+CU_FILES = \
+	GCudaMatrixKernels.cu\
+
 ################
 # Lists
 ################
 
 TEMP_LIST_OPT = $(CPP_FILES:%=$(OBJ_PATH)/opt/%)
 TEMP_LIST_DBG = $(CPP_FILES:%=$(OBJ_PATH)/dbg/%)
+TEMP_LIST_CUDA = $(CPP_FILES:%=$(OBJ_PATH)/cuda/%)
+TEMP_LIST_CUDA_DBG = $(CPP_FILES:%=$(OBJ_PATH)/cudadbg/%)
 OBJECTS_OPT = $(TEMP_LIST_OPT:%.cpp=%.o)
 OBJECTS_DBG = $(TEMP_LIST_DBG:%.cpp=%.o)
+OBJECTS_CUDA = $(TEMP_LIST_CUDA:%.cpp=%.o)
+OBJECTS_CUDA_DBG = $(TEMP_LIST_CUDA_DBG:%.cpp=%.o)
 DEPS_OPT = $(TEMP_LIST_OPT:%.cpp=%.d)
 DEPS_DBG = $(TEMP_LIST_DBG:%.cpp=%.d)
 
@@ -159,6 +168,9 @@ dbg : $(TARGET_PATH)/$(TARGET_NAME_DBG)
 
 opt : $(TARGET_PATH)/$(TARGET_NAME_OPT)
 
+cudadbg : $(TARGET_PATH)/$(TARGET_NAME_CUDA_DBG)
+
+cuda : $(TARGET_PATH)/$(TARGET_NAME_CUDA)
 
 usage:
 	#
@@ -181,6 +193,15 @@ $(TARGET_PATH)/$(TARGET_NAME_DBG) : partialcleandbg $(OBJECTS_DBG)
 	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
 	@ar -crs $(TARGET_PATH)/$(TARGET_NAME_DBG) $(OBJECTS_DBG)
 
+# This rule makes the CUDA ".a" file by using the "ar" tool with all of the CUDA ".o" files
+$(TARGET_PATH)/$(TARGET_NAME_CUDA_DBG) : partialcleancudadbg $(OBJECTS_CUDA_DBG) $(OBJ_PATH)/cudadbg/GCudaMatrixKernels.o
+	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
+	@ar -crs $(TARGET_PATH)/$(TARGET_NAME_CUDA_DBG) $(OBJECTS_CUDA_DBG) $(OBJ_PATH)/cudadbg/GCudaMatrixKernels.o
+
+# This rule makes the CUDA ".a" file by using the "ar" tool with all of the CUDA ".o" files
+$(TARGET_PATH)/$(TARGET_NAME_CUDA) : partialcleancuda $(OBJECTS_CUDA) $(OBJ_PATH)/cuda/GCudaMatrixKernels.o
+	@if [ ! -d "$(TARGET_PATH)" ]; then mkdir -p "$(TARGET_PATH)"; fi
+	@ar -crs $(TARGET_PATH)/$(TARGET_NAME_CUDA) $(OBJECTS_CUDA) $(OBJ_PATH)/cuda/GCudaMatrixKernels.o
 
 # This includes all of the ".d" files. Each ".d" file contains a
 # generated rule that tells it how to make .o files. (The reason these are generated is so that
@@ -211,15 +232,39 @@ $(DEPS_DBG) : $(OBJ_PATH)/dbg/%.d : %.cpp
 	@$(COMPILER) $(DBG_CFLAGS) -MM $< >> $@
 	@echo -e "	$(COMPILER) $(DBG_CFLAGS) -c $< -o $$(dirname $@)/$$(basename $@ .d).o" >> $@
 
+$(OBJ_PATH)/cuda/GCudaMatrixKernels.o : GCudaMatrixKernels.cu
+	@if [ ! -d "$(OBJ_PATH)/cuda" ]; then mkdir -p "$(OBJ_PATH)/cuda"; fi
+	nvcc -std=c++11 -DGCUDA -c GCudaMatrixKernels.cu -o $(OBJ_PATH)/cuda/GCudaMatrixKernels.o
+
+$(OBJ_PATH)/cudadbg/GCudaMatrixKernels.o : GCudaMatrixKernels.cu
+	@if [ ! -d "$(OBJ_PATH)/cudadbg" ]; then mkdir -p "$(OBJ_PATH)/cudadbg"; fi
+	nvcc -std=c++11 -g -D_DEBUG -DGCUDA -c GCudaMatrixKernels.cu -o $(OBJ_PATH)/cudadbg/GCudaMatrixKernels.o
+
+$(OBJECTS_CUDA) : $(CPP_FILES)
+	@if [ ! -d "$(OBJ_PATH)/cuda" ]; then mkdir -p "$(OBJ_PATH)/cuda"; fi
+	nvcc -std=c++11 -O3 -DGCUDA -c $(subst .o,.cpp,$(subst $(OBJ_PATH)/cuda/,,$@)) -o $@
+
+$(OBJECTS_CUDA_DBG) : $(CPP_FILES)
+	@if [ ! -d "$(OBJ_PATH)/cudadbg" ]; then mkdir -p "$(OBJ_PATH)/cudadbg"; fi
+	nvcc -std=c++11 -g -D_DEBUG -DGCUDA -c $(subst .o,.cpp,$(subst $(OBJ_PATH)/cudadbg/,,$@)) -o $@
+
 partialcleanopt :
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_OPT)
 
 partialcleandbg :
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_DBG)
 
-clean : partialcleandbg partialcleanopt
+partialcleancuda :
+	rm -f $(TARGET_PATH)/$(TARGET_NAME_CUDA)
+
+partialcleancudadbg :
+	rm -f $(TARGET_PATH)/$(TARGET_NAME_CUDA_DBG)
+
+clean : partialcleandbg partialcleanopt partialcleancuda partialcleancudadbg
 	rm -f $(OBJECTS_OPT)
 	rm -f $(OBJECTS_DBG)
+	rm -f $(OBJECTS_CUDA)
+	rm -f $(OBJECTS_CUDA_DBG)
 	rm -f $(DEPS_OPT)
 	rm -f $(DEPS_DBG)
 
@@ -232,10 +277,14 @@ install:
 	install $(TARGET_PATH)/$(TARGET_NAME_OPT) $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_OPT)
 	install $(TARGET_PATH)/$(TARGET_NAME_DBG) $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_DBG)
 	install *.h $(INSTALL_LOCATION_INCLUDE)/GClasses
+	if [ -f $(TARGET_PATH)/$(TARGET_NAME_CUDA) ]; then install $(TARGET_PATH)/$(TARGET_NAME_CUDA) $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_CUDA); fi
+	if [ -f $(TARGET_PATH)/$(TARGET_NAME_CUDA_DBG) ]; then install $(TARGET_PATH)/$(TARGET_NAME_CUDA_DBG) $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_CUDA_DBG); fi
 
 uninstall:
 	rm -f $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_OPT)
 	rm -f $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_DBG)
+	rm -f $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_CUDA)
+	rm -f $(INSTALL_LOCATION_LIB)/$(TARGET_NAME_CUDADBG)
 	rm -rf $(INSTALL_LOCATION_INCLUDE)/GClasses
 
-.PHONY: clean partialcleandbg partialcleanopt install uninstall dbg opt
+.PHONY: clean partialcleandbg partialcleanopt install uninstall dbg opt cuda cudadbg

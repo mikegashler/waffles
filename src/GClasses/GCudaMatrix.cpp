@@ -16,9 +16,11 @@
   our code to be useful, the Waffles team would love to hear how you use it.
 */
 
+#ifdef GCUDA
+
 #include "GCudaMatrix.h"
-#include "../../GClasses/GError.h"
-#include "../../GClasses/GMatrix.h"
+#include "GError.h"
+#include "GMatrix.h"
 #include <cuda.h>
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
@@ -74,19 +76,39 @@ void GCudaEngine::sync()
 
 
 
-GCudaVector::GCudaVector()
-: m_size(0), d_vals(NULL)
+GCudaVector::GCudaVector(size_t size)
+: m_size(0), d_vals(NULL), m_own(true)
 {
+	if(size > 0)
+		resize(size);
+}
+
+GCudaVector::GCudaVector(GCudaVector& wrapme, size_t start, size_t len)
+: m_size(len), d_vals(wrapme.d_vals + start), m_own(false)
+{
+	if(!wrapme.d_vals)
+		throw Ex("Cannot wrap null");
+}
+
+GCudaVector::GCudaVector(GCudaMatrix& wrapme, size_t row, size_t len)
+: m_size(len), d_vals(wrapme.d_vals + (len * row)), m_own(false)
+{
+	if(!wrapme.d_vals)
+		throw Ex("Cannot wrap null");
 }
 
 GCudaVector::~GCudaVector()
 {
-	if(d_vals)
+	if(m_own && d_vals)
 		cudaFree(d_vals);
 }
 
 void GCudaVector::resize(size_t size)
 {
+	if(m_size == size)
+		return;
+	if(!m_own)
+		throw Ex("Cannot resize a wrapped vector");
 	if(d_vals)
 		cudaFree(d_vals);
 	if(cudaMalloc((void**)&d_vals, size * sizeof(double)) != cudaSuccess)
@@ -94,11 +116,11 @@ void GCudaVector::resize(size_t size)
 	m_size = size;
 }
 
-void GCudaVector::upload(const GVec& hostVector)
+void GCudaVector::upload(const GVec& hostVector, size_t start, size_t len)
 {
-	if(m_size != hostVector.size())
-		resize(hostVector.size());
-	if(cublasSetVector(m_size, sizeof(double), hostVector.data(), 1, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
+	len = std::min(len, hostVector.size() - start);
+	resize(len);
+	if(cublasSetVector(m_size, sizeof(double), hostVector.data() + start, 1, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasSetVector failed");
 }
 
@@ -111,13 +133,12 @@ void GCudaVector::download(GVec& hostVector) const
 
 void GCudaVector::copy(GCudaEngine& engine, const GCudaVector& that)
 {
-	if(m_size != that.m_size)
-		resize(that.m_size);
+	resize(that.m_size);
 	if(cublasDcopy((cublasHandle_t)engine.m_handle, m_size, that.d_vals, 1, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasDcopy failed");
 }
 
-void GCudaVector::add(GCudaEngine& engine, GCudaVector& that, double thatScalar)
+void GCudaVector::add(GCudaEngine& engine, const GCudaVector& that, double thatScalar)
 {
 	GAssert(m_size == that.m_size);
 	if(cublasDaxpy((cublasHandle_t)engine.m_handle, m_size, &thatScalar,
@@ -131,16 +152,25 @@ void GCudaVector::scale(GCudaEngine& engine, double scalar)
 		throw Ex("cublasDscal failed");
 }
 
-void GCudaVector::randomUniform(GCudaEngine& engine)
+void GCudaVector::fillUniform(GCudaEngine& engine)
 {
 	if(curandGenerateUniformDouble((curandGenerator_t)engine.m_prng, d_vals, m_size) != CURAND_STATUS_SUCCESS)
 		throw Ex("curandGenerateUniformDouble failed");
 }
 
-void GCudaVector::randomNormal(GCudaEngine& engine, double mean, double dev)
+void GCudaVector::fillNormal(GCudaEngine& engine, double mean, double dev)
 {
 	if(curandGenerateNormalDouble((curandGenerator_t)engine.m_prng, d_vals, m_size, mean, dev) != CURAND_STATUS_SUCCESS)
 		throw Ex("curandGenerateNormalDouble failed in GCudaVector::randomNormal");
+}
+
+void GCudaVector::addOuterProduct(GCudaEngine& engine, const GCudaVector& upStreamInput, const GCudaVector& downStreamError, double learningRate)
+{
+	GAssert(m_size == upStreamInput.size() * downStreamError.size());
+	if(cublasDger((cublasHandle_t)engine.m_handle, downStreamError.size(), upStreamInput.size(), &learningRate,
+		downStreamError.d_vals, 1, upStreamInput.d_vals, 1,
+		d_vals, downStreamError.size()) != CUBLAS_STATUS_SUCCESS)
+		throw Ex("cublasDger failed");
 }
 
 
@@ -163,6 +193,8 @@ GCudaMatrix::~GCudaMatrix()
 
 void GCudaMatrix::resize(size_t rows, size_t cols)
 {
+	if(rows == m_rows && cols == m_cols)
+		return;
 	if(d_vals)
 		cudaFree(d_vals);
 	if(cudaMalloc((void**)&d_vals, rows * cols * sizeof(double)) != cudaSuccess)
@@ -171,23 +203,23 @@ void GCudaMatrix::resize(size_t rows, size_t cols)
 	m_cols = cols;
 }
 
-void GCudaMatrix::upload(const GMatrix& m)
+void GCudaMatrix::upload(const GMatrix& m, size_t rowStart, size_t colStart, size_t rowCount, size_t colCount)
 {
-	if(m_rows != m.rows() || m_cols != m.cols())
-		resize(m.rows(), m.cols());
+	rowCount = std::min(rowCount, m.rows() - rowStart);
+	colCount = std::min(colCount, m.cols() - colStart);
+	resize(rowCount, colCount);
 	double* pVals = d_vals;
 	for(size_t i = 0; i < m_rows; i++)
 	{
-		if(cublasSetVector(m_cols, sizeof(double), m[i].data(), 1, pVals, 1) != CUBLAS_STATUS_SUCCESS)
+		if(cublasSetVector(colCount, sizeof(double), m[i].data() + colStart, 1, pVals, 1) != CUBLAS_STATUS_SUCCESS)
 			throw Ex("cublasSetVector failed");
-		pVals += m_cols;
+		pVals += colCount;
 	}
 }
 
 void GCudaMatrix::download(GMatrix& m) const
 {
-	if(m.rows() != m_rows || m.cols() != m_cols)
-		m.resize(m_rows, m_cols);
+	m.resize(m_rows, m_cols);
 	double* pVals = d_vals;
 	for(size_t i = 0; i < m_rows; i++)
 	{
@@ -199,8 +231,7 @@ void GCudaMatrix::download(GMatrix& m) const
 
 void GCudaMatrix::copy(GCudaEngine& engine, GCudaMatrix& that)
 {
-	if(that.rows() != m_rows || that.cols() != m_cols)
-		resize(that.rows(), that.cols());
+	resize(that.rows(), that.cols());
 	if(cublasDcopy((cublasHandle_t)engine.m_handle, m_rows * m_cols, that.d_vals, 1, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
 		throw Ex("cublasDcopy failed");
 }
@@ -219,11 +250,18 @@ void GCudaMatrix::add(GCudaEngine& engine, GCudaMatrix& that, double thatScalar)
 		throw Ex("cublasDaxpy failed");
 }
 
+void GCudaMatrix::add(GCudaEngine& engine, GCudaVector& that, double thatScalar)
+{
+	GAssert(that.size() == m_rows * m_cols);
+	if(cublasDaxpy((cublasHandle_t)engine.m_handle, m_rows * m_cols, &thatScalar,
+		that.d_vals, 1, d_vals, 1) != CUBLAS_STATUS_SUCCESS)
+		throw Ex("cublasDaxpy failed");
+}
+
 void GCudaMatrix::rowVectorTimesThis(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out)
 {
 	GAssert(in.m_size == m_rows);
-	if(out.size() != m_cols)
-		out.resize(m_cols);
+	out.resize(m_cols);
 	double alpha = 1.0f;
 	double beta = 0.0f;
 	if(cublasDgemv((cublasHandle_t)engine.m_handle, CUBLAS_OP_N,
@@ -235,8 +273,7 @@ void GCudaMatrix::rowVectorTimesThis(GCudaEngine& engine, const GCudaVector& in,
 void GCudaMatrix::thisTimesColumnVector(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out)
 {
 	GAssert(in.m_size == m_cols);
-	if(out.m_size != m_rows)
-		out.resize(m_rows);
+	out.resize(m_rows);
 	double alpha = 1.0f;
 	double beta = 0.0f;
 	if(cublasDgemv((cublasHandle_t)engine.m_handle, CUBLAS_OP_T,
@@ -245,7 +282,7 @@ void GCudaMatrix::thisTimesColumnVector(GCudaEngine& engine, const GCudaVector& 
 		throw Ex("cublasDgemv failed");
 }
 
-void GCudaMatrix::feedIn(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out, size_t inputStart)
+void GCudaMatrix::feedIn(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out, size_t inputStart) const
 {
 	GAssert(inputStart + in.m_size <= m_rows);
 	GAssert(out.m_size == m_cols);
@@ -257,7 +294,7 @@ void GCudaMatrix::feedIn(GCudaEngine& engine, const GCudaVector& in, GCudaVector
 		throw Ex("cublasDgemv failed");
 }
 
-void GCudaMatrix::backPropError(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out, size_t inputStart)
+void GCudaMatrix::backPropError(GCudaEngine& engine, const GCudaVector& in, GCudaVector& out, size_t inputStart) const
 {
 	GAssert(in.m_size == m_cols);
 	double alpha = 1.0f;
@@ -328,3 +365,4 @@ void GCudaMatrix::fillNormal(GCudaEngine& engine, double mean, double dev)
 
 } // namespace GClasses
 
+#endif // GCUDA

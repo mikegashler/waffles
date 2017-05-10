@@ -697,7 +697,7 @@ public:
 	/// matrix this returns.
 	GMatrix* pseudoInverse();
 
-	/// \brief Returns a const pointer to the relation object, which holds meta-data about
+	/// \brief Returns a const reference to the relation object, which holds meta-data about
 	/// the attributes (columns)
 	const GRelation& relation() const { return *m_pRelation; }
 
@@ -795,22 +795,22 @@ public:
 	/// \brief Returns a pointer to the specified row
 	inline GVec& row(size_t index) { return *m_rows[index]; }
 
-	/// \brief Returns a const pointer to the specified row
+	/// \brief Returns a const reference to the specified row
 	inline const GVec& row(size_t index) const { return *m_rows[index]; }
 
-	/// \brief Returns a pointer to the first row
+	/// \brief Returns a reference to the first row
 	inline GVec& front() { return *m_rows[0]; }
 	inline const GVec& front() const { return *m_rows[0]; }
 
-	/// \brief Returns a pointer to a row indexed from the back of the matrix.
+	/// \brief Returns a reference to a row indexed from the back of the matrix.
 	/// index 0 (default) is the last row, index 1 is the second-to-last row, etc.
 	inline GVec& back(size_t reverse_index = 0) { return *m_rows[m_rows.size() - 1 - reverse_index]; }
 	inline const GVec& back(size_t reverse_index = 0) const { return *m_rows[m_rows.size() - 1 - reverse_index]; }
 
-	/// \brief Returns a pointer to the specified row
+	/// \brief Returns a reference to the specified row
 	inline GVec& operator [](size_t index) { return *m_rows[index]; }
 
-	/// \brief Returns a const pointer to the specified row
+	/// \brief Returns a const reference to the specified row
 	inline const GVec& operator [](size_t index) const { return *m_rows[index]; }
 
 	/// \brief Fills all elements in the specified range of columns with the specified value.

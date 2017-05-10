@@ -12,15 +12,15 @@ ifeq ($(UNAME),Darwin)
 	CFLAGS = -I/opt/local/include -I/usr/local/include -I/sw/include -I../../../src -I$(INSTALL_LOCATION_INCLUDE) -D_THREAD_SAFE -DDARWIN -no-cpp-precomp
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
-	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(DBG_LIBRARIES) -lpthread -framework AppKit ../../../lib/libGClassesDbg.a
-	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(OPT_LIBRARIES) -lpthread -framework AppKit ../../../lib/libGClasses.a
+	DBG_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(DBG_LIBRARIES) -lpthread -framework AppKit ../../../lib/libGClassesCudaDbg.a
+	OPT_LFLAGS = -L/opt/local/lib -L/usr/local/lib -L/sw/lib $(OPT_LIBRARIES) -lpthread -framework AppKit ../../../lib/libGClassesCuda.a
 else
 	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11 -I$(INSTALL_LOCATION_INCLUDE)
 	DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 	OPT_CFLAGS = $(CFLAGS) -O3
 	LFLAGS = -L../../../lib -lpthread
-	DBG_LFLAGS = $(LFLAGS) -lGClassesDbg -lGCudaDbg -lcurand -lcublas -lcudart -lpthread
-	OPT_LFLAGS = $(LFLAGS) -lGClasses -lGCuda -lcurand -lcublas -lcudart -lpthread
+	DBG_LFLAGS = $(LFLAGS) -lGClassesCudaDbg -lcurand -lcublas -lcudart -lpthread
+	OPT_LFLAGS = $(LFLAGS) -lGClassesCuda -lcurand -lcublas -lcudart -lpthread
 endif
 
 ################

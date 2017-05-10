@@ -56,6 +56,10 @@ public:
 	/// (Behavior is undefined if you add any blocks after you call newContext.)
 	GContextLayer* newContext(GRand& rand) const;
 
+#ifdef GCUDA
+	GContextLayer* newContext(GRand& rand, GCudaEngine& engine) const;
+#endif
+
 	/// Returns the number of blocks in this layer.
 	size_t blockCount() const { return m_blocks.size(); }
 
@@ -103,20 +107,14 @@ public:
 	/// Moves all weights by a constant amount toward 0
 	void diminishWeights(double amount, bool diminishBiases);
 
-	/// Feeds input forward through the layer that was used to construct this object.
-	void forwardProp(GContextLayer& ctx, const GVec& input, GVec& output) const;
-
-	/// Identical to forwardProp, except recurrent blocks additionally propagate through time during training.
-	void forwardProp_training(GContextLayer& ctx, const GVec& input, GVec& output) const;
-
-	/// Backpropagates the blame through the layer that was used to construct this object.
-	void backProp(GContextLayer& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const;
-
-	/// Updates the gradient for the layer that was used to construct this object.
-	void updateGradient(GContextLayer& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const;
-
 	/// Take a step to descend the gradient by updating the weights.
-	void step(double learningRate, const GVec &gradient);
+	void step(double learningRate, const GVec& gradient);
+
+#ifdef GCUDA
+	void uploadCuda();
+	void downloadCuda();
+	void stepCuda(GContextLayer& ctx, double learningRate, const GCudaVector& gradient);
+#endif
 };
 
 
@@ -134,17 +132,45 @@ public:
 	const GLayer& m_layer;
 	GVec m_activation;
 	GVec m_blame;
+#ifdef GCUDA
+	GCudaEngine* m_pEngine;
+	GCudaVector m_activationCuda;
+	GCudaVector m_blameCuda;
+#endif
 	std::vector<GContextRecurrent*> m_recurrents;
 	std::vector<GContextNeuralNet*> m_components;
 
 protected:
 	GContextLayer(GRand& rand, const GLayer& layer); // deliberately protected. Call GLayer::newContext to construct one.
+#ifdef GCUDA
+	GContextLayer(GRand& rand, const GLayer& layer, GCudaEngine& engine); // deliberately protected. Call GLayer::newContext to construct one.
+#endif
 
 public:
 	~GContextLayer();
 
 	/// See the comment for GContext::resetState.
 	virtual void resetState() override;
+
+	/// Feeds input forward through the layer that was used to construct this object.
+	void forwardProp(const GVec& input, GVec& output);
+
+	/// Identical to forwardProp, except recurrent blocks additionally propagate through time during training.
+	void forwardProp_training(const GVec& input, GVec& output);
+
+	/// Backpropagates the blame through the layer that was used to construct this object.
+	void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame);
+
+	/// Updates the gradient for the layer that was used to construct this object.
+	void updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient);
+
+#ifdef GCUDA
+	GCudaEngine& cudaEngine() { return *m_pEngine; }
+	void forwardPropCuda(const GCudaVector& input, GCudaVector& output);
+	void forwardProp_trainingCuda(const GCudaVector& input, GCudaVector& output);
+	void backPropCuda(GContextLayer& ctx, const GCudaVector& input, const GCudaVector& output, const GCudaVector& outBlame, GCudaVector& inBlame);
+	void updateGradientCuda(const GCudaVector& input, const GCudaVector& outBlame, GCudaVector& gradient);
+#endif
 };
 
 
@@ -158,6 +184,7 @@ public:
 /// The user must add at least one GBlock to each GLayer.
 class GNeuralNet : public GBlock
 {
+friend class GContextNeuralNet;
 protected:
 	size_t m_weightCount;
 	std::vector<GLayer*> m_layers;
@@ -179,6 +206,9 @@ public:
 	/// Allocates a new GContextNeuralNet object, which can be used to train or predict with this neural net.
 	/// (Behavior is undefined if you add or modify any layers after you call newContext.)
 	GContextNeuralNet* newContext(GRand& rand) const;
+#ifdef GCUDA
+	GContextNeuralNet* newContext(GRand& rand, GCudaEngine& engine) const;
+#endif
 
 	/// Adds a block as a new layer to this neural network.
 	void add(GBlock* pBlock);
@@ -226,9 +256,6 @@ public:
 
 	/// Returns the number of outputs this layer produces
 	virtual size_t outputs() const override { return outputLayer().outputs(); }
-
-	/// Take a step to descend the gradient by updating the weights.
-	virtual void step(double learningRate, const GVec &gradient) override;
 
 	/// Recounts the number of weights.
 	void recount();
@@ -322,19 +349,35 @@ public:
 	/// beginIncrementalLearning called.
 //	static GNeuralNet* fourier(GMatrix& series, double period = 1.0);
 
+	/// Take a step to descend the gradient by updating the weights.
+	virtual void step(double learningRate, const GVec& gradient) override;
+
+#ifdef GCUDA
+	virtual void uploadCuda() override;
+	virtual void downloadCuda() override;
+	virtual void stepCuda(GContext& ctx, double learningRate, const GCudaVector& gradient) override;
+#endif // GCUDA
+
+protected:
+	/// Deliberately protected. Call GContextNeuralNet::forwardProp instead.
 	/// Evaluates input, computes output.
 	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
 
-	/// Evaluates input, computes output.
-	/// This method differs from forwardProp in that it unfolds recurrent blocks through time.
-	void forwardProp_training(GContext& ctx, const GVec& input, GVec& output) const;
-
+	/// Deliberately protected. Call GContextNeuralNet::backProp instead. 
 	/// Evaluates outBlame, computes inBlame.
 	/// For efficiency reasons, as a special case, if inBlame.data() == outBlame.data(), then inBlame will not be computed.
 	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
+	/// Deliberately protected. Call GContextNeuralNet::updateGradient instead. 
 	/// Updates the gradient.
-	virtual void updateGradient(GContext& ctx, const GVec &x, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const override;
+
+#ifdef GCUDA
+	virtual void forwardPropCuda(GContext& ctx, const GCudaVector& input, GCudaVector& output) const override;
+	virtual void backPropCuda(GContext& ctx, const GCudaVector& input, const GCudaVector& output, const GCudaVector& outBlame, GCudaVector& inBlame) const override;
+	virtual void updateGradientCuda(GContext& ctx, const GCudaVector& input, const GCudaVector& outBlame, GCudaVector& gradient) const override;
+#endif // GCUDA
+
 };
 
 
@@ -351,8 +394,14 @@ protected:
 	const GNeuralNet& m_nn;
 	std::vector<GContextLayer*> m_layers;
 	GContextLayer* m_pOutputLayer; // redundant pointer to the last layer for efficiency purposes
+#ifdef GCUDA
+	GCudaEngine* m_pEngine;
+#endif
 
 	GContextNeuralNet(GRand& rand, const GNeuralNet& nn); // deliberately protected. Call GNeuralNet::newContext to construct one.
+#ifdef GCUDA
+	GContextNeuralNet(GRand& rand, const GNeuralNet& nn, GCudaEngine& engine); // deliberately protected. Call GNeuralNet::newContext to construct one.
+#endif
 
 public:
 	~GContextNeuralNet();
@@ -364,10 +413,37 @@ public:
 	virtual void resetState() override;
 
 	/// Returns the activation buffer for the output layer
-	GVec& predBuf() { return m_pOutputLayer->m_activation; }
+	GVec& prediction() { return m_pOutputLayer->m_activation; }
 
 	/// Returns the blame buffer for the output layer
-	GVec& blameBuf() { return m_pOutputLayer->m_blame; }
+	GVec& blame() { return m_pOutputLayer->m_blame; }
+
+	/// Evaluates input, returns the output.
+	GVec& forwardProp(const GVec& input);
+
+	/// Evaluates input, computes output.
+	/// This method differs from forwardProp in that it unfolds recurrent blocks through time.
+	GVec& forwardProp_training(const GVec& input);
+
+	/// Backpropagates the blame from ctx.blameBuf()
+	void backProp();
+
+	/// Backpropagates the blame from ctx.blameBuf() all the way to the inputs
+	void backProp(const GVec& input, GVec& inBlame);
+
+	/// Updates the gradient.
+	void updateGradient(const GVec &input, GVec &gradient);
+
+#ifdef GCUDA
+	virtual GCudaEngine& cudaEngine() { return *m_pEngine; }
+	GCudaVector& predictionCuda() { return m_pOutputLayer->m_activationCuda; }
+	GCudaVector& blameCuda() { return m_pOutputLayer->m_blameCuda; }
+	GCudaVector& forwardPropCuda(const GCudaVector& input);
+	GCudaVector& forwardProp_trainingCuda(const GCudaVector& input);
+	void backPropCuda();
+	void backPropCuda(const GCudaVector& input, GCudaVector& inBlame);
+	void updateGradientCuda(const GCudaVector& input, GCudaVector& gradient);
+#endif
 };
 
 

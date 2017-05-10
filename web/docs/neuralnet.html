@@ -446,8 +446,6 @@ Here are some changes to the training section of the previous example to train t
 	// Train
 <font color="red">	double learningRate = 0.01;
 	double momentum = 0.0;
-	GVec prediction(trainLabels.cols());
-	GVec blame(trainLabels.cols());
 	GVec gradient(nn.weightCount());
 	gradient.fill(0.0);
 	GContextNeuralNet* pCtx = nn.newContext(rand);
@@ -469,12 +467,12 @@ Here are some changes to the training section of the previous example to train t
 		size_t index;
 		while(ii.next(index))
 <font color="red">		{
-			nn.forwardProp(*pCtx, trainFeatures[index], prediction);
-			blame.copy(trainLabels[index]);
-			blame -= prediction;
-			nn.backProp(*pCtx, trainFeatures[index], prediction, blame, blame);
+			GVec&amp; prediction = pCtx->forwardProp(trainFeatures[index]);
+			pCtx->blame().copy(trainLabels[index]);
+			pCtx->blame() -= prediction;
+			pCtx->backProp();
 			gradient *= momentum;
-			nn.updateGradient(*pCtx, trainFeatures[index], blame, gradient);
+			pCtx->updateGradient(trainFeatures[index], gradient);
 			nn.step(learningRate, gradient);
 		}</font>
 	}
