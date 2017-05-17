@@ -80,6 +80,7 @@ GBlock* GBlock::deserialize(GDomNode* pNode)
 		case block_softroot: return new GBlockSoftRoot(pNode);
 		case block_sigexp: return new GBlockSigExp(pNode);
 		case block_gaussian: return new GBlockGaussian(pNode);
+		case block_hinge: return new GBlockHinge(pNode);
 		case block_sine: return new GBlockSine(pNode);
 		case block_rectifier: return new GBlockRectifier(pNode);
 		case block_leakyrectifier: return new GBlockLeakyRectifier(pNode);
@@ -563,6 +564,133 @@ void GBlockActivation::backProp(GContext& ctx, const GVec& input, const GVec& ou
 
 
 
+GBlockHinge::GBlockHinge(double alpha, double beta, size_t size)
+{
+	resize(size, size);
+}
+
+GBlockHinge::GBlockHinge(GDomNode* pNode)
+: GBlock(pNode), m_alpha(pNode->field("alpha")), m_beta(pNode->field("beta"))
+{}
+
+GDomNode* GBlockHinge::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "alpha", m_alpha.serialize(pDoc));
+	pNode->addField(pDoc, "beta", m_beta.serialize(pDoc));
+	return pNode;
+}
+
+void GBlockHinge::resize(size_t in, size_t out)
+{
+	if(in != out)
+		throw Ex("Expected the same number of inputs as outputs.");
+	m_alpha.resize(out);
+	m_beta.resize(out);
+}
+
+void GBlockHinge::forwardProp(GContext& ctx, const GVec& input, GVec& output) const
+{
+	GAssert(input.size() == m_alpha.size());
+	GAssert(output.size() == m_alpha.size());
+	for(size_t i = 0; i < input.size(); i++)
+		output[i] = m_alpha[i] * (std::sqrt(input[i] * input[i] + m_beta[i] * m_beta[i]) - m_beta[i]) + input[i];
+}
+
+void GBlockHinge::backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
+{
+	GAssert(outBlame.size() == m_alpha.size() && inBlame.size() == m_alpha.size());
+	for(size_t i = 0; i < inBlame.size(); i++)
+		inBlame[i] += outBlame[i] * (m_alpha[i] * input[i] / std::sqrt(input[i] * input[i] + m_beta[i] * m_beta[i]) + 1.0);
+}
+
+void GBlockHinge::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const
+{
+	GAssert(gradient.size() == m_alpha.size() + m_beta.size(), "gradient size must match the number of weights!");
+	double *delta = gradient.data();
+	for(size_t i = 0; i < m_alpha.size(); ++i)
+		*delta++ += outBlame[i] * (std::sqrt(input[i] * input[i] + m_beta[i] * m_beta[i]) - m_beta[i]);
+	for(size_t i = 0; i < m_alpha.size(); ++i)
+		*delta++ += outBlame[i] * m_alpha[i] * (m_beta[i] / std::sqrt(input[i] * input[i] + m_beta[i] * m_beta[i]) - 1.0);
+}
+
+void GBlockHinge::step(double learningRate, const GVec& gradient)
+{
+	GAssert(gradient.size() == m_alpha.size() + m_beta.size(), "gradient size must match the number of weights!");
+	for(size_t i = 0; i < m_alpha.size(); ++i)
+		m_alpha[i] = std::max(-1.0, std::min(1.0, m_alpha[i] + learningRate * gradient[i]));
+	for(size_t i = 0; i < m_beta.size(); ++i)
+		m_beta[i] = std::max(0.0, m_beta[i] + learningRate * gradient[m_alpha.size() + i]);
+}
+
+size_t GBlockHinge::weightCount() const
+{
+	return m_alpha.size() + m_beta.size();
+}
+
+size_t GBlockHinge::weightsToVector(double* pOutVector) const
+{
+	for(size_t i = 0; i < m_alpha.size(); i++)
+		*(pOutVector++) = m_alpha[i];
+	for(size_t i = 0; i < m_beta.size(); i++)
+		*(pOutVector++) = m_beta[i];
+	return m_alpha.size() + m_beta.size();
+}
+
+size_t GBlockHinge::vectorToWeights(const double* pVector)
+{
+	for(size_t i = 0; i < m_alpha.size(); i++)
+		m_alpha[i] = *(pVector++);
+	for(size_t i = 0; i < m_beta.size(); i++)
+		m_beta[i] = *(pVector++);
+	return m_alpha.size() + m_beta.size();
+}
+
+void GBlockHinge::copyWeights(const GBlock* pSource)
+{
+	GBlockHinge* src = (GBlockHinge*)pSource;
+	m_alpha.copy(src->m_alpha);
+	m_beta.copy(src->m_beta);
+}
+
+void GBlockHinge::resetWeights(GRand& rand)
+{
+	m_alpha.fill(0.0);
+	m_beta.fill(0.1);
+}
+
+void GBlockHinge::perturbWeights(GRand &rand, double deviation)
+{
+	m_alpha.perturbNormal(rand, deviation);
+	m_alpha.clip(-1.0, 1.0);
+	m_beta.perturbNormal(rand, deviation);
+	m_beta.clip(0.0, 1e200);
+}
+
+void GBlockHinge::maxNorm(double min, double max)
+{
+}
+
+void GBlockHinge::scaleWeights(double factor, bool scaleBiases)
+{
+	m_alpha *= factor;
+}
+
+void GBlockHinge::diminishWeights(double amount, bool regularizeBiases)
+{
+	m_alpha.regularizeL1(amount);
+}
+
+
+
+
+
+
+
+
+
+
+
 GBlockSoftExp::GBlockSoftExp(double beta, size_t size)
 : m_beta(beta)
 {
@@ -577,6 +705,7 @@ GDomNode* GBlockSoftExp::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc);
 	pNode->addField(pDoc, "alpha", m_alpha.serialize(pDoc));
+	pNode->addField(pDoc, "beta", pDoc->newDouble(m_beta));
 	return pNode;
 }
 
@@ -621,11 +750,11 @@ void GBlockSoftExp::updateGradient(GContext& ctx, const GVec& input, const GVec&
 	for(size_t i = 0; i < m_alpha.size(); ++i)
 	{
 		if(m_alpha[i] > 1.0e-6)
-			*delta++ += ((m_alpha[i] * m_alpha[i] * m_beta + (m_alpha[i] * input[i] - 1.0) * exp(m_alpha[i] * input[i]) + 1.0) / (m_alpha[i] * m_alpha[i]));
+			*delta++ += outBlame[i] * ((m_alpha[i] * m_alpha[i] * m_beta + (m_alpha[i] * input[i] - 1.0) * exp(m_alpha[i] * input[i]) + 1.0) / (m_alpha[i] * m_alpha[i]));
 		else if(m_alpha[i] < -1.0e-6)
-			*delta++ += (log(m_alpha[i] * m_alpha[i] * (-m_beta) - m_alpha[i] * input[i] + 1.0) / (m_alpha[i] * m_alpha[i]) + (2.0 * m_alpha[i] * m_beta + input[i]) / (m_alpha[i] * (m_alpha[i] * m_alpha[i] * (-m_beta) - m_alpha[i] * input[i] + 1.0)));
+			*delta++ += outBlame[i] * (log(m_alpha[i] * m_alpha[i] * (-m_beta) - m_alpha[i] * input[i] + 1.0) / (m_alpha[i] * m_alpha[i]) + (2.0 * m_alpha[i] * m_beta + input[i]) / (m_alpha[i] * (m_alpha[i] * m_alpha[i] * (-m_beta) - m_alpha[i] * input[i] + 1.0)));
 		else
-			*delta++ += (input[i] * input[i] / 2.0 + m_beta);
+			*delta++ += outBlame[i] * (input[i] * input[i] / 2.0 + m_beta);
 	}
 }
 

@@ -916,6 +916,13 @@ void GRandomIndexIterator::reset()
 	m_pCur = m_pIndexes;
 }
 
+void GRandomIndexIterator::resetPart(size_t size)
+{
+	for(size_t i = size; i > 1; i--)
+		std::swap(m_pIndexes[i - 1], m_pIndexes[m_rand.next(i)]);
+	m_pCur = m_pIndexes;
+}
+
 bool GRandomIndexIterator::next(size_t& outIndex)
 {
 	if(m_pCur == m_pEnd)

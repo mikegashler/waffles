@@ -101,6 +101,7 @@ public:
 		block_restrictedboltzmannmachine,
 		block_convolutional1d,
 		block_convolutional2d,
+		block_hinge,
 		block_softexp,
 
 		// weightless transfer
@@ -799,6 +800,100 @@ public:
 	}
 };
 
+
+
+
+
+
+/// A parameterized activation function (a.k.a. adaptive transfer function).
+class GBlockHinge : public GBlock
+{
+protected:
+	GVec m_alpha;
+	GVec m_beta;
+
+public:
+	// When alpha is 0, this activation function always approximates identity. When alpha is positive, it bends upward. When alpha is negative, it bends downward.
+	// Beta specifies approximately how big the bending curve is. When beta is 0, it bends on a point.
+	// Size specifies the number of units in this layer.
+	GBlockHinge(double alpha = 0.0, double beta = 0.1, size_t size = 0);
+	GBlockHinge(GDomNode* pNode);
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_hinge; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockHinge"; }
+
+	/// Returns true iff this block operates only on individual elements
+	virtual bool elementWise() const { return true; }
+
+	/// Marshall this block into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const override;
+
+	/// Resizes this block.
+	virtual void resize(size_t inputs, size_t outputs) override;
+
+	/// Returns the number of inputs this block consumes
+	virtual size_t inputs() const override { return m_alpha.size(); }
+
+	/// Returns the number of outputs this block produces
+	virtual size_t outputs() const override { return m_alpha.size(); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+
+	/// Add the weight and bias gradient to the weights.
+	virtual void step(double learningRate, const GVec &gradient) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Serialize the weights in this block into a vector. Return the number of elements written.
+	virtual size_t weightsToVector(double* pOutVector) const override;
+
+	/// Deserialize from a vector to the weights in this block. Return the number of elements consumed.
+	virtual size_t vectorToWeights(const double* pVector) override;
+
+	/// Copy the weights from pSource to this block. (Assumes pSource is the same type of block.)
+	virtual void copyWeights(const GBlock* pSource) override;
+
+	/// Initialize the weights with small random values.
+	virtual void resetWeights(GRand& rand) override;
+
+	/// Perturbs the weights that feed into the specifed units with Gaussian noise. The
+	/// default values apply the perturbation to all units.
+	virtual void perturbWeights(GRand& rand, double deviation) override;
+
+	/// Scales weights if necessary such that the manitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
+	virtual void maxNorm(double min, double max) override;
+
+	/// Multiplies all the weights by the specified factor.
+	virtual void scaleWeights(double factor, bool scaleBiases) override;
+
+	/// Moves all weights in the direction of zero by the specified amount.
+	virtual void diminishWeights(double amount, bool regularizeBiases) override;
+
+	/// Get the alpha vector
+	GVec& alpha() { return m_alpha; }
+
+	/// Get the alpha vector
+	const GVec& alpha() const { return m_alpha; }
+
+	/// Get the beta vector
+	GVec& beta() { return m_beta; }
+
+	/// Get the beta vector
+	const GVec& beta() const { return m_beta; }
+};
 
 
 

@@ -479,6 +479,9 @@ public:
 	/// Shuffles the order of the indexes, and starts the iterator over at the beginning.
 	void reset();
 
+	/// Shuffles only the first "size" indexes in the list and starts the iterator over at the beginning.
+	void resetPart(size_t size);
+
 	/// If the end of the list has been reached, returns false. Otherwise, sets outIndex
 	/// to the next index, and returns true. (Note that you should call reset() before
 	/// the first call to this method. The constructor does not call reset() for you.)
@@ -491,6 +494,9 @@ public:
 	/// to identify progress.) Note that you need to subtract 1 to obtain the position of the
 	/// value from the most recent call to "next".
 	size_t pos() { return m_pCur - m_pIndexes; }
+
+	/// Jumps to the specified position in the list.
+	void setPos(size_t index) { m_pCur = m_pIndexes + index; }
 
 	/// Returns a reference to the random number generator.
 	GRand& rand() { return m_rand; }
