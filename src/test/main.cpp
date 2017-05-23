@@ -904,6 +904,7 @@ public:
 		runTest("GBits", GBits::test);
 		runTest("GBitTable", GBitTable::test);
 //		runTest("GBlockGRU", GBlockGRU::test);
+		runTest("GBlockLinear", GBlockLinear::test);
 //		runTest("GBlockLSTM", GBlockLSTM::test);
 		runTest("GBouncyBalls", GBouncyBalls::test);
 		runTest("GReverseBits", reverseBitsTest);

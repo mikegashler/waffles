@@ -1167,6 +1167,118 @@ void GBlockLinear::dropOutput(size_t output)
 	m_weights.deleteColumns(output, 1);
 }
 
+void GBlockLinear::trainOLS(const GMatrix& features, const GMatrix& labels, const GVec* sampleWeights)
+{
+	// Check values
+	if(features.rows() != labels.rows())
+		throw Ex("features and rows have mismatching numbers of patterns");
+	if(sampleWeights && features.rows() != sampleWeights->size())
+		throw Ex("mismatching number of weights");
+
+	// Subtract centroids
+	GMatrix inputs(features);
+	inputs.centerMeanAtOrigin();
+	GMatrix outputs(labels);
+	outputs.centerMeanAtOrigin();
+
+	// Compute the numerator
+	GMatrix num(outputs.cols(), inputs.cols());
+	num.fill(0.0);
+	for(size_t i = 0; i < inputs.rows(); i++)
+	{
+		double s = sampleWeights ? (*sampleWeights)[i] : 1.0;
+		GVec& srcFeat = inputs[i];
+		GVec& srcLab = outputs[i];
+		for(size_t j = 0; j < outputs.cols(); j++)
+		{
+			GVec& dest = num[j];
+			double t = srcLab[j] * s;
+			for(size_t k = 0; k < inputs.cols(); k++)
+				dest[k] += t * srcFeat[k];
+		}
+	}
+
+	// Compute the denominator
+	GMatrix tmp(inputs.cols(), inputs.cols());
+	tmp.fill(0.0);
+	for(size_t i = 0; i < inputs.rows(); i++)
+	{
+		double s = sampleWeights ? (*sampleWeights)[i] : 1.0;
+		GVec& src = inputs[i];
+		for(size_t j = 0; j < inputs.cols(); j++)
+		{
+			GVec& dest = tmp[j];
+			for(size_t k = j; k < inputs.cols(); k++)
+				dest[k] += s * src[j] * src[k];
+		}
+	}
+	for(size_t j = 1; j < inputs.cols(); j++)
+	{
+		for(size_t k = 0; k < j; k++)
+			tmp[j][k] = tmp[k][j];
+	}
+	GMatrix* denom = tmp.pseudoInverse();
+	Holder<GMatrix> hDenom(denom);
+
+	// Compute the weights
+	GMatrix* pWeights = GMatrix::multiply(num, *denom, false, false);
+	Holder<GMatrix> hWeights(pWeights);
+	m_weights.copyTranspose(*pWeights);
+
+	// Compute the bias
+	GVec featCentroid(features.cols());
+	features.centroid(featCentroid, sampleWeights);
+	GVec labCentroid(labels.cols());
+	labels.centroid(labCentroid, sampleWeights);
+	pWeights->multiply(featCentroid, m_bias);
+	m_bias *= -1.0;
+	m_bias += labCentroid;
+}
+
+#ifndef MIN_PREDICT
+// static
+void GBlockLinear::test()
+{
+	// Pick some random weights
+	GRand rand(0);
+	GBlockLinear a(2, 3);
+	for(size_t i = 0; i < a.inputs(); i++)
+	{
+		for(size_t j = 0; j < a.outputs(); j++)
+			a.m_weights[i][j] = rand.normal();
+	}
+	for(size_t j = 0; j < a.outputs(); j++)
+		a.m_bias[j] = rand.normal();
+	
+	// Make some data
+	GMatrix feat(20, a.inputs());
+	GMatrix lab(20, a.outputs());
+	GContext* pCtx = nullptr;
+	for(size_t i = 0; i < 20; i++)
+	{
+		GVec& in = feat[i];
+		for(size_t j = 0; j < a.inputs(); j++)
+			in[j] = rand.normal();
+		a.forwardProp(*pCtx, in, lab[i]);
+	}
+	
+	// Try to reconstruct the data
+	GBlockLinear b(2, 3);
+	b.trainOLS(feat, lab);
+
+	// Check the weights
+	for(size_t i = 0; i < a.inputs(); i++)
+	{
+		for(size_t j = 0; j < a.outputs(); j++)
+			if(std::abs(a.m_weights[i][j] - b.m_weights[i][j]) > 1e-7)
+				throw Ex("wrong answer");
+	}
+	for(size_t j = 0; j < a.outputs(); j++)
+		if(std::abs(a.m_bias[j] - b.m_bias[j]) > 1e-7)
+			throw Ex("wrong answer");
+}
+#endif
+
 
 
 

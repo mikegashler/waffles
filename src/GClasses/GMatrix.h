@@ -540,8 +540,11 @@ public:
 	/// replacing all data currently in this matrix.
 	void copyCols(const GMatrix& that, size_t firstCol, size_t colCount);
 
-	/// \brief Copies (deep) all the data and metadata from pThat.
+	/// \brief Copies (deep) all the data and metadata from that.
 	void copy(const GMatrix& that, size_t rowStart = 0, size_t colStart = 0, size_t rowCount = (size_t)-1, size_t colCount = (size_t)-1);
+
+	/// \brief Copies the transpose of that into this matrix.
+	void copyTranspose(GMatrix& that);
 
 	/// \brief This computes the square root of this matrix. (If you
 	/// take the matrix that this returns and multiply it by its
@@ -954,7 +957,7 @@ public:
 	/// If pWeights is non-NULL, then it is assumed to be a vector of weights, one for each row in this matrix.
 	/// If there are no values in this column with any weight, then it will throw an exception if throwIfEmpty is true,
 	/// or else return UNKNOWN_REAL_VALUE.
-	double columnMean(size_t nAttribute, const double* pWeights = NULL, bool throwIfEmpty = true) const;
+	double columnMean(size_t nAttribute, const GVec* pWeights = NULL, bool throwIfEmpty = true) const;
 
 	/// Returns the squared magnitude of the vector in the specified column.
 	double columnSquaredMagnitude(size_t col) const;
@@ -979,7 +982,7 @@ public:
 
 	/// \brief Computes the arithmetic means of all attributes
 	/// If pWeights is non-NULL, then it is assumed to be a vector of weights, one for each row in this matrix.
-	void centroid(GVec& outCentroid, const double* pWeights = NULL) const;
+	void centroid(GVec& outCentroid, const GVec* pWeights = NULL) const;
 
 	/// \brief Normalizes the specified column
 	void normalizeColumn(size_t col, double dInMin, double dInMax, double dOutMin = 0.0, double dOutMax = 1.0);

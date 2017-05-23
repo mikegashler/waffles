@@ -2607,6 +2607,16 @@ void GMatrix::copy(const GMatrix& that, size_t rowStart, size_t colStart, size_t
 	copyBlock(that, rowStart, colStart, rowCount, colCount, 0, 0, false);
 }
 
+void GMatrix::copyTranspose(GMatrix& that)
+{
+	resize(that.cols(), that.rows());
+	for(size_t i = 0; i < that.rows(); i++)
+	{
+		for(size_t j = 0; j < that.cols(); j++)
+			(*this)[j][i] = that[i][j];
+	}
+}
+
 void GMatrix::copyBlock(const GMatrix& source, size_t srcRow, size_t srcCol, size_t hgt, size_t wid, size_t destRow, size_t destCol, bool checkMetaData)
 {
 	wid = std::min(wid, std::max((size_t)0, source.cols() - srcCol));
@@ -2971,7 +2981,7 @@ double GMatrix::columnSum(size_t col) const
 	return sum;
 }
 
-double GMatrix::columnMean(size_t nAttribute, const double* pWeights, bool throwIfEmpty) const
+double GMatrix::columnMean(size_t nAttribute, const GVec* pWeights, bool throwIfEmpty) const
 {
 	if(nAttribute >= cols())
 		throw Ex("attribute index out of range");
@@ -2983,10 +2993,9 @@ double GMatrix::columnMean(size_t nAttribute, const double* pWeights, bool throw
 		{
 			if((*this)[i][nAttribute] != UNKNOWN_REAL_VALUE)
 			{
-				sum += *pWeights * (*this)[i][nAttribute];
-				sumWeight += *pWeights;
+				sum += (*pWeights)[i] * (*this)[i][nAttribute];
+				sumWeight += (*pWeights)[i];
 			}
-			pWeights++;
 		}
 		if(sumWeight > 0.0)
 			return sum / sumWeight;
@@ -3058,7 +3067,7 @@ double GMatrix::columnMedian(size_t nAttribute, bool throwIfEmpty) const
 }
 #endif // MIN_PREDICT
 
-void GMatrix::centroid(GVec& outCentroid, const double* pWeights) const
+void GMatrix::centroid(GVec& outCentroid, const GVec* pWeights) const
 {
 	size_t c = cols();
 	outCentroid.resize(c);

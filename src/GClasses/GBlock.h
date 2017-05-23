@@ -980,6 +980,9 @@ public:
 
 	/// Get the alpha vector
 	const GVec& alpha() const { return m_alpha; }
+
+	/// Returns beta
+	double beta() const { return m_beta; }
 };
 
 
@@ -1126,6 +1129,13 @@ public:
 
 	/// Drops an output from this block
 	void dropOutput(size_t output);
+
+	/// Trains the weights of this layer using closed-form Ordinary Least Squares from some training data and an optional vector of sample weights
+	void trainOLS(const GMatrix& features, const GMatrix& labels, const GVec* sampleWeights = nullptr);
+
+#ifndef MIN_PREDICT
+	static void test();
+#endif
 };
 
 
