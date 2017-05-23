@@ -69,10 +69,16 @@ GCharSet::GCharSet(const char* szChars)
 	}
 }
 
-bool GCharSet::find(char c)
+bool GCharSet::find(char c) const
 {
 	return m_bt.bit((unsigned char)c);
 }
+
+bool GCharSet::equals(const GCharSet& other) const
+{
+	return m_bt.equals(other.m_bt);
+}
+
 
 
 GTokenizer::GTokenizer(const char* szFilename)
@@ -226,7 +232,7 @@ char* GTokenizer::appendToToken(const char* string)
 	return nullTerminate();
 }
 
-char* GTokenizer::nextUntil(GCharSet& delimeters, size_t minLen)
+char* GTokenizer::nextUntil(const GCharSet& delimeters, size_t minLen)
 {
 	m_pBufPos = m_pBufStart;
 	while(has_more())
@@ -242,7 +248,7 @@ char* GTokenizer::nextUntil(GCharSet& delimeters, size_t minLen)
 	return nullTerminate();
 }
 
-char* GTokenizer::nextUntilNotEscaped(char escapeChar, GCharSet& delimeters)
+char* GTokenizer::nextUntilNotEscaped(char escapeChar, const GCharSet& delimeters)
 {
 	m_pBufPos = m_pBufStart;
 	char cCur = '\0';
@@ -258,7 +264,7 @@ char* GTokenizer::nextUntilNotEscaped(char escapeChar, GCharSet& delimeters)
 	return nullTerminate();
 }
 
-char* GTokenizer::nextWhile(GCharSet& set, size_t minLen)
+char* GTokenizer::nextWhile(const GCharSet& set, size_t minLen)
 {
 	m_pBufPos = m_pBufStart;
 	while(has_more())
@@ -274,7 +280,7 @@ char* GTokenizer::nextWhile(GCharSet& set, size_t minLen)
 	return nullTerminate();
 }
 
-void GTokenizer::skip(GCharSet& delimeters)
+void GTokenizer::skip(const GCharSet& delimeters)
 {
 	while(has_more())
 	{
@@ -285,7 +291,7 @@ void GTokenizer::skip(GCharSet& delimeters)
 	}
 }
 
-void GTokenizer::skipTo(GCharSet& delimeters)
+void GTokenizer::skipTo(const GCharSet& delimeters)
 {
 	while(has_more())
 	{
@@ -296,7 +302,7 @@ void GTokenizer::skipTo(GCharSet& delimeters)
 	}
 }
 
-char* GTokenizer::nextArg(GCharSet& delimiters, char escapeChar)
+char* GTokenizer::nextArg(const GCharSet& delimiters, char escapeChar)
 {
 	m_pBufPos = m_pBufStart;
 	char c = peek();
@@ -404,7 +410,7 @@ size_t GTokenizer::tokenLength()
 	return m_pBufPos - m_pBufStart;
 }
 
-char* GTokenizer::trim(GCharSet& set)
+char* GTokenizer::trim(const GCharSet& set)
 {
 	char* pStart = m_pBufStart;
 	while(pStart < m_pBufPos && set.find(*pStart))
@@ -412,6 +418,23 @@ char* GTokenizer::trim(GCharSet& set)
 	for(char* pEnd = m_pBufPos - 1; pEnd >= pStart && set.find(*pEnd); pEnd--)
 		*pEnd = '\0';
 	return pStart;
+}
+
+char* GTokenizer::filter(const GCharSet& set)
+{
+	size_t end = m_pBufPos - m_pBufStart;
+	for(size_t i = 0; i < end; i++)
+	{
+		if(!set.find(m_pBufStart[i]))
+		{
+			for(size_t j = i; j < end - 1; j++)
+				m_pBufStart[j] = m_pBufStart[j + 1];
+			end--;
+			m_pBufStart[end] = '\0';
+			i--;
+		}
+	}
+	return m_pBufStart;
 }
 
 size_t GTokenizer::col()

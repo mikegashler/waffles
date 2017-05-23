@@ -50,7 +50,10 @@ public:
 	GCharSet(const char* szChars);
 
 	/// Returns true iff c is in the character set
-	bool find(char c);
+	bool find(char c) const;
+
+	/// Returns true iff other is the same as this character set
+	bool equals(const GCharSet& other) const;
 };
 
 
@@ -58,23 +61,21 @@ public:
 #define GTOKENIZER_MAX_LOOKAHEAD 8
 
 /// This is a simple tokenizer that reads a file, one token at-a-time.
-/// To use it, you should make a child class that defines several character sets. Example:
+/// Example usage:
 ///
-/// class MyTokenizer : public GTokenizer
+/// GCharSet whitespace("\t\n\r ");
+/// GCharSet alphanum("a-zA-Z0-9");
+/// GCharSet float("-.,0-9e");
+/// GCharSet commanewline(",\n");
+/// GTokenizer tok(filename);
+/// while(true)
 /// {
-/// public:
-/// 	GCharSet m_whitespace, m_alphanum, m_float, m_commanewline;
-///
-/// 	MyTokenizer(const char* szFilename) : GTokenizer(szFilename),
-/// 		m_whitespace("\t\n\r "),
-/// 		m_alphanum("a-zA-Z0-9"),
-/// 		m_float("-.,0-9e"),
-/// 		m_commanewline(",\n")
-/// 		{}
-///
-/// 	virtual ~MyTokenizer() {}
-/// };
-///
+/// 	tok.skip(whitespace);
+/// 	if(!tok.has_more())
+/// 		break;
+/// 	char* mystr = tok.nextWhile(alphanum);
+/// 	tok.skip(commanewline);
+/// }
 class GTokenizer
 {
 protected:
@@ -123,19 +124,19 @@ public:
 	/// minLen characters are read.
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
-	char* nextUntil(GCharSet& delimeters, size_t minLen = 1);
+	char* nextUntil(const GCharSet& delimeters, size_t minLen = 1);
 
 	/// Reads until the next character would be one of the specified delimeters,
 	/// and the current character is not escapeChar.
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
-	char* nextUntilNotEscaped(char escapeChar, GCharSet& delimeters);
+	char* nextUntilNotEscaped(char escapeChar, const GCharSet& delimeters);
 
 	/// Reads while the character is one of the specified characters. Throws an
 	/// exception if fewer than minLen characters are read.
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
-	char* nextWhile(GCharSet& set, size_t minLen = 1);
+	char* nextWhile(const GCharSet& set, size_t minLen = 1);
 
 	/// \brief Returns the next token defined by the given delimiters.
 	/// \brief Allows quoting " or ' and escapes with an escape
@@ -174,17 +175,17 @@ public:
 	///
 	///\return a pointer to an internal character buffer containing the
 	///        null-terminated token
-	char* nextArg(GCharSet& delimiters, char escapeChar = '\\');
+	char* nextArg(const GCharSet& delimiters, char escapeChar = '\\');
 
 	/// Reads past any characters specified in the list of delimeters.
 	/// If szDelimeters is NULL, then any characters <= ' ' are considered
 	/// to be delimeters. (This method is similar to nextWhile, except that
 	/// it does not buffer the characters it reads.)
-	void skip(GCharSet& delimeters);
+	void skip(const GCharSet& delimeters);
 
 	/// Skip until the next character is one of the delimeters.
 	/// (This method is the same as nextUntil, except that it does not buffer what it reads.)
-	void skipTo(GCharSet& delimeters);
+	void skipTo(const GCharSet& delimeters);
 
 	/// Advances past the next 'n' characters. (Stops if the end-of-file is reached.)
 	void advance(size_t n);
@@ -198,7 +199,11 @@ public:
 	/// trimmed off of both the beginning and end of the token. For example, this method could
 	/// be used to convert "  tok  " to "tok".
 	/// (Calling this method will not change the value returned by tokenLength.)
-	char* trim(GCharSet& set);
+	char* trim(const GCharSet& set);
+
+	/// Returns the previously-returned token, except with any characters not in the specified set removed.
+	/// (Calling this method will not change the value returned by tokenLength.)
+	char* filter(const GCharSet& set);
 
 	/// Returns the current line number. (Begins at 1. Each time a '\n' is encountered,
 	/// the line number is incremented. Mac line-endings do not increment the

@@ -121,10 +121,10 @@ public:
 	virtual size_t findWithinRadius(double squaredRadius, size_t pointIndex) { m_focus = pointIndex; return m_neighs[pointIndex].size(); }
 
 	/// See the comment for GNeighborFinder::neighbor
-	virtual size_t neighbor(size_t i) { return m_neighs[m_focus][i]; }
+	virtual size_t neighbor(size_t i) { GAssert(i < m_neighs[m_focus].size()); return m_neighs[m_focus][i]; }
 
 	/// See the comment for GNeighborFinder::distance
-	virtual double distance(size_t i) { return m_dists[m_focus][i]; }
+	virtual double distance(size_t i) { GAssert(i < m_dists[m_focus].size()); return m_dists[m_focus][i]; }
 
 	/// See the comment for GNeighborFinder::isCached.
 	virtual bool isCached() { return true; }
