@@ -531,12 +531,21 @@ public:
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
 	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
 
+	/// Computes the input that would produce the specified output.
+	/// (May throw an exception if this activation function is not invertible.)
+	void inverseProp(GContext& ctx, const GVec& output, GVec& input) const;
+
 	/// Evaluates the activation function
 	virtual double eval(double x) const = 0;
 
 	/// Evaluates the derivative of the activation function.
 	/// x is the net input, and f_x is the output activation--the value obtained by calling eval(x).
 	virtual double derivative(double x, double f_x) const = 0;
+
+	virtual double inverse(double y) const
+	{
+		throw Ex("Sorry, this activation function is not invertible");
+	}
 };
 
 
@@ -555,6 +564,7 @@ public:
 	virtual std::string name() const override { return "GBlockIdentity"; }
 	virtual double eval(double x) const override { return x; }
 	virtual double derivative(double x, double f_x) const override { return 1.0; }
+	virtual double inverse(double y) const { return y; }
 };
 
 
@@ -587,6 +597,7 @@ public:
 	virtual std::string name() const override { return "GBlockTanh"; }
 	virtual double eval(double x) const override { return std::tanh(x); }
 	virtual double derivative(double x, double f_x) const override { return 1.0 - (f_x * f_x); }
+	virtual double inverse(double y) const { return 0.5 * std::log(-(y + 1) / (y - 1)); }
 };
 
 
@@ -613,6 +624,7 @@ public:
 	virtual std::string name() const override { return "GBlockScaledTanh"; }
 	virtual double eval(double x) const override { return std::tanh(x * SCALE_IN) * SCALE_OUT; }
 	virtual double derivative(double x, double f_x) const override { return SCALE_IN/SCALE_OUT*(SCALE_OUT-f_x)*(SCALE_OUT+f_x); }
+	virtual double inverse(double y) const { return 0.5 / SCALE_IN * std::log(-(y / SCALE_OUT + 1) / (y / SCALE_OUT - 1)); }
 };
 
 
@@ -639,16 +651,17 @@ public:
 
 	}
 	virtual double derivative(double x, double f_x) const override { return f_x * (1.0 - f_x); }
+	virtual double inverse(double y) const { return std::log(y / (1.0 - y)); }
 };
 
 
 
 #define BEND_AMOUNT 0.5
-#define BEND_SIZE 0.5
+#define BEND_SIZE 0.1
 /// Applies the Bent identity element-wise to the input. 
 /// | Equation  | Plot
 /// | --------- | -------
-/// | \f[ f(x) = \frac{\sqrt{x^2+1}-1}{2}+x \f]   | ![](Activation_bent_identity.png)
+/// | \f[ f(x) = \frac{\sqrt{x^2+0.01}-0.1}{2}+x \f]   | ![](Activation_bent_identity.png)
 ///
 class GBlockBentIdentity : public GBlockActivation
 {
@@ -659,6 +672,7 @@ public:
 	virtual std::string name() const override { return "GBlockBentIdentity"; }
 	virtual double eval(double x) const override { return BEND_AMOUNT * (std::sqrt(x * x + BEND_SIZE * BEND_SIZE) - BEND_SIZE) + x; }
 	virtual double derivative(double x, double f_x) const override { return BEND_AMOUNT * x / std::sqrt(x * x + BEND_SIZE * BEND_SIZE) + 1.0; }
+	virtual double inverse(double y) const { return (std::sqrt(2.0 * BEND_AMOUNT * BEND_AMOUNT * BEND_AMOUNT * BEND_SIZE * y + BEND_AMOUNT * BEND_AMOUNT * BEND_SIZE * BEND_SIZE + BEND_AMOUNT * BEND_AMOUNT * y * y) - BEND_AMOUNT * BEND_SIZE - y) / (BEND_AMOUNT * BEND_AMOUNT - 1.0); }
 };
 
 
@@ -674,6 +688,7 @@ public:
 	virtual std::string name() const override { return "GBlockSigExp"; }
 	virtual double eval(double x) const override { return (x <= 0.0 ? exp(x) - 1.0 : std::log(x + 1.0)); }
 	virtual double derivative(double x, double f_x) const override { return (x <= 0.0 ? std::exp(x) : 1.0 / (x + 1.0)); }
+	virtual double inverse(double y) const { return (y > 0.0 ? exp(y) - 1.0 : std::log(y + 1.0)); }
 };
 
 
@@ -748,6 +763,7 @@ public:
 	virtual std::string name() const override { return "GBlockLeakyRectifier"; }
 	virtual double eval(double x) const override { return x >= 0.0 ? x : 0.01 * x; }
 	virtual double derivative(double x, double f_x) const override { return x >= 0.0 ? 1.0 : 0.01; }
+	virtual double inverse(double y) const { return (y > 0.0 ? y : 100.0 * y); }
 };
 
 
@@ -768,6 +784,7 @@ public:
 	virtual std::string name() const override { return "GBlockSoftPlus"; }
 	virtual double eval(double x) const override { return x > 500 ? x : log(1.0 + exp(x)); }
 	virtual double derivative(double x, double f_x) const override { return 1.0 / (1.0 + exp(-x)); }
+	virtual double inverse(double y) const { return log(exp(y) - 1.0); }
 };
 
 
@@ -798,6 +815,7 @@ public:
 		double t = x / d;
 		return (t + 1.0) / (2.0 * std::sqrt(d + x)) - (t - 1.0) / (2.0 * std::sqrt(d - x));
 	}
+	virtual double inverse(double y) const { return 0.5 * y * std::sqrt(y * y + 4.0); }
 };
 
 

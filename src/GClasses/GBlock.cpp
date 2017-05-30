@@ -555,6 +555,12 @@ void GBlockActivation::backProp(GContext& ctx, const GVec& input, const GVec& ou
 		inBlame[i] += outBlame[i] * derivative(input[i], output[i]);
 }
 
+void GBlockActivation::inverseProp(GContext& ctx, const GVec& output, GVec& input) const
+{
+	for(size_t i = 0; i < output.size(); i++)
+		input[i] = inverse(output[i]);
+}
+
 
 
 

@@ -406,6 +406,7 @@ protected:
 public:
 	~GContextNeuralNet();
 
+	const GNeuralNet& nn() { return m_nn; }
 	size_t layerCount() const { return m_layers.size(); }
 	GContextLayer& layer(size_t i) { return *m_layers[i]; }
 
