@@ -326,6 +326,7 @@ And, here is some code that trains a neural network with this data:</p>
 #include &lt;GClasses/GNeuralNet.h&gt;
 #include &lt;GClasses/GActivation.h&gt;
 #include &lt;GClasses/GTransform.h&gt;
+#include &lt;GClasses/GTime.h&gt;
 #include &lt;GClasses/GVec.h&gt;
 #include &lt;GClasses/GHolders.h&gt;
 
@@ -358,7 +359,6 @@ int main(int argc, char *argv[])
 	GMatrix&amp; trainFeatures = dpFeat.get(0);
 	GMatrix&amp; trainLabels = dpLab.get(0);
 	GMatrix&amp; testFeatures = dpFeat.get(1);
-	GMatrix&amp; testLabels = dpLab.get(1);
 
 	// Make a neural network
 	GNeuralNet nn;
@@ -368,7 +368,7 @@ int main(int argc, char *argv[])
 
 	// Prepare for training
 	GRand rand(0);
-	GSGDOptimizer optimizer(nn, rand);
+	GSGDOptimizer optimizer(nn, rand, &amp;trainFeatures, &amp;trainLabels);
 	optimizer.setLearningRate(0.01);
 	nn.init(trainFeatures.cols(), trainLabels.cols(), rand);
 	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
@@ -376,29 +376,18 @@ int main(int argc, char *argv[])
 	cout &lt;&lt; "% Topology:\n";
 	cout &lt;&lt; nn.to_str("% ") &lt;&lt; "\n";
 	cout &lt;&lt; "@RELATION neural_net_training\n";
-	cout &lt;&lt; "@ATTRIBUTE internal_rmse_train real\n";
-	cout &lt;&lt; "@ATTRIBUTE internal_rmse_test real\n";
 	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
+	cout &lt;&lt; "@ATTRIBUTE elapsed_time real\n";
 	cout &lt;&lt; "@DATA\n";
 
 	// Train
-	GRandomIndexIterator ii(trainFeatures.rows(), rand);
+	double starttime = GTime::seconds();
 	for(size_t epoch = 0; epoch &lt; 10; epoch++)
 	{
-		// Validate
-		double sseTrain = nn.measureLoss(trainFeatures, trainLabels);
-		cout &lt;&lt; to_str(std::sqrt(sseTrain / trainFeatures.rows())) &lt;&lt; ", ";
-		double sseTest = nn.measureLoss(testFeatures, testLabels);
-		cout &lt;&lt; to_str(std::sqrt(sseTest / testFeatures.rows())) &lt;&lt; ", ";
 		double mis = nn.measureLoss(testFeatures, rawTestLabels);
-		cout &lt;&lt; to_str((double)mis / testFeatures.rows()) &lt;&lt; "\n";
+		cout &lt;&lt; to_str((double)mis / testFeatures.rows()) &lt;&lt; "," &lt;&lt; to_str(GTime::seconds() - starttime) &lt;&lt; "\n";
 		cout.flush();
-
-		// Do an epoch of training
-		ii.reset();
-		size_t index;
-		while(ii.next(index))
-			optimizer.optimizeIncremental(trainFeatures[index], trainLabels[index]);
+		optimizer.optimizeEpoch();
 	}
 	return 0;
 }
@@ -449,24 +438,18 @@ Here are some changes to the training section of the previous example to train t
 	GVec gradient(nn.weightCount());
 	gradient.fill(0.0);
 	GContextNeuralNet* pCtx = nn.newContext(rand);
-	std::unique_ptr&lt;GContextNeuralNet&gt; hCtx(pCtx);</font>
-	GRandomIndexIterator ii(trainFeatures.rows(), rand);
+	std::unique_ptr&lt;GContextNeuralNet&gt; hCtx(pCtx);
+	GRandomIndexIterator ii(trainFeatures.rows(), rand);</font>
 	for(size_t epoch = 0; epoch &lt; 10; epoch++)
 	{
-		// Validate
-		double sseTrain = nn.measureLoss(trainFeatures, trainLabels);
-		cout &lt;&lt; to_str(std::sqrt(sseTrain / trainFeatures.rows())) &lt;&lt; ", ";
-		double sseTest = nn.measureLoss(testFeatures, testLabels);
-		cout &lt;&lt; to_str(std::sqrt(sseTest / testFeatures.rows())) &lt;&lt; ", ";
 		double mis = nn.measureLoss(testFeatures, rawTestLabels);
-		cout &lt;&lt; to_str((double)mis / testFeatures.rows()) &lt;&lt; "\n";
+		cout &lt;&lt; to_str((double)mis / testFeatures.rows()) &lt;&lt; "," &lt;&lt; to_str(GTime::seconds() - starttime) &lt;&lt; "\n";
 		cout.flush();
 
-		// Do an epoch of training
-		ii.reset();
+<font color="red">		ii.reset();
 		size_t index;
 		while(ii.next(index))
-<font color="red">		{
+		{
 			GVec&amp; prediction = pCtx->forwardProp(trainFeatures[index]);
 			pCtx->blame().copy(trainLabels[index]);
 			pCtx->blame() -= prediction;

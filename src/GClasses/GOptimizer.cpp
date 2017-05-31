@@ -76,25 +76,47 @@ void GSquaredError::calculateOutputLayerBlame(const GVec &prediction, const GVec
 	}
 }
 
+#ifdef GCUDA
+void GSquaredError::calculateOutputLayerBlameCuda(GCudaEngine& e, const GCudaVector& prediction, const GCudaVector& label, GCudaVector& blame)
+{
+	GAssert(!m_useSlack); // Sorry, slack is not implemented for the GPU yet
+	blame.copy(e, label);
+	blame.add(e, pred, -1.0);
+}
+#endif // GUCDA
 
 
 
 
 
 
-
-GNeuralNetOptimizer::GNeuralNetOptimizer(GNeuralNet& model, GRand& rand, GObjective* objective)
+GNeuralNetOptimizer::GNeuralNetOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTrainingFeatures, const GMatrix* pTrainingLabels, GObjective* objective)
 : m_objective(objective != NULL ? objective : new GSquaredError()),
   m_model(model),
   m_pContext(nullptr),
+  m_pTrainingFeatures(pTrainingFeatures),
+  m_pTrainingLabels(pTrainingLabels),
+#ifdef GCUDA
+  m_pTrainingFeaturesCuda(nullptr);
+  m_pTrainingLabelsCuda(nullptr);
+#endif // GCUDA
   m_rand(rand),
-  m_batchSize(1), m_batchesPerEpoch(INVALID_INDEX), m_epochs(100), m_windowSize(100), m_minImprovement(0.002), m_learningRate(0.05)
-{}
+  m_batchSize(1), m_batchesPerEpoch(INVALID_INDEX), m_epochs(100), m_windowSize(100), m_minImprovement(0.002), m_learningRate(0.05),
+  m_pII(nullptr)
+{
+	if(m_pTrainingFeatures && m_pTrainingLabels && m_pTrainingFeatures->rows() != m_pTrainingLabels->rows())
+		throw Ex("Mismatching numbers of training features and labels");
+}
 
 GNeuralNetOptimizer::~GNeuralNetOptimizer()
 {
 	delete(m_pContext);
 	delete(m_objective);
+	delete(m_pII);
+#ifdef GCUDA
+	delete(m_pTrainingFeaturesCuda);
+	delete(m_pTrainingLabelsCuda);
+#endif // GCUDA
 }
 
 GContextNeuralNet& GNeuralNetOptimizer::context()
@@ -112,12 +134,55 @@ void GNeuralNetOptimizer::resetState()
 	context().resetState();
 }
 
-void GNeuralNetOptimizer::optimizeIncremental(const GVec &feat, const GVec &lab)
+void GNeuralNetOptimizer::optimizeIncremental(const GVec& feat, const GVec& lab)
 {
 	GAssert(feat.size() == m_model.layer(0).inputs() && lab.size() == m_model.outputLayer().outputs(), "Features/labels size mismatch!");
 	GAssert(feat.size() != 0 && lab.size() != 0, "Features/labels are empty!");
 	computeGradient(feat, lab);
 	descendGradient(m_learningRate);
+}
+
+#ifdef GCUDA
+void GNeuralNetOptimizer::optimizeIncrementalCuda(const GCudaVector& feat, const GCudaVector& lab)
+{
+	GAssert(feat.size() == m_model.layer(0).inputs() && lab.size() == m_model.outputLayer().outputs(), "Features/labels size mismatch!");
+	GAssert(feat.size() != 0 && lab.size() != 0, "Features/labels are empty!");
+	computeGradientCuda(feat, lab);
+	descendGradientCuda(m_learningRate);
+}
+#endif // GCUDA
+
+void GNeuralNetOptimizer::optimizeEpoch()
+{
+	if(!m_pII || m_pII->length() != m_pTrainingFeatures->rows())
+	{
+		delete(m_pII);
+		m_pII = new GRandomIndexIterator(m_pTrainingFeatures->rows(), m_rand);
+	}
+	m_pII->reset();
+	size_t index;
+#ifdef GCUDA
+	if(true)
+	{
+		if(!m_pTrainingFeaturesCuda)
+		{
+			GAssert(!m_pTrainingLabelsCuda);
+			m_pTrainingFeaturesCuda = new GCudaMatrix();
+			m_pTrainingFeaturesCuda->upload(*m_pTrainingFeatures);
+			m_pTrainingLabelsCuda = new GCudaMatrix();
+			m_pTrainingLabelsCuda->upload(*m_pTrainingLabels);
+		}
+		while(m_pII->next(index))
+			optimizeIncrementalCuda((*m_pTrainingFeaturesCuda)[index], (*m_pTrainingLabelsCuda)[index]);
+	}
+	else
+	{
+#endif // GCUDA
+		while(m_pII->next(index))
+			optimizeIncremental((*m_pTrainingFeatures)[index], (*m_pTrainingLabels)[index]);
+#ifdef GCUDA
+	}
+#endif // GCUDA
 }
 
 void GNeuralNetOptimizer::optimizeBatch(const GMatrix &features, const GMatrix &labels, size_t start, size_t batchSize)
@@ -230,8 +295,8 @@ double GNeuralNetOptimizer::sumLoss(const GMatrix &features, const GMatrix &labe
 
 
 
-GSGDOptimizer::GSGDOptimizer(GNeuralNet& model, GRand& rand, GObjective* objective)
-: GNeuralNetOptimizer(model, rand, objective), m_momentum(0)
+GSGDOptimizer::GSGDOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTrainingFeatures, const GMatrix* pTrainingLabels, GObjective* objective)
+: GNeuralNetOptimizer(model, rand, pTrainingFeatures, pTrainingLabels, objective), m_momentum(0)
 {
 }
 
@@ -239,6 +304,11 @@ void GSGDOptimizer::prepareForOptimizing()
 {
 	m_gradient.resize(m_model.weightCount());
 	m_gradient.fill(0.0);
+#ifdef GCUDA
+	m_gradientCuda.resize(m_model.weightCount());
+	GContextNeuralNet& ctx = context();
+	m_gradientCuda.fill(ctx.cudaEngine(), 0.0);
+#endif
 }
 
 void GSGDOptimizer::computeGradient(const GVec& feat, const GVec& lab)
@@ -256,6 +326,23 @@ void GSGDOptimizer::descendGradient(double learningRate)
 	m_model.step(learningRate, m_gradient);
 }
 
+#ifdef GCUDA
+void GSGDOptimizer::computeGradientCuda(const GCudaVector& feat, const GCudaVector& lab)
+{
+	GContextNeuralNet& ctx = context();
+	GCudaVector& pred = ctx.forwardPropCuda(feat);
+	m_objective->calculateOutputLayerBlameCuda(ctx.cudaEngine(), pred, lab, ctx.blameCuda());
+	ctx.backPropCuda();
+	m_gradientCuda.scale(ctx.cudaEngine(), momentum);
+	ctx.updateGradientCuda(feat, m_gradientCuda);
+
+}
+
+void GSGDOptimizer::descendGradientCuda(double learningRate)
+{
+	m_model.stepCuda(context(), learningRate, m_gradientCuda);
+}
+#endif // GCUDA
 
 
 
@@ -266,8 +353,9 @@ void GSGDOptimizer::descendGradient(double learningRate)
 
 
 
-GAdamOptimizer::GAdamOptimizer(GNeuralNet& model, GRand& rand, GObjective* objective)
-: GNeuralNetOptimizer(model, rand, objective), m_correct1(1.0), m_correct2(1.0), m_beta1(0.9), m_beta2(0.999), m_epsilon(1e-8)
+
+GAdamOptimizer::GAdamOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTrainingFeatures, const GMatrix* pTrainingLabels, GObjective* objective)
+: GNeuralNetOptimizer(model, rand, pTrainingFeatures, pTrainingLabels, objective), m_correct1(1.0), m_correct2(1.0), m_beta1(0.9), m_beta2(0.999), m_epsilon(1e-8)
 {
 	m_learningRate = 0.001;
 }
@@ -310,6 +398,17 @@ void GAdamOptimizer::descendGradient(double learningRate)
 	m_model.step(learningRate, m_gradient);
 }
 
+#ifdef GCUDA
+void GAdamOptimizer::computeGradientCuda(const GCudaVector& feat, const GCudaVector& lab)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+void GAdamOptimizer::descendGradientCuda(double learningRate)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+#endif // GCUDA
 
 
 
@@ -320,8 +419,9 @@ void GAdamOptimizer::descendGradient(double learningRate)
 
 
 
-GRMSPropOptimizer::GRMSPropOptimizer(GNeuralNet& model, GRand& rand, GObjective* objective)
-: GNeuralNetOptimizer(model, rand, objective), m_momentum(0), m_gamma(0.9), m_epsilon(1e-6)
+
+GRMSPropOptimizer::GRMSPropOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTrainingFeatures, const GMatrix* pTrainingLabels, GObjective* objective)
+: GNeuralNetOptimizer(model, rand, pTrainingFeatures, pTrainingLabels, objective), m_momentum(0), m_gamma(0.9), m_epsilon(1e-6)
 {
 }
 
@@ -353,6 +453,18 @@ void GRMSPropOptimizer::descendGradient(double learningRate)
 	}
 	m_model.step(learningRate, m_gradient);
 }
+
+#ifdef GCUDA
+void GRMSPropOptimizer::computeGradientCuda(const GCudaVector& feat, const GCudaVector& lab)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+void GRMSPropOptimizer::descendGradientCuda(double learningRate)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+#endif // GCUDA
 
 
 
