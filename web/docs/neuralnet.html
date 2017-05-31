@@ -365,12 +365,12 @@ int main(int argc, char *argv[])
 	nn.add( new GBlockLinear(80), new GBlockTanh(),
 		new GBlockLinear(30), new GBlockTanh(),
 		new GBlockLinear(10), new GBlockTanh());
+	GRand rand(0);
+	nn.init(trainFeatures.cols(), trainLabels.cols(), rand);
 
 	// Prepare for training
-	GRand rand(0);
 	GSGDOptimizer optimizer(nn, rand, &amp;trainFeatures, &amp;trainLabels);
 	optimizer.setLearningRate(0.01);
-	nn.init(trainFeatures.cols(), trainLabels.cols(), rand);
 	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Topology:\n";

@@ -23,6 +23,7 @@
 #include "GError.h"
 #include "GMatrix.h"
 #include "GRand.h"
+#include "GCudaMatrix.h"
 #include <vector>
 
 namespace GClasses {
@@ -93,8 +94,10 @@ protected:
 	const GMatrix* m_pTrainingFeatures;
 	const GMatrix* m_pTrainingLabels;
 #ifdef GCUDA
-	const GCudaMatrix* m_pTrainingFeaturesCuda;
-	const GCudaMatrix* m_pTrainingLabelsCuda;
+	GCudaEngine m_cudaEngine;
+	GCudaMatrix* m_pTrainingFeaturesCuda;
+	GCudaMatrix* m_pTrainingLabelsCuda;
+	bool m_useGPU;
 #endif // GCUDA
 
 	// variables for convenience training methods
@@ -153,7 +156,10 @@ public:
 	double sumLoss(const GMatrix &features, const GMatrix &labels);
 	
 	// getters/setters
-	
+#ifdef GCUDA
+	void useGPU(bool b) { m_useGPU = b; }
+#endif
+
 	GNeuralNet& model() { return m_model; }
 	
 	void setObjective(GObjective *objective) { delete m_objective; m_objective = (objective != NULL ? objective : new GSquaredError()); }

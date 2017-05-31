@@ -81,7 +81,7 @@ void GSquaredError::calculateOutputLayerBlameCuda(GCudaEngine& e, const GCudaVec
 {
 	GAssert(!m_useSlack); // Sorry, slack is not implemented for the GPU yet
 	blame.copy(e, label);
-	blame.add(e, pred, -1.0);
+	blame.add(e, prediction, -1.0);
 }
 #endif // GUCDA
 
@@ -97,8 +97,9 @@ GNeuralNetOptimizer::GNeuralNetOptimizer(GNeuralNet& model, GRand& rand, const G
   m_pTrainingFeatures(pTrainingFeatures),
   m_pTrainingLabels(pTrainingLabels),
 #ifdef GCUDA
-  m_pTrainingFeaturesCuda(nullptr);
-  m_pTrainingLabelsCuda(nullptr);
+  m_pTrainingFeaturesCuda(nullptr),
+  m_pTrainingLabelsCuda(nullptr),
+  m_useGPU(true),
 #endif // GCUDA
   m_rand(rand),
   m_batchSize(1), m_batchesPerEpoch(INVALID_INDEX), m_epochs(100), m_windowSize(100), m_minImprovement(0.002), m_learningRate(0.05),
@@ -123,7 +124,11 @@ GContextNeuralNet& GNeuralNetOptimizer::context()
 {
 	if(!m_pContext)
 	{
+#ifdef GCUDA
+		m_pContext = m_model.newContext(m_rand, m_cudaEngine);
+#else
 		m_pContext = m_model.newContext(m_rand);
+#endif
 		prepareForOptimizing();
 	}
 	return *m_pContext;
@@ -162,7 +167,7 @@ void GNeuralNetOptimizer::optimizeEpoch()
 	m_pII->reset();
 	size_t index;
 #ifdef GCUDA
-	if(true)
+	if(m_useGPU)
 	{
 		if(!m_pTrainingFeaturesCuda)
 		{
@@ -172,8 +177,10 @@ void GNeuralNetOptimizer::optimizeEpoch()
 			m_pTrainingLabelsCuda = new GCudaMatrix();
 			m_pTrainingLabelsCuda->upload(*m_pTrainingLabels);
 		}
+		m_model.uploadCuda();
 		while(m_pII->next(index))
 			optimizeIncrementalCuda((*m_pTrainingFeaturesCuda)[index], (*m_pTrainingLabelsCuda)[index]);
+		m_model.downloadCuda();
 	}
 	else
 	{
@@ -305,9 +312,14 @@ void GSGDOptimizer::prepareForOptimizing()
 	m_gradient.resize(m_model.weightCount());
 	m_gradient.fill(0.0);
 #ifdef GCUDA
-	m_gradientCuda.resize(m_model.weightCount());
-	GContextNeuralNet& ctx = context();
-	m_gradientCuda.fill(ctx.cudaEngine(), 0.0);
+	if(m_useGPU)
+	{
+		m_gradientCuda.resize(m_model.weightCount());
+		GContextNeuralNet& ctx = context();
+		if(&ctx.cudaEngine() == nullptr)
+			throw Ex("This context has no cuda engine");
+		m_gradientCuda.fill(ctx.cudaEngine(), 0.0);
+	}
 #endif
 }
 
@@ -333,9 +345,8 @@ void GSGDOptimizer::computeGradientCuda(const GCudaVector& feat, const GCudaVect
 	GCudaVector& pred = ctx.forwardPropCuda(feat);
 	m_objective->calculateOutputLayerBlameCuda(ctx.cudaEngine(), pred, lab, ctx.blameCuda());
 	ctx.backPropCuda();
-	m_gradientCuda.scale(ctx.cudaEngine(), momentum);
+	m_gradientCuda.scale(ctx.cudaEngine(), m_momentum);
 	ctx.updateGradientCuda(feat, m_gradientCuda);
-
 }
 
 void GSGDOptimizer::descendGradientCuda(double learningRate)
