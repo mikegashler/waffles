@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 
+option(BUILD_SHARED "Build shared libraries" OFF)
+
 add_subdirectory (GClasses)
 add_subdirectory (audio)
 add_subdirectory (cluster)
