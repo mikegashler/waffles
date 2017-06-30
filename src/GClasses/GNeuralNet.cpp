@@ -976,28 +976,29 @@ void GNeuralNet::invertNode(size_t lay, size_t node)
 	if(l.blockCount() > 1)
 		throw Ex("This method assumes there is only one block in the layer");
 	GBlock& b = l.block(0);
-	if(b.type() == GBlock::block_linear)
-	{
-		GBlockLinear& layerUpStream = *(GBlockLinear*)&b;
-		GMatrix& w = layerUpStream.weights();
-		for(size_t i = 0; i < w.rows(); i++)
-			w[i][node] = -w[i][node];
-		size_t ds = lay + 1;
-		while(ds < m_layers.size() && m_layers[ds]->blockCount() == 1 && m_layers[ds]->block(0).elementWise())
-			ds++;
-		if(ds < m_layers.size())
-		{
-			if(m_layers[ds]->blockCount() != 1 || m_layers[ds]->block(0).type() != GBlock::block_linear)
-				throw Ex("Expected the downstream layer to contain exactly one linear block");
-			GBlockLinear& layerDownStream = *(GBlockLinear*)&m_layers[ds]->block(0);
-			size_t downOuts = layerDownStream.outputs();
-			GVec& ww = layerDownStream.weights()[node];
-			for(size_t i = 0; i < downOuts; i++)
-				ww[i] = -ww[i];
-		}
-	}
-	else
+	if(b.type() != GBlock::block_linear)
 		throw Ex("I don't know how to invert nodes in this type of layer");
+	GBlockLinear& blockThis = *(GBlockLinear*)&b;
+#ifdef GCUDA
+	if(blockThis.m_biasCuda.size() > 0)
+		throw Ex("Sorry, not yet implemented for the GPU");
+#endif
+	GMatrix& w = blockThis.weights();
+	for(size_t i = 0; i < w.rows(); i++)
+		w[i][node] = -w[i][node];
+	size_t ds = lay + 1;
+	while(ds < m_layers.size() && m_layers[ds]->blockCount() == 1 && m_layers[ds]->block(0).elementWise())
+		ds++;
+	if(ds < m_layers.size())
+	{
+		if(m_layers[ds]->blockCount() != 1 || m_layers[ds]->block(0).type() != GBlock::block_linear)
+			throw Ex("Expected the downstream layer to contain exactly one linear block");
+		GBlockLinear& blockDownStream = *(GBlockLinear*)&m_layers[ds]->block(0);
+		size_t downOuts = blockDownStream.outputs();
+		GVec& ww = blockDownStream.weights()[node];
+		for(size_t i = 0; i < downOuts; i++)
+			ww[i] = -ww[i];
+	}
 }
 
 void GNeuralNet::swapNodes(size_t lay, size_t a, size_t b)
@@ -1005,23 +1006,99 @@ void GNeuralNet::swapNodes(size_t lay, size_t a, size_t b)
 	GLayer& l = layer(lay);
 	if(l.blockCount() != 1)
 		throw Ex("Expected only one block in this layer");
-	if(l.block(0).type() == GBlock::block_linear)
+	if(l.block(0).type() != GBlock::block_linear)
+		throw Ex("I don't know how to swap nodes in this type of layer");
+	GBlockLinear& blockThis = *(GBlockLinear*)&l;
+#ifdef GCUDA
+	if(blockThis.m_biasCuda.size() > 0)
+		throw Ex("Sorry, not yet implemented for the GPU");
+#endif
+	blockThis.weights().swapColumns(a, b);
+	size_t ds = lay + 1;
+	while(ds < m_layers.size() && m_layers[ds]->blockCount() == 1 && m_layers[ds]->block(0).elementWise())
+		ds++;
+	if(ds < m_layers.size())
 	{
-		GBlockLinear& layerUpStream = *(GBlockLinear*)&l;
-		layerUpStream.weights().swapColumns(a, b);
-		size_t ds = lay + 1;
-		while(ds < m_layers.size() && m_layers[ds]->blockCount() == 1 && m_layers[ds]->block(0).elementWise())
-			ds++;
-		if(ds < m_layers.size())
+		if(m_layers[ds]->blockCount() != 1 || m_layers[ds]->block(0).type() != GBlock::block_linear)
+			throw Ex("Expected the downstream layer to contain exactly one linear block");
+		GBlockLinear& blockDownStream = *(GBlockLinear*)m_layers[ds];
+		blockDownStream.weights().swapRows(a, b);
+	}
+}
+
+void GNeuralNet::dropNode(size_t lay, size_t index)
+{
+	GLayer& l = layer(lay);
+	if(l.blockCount() != 1)
+		throw Ex("Expected only one block in this layer");
+	if(l.block(0).type() != GBlock::block_linear)
+		throw Ex("I don't know how to drop nodes in this type of layer");
+	GBlockLinear& blockThis = *(GBlockLinear*)&l;
+#ifdef GCUDA
+	if(blockThis.m_biasCuda.size() > 0)
+		throw Ex("Sorry, not yet implemented for the GPU");
+#endif
+	if(index != blockThis.outputs() - 1)
+		swapNodes(lay, index, blockThis.outputs() - 1);
+	blockThis.weights().deleteColumns(blockThis.outputs() - 1, 1);
+	blockThis.bias().erase(blockThis.outputs() - 1, 1);
+	size_t ds = lay + 1;
+	while(ds < m_layers.size() && m_layers[ds]->blockCount() == 1 && m_layers[ds]->block(0).elementWise())
+	{
+		m_layers[ds]->block(0).dropUnit(index);
+		ds++;
+	}
+	if(ds < m_layers.size())
+	{
+		if(m_layers[ds]->blockCount() != 1 || m_layers[ds]->block(0).type() != GBlock::block_linear)
+			throw Ex("Expected the downstream layer to contain exactly one linear block");
+		GBlockLinear& blockDownStream = *(GBlockLinear*)m_layers[ds];
+		blockDownStream.weights().deleteRow(blockDownStream.weights().rows() - 1);
+	}
+}
+
+void GNeuralNet::splitNode(size_t lay, size_t index, GRand& rand)
+{
+	GLayer& l = layer(lay);
+	if(l.blockCount() != 1)
+		throw Ex("Expected only one block in this layer");
+	if(l.block(0).type() != GBlock::block_linear)
+		throw Ex("I don't know how to split nodes in this type of layer");
+	GBlockLinear& blockThis = *(GBlockLinear*)&l;
+#ifdef GCUDA
+	if(blockThis.m_biasCuda.size() > 0)
+		throw Ex("Sorry, not yet implemented for the GPU");
+#endif
+	GMatrix& w = blockThis.weights();
+	w.newColumns(1);
+	w.copyBlock(w, 0, index, w.rows(), 1, 0, w.cols() - 1, false);
+	GVec& b = blockThis.bias();
+	b.resizePreserve(b.size() + 1);
+	b[b.size() - 1] = b[index];
+	size_t ds = lay + 1;
+	while(ds < m_layers.size() && m_layers[ds]->blockCount() == 1 && m_layers[ds]->block(0).elementWise())
+	{
+		m_layers[ds]->block(0).cloneUnit(index);
+		ds++;
+	}
+	if(ds < m_layers.size())
+	{
+		if(m_layers[ds]->blockCount() != 1 || m_layers[ds]->block(0).type() != GBlock::block_linear)
+			throw Ex("Expected the downstream layer to contain exactly one linear block");
+		GBlockLinear& blockDownStream = *(GBlockLinear*)m_layers[ds];
+		GVec& a = blockDownStream.weights()[index];
+		GVec& b = blockDownStream.weights().newRow();
+		for(size_t i = 0; i < a.size(); i++)
 		{
-			if(m_layers[ds]->blockCount() != 1 || m_layers[ds]->block(0).type() != GBlock::block_linear)
-				throw Ex("Expected the downstream layer to contain exactly one linear block");
-			GBlockLinear& layerDownStream = *(GBlockLinear*)m_layers[ds];
-			layerDownStream.weights().swapRows(a, b);
+			if(rand.next(2) == 0)
+			{
+				b[i] = a[i];
+				a[i] = 0.0;
+			}
+			else
+				b[i] = 0.0;
 		}
 	}
-	else
-		throw Ex("I don't know how to swap nodes in this type of layer");
 }
 
 #ifndef MIN_PREDICT
@@ -2049,6 +2126,7 @@ void GNeuralNet_testFourier()
 	}
 }
 */
+
 // static
 void GNeuralNetLearner::test()
 {

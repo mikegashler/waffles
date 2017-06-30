@@ -314,6 +314,16 @@ public:
 	/// (Assumes this model is already trained.)
 	void swapNodes(size_t layer, size_t a, size_t b);
 
+	/// Removes the specified node from the neural network.
+	/// (Assumes lay refers to a linear layer.)
+	void dropNode(size_t lay, size_t index);
+
+	/// Splits the specifed node into two nodes.
+	/// The in-bound weights are copied, such that the new node will activate the same as the old node.
+	/// The out-bound weights are randomly divided between the two nodes, so that they will hopefully learn to take on different roles.
+	/// (Assumes lay refers to a linear layer.)
+	void splitNode(size_t lay, size_t index, GRand& rand);
+
 	/// Swaps nodes in hidden layers of this neural network to align with those in
 	/// that neural network, as determined using bipartite matching. (This might
 	/// be done, for example, before averaging weights together.)

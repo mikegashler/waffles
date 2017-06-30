@@ -69,6 +69,10 @@ public:
 	/// Resizes this vector
 	void resize(size_t n);
 
+	/// Resizes this vector while preserving any elements that overlap with the new size.
+	/// Any new elements will contain garbage.
+	void resizePreserve(size_t n);
+
 	/// Sets all the elements in this vector to val.
 	void fill(const double val, size_t startPos = 0, size_t endPos = (size_t)-1);
 

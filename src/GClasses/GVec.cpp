@@ -113,6 +113,22 @@ void GVec::resize(size_t n)
 		m_data = new double[n];
 }
 
+void GVec::resizePreserve(size_t n)
+{
+	if(m_size == n)
+		return;
+	size_t overlap = std::min(m_size, n);
+	double* oldData = m_data;
+	m_size = n;
+	if(n == 0)
+		m_data = NULL;
+	else
+		m_data = new double[n];
+	for(size_t i = 0; i < overlap; i++)
+		m_data[i] = oldData[i];
+	delete[] oldData;
+}
+
 void GVec::fill(const double val, size_t startPos, size_t endPos)
 {
 	endPos = std::min(endPos, m_size);

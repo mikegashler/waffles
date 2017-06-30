@@ -251,6 +251,18 @@ public:
 	/// Moves all weights in the direction of zero by the specified amount.
 	virtual void diminishWeights(double amount, bool regularizeBiases) = 0;
 
+	/// Drops the specified unit from this block
+	virtual void dropUnit(size_t index)
+	{
+		throw Ex("Sorry, not implemented yet");
+	}
+
+	/// Clones the specified unit in this block
+	virtual void cloneUnit(size_t index)
+	{
+		throw Ex("Sorry, not implemented yet");
+	}
+
 protected:
 	GDomNode* baseDomNode(GDom* pDoc) const;
 
@@ -541,6 +553,16 @@ public:
 	/// Evaluates the derivative of the activation function.
 	/// x is the net input, and f_x is the output activation--the value obtained by calling eval(x).
 	virtual double derivative(double x, double f_x) const = 0;
+
+	virtual void dropUnit(size_t index)
+	{
+		m_units--;
+	}
+
+	virtual void cloneUnit(size_t index)
+	{
+		m_units++;
+	}
 
 	virtual double inverse(double y) const
 	{
@@ -899,6 +921,22 @@ public:
 
 	/// Moves all weights in the direction of zero by the specified amount.
 	virtual void diminishWeights(double amount, bool regularizeBiases) override;
+
+	virtual void dropUnit(size_t index)
+	{
+		std::swap(m_alpha[index], m_alpha[m_alpha.size() - 1]);
+		m_alpha.erase(m_alpha.size() - 1);
+		std::swap(m_beta[index], m_beta[m_beta.size() - 1]);
+		m_beta.erase(m_beta.size() - 1);
+	}
+
+	virtual void cloneUnit(size_t index)
+	{
+		m_alpha.resizePreserve(m_alpha.size() + 1);
+		m_alpha[m_alpha.size() - 1] = m_alpha[index];
+		m_beta.resizePreserve(m_beta.size() + 1);
+		m_beta[m_beta.size() - 1] = m_beta[index];
+	}
 
 	/// Get the alpha vector
 	GVec& alpha() { return m_alpha; }

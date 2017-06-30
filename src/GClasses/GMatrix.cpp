@@ -2525,13 +2525,7 @@ void GMatrix::newColumns(size_t n)
 			((GMixedRelation*)m_pRelation)->addAttr(0);
 	}
 	for(size_t i = 0; i < rows(); i++)
-	{
-		GVec* pOld = m_rows[i];
-		GVec* pNew = new GVec(oldSize + n);
-		memcpy(pNew->data(), pOld->data(), sizeof(double) * oldSize);
-		delete(pOld);
-		m_rows[i] = pNew;
-	}
+		m_rows[i]->resizePreserve(oldSize + n);
 }
 
 void GMatrix::takeRow(GVec* pRow, size_t pos)
