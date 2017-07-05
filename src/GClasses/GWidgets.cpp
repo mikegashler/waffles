@@ -2814,7 +2814,7 @@ void GWidgetWave::draw(GImage* pCanvas, int xx, int yy)
 			int i, val, x, y;
 			int xprev = -1;
 			int yprev = -1;
-			for(i = m_pos; i < m_pWave->sampleCount(); i++)
+			for(i = m_pos; i < (int)m_pWave->sampleCount(); i++)
 			{
 				x = (i - m_pos) * m_rect.w / m_width;
 				if(x >= m_rect.w)
@@ -2838,7 +2838,7 @@ void GWidgetWave::draw(GImage* pCanvas, int xx, int yy)
 				for(j = 0; j < 8; j++)
 				{
 					index = (i * 8 + j) * m_width / (m_rect.w * 8) + m_pos;
-					if(index >= 0 && index < m_pWave->sampleCount())
+					if(index >= 0 && index < (int)m_pWave->sampleCount())
 					{
 						val = pData[index];
 						if(val > max)
@@ -2868,7 +2868,7 @@ void GWidgetWave::draw(GImage* pCanvas, int xx, int yy)
 			int i, val, x, y;
 			int xprev = -1;
 			int yprev = -1;
-			for(i = m_pos; i < m_pWave->sampleCount(); i++)
+			for(i = m_pos; i < (int)m_pWave->sampleCount(); i++)
 			{
 				x = (i - m_pos) * m_rect.w / m_width;
 				if(x >= m_rect.w)
@@ -2892,7 +2892,7 @@ void GWidgetWave::draw(GImage* pCanvas, int xx, int yy)
 				for(j = 0; j < 8; j++)
 				{
 					index = (i * 8 + j) * m_width / (m_rect.w * 8) + m_pos;
-					if(index >= 0 && index < m_pWave->sampleCount())
+					if(index >= 0 && index < (int)m_pWave->sampleCount())
 					{
 						val = pData[index];
 						if(val > max)
@@ -2920,7 +2920,7 @@ void GWidgetWave::draw(GImage* pCanvas, int xx, int yy)
 			int i, val, x, y;
 			int xprev = -1;
 			int yprev = -1;
-			for(i = m_pos; i < m_pWave->sampleCount(); i++)
+			for(i = m_pos; i < (int)m_pWave->sampleCount(); i++)
 			{
 				x = (i - m_pos) * m_rect.w / m_width;
 				if(x >= m_rect.w)
@@ -2944,7 +2944,7 @@ void GWidgetWave::draw(GImage* pCanvas, int xx, int yy)
 				for(j = 0; j < 8; j++)
 				{
 					index = (i * 8 + j) * m_width / (m_rect.w * 8) + m_pos;
-					if(index >= 0 && index < m_pWave->sampleCount())
+					if(index >= 0 && index < (int)m_pWave->sampleCount())
 					{
 						val = pData[index];
 						if(val > max)

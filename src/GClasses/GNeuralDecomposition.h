@@ -30,18 +30,20 @@ namespace GClasses {
 class GNeuralDecomposition: public GIncrementalLearner
 {
 private:
+	GRand m_rand;
 	GNeuralNet* m_nn;
 	GContextNeuralNet* m_pContext;
 	GSGDOptimizer* m_pOptimizer;
 	double m_regularization, m_learningRate, m_featureScale, m_featureBias, m_outputScale, m_outputBias;
 	size_t m_linearUnits, m_softplusUnits, m_sigmoidUnits, m_sinusoidUnits, m_epochs;
 	bool m_filterLogarithm, m_autoFilter, m_lockPairs;
+	GMatrix* m_pFrozen;
 
 public:
 	GNeuralDecomposition();
 	GNeuralDecomposition(const GDomNode *pNode);
 	virtual ~GNeuralDecomposition();
-	
+
 	virtual void trainOnSeries(const GMatrix &series);
 	virtual GMatrix *extrapolate(double start = 1.0, double length = 1.0, double step = 0.0002, bool outputFeatures = false);
 	virtual GMatrix *extrapolate(const GMatrix &features);
@@ -77,10 +79,15 @@ public:
 	virtual void predict(const GVec& in, GVec& out);
 	virtual void predictDistribution(const GVec& in, GPrediction *pOut);
 	virtual void clear() {}
-	
+
 	// GIncrementalLearner
 	virtual void trainIncremental(const GVec& in, const GVec&pOut);
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
+
+	// Special features for noise reduction applications
+	void freeze();
+	void restoreFrozen();
+	void clearFrozen();
 	
 	static void test();
 

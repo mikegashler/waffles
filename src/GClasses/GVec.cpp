@@ -113,6 +113,22 @@ void GVec::resize(size_t n)
 		m_data = new double[n];
 }
 
+void GVec::resizePreserve(size_t n)
+{
+	if(m_size == n)
+		return;
+	size_t overlap = std::min(m_size, n);
+	double* oldData = m_data;
+	m_size = n;
+	if(n == 0)
+		m_data = NULL;
+	else
+		m_data = new double[n];
+	for(size_t i = 0; i < overlap; i++)
+		m_data[i] = oldData[i];
+	delete[] oldData;
+}
+
 void GVec::fill(const double val, size_t startPos, size_t endPos)
 {
 	endPos = std::min(endPos, m_size);
@@ -262,6 +278,12 @@ void GVec::fillNormal(GRand& rand, double deviation)
 {
 	for(size_t i = 0; i < m_size; i++)
 		(*this)[i] = rand.normal() * deviation;
+}
+
+void GVec::perturbNormal(GRand& rand, double deviation)
+{
+	for(size_t i = 0; i < m_size; i++)
+		(*this)[i] += rand.normal() * deviation;
 }
 
 void GVec::fillSphericalShell(GRand& rand, double radius)
@@ -757,6 +779,26 @@ void GIndexVec::resize(size_t n)
 		m_data = new size_t[n];
 }
 
+void GIndexVec::fillIndexes()
+{
+	for(size_t i = 0; i < m_size; i++)
+		m_data[i] = i;
+}
+
+size_t GIndexVec::popRandom(GRand& rand)
+{
+	if(m_size == 0)
+		throw Ex("Nothing to pop");
+	size_t r = rand.next(m_size);
+	size_t v = m_data[r];
+	m_data[r] = m_data[m_size - 1];
+	m_size--;
+	return v;
+}
+
+
+
+
 // static
 void GIndexVec::makeIndexVec(size_t* pVec, size_t size)
 {
@@ -886,6 +928,13 @@ GRandomIndexIterator::~GRandomIndexIterator()
 void GRandomIndexIterator::reset()
 {
 	for(size_t i = m_length; i > 1; i--)
+		std::swap(m_pIndexes[i - 1], m_pIndexes[m_rand.next(i)]);
+	m_pCur = m_pIndexes;
+}
+
+void GRandomIndexIterator::resetPart(size_t size)
+{
+	for(size_t i = size; i > 1; i--)
 		std::swap(m_pIndexes[i - 1], m_pIndexes[m_rand.next(i)]);
 	m_pCur = m_pIndexes;
 }

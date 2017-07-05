@@ -2177,8 +2177,7 @@ void GContentBasedFilter::clear()
 void GContentBasedFilter::setItemAttributes(GMatrix& itemAttrs)
 {
 	delete(m_itemAttrs);
-	m_itemAttrs = new GMatrix();
-	m_itemAttrs->copy(&itemAttrs);
+	m_itemAttrs = new GMatrix(itemAttrs);
 	for(size_t i = 0; i < m_itemAttrs->rows(); i++)
 	{
 		GVec& vec = m_itemAttrs->row(i);
@@ -2221,9 +2220,8 @@ GContentBoostedCF::~GContentBoostedCF()
 void GContentBoostedCF::train(GMatrix& data)
 {
 	//make a copy of the training data
-	GMatrix* pClone = new GMatrix();
-		pClone->copy(&data);
-		std::unique_ptr<GMatrix> hClone(pClone);
+	GMatrix* pClone = new GMatrix(data);
+	std::unique_ptr<GMatrix> hClone(pClone);
 	m_cbf->train(*pClone);
 
 	//Create the psuedo user-ratings vector for every user

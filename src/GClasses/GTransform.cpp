@@ -227,6 +227,134 @@ void GIncrementalTransform::test()
 
 
 
+GDataPreprocessor::GDataPreprocessor(const GMatrix& source, size_t rowStart, size_t colStart, size_t rowCount, size_t colCount, bool allowMissing, bool allowNominal, bool allowContinuous, double minVal, double maxVal)
+{
+	if(rowStart > 0 || colStart > 0 || rowCount < source.rows() || colCount < source.cols())
+	{
+		GMatrix* pTemp = new GMatrix(source, rowStart, colStart, rowCount, colCount);
+		m_pTransform = autoTrans(*pTemp, allowMissing, allowNominal, allowContinuous, minVal, maxVal);
+		if(m_pTransform)
+		{
+			m_processedData.push_back(m_pTransform->transformBatch(*pTemp));
+			delete(pTemp);
+		}
+		else
+			m_processedData.push_back(pTemp);
+	}
+	else
+	{
+		m_pTransform = autoTrans(source, allowMissing, allowNominal, allowContinuous, minVal, maxVal);
+		if(m_pTransform)
+			m_processedData.push_back(m_pTransform->transformBatch(source));
+		else
+			m_processedData.push_back(new GMatrix(source));
+	}
+}
+
+void GDataPreprocessor::add(const GMatrix& source, size_t rowStart, size_t colStart, size_t rowCount, size_t colCount)
+{
+	if(rowStart > 0 || colStart > 0 || rowCount < source.rows() || colCount < source.cols())
+	{
+		GMatrix* pTemp = new GMatrix(source, rowStart, colStart, rowCount, colCount);
+		if(m_pTransform)
+		{
+			m_processedData.push_back(m_pTransform->transformBatch(*pTemp));
+			delete(pTemp);
+		}
+		else
+			m_processedData.push_back(pTemp);
+	}
+	else
+	{
+		if(m_pTransform)
+			m_processedData.push_back(m_pTransform->transformBatch(source));
+		else
+			m_processedData.push_back(new GMatrix(source));
+	}
+}
+
+GIncrementalTransform* GDataPreprocessor::autoTrans(const GMatrix& data, bool allowMissing, bool allowNominal, bool allowContinuous, double minVal, double maxVal)
+{
+	// Determine what types are present in the data
+	bool hasNominal = false;
+	bool hasContinuous = false;
+	const GRelation& rel = data.relation();
+	for(size_t i = 0; i < rel.size(); i++)
+	{
+		if(rel.valueCount(i) == 0)
+		{
+			hasContinuous = true;
+			if(hasNominal)
+				break;
+		}
+		else
+		{
+			hasNominal = true;
+			if(hasContinuous)
+				break;
+		}
+	}
+
+	GIncrementalTransform* pTrans = nullptr;
+
+	// Impute features if necessary
+	if(!allowMissing && data.doesHaveAnyMissingValues())
+		pTrans = GIncrementalTransformChainer::chain(new GImputeMissingVals(), pTrans);
+
+	// Normalize labels if necessary
+	if(allowContinuous)
+	{
+		// Find the min and max
+		double dataMin = 1e300;
+		double dataMax = -1e300;
+		for(size_t i = 0; i < data.cols(); i++)
+		{
+			if(data.relation().valueCount(i) != 0)
+				continue;
+			dataMin = std::min(data.columnMin(i), dataMin);
+			dataMax = std::max(data.columnMax(i), dataMax);
+		}
+		if(hasNominal && !allowNominal)
+		{
+			minVal = std::min(0.0, minVal);
+			maxVal = std::max(1.0, maxVal);
+		}
+		bool normalizationIsNeeded = false;
+		if(dataMin < minVal || dataMax > maxVal)
+			normalizationIsNeeded = true;
+		else if((dataMax - dataMin) >= 1e-12 && (dataMax - dataMin) * 4 < maxVal - minVal)
+			normalizationIsNeeded = true;
+		if(normalizationIsNeeded)
+			pTrans = GIncrementalTransformChainer::chain(new GNormalize(minVal, maxVal), pTrans);
+	}
+
+	// Nomcat if necessary
+	if(!allowNominal && hasNominal)
+	{
+		if(!allowContinuous)
+			throw Ex("Either nominal or continuous values must be allowed");
+		pTrans = GIncrementalTransformChainer::chain(new GNominalToCat(16), pTrans);
+	}
+
+	// Discretize if necessary
+	if(!allowContinuous && hasContinuous)
+	{
+		if(!allowNominal)
+			throw Ex("Either nominal or continuous values must be allowed");
+		pTrans = GIncrementalTransformChainer::chain(new GDiscretize(), pTrans);
+	}
+	
+	// Train
+	if(pTrans)
+		pTrans->train(data);
+
+	return pTrans;
+}
+
+
+
+
+
 
 
 
@@ -250,6 +378,17 @@ GIncrementalTransformChainer::~GIncrementalTransformChainer()
 {
 	delete(m_pFirst);
 	delete(m_pSecond);
+}
+
+// static
+GIncrementalTransform* GIncrementalTransformChainer::chain(GIncrementalTransform* pA, GIncrementalTransform* pB)
+{
+	if(pA == nullptr)
+		return pB;
+	else if(pB == nullptr)
+		return pA;
+	else
+		return new GIncrementalTransformChainer(pA, pB);
 }
 
 #ifndef MIN_PREDICT
@@ -366,7 +505,7 @@ GRelation* GPCA::trainInner(const GMatrix& data)
 
 	// Make a copy of the data
 	GMatrix tmpData(data.relation().cloneMinimal());
-	tmpData.copy(&data);
+	tmpData.copy(data);
 
 	// Compute the principle components
 	double sse = 0;
@@ -577,11 +716,11 @@ GRelation* GReservoir::trainInner(const GRelation& relation)
 	GNeuralNetLearner* pNN = new GNeuralNetLearner();
 	for(size_t i = 0; i < m_hiddenLayers; i++)
 	{
-		pNN->newLayer().add(new GBlockLinear(m_outputs));
-		pNN->newLayer().add(new GBlockTanh());
+		pNN->nn().add(new GBlockLinear(m_outputs));
+		pNN->nn().add(new GBlockTanh());
 	}
-	pNN->newLayer().add(new GBlockLinear((size_t)0));
-	pNN->newLayer().add(new GBlockTanh());
+	pNN->nn().add(new GBlockLinear((size_t)0));
+	pNN->nn().add(new GBlockTanh());
 	GUniformRelation* pRel = new GUniformRelation(m_outputs);
 	m_pNN = pNN;
 	if(!relation.areContinuous())
@@ -731,9 +870,9 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 	// Divide into features and labels
 	size_t curDims = data.cols() - m_labelDims;
 	m_ranks.resize(curDims);
-	GMatrix* pFeatures = pNormData->cloneSub(0, 0, data.rows(), data.cols() - m_labelDims);
+	GMatrix* pFeatures = new GMatrix(*pNormData, 0, 0, data.rows(), data.cols() - m_labelDims);
 	std::unique_ptr<GMatrix> hFeatures(pFeatures);
-	GMatrix* pLabels = pNormData->cloneSub(0, data.cols() - m_labelDims, data.rows(), m_labelDims);
+	GMatrix* pLabels = new GMatrix(*pNormData, 0, data.cols() - m_labelDims, data.rows(), m_labelDims);
 	std::unique_ptr<GMatrix> hLabels(pLabels);
 	vector<size_t> indexMap;
 	for(size_t i = 0; i < curDims; i++)
@@ -756,14 +895,14 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 
 		// Train a single-layer neural network with the normalized remaining data
 		GNeuralNetLearner nn;
-		nn.newLayer().add(new GBlockLinear((size_t)0));
-		nn.newLayer().add(new GBlockTanh());
+		nn.nn().add(new GBlockLinear((size_t)0));
+		nn.nn().add(new GBlockTanh());
 		nn.rand().setSeed(m_seed);
 		nn.beginIncrementalLearning(pFeatures2->relation(), pLabels2->relation());
 		m_seed += 77152487;
 		m_seed *= 37152487;
-		
-		GSGDOptimizer optimizer(nn.nn());
+
+		GSGDOptimizer optimizer(nn.nn(), nn.rand());
 		optimizer.setWindowSize(30);
 		optimizer.setImprovementThresh(0.002);
 		optimizer.optimizeWithValidation(*pFeatures2, *pLabels2);
@@ -846,8 +985,8 @@ void GAttributeSelector::test()
 
 // --------------------------------------------------------------------------
 
-GNominalToCat::GNominalToCat(size_t nValueCap)
-: GIncrementalTransform(), m_valueCap(nValueCap), m_preserveUnknowns(false)
+GNominalToCat::GNominalToCat(size_t nValueCap, double lo, double hi)
+: GIncrementalTransform(), m_valueCap(nValueCap), m_preserveUnknowns(false), m_lo(lo), m_hi(hi)
 {
 }
 
@@ -856,6 +995,8 @@ GNominalToCat::GNominalToCat(const GDomNode* pNode)
 {
 	m_valueCap = (size_t)pNode->field("valueCap")->asInt();
 	m_preserveUnknowns = pNode->field("pu")->asBool();
+	m_lo = pNode->field("lo")->asDouble();
+	m_hi = pNode->field("hi")->asDouble();
 }
 
 GRelation* GNominalToCat::init()
@@ -900,6 +1041,8 @@ GDomNode* GNominalToCat::serialize(GDom* pDoc) const
 	GDomNode* pNode = baseDomNode(pDoc, "GNominalToCat");
 	pNode->addField(pDoc, "valueCap", pDoc->newInt(m_valueCap));
 	pNode->addField(pDoc, "pu", pDoc->newBool(m_preserveUnknowns));
+	pNode->addField(pDoc, "lo", pDoc->newDouble(m_lo));
+	pNode->addField(pDoc, "hi", pDoc->newDouble(m_hi));
 	return pNode;
 }
 
@@ -920,7 +1063,7 @@ void GNominalToCat::transform(const GVec& in, GVec& out)
 				if(in[i] == UNKNOWN_DISCRETE_VALUE)
 					out[j++] = UNKNOWN_REAL_VALUE;
 				else
-					out[j++] = 0;
+					out[j++] = m_lo;
 			}
 			else
 			{
@@ -929,7 +1072,7 @@ void GNominalToCat::transform(const GVec& in, GVec& out)
 					if(m_preserveUnknowns)
 						out[j++] = UNKNOWN_REAL_VALUE;
 					else
-						out[j++] = 0.5;
+						out[j++] = 0.5 * (m_lo + m_hi);
 				}
 				else
 					out[j++] = in[i];
@@ -940,15 +1083,15 @@ void GNominalToCat::transform(const GVec& in, GVec& out)
 			if(in[i] >= 0)
 			{
 				GAssert(in[i] < nValues);
-				GVec::setAll(out.data() + j, 0.0, nValues);
-				out[j + (int)in[i]] = 1.0;
+				GVec::setAll(out.data() + j, m_lo, nValues);
+				out[j + (int)in[i]] = m_hi;
 			}
 			else
 			{
 				if(m_preserveUnknowns)
 					GVec::setAll(out.data() + j, UNKNOWN_REAL_VALUE, nValues);
 				else
-					GVec::setAll(out.data() + j, 1.0 / nValues, nValues);
+					GVec::setAll(out.data() + j, (m_hi - m_lo) / nValues + m_lo, nValues);
 			}
 			j += nValues;
 		}
@@ -986,7 +1129,7 @@ void GNominalToCat::untransform(const GVec& in, GVec& out)
 				if(in[j] == UNKNOWN_REAL_VALUE)
 					out[i] = UNKNOWN_DISCRETE_VALUE;
 				else
-					out[i] = (in[j] < 0.5 ? 0 : 1);
+					out[i] = (in[j] + in[j] < m_lo + m_hi ? 0 : 1);
 				j++;
 			}
 		}
@@ -1044,8 +1187,9 @@ void GNominalToCat::untransformToDistribution(const GVec& in, GPrediction* out)
 				else
 				{
 					GVec& vals = pCat->values(2);
-					vals[0] = 1.0 - in[j];
-					vals[1] = in[j];
+					double t = (in[j] - m_lo) / (m_hi - m_lo);
+					vals[0] = 1.0 - t;
+					vals[1] = t;
 					pCat->normalize(); // We have to normalize to ensure the values are properly clipped.
 				}
 			}
@@ -1484,7 +1628,7 @@ void GImputeMissingVals::untransformToDistribution(const GVec& in, GPrediction* 
 GMatrix* GImputeMissingVals::transformBatch(const GMatrix& in)
 {
 	GMatrix* out = new GMatrix();
-	out->copy(&in);
+	out->copy(in);
 	size_t dims = out->cols();
 	for(size_t i = 0; i < out->rows(); i++)
 	{

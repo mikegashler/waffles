@@ -218,6 +218,16 @@ public:
 	/// Call this in a loop to get a series.
 	static double mackeyGlass(double x, double xt, double beta = 0.2, double gamma = 0.1, double n = 10);
 
+	/// If false = 0.0 and true = 1.0, then
+	/// not(x) = -x = fuzzy(x, 0.0, 0),
+	/// and(x, y) = fuzzy(x, y, 1.0),
+	/// or(x, y) = -fuzzy(x, y, 0.0),
+	/// xor(x, y) = -fuzzy(x, y, 0.5),
+	/// nand(x, y) = -fuzzy(x, y, 1.0),
+	/// nor(x, y) = fuzzy(x, y, 0.0),
+	/// nxor(x, y) = fuzzy(x, y, 0.5).
+	static double fuzzy(double x, double y, double alpha);
+
 #ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();

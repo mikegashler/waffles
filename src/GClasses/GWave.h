@@ -59,13 +59,13 @@ public:
 	void setData(unsigned char* pData, int bitsPerSample, int sampleCount, int channels, int sampleRate);
 
 	/// Returns the number of samples
-	int sampleCount() { return m_sampleCount; }
+	unsigned int sampleCount() { return m_sampleCount; }
 
 	/// Returns the number of bits-per-sample
-	int bitsPerSample() { return m_bitsPerSample; }
+	unsigned int bitsPerSample() { return m_bitsPerSample; }
 
 	/// Returns the sample rate
-	int sampleRate() { return m_sampleRate; }
+	unsigned int sampleRate() { return m_sampleRate; }
 
 	/// Returns the number of channels
 	unsigned short channels() { return m_channels; }
@@ -92,7 +92,7 @@ public:
 
 	/// Advances to the next sample. Returns false if it
 	/// reaches the end of the samples. Returns true otherwise.
-	bool advance();
+	bool advance(size_t steps = 1);
 
 	/// Returns a pointer to a c-dimensional array of doubles,
 	/// where c is the number of channels. Each element is

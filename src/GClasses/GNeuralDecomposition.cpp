@@ -28,6 +28,7 @@ namespace GClasses {
 
 GNeuralDecomposition::GNeuralDecomposition()
 : GIncrementalLearner(),
+m_rand(0),
 m_nn(nullptr),
 m_pContext(nullptr),
 m_pOptimizer(nullptr),
@@ -44,12 +45,13 @@ m_sinusoidUnits(100),
 m_epochs(1000),
 m_filterLogarithm(false),
 m_autoFilter(true),
-m_lockPairs(false)
+m_lockPairs(false),
+m_pFrozen(nullptr)
 {
 }
 
 GNeuralDecomposition::GNeuralDecomposition(const GDomNode *pNode)
-: GIncrementalLearner(pNode)
+: GIncrementalLearner(pNode), m_rand(0)
 {
 	m_nn = new GNeuralNet(pNode->field("nn"));
 	m_pContext = nullptr;
@@ -74,6 +76,7 @@ GNeuralDecomposition::~GNeuralDecomposition()
 {
 	delete(m_pOptimizer);
 	delete(m_nn);
+	delete(m_pFrozen);
 }
 
 void GNeuralDecomposition::trainOnSeries(const GMatrix &series)
@@ -159,8 +162,8 @@ GDomNode *GNeuralDecomposition::serialize(GDom *pDoc) const
 void GNeuralDecomposition::predict(const GVec& pIn, GVec& pOut)
 {
 	if(!m_pContext)
-		m_pContext = m_nn->newContext();
-	m_pContext->forwardProp(pIn, pOut);
+		m_pContext = m_nn->newContext(m_rand);
+	pOut.copy(m_pContext->forwardProp(pIn));
 	if(m_filterLogarithm)
 	{
 		pOut[0] = exp((pOut[0] * 0.1 * m_outputScale + m_outputBias) * log(10));
@@ -231,26 +234,31 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 		throw Ex("Neural decomposition expects single-column input features.");
 	}
 
+	delete(m_pContext);
+	m_pContext = nullptr;
 	delete(m_nn);
 	m_nn = new GNeuralNet();
 
-	GLayer& l1 = m_nn->newLayer();
-	GBlockLinear* b1 = new GBlockLinear(m_sinusoidUnits + m_linearUnits + m_softplusUnits + m_sigmoidUnits);
-	l1.add(b1);
+	size_t frozenUnits = 0;
+	if(m_pFrozen)
+		frozenUnits = m_pFrozen->rows();
+	GBlockLinear* b1 = new GBlockLinear(m_sinusoidUnits + frozenUnits + m_linearUnits + m_softplusUnits + m_sigmoidUnits);
+	m_nn->add(b1);
 
-	GLayer& l2 = m_nn->newLayer();
-	l2.add(new GBlockSine(m_sinusoidUnits), 0);
-	l2.add(new GBlockIdentity(m_linearUnits), m_sinusoidUnits);
-	l2.add(new GBlockSoftPlus(m_softplusUnits), m_sinusoidUnits + m_linearUnits);
-	l2.add(new GBlockTanh(m_sigmoidUnits), m_sinusoidUnits + m_linearUnits + m_softplusUnits);
+	m_nn->add(new GBlockSine(m_sinusoidUnits + frozenUnits));
+	if(m_linearUnits > 0)
+		m_nn->concat(new GBlockIdentity(m_linearUnits), m_sinusoidUnits + frozenUnits);
+	if(m_softplusUnits > 0)
+		m_nn->concat(new GBlockSoftPlus(m_softplusUnits), m_sinusoidUnits + frozenUnits + m_linearUnits);
+	if(m_sigmoidUnits > 0)
+		m_nn->concat(new GBlockTanh(m_sigmoidUnits), m_sinusoidUnits + frozenUnits + m_linearUnits + m_softplusUnits);
 
-	GLayer& l3 = m_nn->newLayer();
 	GBlockLinear* b3 = new GBlockLinear(labelRel.size());
-	l3.add(b3);
+	m_nn->add(b3);
 
 	// Prepare for learning
 	delete(m_pOptimizer);
-	m_pOptimizer = new GSGDOptimizer(*m_nn);
+	m_pOptimizer = new GSGDOptimizer(*m_nn, rand());
 	m_pOptimizer->setLearningRate(m_learningRate);
 	m_nn->resize(featureRel.size(), labelRel.size());
 	m_nn->resetWeights(rand());
@@ -300,8 +308,26 @@ void GNeuralDecomposition::beginIncrementalLearningInner(const GRelation &featur
 void GNeuralDecomposition::trainIncremental(const GVec& pIn, const GVec& pOut)
 {
 	// L1 regularization
-	m_nn->outputLayer().diminishWeights(m_learningRate * m_regularization, false);
-	
+	GLayer& outLay = m_nn->layer(2);
+	outLay.diminishWeights(m_learningRate * m_regularization, false);
+	size_t sineUnits = m_nn->layer(1).block(0).outputs() - (m_pFrozen ? m_pFrozen->rows(): 0);
+
+	// Prune unused sine units
+	for(size_t i = sineUnits - 1; i < sineUnits; i--)
+	{
+		GBlockLinear* pOutBlock = (GBlockLinear*)&outLay.block(0);
+		if(pOutBlock->weights()[i][0] == 0)
+		{
+			pOutBlock->dropInput(i);
+			GLayer& layAct = m_nn->layer(1);
+			for(size_t j = 1; j < layAct.blockCount(); j++)
+				layAct.block(j).setInPos(layAct.block(j).inPos() - 1);
+			GLayer& layIn = m_nn->layer(0);
+			GBlockLinear* pInBlock = (GBlockLinear*)&layIn.block(0);
+			pInBlock->dropOutput(i);
+		}
+	}
+
 	// Filter input
 	GVec in(1);
 	in[0] = (pIn[0] - m_featureBias) / m_featureScale;
@@ -339,6 +365,89 @@ void GNeuralDecomposition::trainIncremental(const GVec& pIn, const GVec& pOut)
 		}
 	}
 
+	// Restore frozen parts
+	if(m_pFrozen)
+		restoreFrozen();
+}
+
+void GNeuralDecomposition::freeze()
+{
+	// Find the weights
+	GAssert(m_nn->layerCount() == 3 && m_nn->layer(0).blockCount() == 1 && m_nn->layer(2).blockCount() == 1);
+	GBlockLinear* pFreqs = (GBlockLinear*)&m_nn->layer(0).block(0);
+	GBlockLinear* pAmps = (GBlockLinear*)&m_nn->layer(2).block(0);
+	GMatrix& wFreqs = pFreqs->weights();
+	GVec& bFreqs = pFreqs->bias();
+	GMatrix& wAmps = pAmps->weights();
+	GAssert(wFreqs.cols() >= m_sinusoidUnits && wAmps.rows() >= m_sinusoidUnits);
+
+	// Copy the non-zero weights
+	delete(m_pFrozen);
+	m_pFrozen = new GMatrix(0, 2 + m_nn->outputs());
+	for(size_t i = 0; i + 1 < m_sinusoidUnits; i += 2)
+	{
+		double sqMagAmps = wAmps[i].squaredMagnitude();
+		if(sqMagAmps > 0)
+		{
+			GVec& f1 = m_pFrozen->newRow();
+			f1[0] = wFreqs[0][i];
+			f1[1] = bFreqs[i];
+			f1.put(2, wAmps[i]);
+			GVec& f2 = m_pFrozen->newRow();
+			f2[0] = wFreqs[0][i + 1];
+			f2[1] = bFreqs[i + 1];
+			f2.put(2, wAmps[i + 1]);
+		}
+	}
+}
+
+void GNeuralDecomposition::restoreFrozen()
+{
+	// Find the weights
+	GAssert(m_nn->layerCount() == 3 && m_nn->layer(0).blockCount() == 1 && m_nn->layer(2).blockCount() == 1);
+	GBlockLinear* pFreqs = (GBlockLinear*)&m_nn->layer(0).block(0);
+	GBlockLinear* pAmps = (GBlockLinear*)&m_nn->layer(2).block(0);
+	GMatrix& wFreqs = pFreqs->weights();
+	GVec& bFreqs = pFreqs->bias();
+	GMatrix& wAmps = pAmps->weights();
+	GAssert(wFreqs.cols() >= m_sinusoidUnits + m_pFrozen->rows() && wAmps.rows() >= m_sinusoidUnits + m_pFrozen->rows());
+
+	for(size_t i = 0; i + 1 < m_pFrozen->rows(); i += 2)
+	{
+		GVec& f1 = m_pFrozen->row(i);
+		GVec& f2 = m_pFrozen->row(i + 1);
+		wFreqs[0][i] = f1[0];
+		bFreqs[i] = f1[1];
+		wFreqs[0][i + 1] = f2[0];
+		bFreqs[i + 1] = f2[1];
+		for(size_t j = 0; j + 2 < m_pFrozen->cols(); j++)
+		{
+			double origSqMag = f1[2 + j] * f1[2 + j] + f2[2 + j] * f2[2 + j];
+			double curSqMag = wAmps[i][j] * wAmps[i][j] + wAmps[i + 1][j] * wAmps[i + 1][j];
+			double scale = std::sqrt(origSqMag / curSqMag);
+			wAmps[i][j] *= scale;
+			wAmps[i + 1][j] *= scale;
+		}
+	}
+}
+
+void GNeuralDecomposition::clearFrozen()
+{
+	// Find the weights
+	GAssert(m_nn->layerCount() == 3 && m_nn->layer(0).blockCount() == 1 && m_nn->layer(2).blockCount() == 1);
+	GBlockLinear* pAmps = (GBlockLinear*)&m_nn->layer(2).block(0);
+	GMatrix& wAmps = pAmps->weights();
+	size_t nonFrozenUnis = m_nn->layer(1).block(0).outputs() - m_pFrozen->rows();
+
+	for(size_t i = 0; i + 1 < m_pFrozen->rows(); i += 2)
+	{
+		for(size_t j = 0; j + 2 < m_pFrozen->cols(); j++)
+		{
+			wAmps[nonFrozenUnis + i][j] = 0.0;
+			wAmps[nonFrozenUnis + i + 1][j] = 0.0;
+		}
+	}
+
 }
 
 void GNeuralDecomposition::trainSparse(GSparseMatrix &features, GMatrix &labels)
@@ -352,7 +461,7 @@ void GNeuralDecomposition::trainSparse(GSparseMatrix &features, GMatrix &labels)
 void GNeuralDecomposition::test()
 {
 	double step = 0.02;
-	double threshold = 0.95;
+	double threshold = 1.25;
 
 	size_t testSize = (size_t)(1.0 / step);
 
@@ -369,7 +478,7 @@ void GNeuralDecomposition::test()
 	}
 
 	GNeuralDecomposition nd;
-	nd.setEpochs(10000);
+	nd.setEpochs(1000);
 	nd.trainOnSeries(series);
 	GMatrix *out = nd.extrapolate(1.0, 1.0, 1.0 / testSize);
 
@@ -385,7 +494,7 @@ void GNeuralDecomposition::test()
 
 	if(rmse > threshold)
 	{
-		throw Ex("Neural decomposition failed to extrapolate toy problem.");
+		throw Ex("Neural decomposition test failed. Expected ", to_str(threshold), ", got ", to_str(rmse));
 	}
 }
 

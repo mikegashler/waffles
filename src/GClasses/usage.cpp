@@ -296,14 +296,27 @@ UsageNode* makeAlgorithmUsageTree()
 	{
 		UsageNode* pNN = pRoot->add("neuralnet <options>", "A single or multi-layer feed-forward neural network (a.k.a. multi-layer perceptron). It can be trained with online backpropagation (Rumelhart, D.E., Hinton, G.E., and Williams, R.J. Learning representations by back-propagating errors. Nature, 323:9, 1986.), or several other optimization methods.");
 		UsageNode* pOpts = pNN->add("<options>");
-		pOpts->add("-autotune", "Automatically determine a good set of parameters (including number of layers, hidden units, learning rate, etc.) for this model with the current data.");
-		pOpts->add("-addlayer [size]=16", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
-		pOpts->add("-learningrate [value]=0.1", "Specify a value for the learning rate. The default is 0.1");
+		UsageNode* pAdd = pOpts->add("-add [block]", "Add a block to this neural net.");
+		pAdd->add("linear [units]=8", "A fully-connected block of linear weights");
+		pAdd->add("bentidentity", "A bent identity nonlinearity block");
+		pAdd->add("gaussian", "A gaussian nonlinearity block");
+		pAdd->add("identity", "A block of identity (pass-through) units");
+		pAdd->add("logistic", "A logistic nonlinearity block");
+		pAdd->add("rectifier", "A rectifier nonlinearity block");
+		pAdd->add("leakyrectifier", "A leaky rectifier nonlinearity block");
+		pAdd->add("sigexp", "A sigexp nonlinearity block");
+		pAdd->add("sine", "A sinusoid nonlinearity block");
+		pAdd->add("softplus", "A softplus nonlinearity block");
+		pAdd->add("softroot", "A softroot nonlinearity block");
+		pAdd->add("tanh", "A softroot nonlinearity block");
+		pOpts->add("-concat [inpos] [block]", "Concatenate a block to the last block in this neural net.");
+/*		pOpts->add("-learningrate [value]=0.1", "Specify a value for the learning rate. The default is 0.1");
 		pOpts->add("-momentum [value]=0.0", "Specifies a value for the momentum. The default is 0.0");
 		pOpts->add("-windowepochs [value]=200", "Specifies the number of training epochs that are performed before the stopping criteria is tested again. Bigger values will result in a more stable stopping criteria. Smaller values will check the stopping criteria more frequently.");
 		pOpts->add("-minwindowimprovement [value]=0.002", "Specify the minimum improvement that must occur over the window of epochs for training to continue. [value] specifies the minimum decrease in error as a ratio. For example, if value is 0.02, then training will stop when the mean squared error does not decrease by two percent over the window of epochs. Smaller values will typically result in longer training times.");
 		pOpts->add("-holdout [portion]=0.35", "Specify the portion of the data (between 0 and 1) to use as a hold-out set for validation. That is, this portion of the data will not be used for training, but will be used to determine when to stop training. If the holdout portion is set to 0, then no holdout set will be used, and the entire training set will be used for validation (which may lead to long training time and overfit).");
-/*		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only apply to "
+*/
+		/*		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only apply to "
 			"the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
 		{
 			pAct->add("logistic", "The logistic sigmoid function. (This is the default activation function.)");
@@ -1225,7 +1238,6 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-thickness [t]=2", "Specify the thickness of the bars. (Note that the whole chart will be stretched to fit the width, so adjusting the width may also affect bar thickness.)");
 		pOpts->add("-spacing [s]=1", "Specify how much space to place between the bars.");
 		pOpts->add("-textsize [d]=1.0", "Specify the size of the font to use for the text labels.");
-		pOpts->add("-noserifs", "Use a font with no serifs. (Generally, this makes the chart look a little cleaner.)");
 		pOpts->add("-marks [n]=30", "Specify the maximum number of horizontal lines to use to mark positions on the vertical axis. (Set to 0 if you do not want any markings.)");
 		pOpts->add("-size [width] [height]", "Specify the size of the chart. (The default is 960 540.)");
 		pOpts->add("-labels [l0] [l1] [l2] [etc]", "Specify label strings to use instead of the attribute names. The number of labels specified should match the number of columns in the data.");
@@ -1242,7 +1254,6 @@ UsageNode* makePlotUsageTree()
 		pOpts->add("-novmarks", "Do not draw any horizontal lines to mark position on the vertical axis.");
 		pOpts->add("-notext", "Do not draw any text labels.");
 		pOpts->add("-nogrid", "Do not draw any horizontal or vertical grid lines.");
-		pOpts->add("-noserifs", "Use a font with no serifs. (This generally makes charts look a little cleaner.)");
 		pOpts->add("-aspect", "Adjust the range to preserve the aspect ratio. In other words, make sure that both axes visually have the same scale.");
 		pOpts->add("-thickness [size]=1", "Specify the thickness of the lines.");
 		pEquat->add("[equations]=\"f1(x)=sin(x)/x\"", "A set of equations separated by semicolons. Since '^' is a special character for many shells, it's usually a good idea to put your equations inside quotation marks. Here are some examples:\n      "
@@ -1253,6 +1264,9 @@ UsageNode* makePlotUsageTree()
 		"Built in functions include: +, -, *, /, %, ^, abs, acos, acosh, asin, asinh, atan, atanh, ceil, cos, cosh, erf, floor, gamma, lgamma, log, max, min, normal, sin, sinh, sqrt, tan, and tanh."
 		" These generally have the same meaning as in C, except '^' means exponent, \"gamma\" is the gamma function, \"normal\" is the standard normal pdf, and max and min can support any number (>=1) of parameters. (Some of these functions may not not be available on Windows, but most of them are.) You can override any built in constants or "
 		"functions with your own variables or functions, so you don't need to worry too much about name collisions. Variables must begin with an alphabet character or an underscore. Multiplication is never implicit, so you must use a '*' character to multiply. Whitespace is ignored.");
+	}
+	{
+		pRoot->add("graph", "Opens an interactive graphing tool in the web browser");
 	}
 	{
 		UsageNode* pHist = pRoot->add("histogram [dataset] <options>", "Make a histogram. Print the plot to stdout in SVG format.");
@@ -1684,7 +1698,7 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-separator [char]='#'", "Data elements are separated with the specified character.");
 		pOpts->add("-columnnames", "Use the first row of data for column names.");
 		pOpts->add("-maxvals [n]=200", "Specify the maximum number of unique values in a categorical attribute before parsing of that attribute will be aborted.");
-		pOpts->add("-time [attr] [format]", "Specify that a particular attribute is a date or time stamp in a particular format. Example format: \"YYYY-MM-DD hh:mm:ss\".");
+		pOpts->add("-time [attr] [format]", "Specify that a particular attribute is a date or time stamp in a particular format. Example format: \"YYYY-MM-DD hh:mm:ssssss\".");
 		pOpts->add("-nominal [attr]=0", "Indiciate that the specified attribute should be treated as nominal.");
 		pOpts->add("-real [attr]=0", "Indiciate that the specified attribute should be treated as real.");
 	}

@@ -212,6 +212,12 @@ void GSparseMatrix::copyRow(SparseVec& r)
 	m = r;
 }
 
+void GSparseMatrix::clear()
+{
+	for(size_t r = 0; r < rows(); r++)
+		m_rows[r].clear();
+}
+
 GMatrix* GSparseMatrix::toFullMatrix()
 {
 	GMatrix* pData = new GMatrix(m_rows.size(), m_cols);
@@ -845,6 +851,13 @@ void GSparseMatrix::removeComponentAboutOrigin(const GVec& component)
 void GSparseMatrix::deleteLastRow()
 {
 	m_rows.pop_back();
+}
+
+void GSparseMatrix::resize(size_t rows, size_t cols)
+{
+	clear();
+	m_cols = cols;
+	m_rows.resize(rows);	
 }
 
 #ifndef NO_TEST_CODE

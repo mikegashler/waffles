@@ -26,15 +26,18 @@
 <br>
 <center><img src="nndiagram.svg" width=400></center><br>
 <ul>
-	<li>A <b>GNeuralNet</b> contains one or more GLayer objects.</li>
-	<li>Each <b>GLayer</b> contains one or more GBlock objects.
-	<li>Each <b>GBlock</b> represents a block of network units, or artificial neurons.
-		There are many types of blocks: GBlockLinear contains linear units. GBlockTanh contains tanh units. Etc.</li>
-	<li>GNeuralNet is also a type of GBlock, so you can nest entire neural networks inside of neural networks.</li>
+	<li>Some traditional textbooks consider each layer in a neural network to contain weights and a nonlinearity (a.k.a. activation function, a.k.a. transfer function).
+		To enable greater flexibility, we treat these as two separate blocks of network units.</li>
+	<li>Each <b>GBlock</b> object represents a block of network units.
+		There are many types of blocks: GBlockLinear contains a fully-connected set of weights. GBlockTanh contains tanh units. Etc.</li>
+	<li>A <b>GNeuralNet</b> contains many GBlock objects, organized into layers.</li>
+	<li>You can call GNeuralNet::add to add a block to your neural network. It will be added on the output-most end as a new layer.</li>
+	<li>Alternatively, you can call GNeuralNet::concatenate to append a block to the last existing layer.</li>
+	<li>GNeuralNet is also a type of GBlock, so you can nest entire neural networks inside of neural networks if you want to.</li>
 	<li><b>GNeuralNetOptimizer</b> is the base class for methods that train the weights of a GNeuralNet.
 		There are several types of GNeuralNetOptimizer. For example, GSGDOptimizer trains the neural net with stochastic gradient descent.</li>
-	<li><b>GNeuralNetContext</b> holds all of the context buffers that a thread needs to use (or train) a GNeuralNet in a thread-safe manner.
-		(For example, two threads may feed a vector through the neural net without stomping over the activations of the other one.)</li>
+	<li><b>GNeuralNetContext</b> holds all of the buffers that a thread needs to train or evaluate a GNeuralNet in a thread-safe manner.
+		(For example it enables two threads to simultaneously feed a vector through the neural net without stomping over the activations of the other thread.)</li>
 	<li><b>GNeuralNetLearner</b> is a wrapper around GNeuralNet that implements GIncrementalLearner (which implements GSupervisedLearner).
 		This class enables using a GNeuralNet in place of any other learning algorithm in Waffles.</li>
 </ul>
@@ -99,14 +102,15 @@ The activation function is specified as a separate layer:</p>
 
 <pre class="code">
 	GNeuralNet nn;
-	nn.newLayer().add(new GBlockLinear(3));
-	nn.newLayer().add(new GBlockLogistic());
+	nn.add(new GBlockLinear(3));
+	nn.add(new GBlockLogistic());
 </pre>
 
 To train our model, we will create an optimizer. We wil use stochastic gradient descent (SGD). We also set the learning rate here:
 
 <pre class="code">
-	GSGDOptimizer optimizer(nn);
+	GRand(0);
+	GSGDOptimizer optimizer(nn, rand);
 	optimizer.setLearningRate(0.05);
 	optimizer.optimizeWithValidation(trainingFeatures, trainingLabels);
 </pre>
@@ -145,8 +149,8 @@ we can use the GAutoFilter class to turn the neural network into a classifier:</
 
 <pre class="code">
 	GNeuralNetLearner learner;
-	learner.nn().newLayer().add(new GBlockLinear(3));
-	learner.nn().newLayer().add(new GBlockLogistic());
+	learner.nn().add(new GBlockLinear(3));
+	learner.nn().add(new GBlockLogistic());
 	GAutoFilter af(&amp;learner, false); // false means the auto-filter does not need to "delete(&amp;nn)" when it is destroyed.
 </pre>
 
@@ -185,14 +189,14 @@ It is common to alternate between layers with blocks that have weights (such as 
 Example:</p>
 
 <pre class="code">
-	nn.newLayer().add(new GBlockLinear(1000));
-	nn.newLayer().add(new GBlockTanh);
-	nn.newLayer().add(new GBlockLinear(300));
-	nn.newLayer().add(new GBlockTanh);
-	nn.newLayer().add(new GBlockLinear(90));
-	nn.newLayer().add(new GBlockTanh);
-	nn.newLayer().add(new GBlockLinear(10));
-	nn.newLayer().add(new GBlockTanh);
+	nn.add(new GBlockLinear(1000));
+	nn.add(new GBlockTanh);
+	nn.add(new GBlockLinear(300));
+	nn.add(new GBlockTanh);
+	nn.add(new GBlockLinear(90));
+	nn.add(new GBlockTanh);
+	nn.add(new GBlockLinear(10));
+	nn.add(new GBlockTanh);
 </pre>
 
 <p>The layers may be resized as needed when the enclosing neural network is resized to fit the training data.</p>
@@ -310,8 +314,9 @@ GNeuralNet* pNN = (GNeuralNet*)ll.loadLearner(doc.root());
 <br><br>
 <h3>MNIST</h3>
 
-<p>A popular test for a neural network is the <a href="http://uaf46365.ddns.uark.edu/data/mnist/">MNIST dataset</a>.
-So, let's do an example with it. Here is some code:</p>
+<p>A popular test for a neural network is the MNIST dataset.
+(Click here to download <a href="http://uaf46365.ddns.uark.edu/data/mnist/">the data</a>.)
+And, here is some code that trains a neural network with this data:</p>
 
 <pre class="code">
 #include &lt;iostream&gt;
@@ -321,9 +326,9 @@ So, let's do an example with it. Here is some code:</p>
 #include &lt;GClasses/GNeuralNet.h&gt;
 #include &lt;GClasses/GActivation.h&gt;
 #include &lt;GClasses/GTransform.h&gt;
+#include &lt;GClasses/GTime.h&gt;
 #include &lt;GClasses/GVec.h&gt;
 #include &lt;GClasses/GHolders.h&gt;
-#include &lt;GClasses/GBlockWeightless.h&gt;
 
 using namespace GClasses;
 using std::cerr;
@@ -334,66 +339,55 @@ int main(int argc, char *argv[])
 	// Load the data
 	GMatrix train;
 	train.loadArff("/somepath/data/mnist/train.arff");
-	GDataColSplitter sTrain(train, 1);
 	GMatrix test;
 	test.loadArff("/somepath/data/mnist/test.arff");
-	GDataColSplitter sTest(test, 1);
+	GMatrix rawTestLabels(test, 0, test.cols() - 1, test.rows(), 1);
 
-	// Make the network
-	GNeuralNetLearner learner;
-	GNeuralNet&amp; nn = learner.nn();
-	nn.newLayer().add(new GBlockLinear(80));
-	nn.newLayer().add(new GBlockTanh());
-	nn.newLayer().add(new GBlockLinear(30));
-	nn.newLayer().add(new GBlockTanh());
-	nn.newLayer().add(new GBlockLinear(10));
-	nn.newLayer().add(new GBlockTanh());
+	// Preprocess the data
+	GDataPreprocessor dpFeat(train,
+		0, 0, // rowStart, colStart
+		train.rows(), train.cols() - 1, // rowCount, colCount
+		false, false, true, // allowMissing, allowNominal, allowContinuous
+		-1.0, 1.0); // minVal, maxVal
+	dpFeat.add(test, 0, 0, test.rows(), test.cols() - 1);
+	GDataPreprocessor dpLab(train,
+		0, train.cols() - 1, // rowStart, colStart
+		train.rows(), 1, // rowCount, colCount
+		false, false, true, // allowMissing, allowNominal, allowContinuous
+		-1.0, 1.0); // minVal, maxVal
+	dpLab.add(test, 0, test.cols() - 1, test.rows(), 1);
+	GMatrix&amp; trainFeatures = dpFeat.get(0);
+	GMatrix&amp; trainLabels = dpLab.get(0);
+	GMatrix&amp; testFeatures = dpFeat.get(1);
 
-	GAutoFilter af(&amp;learner, false);
-	af.beginIncrementalLearning(sTrain.features(), sTrain.labels());
+	// Make a neural network
+	GNeuralNet nn;
+	nn.add( new GBlockLinear(80), new GBlockTanh(),
+		new GBlockLinear(30), new GBlockTanh(),
+		new GBlockLinear(10), new GBlockTanh());
+	GRand rand(0);
+	nn.init(trainFeatures.cols(), trainLabels.cols(), rand);
 
-	// Prep the data
-	af.prefilterData(&amp;sTrain.features(), &amp;sTrain.labels(), &amp;sTest.features(), &amp;sTest.labels());
-	GMatrix&amp; trainFeatures = *af.data()[0];
-	GMatrix&amp; trainLabels = *af.data()[1];
-	GMatrix&amp; testFeatures = *af.data()[2];
-	GMatrix&amp; testLabels = *af.data()[3];
-
-	// Print some stats
+	// Prepare for training
+	GSGDOptimizer optimizer(nn, rand, &amp;trainFeatures, &amp;trainLabels);
+	optimizer.setLearningRate(0.01);
 	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
-	cout &lt;&lt; "% Topology: " &lt;&lt; to_str(nn.inputs());
-	for(size_t i = 0; i &lt; nn.layerCount(); i++)
-		cout &lt;&lt; " -&gt; " + to_str(nn.layer(i).outputs());
-	cout &lt;&lt; "\n";
-	cout &lt;&lt; "% Total weights: " &lt;&lt; to_str(nn.weightCount()) &lt;&lt; "\n";
-
-	// Train
+	cout &lt;&lt; "% Topology:\n";
+	cout &lt;&lt; nn.to_str("% ") &lt;&lt; "\n";
 	cout &lt;&lt; "@RELATION neural_net_training\n";
-	cout &lt;&lt; "@ATTRIBUTE internal_rmse_train real\n";
-	cout &lt;&lt; "@ATTRIBUTE internal_rmse_test real\n";
 	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
+	cout &lt;&lt; "@ATTRIBUTE elapsed_time real\n";
 	cout &lt;&lt; "@DATA\n";
 
-	GSGDOptimizer optimizer(nn);
-	optimizer.setLearningRate(0.01);
-	GRandomIndexIterator ii(trainFeatures.rows(), learner.rand());
+	// Train
+	double starttime = GTime::seconds();
 	for(size_t epoch = 0; epoch &lt; 10; epoch++)
 	{
-		// Validate
-		double sseTrain = nn.measureLoss(trainFeatures, trainLabels);
-		cout &lt;&lt; to_str(std::sqrt(sseTrain / trainFeatures.rows())) &lt;&lt; ", ";
-		double sseTest = nn.measureLoss(testFeatures, testLabels);
-		cout &lt;&lt; to_str(std::sqrt(sseTest / testFeatures.rows())) &lt;&lt; ", ";
-		double mis = af.sumSquaredError(sTest.features(), sTest.labels());
-		cout &lt;&lt; to_str((double)mis / sTest.features().rows()) &lt;&lt; "\n";
+		double mis = nn.measureLoss(testFeatures, rawTestLabels);
+		cout &lt;&lt; to_str((double)mis / testFeatures.rows()) &lt;&lt; "," &lt;&lt; to_str(GTime::seconds() - starttime) &lt;&lt; "\n";
 		cout.flush();
-
-		// Do an epoch of training
-		ii.reset();
-		size_t index;
-		while(ii.next(index))
-			optimizer.optimizeIncremental(trainFeatures[index], trainLabels[index]);
+		optimizer.optimizeEpoch();
 	}
 	return 0;
 }
@@ -428,6 +422,48 @@ You can get much better accuracy using bigger layers, but then training will tak
 
 
 
+
+
+
+<br><br>
+<h3>Training more directly</h3>
+
+<p>If you want more fine-grained control, you can train your neural network manually, instead of using one of the pre-built optimizers.
+Here are some changes to the training section of the previous example to train the neural network with more direct calls:</p>
+
+<pre class="code">
+	// Train
+<font color="red">	double learningRate = 0.01;
+	double momentum = 0.0;
+	GVec gradient(nn.weightCount());
+	gradient.fill(0.0);
+	GContextNeuralNet* pCtx = nn.newContext(rand);
+	std::unique_ptr&lt;GContextNeuralNet&gt; hCtx(pCtx);
+	GRandomIndexIterator ii(trainFeatures.rows(), rand);</font>
+	for(size_t epoch = 0; epoch &lt; 10; epoch++)
+	{
+		double mis = nn.measureLoss(testFeatures, rawTestLabels);
+		cout &lt;&lt; to_str((double)mis / testFeatures.rows()) &lt;&lt; "," &lt;&lt; to_str(GTime::seconds() - starttime) &lt;&lt; "\n";
+		cout.flush();
+
+<font color="red">		ii.reset();
+		size_t index;
+		while(ii.next(index))
+		{
+			GVec&amp; prediction = pCtx->forwardProp(trainFeatures[index]);
+			pCtx->blame().copy(trainLabels[index]);
+			pCtx->blame() -= prediction;
+			pCtx->backProp();
+			gradient *= momentum;
+			pCtx->updateGradient(trainFeatures[index], gradient);
+			nn.step(learningRate, gradient);
+		}</font>
+	}
+	return 0;
+</pre>
+
+<p>If you want to get more direct than that, you will probably have to start digging into the code itself.
+I have worked hard to keep the code clean and easy to read, but I would welcome suggestions for improving it.</p>
 
 
 

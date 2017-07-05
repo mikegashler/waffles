@@ -74,8 +74,8 @@ class ViewStats;
 #define PERSONALITY_DIMS 3 // (one of these is used for the bias)
 #define ON_RATE_TRAINING_ITERS 5000
 #define ON_STARTUP_TRAINING_ITERS 250000
-#define LEARNING_RATE 0.01
-
+#define LEARNING_RATE 0.001
+#define REGULARIZATION_TERM 0.00001
 
 class Item
 {
@@ -141,8 +141,6 @@ public:
 		while(itW != m_weights.end())
 			d += *(itW++) * *(itP++);
 
-		// Squash with the logistic function
-		//return 1.0 / (1.0 + exp(-d));
 		return d;
 	}
 
@@ -150,9 +148,9 @@ public:
 	// the squared-error with respect to the weights.
 	void trainWeights(double target, double learningRate, const vector<double>& personality)
 	{
-		GAssert(target >= 0.0 && target <= 1.0);
+		GAssert(target >= -1.0 && target <= 1.0);
 		double prediction = predictRating(personality);
-		double err = learningRate * (target - prediction);// * prediction * (1.0 - prediction);
+		double err = learningRate * (target - prediction);
 		vector<double>::iterator itW = m_weights.begin();
 		vector<double>::const_iterator itP = personality.begin();
 
@@ -177,9 +175,9 @@ public:
 	// the squared-error with respect to the personality vector.
 	void trainPersonality(double target, double learningRate, vector<double>& personality) const
 	{
-		GAssert(target >= 0.0 && target <= 1.0);
+		GAssert(target >= -1.0 && target <= 1.0);
 		double prediction = predictRating(personality);
-		double err = learningRate * (target - prediction);// * prediction * (1.0 - prediction);
+		double err = learningRate * (target - prediction);
 		vector<double>::const_iterator itW = m_weights.begin();
 		vector<double>::iterator itP = personality.begin();
 
@@ -297,8 +295,8 @@ public:
 	void newTopic(const char* szDescr);
 	Account* randomAccount() { return m_accountsVec[(size_t)prng()->next(m_accountsVec.size())]; }
 	Account* findAccount(const char* szName);
-	void trainModel(size_t topic, size_t iters);
-	void trainPersonality(Account* pAccount, size_t iters);
+	void refineModel(size_t topic, size_t iters); // trains both personalities and weights
+	void refinePersonality(Account* pAccount, size_t iters); // trains just the personalities
 	std::vector<Account*>& accounts() { return m_accountsVec; }
 
 	virtual GDynamicPageConnection* makeConnection(SOCKET sock);
@@ -532,7 +530,7 @@ public:
 
 	void addRating(size_t topic, size_t itemId, float rating)
 	{
-		GAssert(rating >= 0.0f && rating <= 1.0f);
+		GAssert(rating >= -1.0f && rating <= 1.0f);
 		if(topic >= m_ratings.size())
 			m_ratings.resize(topic + 1);
 		m_ratings[topic].addRating(itemId, rating);
@@ -926,11 +924,6 @@ public:
 #else
 							size_t itemId = (size_t)strtoull(szName + 6, NULL, 10);
 #endif
-							if(itemId >= ((Server*)m_pServer)->topics().size())
-							{
-								response << "[statement id " << itemId << " out of range.]<br>\n";
-								continue;
-							}
 							set<size_t>::iterator tmp = checks.find(itemId);
 							if(tmp != checks.end())
 							{
@@ -947,8 +940,8 @@ public:
 					}
 
 					// Do some training
-					((Server*)m_pServer)->trainPersonality(pAccount, ON_RATE_TRAINING_ITERS);
-					((Server*)m_pServer)->trainModel(currentTopic, ON_RATE_TRAINING_ITERS);
+					((Server*)m_pServer)->refinePersonality(pAccount, ON_RATE_TRAINING_ITERS); // trains just personalities
+					((Server*)m_pServer)->refineModel(currentTopic, ON_RATE_TRAINING_ITERS); // trains both personalities and weights
 					((Server*)m_pServer)->saveState();
 				}
 			}
@@ -1956,7 +1949,7 @@ void Server::loadState()
 		// Do some training to make sure the model is in good shape
 		cout << "doing some training...\n";
 		for(size_t i = 0; i < m_topics.size(); i++)
-			trainModel(i, ON_STARTUP_TRAINING_ITERS);
+			refineModel(i, ON_STARTUP_TRAINING_ITERS);
 		cout << "done.\n";
 	}
 	else
@@ -2007,7 +2000,7 @@ void Server::onEverySixHours()
 	for(size_t i = 0; i < 3; i++)
 	{
 		size_t topicId = m_pRand->next(m_topics.size());
-		trainModel(topicId, ON_RATE_TRAINING_ITERS);
+		refineModel(topicId, ON_RATE_TRAINING_ITERS);
 	}
 	saveState();
 	fflush(stdout);
@@ -2095,7 +2088,7 @@ void Server::newTopic(const char* szDescr)
 	m_topics.push_back(new Topic(szDescr));
 }
 
-void Server::trainModel(size_t topic, size_t iters)
+void Server::refineModel(size_t topic, size_t iters)
 {
 	// Do some training
 	Topic* pCurrentTopic = m_topics[topic];
@@ -2107,12 +2100,17 @@ void Server::trainModel(size_t topic, size_t iters)
 			std::vector<pair<size_t, float> >& v = pSomeAccount->ratings()[topic].m_vec;
 			if(v.size() > 0)
 			{
+				vector<double>& personality = pSomeAccount->personality();
 				size_t index = (size_t)prng()->next(v.size());
 				Item& item = pCurrentTopic->item(v[index].first);
 				double target = (double)v[index].second;
-				GAssert(target >= 0.0 && target <= 1.0);
-				item.trainWeights(target, LEARNING_RATE, pSomeAccount->personality());
-				item.trainPersonality(target, LEARNING_RATE, pSomeAccount->personality());
+				GAssert(target >= -1.0 && target <= 1.0);
+				for(size_t j = 0; j < item.weights().size(); j++)
+					item.weights()[j] *= (1.0 - LEARNING_RATE * REGULARIZATION_TERM);
+				for(size_t j = 0; j < personality.size(); j++)
+					personality[j] *= (1.0 - LEARNING_RATE * REGULARIZATION_TERM);
+				item.trainWeights(target, LEARNING_RATE, personality);
+				item.trainPersonality(target, LEARNING_RATE, personality);
 			}
 		}
 	}
@@ -2127,7 +2125,7 @@ Account* Server::findAccount(const char* szName)
 		return it->second;
 }
 
-void Server::trainPersonality(Account* pAccount, size_t iters)
+void Server::refinePersonality(Account* pAccount, size_t iters)
 {
 	// Train the personality a little bit
 	size_t topic = pAccount->currentTopic();

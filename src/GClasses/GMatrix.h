@@ -475,7 +475,7 @@ public:
 	///the rows (with the same content).
 	///
 	///\param orig the GMatrix object to copy
-	GMatrix(const GMatrix& orig);
+	GMatrix(const GMatrix& orig, size_t rowStart = 0, size_t colStart = 0, size_t rowCount = (size_t)-1, size_t colCount = (size_t)-1);
 
 
 	//I put the operator= right after the copy constructor because you
@@ -540,8 +540,11 @@ public:
 	/// replacing all data currently in this matrix.
 	void copyCols(const GMatrix& that, size_t firstCol, size_t colCount);
 
-	/// \brief Copies (deep) all the data and metadata from pThat.
-	void copy(const GMatrix* pThat);
+	/// \brief Copies (deep) all the data and metadata from that.
+	void copy(const GMatrix& that, size_t rowStart = 0, size_t colStart = 0, size_t rowCount = (size_t)-1, size_t colCount = (size_t)-1);
+
+	/// \brief Copies the transpose of that into this matrix.
+	void copyTranspose(GMatrix& that);
 
 	/// \brief This computes the square root of this matrix. (If you
 	/// take the matrix that this returns and multiply it by its
@@ -553,10 +556,6 @@ public:
 	/// accurate results. If tolerant is false (the default) and this
 	/// matrix is not positive definite, it will throw an exception.
 	GMatrix* cholesky(bool tolerant = false);
-
-	/// \brief Makes a deep copy of the specified rectangular region of
-	/// this matrix
-	GMatrix* cloneSub(size_t rowStart, size_t colStart, size_t rowCount, size_t colCount) const;
 
 	/// \brief Copies the specified column into pOutVector
 	void col(size_t index, double* pOutVector);
@@ -616,7 +615,7 @@ public:
 
 #ifndef MIN_PREDICT
 	/// \brief Loads an ARFF file and replaces the contents of this matrix with it.
-	void loadArff(const char* szFilename);
+	void loadArff(const char* szFilename, size_t maxRows = (size_t)-1);
 
 	/// \brief Loads a raw (binary) file and replaces the contents of this matrix with it.
 	void loadRaw(const char* szFilename);
@@ -625,10 +624,10 @@ public:
 	void load(const char* szFilename);
 
 	/// \brief Parses an ARFF file and replaces the contents of this matrix with it.
-	void parseArff(const char* szFile, size_t nLen);
+	void parseArff(const char* szFile, size_t nLen, size_t maxRows = (size_t)-1);
 
 	/// \brief Parses an ARFF file and replaces the contents of this matrix with it.
-	void parseArff(GArffTokenizer& tok);
+	void parseArff(GArffTokenizer& tok, size_t maxRows = (size_t)-1);
 #endif // MIN_PREDICT
 
 
@@ -701,7 +700,7 @@ public:
 	/// matrix this returns.
 	GMatrix* pseudoInverse();
 
-	/// \brief Returns a const pointer to the relation object, which holds meta-data about
+	/// \brief Returns a const reference to the relation object, which holds meta-data about
 	/// the attributes (columns)
 	const GRelation& relation() const { return *m_pRelation; }
 
@@ -799,22 +798,22 @@ public:
 	/// \brief Returns a pointer to the specified row
 	inline GVec& row(size_t index) { return *m_rows[index]; }
 
-	/// \brief Returns a const pointer to the specified row
+	/// \brief Returns a const reference to the specified row
 	inline const GVec& row(size_t index) const { return *m_rows[index]; }
 
-	/// \brief Returns a pointer to the first row
+	/// \brief Returns a reference to the first row
 	inline GVec& front() { return *m_rows[0]; }
 	inline const GVec& front() const { return *m_rows[0]; }
 
-	/// \brief Returns a pointer to a row indexed from the back of the matrix.
+	/// \brief Returns a reference to a row indexed from the back of the matrix.
 	/// index 0 (default) is the last row, index 1 is the second-to-last row, etc.
 	inline GVec& back(size_t reverse_index = 0) { return *m_rows[m_rows.size() - 1 - reverse_index]; }
 	inline const GVec& back(size_t reverse_index = 0) const { return *m_rows[m_rows.size() - 1 - reverse_index]; }
 
-	/// \brief Returns a pointer to the specified row
+	/// \brief Returns a reference to the specified row
 	inline GVec& operator [](size_t index) { return *m_rows[index]; }
 
-	/// \brief Returns a const pointer to the specified row
+	/// \brief Returns a const reference to the specified row
 	inline const GVec& operator [](size_t index) const { return *m_rows[index]; }
 
 	/// \brief Fills all elements in the specified range of columns with the specified value.
@@ -933,7 +932,7 @@ public:
 	///
 	/// If pExtensionA is non-NULL, then it will also split pExtensionA
 	/// such that corresponding rows are preserved.
-	void splitCategoricalKeepIfEqual(GMatrix* pOtherValues, size_t nAttr, int nValue, GMatrix* pExtensionA, GMatrix* pExtensionB);
+	void splitCategoricalKeepIfEqual(GMatrix* pOtherValues, size_t nAttr, int nValue, GMatrix* pExtensionA = NULL, GMatrix* pExtensionB = NULL);
 
 	/// \brief Removes the last nOtherRows rows from this data set and
 	/// puts them in "other". (Order is preserved.)
@@ -950,18 +949,24 @@ public:
 	/// Returns -1e300 if there are no known values in the column.
 	double columnMax(size_t nAttribute) const;
 
+	/// \brief Returns the sum of the values in the specified column.
+	double columnSum(size_t col) const;
+
 	/// \brief Computes the arithmetic mean of the values in the specified column
 	/// If pWeights is NULL, then each row is given equal weight.
 	/// If pWeights is non-NULL, then it is assumed to be a vector of weights, one for each row in this matrix.
 	/// If there are no values in this column with any weight, then it will throw an exception if throwIfEmpty is true,
 	/// or else return UNKNOWN_REAL_VALUE.
-	double columnMean(size_t nAttribute, const double* pWeights = NULL, bool throwIfEmpty = true) const;
+	double columnMean(size_t nAttribute, const GVec* pWeights = NULL, bool throwIfEmpty = true) const;
 
 	/// Returns the squared magnitude of the vector in the specified column.
 	double columnSquaredMagnitude(size_t col) const;
 
 	/// \brief Computes the sample variance of a single attribute
 	double columnVariance(size_t nAttr, double mean) const;
+
+	/// \brief Scales the column by the specified scalar.
+	void scaleColumn(size_t col, double scalar);
 
 #ifndef MIN_PREDICT
 	/// \brief Computes the median of the values in the specified column
@@ -977,7 +982,7 @@ public:
 
 	/// \brief Computes the arithmetic means of all attributes
 	/// If pWeights is non-NULL, then it is assumed to be a vector of weights, one for each row in this matrix.
-	void centroid(GVec& outCentroid, const double* pWeights = NULL) const;
+	void centroid(GVec& outCentroid, const GVec* pWeights = NULL) const;
 
 	/// \brief Normalizes the specified column
 	void normalizeColumn(size_t col, double dInMin, double dInMax, double dOutMin = 0.0, double dOutMax = 1.0);
@@ -1335,6 +1340,9 @@ public:
 		m_a.mergeVert(&m_b);
 	}
 };
+
+
+
 
 
 

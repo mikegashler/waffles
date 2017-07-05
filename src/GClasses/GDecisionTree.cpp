@@ -432,9 +432,9 @@ void GDecisionTree::trainInner(const GMatrix& features, const GMatrix& labels)
 
 	// Copy the data
 	GMatrix tmpFeatures(m_pRelFeatures->clone());
-	tmpFeatures.copy(&features);
+	tmpFeatures.copy(features);
 	GMatrix tmpLabels(m_pRelLabels->clone());
-	tmpLabels.copy(&labels);
+	tmpLabels.copy(labels);
 
 	m_pRoot = buildBranch(tmpFeatures, tmpLabels, attrPool, 0/*depth*/, 4/*tolerance*/);
 }

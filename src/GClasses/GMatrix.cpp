@@ -936,15 +936,15 @@ GMatrix::GMatrix(vector<size_t>& attrValues)
 	m_pRelation = new GMixedRelation(attrValues);
 }
 
-GMatrix::GMatrix(const GMatrix& orig)
+GMatrix::GMatrix(const GMatrix& orig, size_t rowStart, size_t colStart, size_t rowCount, size_t colCount)
 : m_pRelation(NULL)
 {
-	copy(&orig);
+	copy(orig, rowStart, colStart, rowCount, colCount);
 }
 
 GMatrix& GMatrix::operator=(const GMatrix& orig)
 {
-	copy(&orig);
+	copy(orig);
 	return *this;
 }
 
@@ -1073,17 +1073,17 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 		if(*szFormat == '\0')
 			throw Ex("Invalid date format string");
 		szFormat++;
-		time_t t;
+		double t;
 		if(!GTime::fromString(&t, szVal, szFormat))
 			throw Ex("The string, ", szVal, " does not fit the specified date format, ", szFormat);
-		return (double)t;
+		return t;
 	}
 	else
 		throw Ex("Unexpected attribute type, ", to_str(vals));
 }
 
 #ifndef MIN_PREDICT
-void GMatrix::parseArff(GArffTokenizer& tok)
+void GMatrix::parseArff(GArffTokenizer& tok, size_t maxRows)
 {
 	// Parse the meta data
 	GArffRelation* pRelation = new GArffRelation();
@@ -1126,6 +1126,8 @@ void GMatrix::parseArff(GArffTokenizer& tok)
 	size_t colCount = pRelation->size();
 	while(true)
 	{
+		if(rows() >= maxRows)
+			break;
 		tok.skip(tok.m_whitespace);
 		char c = tok.peek();
 		if(c == '\0')
@@ -1215,10 +1217,10 @@ void GMatrix::parseArff(GArffTokenizer& tok)
 	}
 }
 
-void GMatrix::loadArff(const char* szFilename)
+void GMatrix::loadArff(const char* szFilename, size_t maxRows)
 {
 	GArffTokenizer tok(szFilename);
-	parseArff(tok);
+	parseArff(tok, maxRows);
 }
 
 void GMatrix::loadRaw(const char* szFilename)
@@ -1272,10 +1274,10 @@ void GMatrix::saveRaw(const char* szFilename)
 }
 
 // static
-void GMatrix::parseArff(const char* szFile, size_t nLen)
+void GMatrix::parseArff(const char* szFile, size_t nLen, size_t maxRows)
 {
 	GArffTokenizer tok(szFile, nLen);
-	parseArff(tok);
+	parseArff(tok, maxRows);
 }
 
 size_t GMatrix::countUniqueValues(size_t column, size_t maxCount) const
@@ -2251,11 +2253,9 @@ GMatrix* GMatrix::align(GMatrix* pA, GMatrix* pB)
 	size_t columns = pA->cols();
 	GVec mean(columns);
 	pA->centroid(mean);
-	GMatrix aa;
-	aa.copy(pA);
+	GMatrix aa(*pA);
 	aa.centerMeanAtOrigin();
-	GMatrix bb;
-	bb.copy(pB);
+	GMatrix bb(*pB);
 	bb.centerMeanAtOrigin();
 	GMatrix* pK = GMatrix::kabsch(&bb, &aa);
 	std::unique_ptr<GMatrix> hK(pK);
@@ -2276,7 +2276,7 @@ double GMatrix::determinant()
 	// Convert to a triangular matrix
 	double epsilon = 1e-10;
 	GMatrix C;
-	C.copy(this);
+	C.copy(*this);
 	GTEMPBUF(size_t, Kp, 2 * n);
 	size_t* Lp = Kp + n;
 	size_t l, ko, lo;
@@ -2456,7 +2456,7 @@ GMatrix* GMatrix::eigs(size_t nCount, GVec& eigenVals, GRand* pRand, bool mostSi
 	if(mostSignificant)
 	{
 		pA = new GMatrix();
-		pA->copy(this);
+		pA->copy(*this);
 	}
 	else
 		pA = pseudoInverse();
@@ -2525,13 +2525,7 @@ void GMatrix::newColumns(size_t n)
 			((GMixedRelation*)m_pRelation)->addAttr(0);
 	}
 	for(size_t i = 0; i < rows(); i++)
-	{
-		GVec* pOld = m_rows[i];
-		GVec* pNew = new GVec(oldSize + n);
-		memcpy(pNew->data(), pOld->data(), sizeof(double) * oldSize);
-		delete(pOld);
-		m_rows[i] = pNew;
-	}
+		m_rows[i]->resizePreserve(oldSize + n);
 }
 
 void GMatrix::takeRow(GVec* pRow, size_t pos)
@@ -2598,23 +2592,23 @@ void GMatrix::fillNormal(GRand& rand, double deviation)
 		row(i).fillNormal(rand, deviation);
 }
 
-void GMatrix::copy(const GMatrix* pThat)
+void GMatrix::copy(const GMatrix& that, size_t rowStart, size_t colStart, size_t rowCount, size_t colCount)
 {
-	GAssert(pThat != this);
+	GAssert(this != &that);
 	flush();
-	setRelation(pThat->m_pRelation->clone());
-	newRows(pThat->rows());
-	copyBlock(*pThat, 0, 0, pThat->rows(), pThat->cols(), 0, 0, false);
+	setRelation(that.m_pRelation->cloneSub(colStart, std::min(that.cols() - colStart, colCount)));
+	newRows(std::min(that.rows() - rowStart, rowCount));
+	copyBlock(that, rowStart, colStart, rowCount, colCount, 0, 0, false);
 }
 
-GMatrix* GMatrix::cloneSub(size_t rowStart, size_t colStart, size_t rowCount, size_t colCount) const
+void GMatrix::copyTranspose(GMatrix& that)
 {
-	if(rowStart + rowCount > rows())
-		throw Ex("row index out of range");
-	GMatrix* pThat = new GMatrix(m_pRelation->cloneSub(colStart, colCount));
-	pThat->newRows(rowCount);
-	pThat->copyBlock(*this, rowStart, colStart, rowCount, colCount, 0, 0, false);
-	return pThat;
+	resize(that.cols(), that.rows());
+	for(size_t i = 0; i < that.rows(); i++)
+	{
+		for(size_t j = 0; j < that.cols(); j++)
+			(*this)[j][i] = that[i][j];
+	}
 }
 
 void GMatrix::copyBlock(const GMatrix& source, size_t srcRow, size_t srcCol, size_t hgt, size_t wid, size_t destRow, size_t destCol, bool checkMetaData)
@@ -2970,7 +2964,18 @@ void GMatrix::mergeVert(GMatrix* pData, bool ignoreMismatchingName)
 	}
 }
 
-double GMatrix::columnMean(size_t nAttribute, const double* pWeights, bool throwIfEmpty) const
+double GMatrix::columnSum(size_t col) const
+{
+	double sum = 0;
+	for(size_t i = 0; i < rows(); i++)
+	{
+		if((*this)[i][col] != UNKNOWN_REAL_VALUE)
+			sum += (*this)[i][col];
+	}
+	return sum;
+}
+
+double GMatrix::columnMean(size_t nAttribute, const GVec* pWeights, bool throwIfEmpty) const
 {
 	if(nAttribute >= cols())
 		throw Ex("attribute index out of range");
@@ -2982,10 +2987,9 @@ double GMatrix::columnMean(size_t nAttribute, const double* pWeights, bool throw
 		{
 			if((*this)[i][nAttribute] != UNKNOWN_REAL_VALUE)
 			{
-				sum += *pWeights * (*this)[i][nAttribute];
-				sumWeight += *pWeights;
+				sum += (*pWeights)[i] * (*this)[i][nAttribute];
+				sumWeight += (*pWeights)[i];
 			}
-			pWeights++;
 		}
 		if(sumWeight > 0.0)
 			return sum / sumWeight;
@@ -3057,7 +3061,7 @@ double GMatrix::columnMedian(size_t nAttribute, bool throwIfEmpty) const
 }
 #endif // MIN_PREDICT
 
-void GMatrix::centroid(GVec& outCentroid, const double* pWeights) const
+void GMatrix::centroid(GVec& outCentroid, const GVec* pWeights) const
 {
 	size_t c = cols();
 	outCentroid.resize(c);
@@ -3110,7 +3114,10 @@ double GMatrix::columnMin(size_t nAttribute) const
 		if((*this)[i][nAttribute] < d)
 			d = (*this)[i][nAttribute];
 	}
-	return d;
+	if(d == 1e300)
+		return UNKNOWN_REAL_VALUE;
+	else
+		return d;
 }
 
 double GMatrix::columnMax(size_t nAttribute) const
@@ -3123,7 +3130,16 @@ double GMatrix::columnMax(size_t nAttribute) const
 		if((*this)[i][nAttribute] > d)
 			d = (*this)[i][nAttribute];
 	}
-	return d;
+	if(d == -1e300)
+		return UNKNOWN_REAL_VALUE;
+	else
+		return d;
+}
+
+void GMatrix::scaleColumn(size_t col, double scalar)
+{
+	for(size_t i = 0; i < rows(); i++)
+		(*this)[i][col] *= scalar;
 }
 
 void GMatrix::normalizeColumn(size_t column, double dInMin, double dInMax, double dOutMin, double dOutMax)
@@ -3132,9 +3148,12 @@ void GMatrix::normalizeColumn(size_t column, double dInMin, double dInMax, doubl
 	double dScale = (dOutMax - dOutMin) / (dInMax - dInMin);
 	for(size_t i = 0; i < rows(); i++)
 	{
-		(*this)[i][column] -= dInMin;
-		(*this)[i][column] *= dScale;
-		(*this)[i][column] += dOutMin;
+		if((*this)[i][column] != UNKNOWN_REAL_VALUE)
+		{
+			(*this)[i][column] -= dInMin;
+			(*this)[i][column] *= dScale;
+			(*this)[i][column] += dOutMin;
+		}
 	}
 }
 
@@ -3522,7 +3541,7 @@ size_t GMatrix::countPrincipalComponents(double d, GRand* pRand) const
 {
 	size_t dims = cols();
 	GMatrix tmpData(relation().cloneMinimal());
-	tmpData.copy(this);
+	tmpData.copy(*this);
 	tmpData.centerMeanAtOrigin();
 	GVec vec(dims);
 	GVec origin(tmpData.cols());
@@ -4645,8 +4664,7 @@ void GMatrix_testLUDecomposition(GRand& prng)
 		for(size_t j = 0; j < 5; j++)
 			a[i][j] = prng.normal();
 	}
-	GMatrix b;
-	b.copy(&a);
+	GMatrix b(a);
 	b.LUDecomposition();
 	GMatrix l(5, 5);
 	l.fill(0.0);
@@ -5064,11 +5082,11 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 			for(size_t rowNum = m_columnNamesInFirstRow ? 1 : 0; rowNum < rows.size(); rowNum++)
 			{
 				const char* el = rows[rowNum].m_elements[attr];
-				time_t t;
+				double t;
 				if(*el == '\0')
 					outMatrix[i][attr] = UNKNOWN_REAL_VALUE;
 				else if(GTime::fromString(&t, el, szFormat))
-					outMatrix[i][attr] = (double)t;
+					outMatrix[i][attr] = t;
 				else
 				{
 					outMatrix[i][attr] = UNKNOWN_REAL_VALUE;

@@ -380,19 +380,19 @@ public:
 		else if(index == 12)
 		{
 			GNeuralNetLearner* pModel = new GNeuralNetLearner();
-			pModel->newLayer().add(new GBlockLinear(0ul));
-			pModel->newLayer().add(new GBlockTanh());
+			pModel->nn().add(new GBlockLinear(0ul));
+			pModel->nn().add(new GBlockTanh());
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 13)
 		{
 			GNeuralNetLearner* pNN = new GNeuralNetLearner();
-			pNN->newLayer().add(new GBlockLinear(30));
-			pNN->newLayer().add(new GBlockTanh());
-			pNN->newLayer().add(new GBlockLinear(256));
-			pNN->newLayer().add(new GBlockTanh());
-			pNN->newLayer().add(new GBlockLinear(0ul));
-			pNN->newLayer().add(new GBlockTanh());
+			pNN->nn().add(new GBlockLinear(30));
+			pNN->nn().add(new GBlockTanh());
+			pNN->nn().add(new GBlockLinear(256));
+			pNN->nn().add(new GBlockTanh());
+			pNN->nn().add(new GBlockLinear(0ul));
+			pNN->nn().add(new GBlockTanh());
 
 			doBackProp(pNN);
 		}
@@ -415,7 +415,7 @@ public:
 		GNeuralNetLearner* pNN = (GNeuralNetLearner*)m_pNNForTraining;
 		GSGDOptimizer* pOpt = NULL;
 		if(pNN)
-			pOpt = new GSGDOptimizer(pNN->nn());
+			pOpt = new GSGDOptimizer(pNN->nn(), pNN->rand());
 		std::unique_ptr<GSGDOptimizer> hOpt(pOpt);
 		while(m_workerMode > 0)
 		{

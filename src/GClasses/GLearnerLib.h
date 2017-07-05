@@ -51,7 +51,6 @@
 #include "GDom.h"
 #include "GVec.h"
 #include "usage.h"
-//#include "../wizard/usage.h"
 #include <cassert>
 #include <time.h>
 #include <iostream>
@@ -84,77 +83,81 @@ public:
 
 	static void parseAttributeList(vector<size_t>& list, GArgReader& args, size_t attrCount);
 
-        static void loadData(GArgReader& args, std::unique_ptr<GMatrix>& hFeaturesOut, std::unique_ptr<GMatrix>& hLabelsOut, bool requireMetadata = false);
+	static void loadData(GArgReader& args, std::unique_ptr<GMatrix>& hFeaturesOut, std::unique_ptr<GMatrix>& hLabelsOut, bool requireMetadata = false);
 
-        static GAgglomerativeTransducer* InstantiateAgglomerativeTransducer(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GAgglomerativeTransducer* InstantiateAgglomerativeTransducer(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GBaselineLearner* InstantiateBaseline(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GBaselineLearner* InstantiateBaseline(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GBayesianModelAveraging* InstantiateBMA(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GBayesianModelAveraging* InstantiateBMA(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GBayesianModelCombination* InstantiateBMC(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GBayesianModelCombination* InstantiateBMC(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GBag* InstantiateBag(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GBag* InstantiateBag(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GBomb* InstantiateBomb(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GBomb* InstantiateBomb(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GResamplingAdaBoost* InstantiateBoost(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GResamplingAdaBoost* InstantiateBoost(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GBucket* InstantiateBucket(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GBucket* InstantiateBucket(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GBucket* InstantiateCvdt(GArgReader& args);
+	static GBucket* InstantiateCvdt(GArgReader& args);
 
-        static GDecisionTree* InstantiateDecisionTree(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GDecisionTree* InstantiateDecisionTree(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GGaussianProcess* InstantiateGaussianProcess(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GGaussianProcess* InstantiateGaussianProcess(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GGraphCutTransducer* InstantiateGraphCutTransducer(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GGraphCutTransducer* InstantiateGraphCutTransducer(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GBayesianModelCombination* InstantiateHodgePodge(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GBayesianModelCombination* InstantiateHodgePodge(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GKNN* InstantiateKNN(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GKNN* InstantiateKNN(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GLinearRegressor* InstantiateLinearRegressor(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GLinearRegressor* InstantiateLinearRegressor(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GMeanMarginsTree* InstantiateMeanMarginsTree(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GMeanMarginsTree* InstantiateMeanMarginsTree(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GNaiveBayes* InstantiateNaiveBayes(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GNaiveBayes* InstantiateNaiveBayes(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GNaiveInstance* InstantiateNaiveInstance(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GNaiveInstance* InstantiateNaiveInstance(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GNeighborTransducer* InstantiateNeighborTransducer(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GBlock* instantiateBlock(GArgReader& args);
 
-        static GRandomForest* InstantiateRandomForest(GArgReader& args);
+	static GNeuralNetLearner* InstantiateNeuralNet(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GReservoirNet* InstantiateReservoirNet(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GNeighborTransducer* InstantiateNeighborTransducer(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static GWag* InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GRandomForest* InstantiateRandomForest(GArgReader& args);
 
-        static void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args);
+	static GReservoirNet* InstantiateReservoirNet(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static void autoTuneDecisionTree(GMatrix& features, GMatrix& labels);
+	static GWag* InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-        static void autoTuneKNN(GMatrix& features, GMatrix& labels);
+	static void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args);
 
-        static void autoTuneNeuralNet(GMatrix& features, GMatrix& labels);
+	static void autoTuneDecisionTree(GMatrix& features, GMatrix& labels);
 
-        static void autoTuneNaiveBayes(GMatrix& features, GMatrix& labels);
+	static void autoTuneKNN(GMatrix& features, GMatrix& labels);
 
-        static void autoTuneNaiveInstance(GMatrix& features, GMatrix& labels);
+	static void autoTuneNeuralNet(GMatrix& features, GMatrix& labels);
 
-        static void autoTuneGraphCutTransducer(GMatrix& features, GMatrix& labels);
+	static void autoTuneNaiveBayes(GMatrix& features, GMatrix& labels);
 
-        static void autoTune(GArgReader& args);
+	static void autoTuneNaiveInstance(GMatrix& features, GMatrix& labels);
 
-        static void Train(GArgReader& args);
+	static void autoTuneGraphCutTransducer(GMatrix& features, GMatrix& labels);
 
-        static void predict(GArgReader& args);
+	static void autoTune(GArgReader& args);
 
-        static void predictDistribution(GArgReader& args);
+	static void Train(GArgReader& args);
 
-        static void leftJustifiedString(const char* pIn, char* pOut, size_t outLen);
+	static void predict(GArgReader& args);
 
-        static void rightJustifiedString(const char* pIn, char* pOut, size_t outLen);
+	static void predictDistribution(GArgReader& args);
+
+	static void leftJustifiedString(const char* pIn, char* pOut, size_t outLen);
+
+	static void rightJustifiedString(const char* pIn, char* pOut, size_t outLen);
 
 	///\brief Returns the header for the machine readable confusion matrix
 	///for variable \a variable_idx as printed by
@@ -169,7 +172,7 @@ public:
 	///
 	///\param pRelation a pointer to the relation from which the
 	///                 variable_idx-'th variable is taken. Cannot be null
-        static std::string machineReadableConfusionHeader(std::size_t variable_idx, const GRelation* pRelation);
+	static std::string machineReadableConfusionHeader(std::size_t variable_idx, const GRelation* pRelation);
 
 	//\brief Returns the data for the machine readable confusion matrix
 	///for variable \a variable_idx as printed by
@@ -204,78 +207,38 @@ public:
 	///                   pRelation. Row r, column c of matrixArray[i] is the
 	///                   number of times the value r of the attribute was expected
 	///                   and c was encountered.
-        static void printMachineReadableConfusionMatrices(const GRelation* pRelation, vector<GMatrix*>& matrixArray);
+	static void printMachineReadableConfusionMatrices(const GRelation* pRelation, vector<GMatrix*>& matrixArray);
 
-        static void printConfusionMatrices(const GRelation* pRelation, vector<GMatrix*>& matrixArray);
+	static void printConfusionMatrices(const GRelation* pRelation, vector<GMatrix*>& matrixArray);
 
-        static void Test(GArgReader& args);
+	static void Test(GArgReader& args);
 
-        static void Transduce(GArgReader& args);
+	static void Transduce(GArgReader& args);
 
-        static void TransductiveAccuracy(GArgReader& args);
+	static void TransductiveAccuracy(GArgReader& args);
 
-        static void SplitTest(GArgReader& args);
+	static void SplitTest(GArgReader& args);
 
-        static void CrossValidateCallback(void* pSupLearner, size_t nRep, size_t nFold, double foldSSE, size_t rows);
+	static void CrossValidateCallback(void* pSupLearner, size_t nRep, size_t nFold, double foldSSE, size_t rows);
 
-        static void CrossValidate(GArgReader& args);
+	static void CrossValidate(GArgReader& args);
 
-        static void vette(string& s);
+	static void vette(string& s);
 
-        static void PrecisionRecall(GArgReader& args);
+	static void PrecisionRecall(GArgReader& args);
 
-        static void sterilize(GArgReader& args);
+	static void sterilize(GArgReader& args);
 
-//        static void trainRecurrent(GArgReader& args);
+	static void regress(GArgReader& args);
 
-        static void regress(GArgReader& args);
+	static void metaData(GArgReader& args);
 
-        static void metaData(GArgReader& args);
+	static void ShowUsage(const char* appName);
 
-        static void ShowUsage(const char* appName);
-
-        static void showError(GArgReader& args, const char* szAppName, const char* szMessage);
+	static void showError(GArgReader& args, const char* szAppName, const char* szMessage);
 };
-/*
-class MyRecurrentModel : public GRecurrentModel
-{
-protected:
-	const char* m_stateFilename;
-	double m_validateInterval;
-	double m_dStart;
 
-public:
-	MyRecurrentModel(GSupervisedLearner* pTransition, GSupervisedLearner* pObservation, size_t actionDims, size_t ctxtDims, size_t observationDims, GRand* pRand, std::vector<size_t>* pParamDims, const char* stateFilename, double validateInterval)
-	: GRecurrentModel(pTransition, pObservation, actionDims, ctxtDims, observationDims, pRand, pParamDims), m_stateFilename(stateFilename), m_validateInterval(validateInterval)
-	{
-		m_dStart = GTime::seconds();
-	}
 
-	virtual ~MyRecurrentModel()
-	{
-	}
-
-	virtual void onFinishedComputingStateEstimate(GMatrix* pStateEstimate)
-	{
-		if(m_stateFilename)
-			pStateEstimate->saveArff(m_stateFilename);
-		cout << "% Computed state estimate in " << GTime::seconds() - m_dStart << " seconds.\n";
-		cout.flush();
-	}
-
-	virtual void onObtainValidationScore(int timeSlice, double seconds, double squaredError)
-	{
-		if(m_validateInterval > 0)
-		{
-			if(squaredError == UNKNOWN_REAL_VALUE)
-				cout << (m_validateInterval * timeSlice) << ", ?\n";
-			else
-				cout << (m_validateInterval * timeSlice) << ", " << sqrt(squaredError) << "\n";
-			cout.flush();
-		}
-	}
-};
-*/
 class OptimizerTargetFunc : public GTargetFunction
 {
 public:

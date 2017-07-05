@@ -144,36 +144,42 @@ UsageNode* makeCryptoUsageTree()
 	return pRoot;
 }
 
-bool shredFile(const char* szFilename)
+void overwriteFileWithGarbage(const char* szFilename)
 {
-#ifdef WINDOWS
-	char szTmp[4096];
-	int i;
-	for(i = 0; i < 4096; i++)
-		szTmp[i] = rand() % 256;
+	char buf[4096];
 	FILE* pFile = fopen(szFilename, "r+");
 	if(!pFile)
-		return false;
+		throw Ex("Failed to open file ", szFilename);
 	FileHolder hFile(pFile);
 	int nFileSize = filelength(fileno(pFile));
 	while(nFileSize > 0)
 	{
-		fwrite(szTmp, 1, 4096, pFile);
-		nFileSize -= 4096;
+		for(int i = 0; i < 4096; i++)
+			buf[i] = rand() % 256;
+        int n = std::min(4096, nFileSize);
+		fwrite(buf, 1, n, pFile);
+		nFileSize -= n;
 	}
 	fflush(pFile);
 	hFile.release();
+}
+
+bool shredFile(const char* szFilename)
+{
+#ifdef WINDOWS
+	overwriteFileWithGarbage(szFilename);
 	return DeleteFile(szFilename) ? true : false;
 #else
-	GTEMPBUF(char, szTmp, strlen(szFilename) + 32);
 #	ifdef DARWIN
-	strcpy(szTmp, "srm -s ");
+	overwriteFileWithGarbage(szFilename);
+    return (remove(szFilename) == 0);
 #	else
+	GTEMPBUF(char, szTmp, strlen(szFilename) + 32);
 	strcpy(szTmp, "shred -fun1 ");
-#	endif
 	strcat(szTmp, szFilename);
 	bool bOK = (system(szTmp) == 0);
 	return bOK;
+#	endif
 #endif
 }
 

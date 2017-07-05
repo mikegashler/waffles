@@ -140,7 +140,7 @@ void GCudaVector::randomUniform(GCudaEngine& engine)
 void GCudaVector::randomNormal(GCudaEngine& engine, double mean, double dev)
 {
 	if(curandGenerateNormalDouble((curandGenerator_t)engine.m_prng, d_vals, m_size, mean, dev) != CURAND_STATUS_SUCCESS)
-		throw Ex("curandGenerateNormalDouble failed");
+		throw Ex("curandGenerateNormalDouble failed in GCudaVector::randomNormal");
 }
 
 
@@ -323,7 +323,7 @@ void GCudaMatrix::scaleCol(GCudaEngine& engine, size_t col, double scalar)
 void GCudaMatrix::fillNormal(GCudaEngine& engine, double mean, double dev)
 {
 	if(curandGenerateNormalDouble((curandGenerator_t)engine.m_prng, d_vals, m_rows * m_cols, mean, dev) != CURAND_STATUS_SUCCESS)
-		throw Ex("curandGenerateNormalDouble failed");
+		throw Ex("curandGenerateNormalDouble failed in GCudaMatrix::fillNormal");
 }
 
 } // namespace GClasses

@@ -55,7 +55,7 @@ public:
 	void setAll();
 
 	/// Returns the bit at index
-	bool bit(size_t index);
+	bool bit(size_t index) const;
 
 	/// Sets the bit at index
 	void set(size_t index);
@@ -67,8 +67,8 @@ public:
 	void toggle(size_t index);
 
 	/// Returns true iff the bit tables are exactly equal.
-	/// (Behavior is undefined if the tables are not the same size.)
-	bool equals(GBitTable* that);
+	/// Returns false if the tables are not the same size.
+	bool equals(const GBitTable& that) const;
 
 	/// Returns true iff the first "count" bits are set. (Note that
 	/// for most applications, it is more efficient to simply maintain

@@ -177,12 +177,12 @@ size_t GWaveIterator::remaining()
 	return m_remaining;
 }
 
-bool GWaveIterator::advance()
+bool GWaveIterator::advance(size_t steps)
 {
-	if(m_remaining == 0)
+	if(m_remaining < steps)
 		return false;
-	m_pPos += m_wave.channels() * m_wave.bitsPerSample() / 8;
-	m_remaining--;
+	m_pPos += steps * m_wave.channels() * m_wave.bitsPerSample() / 8;
+	m_remaining -= steps;
 	return true;
 }
 

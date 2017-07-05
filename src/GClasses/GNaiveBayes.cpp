@@ -416,9 +416,9 @@ void GNaiveBayes_testMath()
 	"t,r,n\n";
 	GMatrix train;
 	train.parseArff(trainFile, strlen(trainFile));
-	GMatrix* pFeatures = train.cloneSub(0, 0, train.rows(), 2);
+	GMatrix* pFeatures = new GMatrix(train, 0, 0, train.rows(), 2);
 	std::unique_ptr<GMatrix> hFeatures(pFeatures);
-	GMatrix* pLabels = train.cloneSub(0, 2, train.rows(), 1);
+	GMatrix* pLabels = new GMatrix(train, 0, 2, train.rows(), 1);
 	std::unique_ptr<GMatrix> hLabels(pLabels);
 	GNaiveBayes nb;
 	nb.setEquivalentSampleSize(0.0);

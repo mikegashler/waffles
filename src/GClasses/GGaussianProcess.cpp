@@ -242,7 +242,7 @@ void GGaussianProcess::trainInnerInner(const GMatrix& features, const GMatrix& l
 	GAssert(m_pAlpha->rows() == features.rows());
 	GAssert(m_pAlpha->cols() == labels.cols());
 	m_pStoredFeatures = new GMatrix();
-	m_pStoredFeatures->copy(&features);
+	m_pStoredFeatures->copy(features);
 }
 
 // virtual

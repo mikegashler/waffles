@@ -35,17 +35,21 @@ INCLUDE_DIRECTORIES(.)
 #And build a static library
 SET (LIBRARY_OUTPUT_PATH ../../lib/ CACHE PATH "Output directory libraries.")
 SET (EXECUTABLE_OUTPUT_PATH ../../bin/ CACHE PATH "Output directory for executables.")
-ADD_LIBRARY(GClasses STATIC ${WAFFLES_SRCS} ${WAFFLES_HDRS})
+
+IF(BUILD_SHARED)
+	SET(LIB_TYPE "SHARED")
+ELSE()
+	SET(LIB_TYPE "STATIC")
+ENDIF()
+ADD_LIBRARY(GClasses ${LIB_TYPE} ${WAFFLES_SRCS} ${WAFFLES_HDRS})
 #SET_TARGET_PROPERTIES( GClasses PROPERTIES COMPILE_FLAGS "-DWAFFLES_EXPORTS") 
 
 #-------------------------------------------------------------------------------
 INSTALL(
-  TARGETS
-    GClasses
-  ARCHIVE DESTINATION 
-    lib
-  RUNTIME DESTINATION
-    bin
+  TARGETS GClasses
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
 )
 
 

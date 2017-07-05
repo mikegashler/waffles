@@ -432,7 +432,7 @@ void GKNN::trainSparse(GSparseMatrix& feats, GMatrix& labs)
 	// Copy the training data
 	m_pSparseFeatures->newRows(feats.rows());
 	m_pSparseFeatures->copyFrom(&feats);
-	m_pLabels->copy(&labs);
+	m_pLabels->copy(labs);
 }
 
 size_t GKNN::findNeighbors(const GVec& vec)
@@ -969,7 +969,7 @@ void GSparseInstance::trainInner(const GMatrix& features, const GMatrix& labels)
 	m_pInstanceFeatures = new GSparseMatrix(f1.rows(), f1.cols(), UNKNOWN_REAL_VALUE);
 	m_pInstanceFeatures->copyFrom(&f1);
 	m_pInstanceLabels = new GMatrix();
-	m_pInstanceLabels->copy(&l1);
+	m_pInstanceLabels->copy(l1);
 
 	// Prune the instances
 	prune(f2, l2);

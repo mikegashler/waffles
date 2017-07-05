@@ -19,12 +19,12 @@ endif
 # Set platform-specific compiler and linker flags
 ifeq ($(UNAME),Darwin)
 	DARWIN_BASE ?= /usr/X11
-	CFLAGS = -Wshadow -std=c++11 -stdlib=libc++ -I/opt/local/include -I/usr/local/include -I/sw/include -I$(INSTALL_LOCATION_INCLUDE) -I$(DARWIN_BASE)/include -D_THREAD_SAFE -DDARWIN -no-cpp-precomp
+	CFLAGS = -std=c++11 -stdlib=libc++ -I/opt/local/include -I/usr/local/include -I/sw/include -I$(INSTALL_LOCATION_INCLUDE) -I$(DARWIN_BASE)/include -D_THREAD_SAFE -DDARWIN -no-cpp-precomp
 	DBG_LFLAGS = -stdlib=libc++ -L/opt/local/lib -L/usr/local/lib -L/sw/lib -framework AppKit ../../lib/libGClassesDbg.a -lpthread
 	OPT_LFLAGS = -stdlib=libc++ -L/opt/local/lib -L/usr/local/lib -L/sw/lib -framework AppKit ../../lib/libGClasses.a -lpthread
 	GCOV_LFLAGS = -fprofile-arcs $(DARWIN_BASE)/lib/libpng.dylib -lz -framework AppKit ../../lib/libGClassesGcov.a
 else
-	CFLAGS = -Wall -Werror -Wshadow -pedantic -std=c++11
+	CFLAGS = -Wall -Werror -pedantic -std=c++11
 	DBG_LFLAGS = ../../lib/libGClassesDbg.a -lpthread
 	OPT_LFLAGS = ../../lib/libGClasses.a -lpthread
 	GCOV_LFLAGS = -fprofile-arcs ../../lib/libGClassesGcov.a -lpthread

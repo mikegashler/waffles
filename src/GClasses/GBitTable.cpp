@@ -65,7 +65,7 @@ void GBitTable::setAll()
 	memset(m_pBits, 255, sizeof(size_t) * m_size);
 }
 
-bool GBitTable::bit(size_t index)
+bool GBitTable::bit(size_t index) const
 {
 	GAssert(index < m_size * BLOCK_BITS); // out of range
 	size_t n = m_pBits[index / BLOCK_BITS];
@@ -94,13 +94,13 @@ void GBitTable::toggle(size_t index)
 	m_pBits[index / BLOCK_BITS] ^= ((size_t)1 << m);
 }
 
-bool GBitTable::equals(GBitTable* that)
+bool GBitTable::equals(const GBitTable& that) const
 {
-	if(this->m_size != that->m_size)
+	if(this->m_size != that.m_size)
 		return false;
 	for(size_t i = 0; i < m_size; i++)
 	{
-		if(this->m_pBits[i] != that->m_pBits[i])
+		if(this->m_pBits[i] != that.m_pBits[i])
 			return false;
 	}
 	return true;

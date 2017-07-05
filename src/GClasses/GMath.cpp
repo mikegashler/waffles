@@ -23,6 +23,7 @@
 #include "GError.h"
 #include "GVec.h"
 #include <cmath>
+#include "GRand.h"
 
 namespace GClasses {
 
@@ -493,19 +494,11 @@ double GMath::functionInverse(double (*func)(const double* params, double x), co
 	}
 }
 
-
-// Evaluates the integral of (ax^2+bx+c)/(dx^2+ex+f) at x=1, assuming an integration constant of zero
-double integralOfRatioOfQuadraticPolynomials(double a, double b, double c, double d, double e, double f)
+// static
+double GMath::fuzzy(double x, double y, double alpha)
 {
-	double u = e * e;
-	double v = d * d;
-	double w = b * d;
-	double x = d * f;
-	double t = sqrt(4.0 * x - u);
-	double y = a * d +
-		(2.0 * c * v - w * e + a * (u - 2.0 * x)) * atan((2.0 * d + e) / t) / t +
-		0.5 * (w - a * e) * log(f + d + e);
-	return y / v;
+	double t = std::abs(alpha);
+	return (x + alpha) * (y + alpha) / (t + 1) - t;
 }
 
 #ifndef NO_TEST_CODE
@@ -514,9 +507,97 @@ double ComputeCosine(void* pThis, double d)
 	return cos(d);
 }
 
+void GMath_testFuzzy()
+{
+	/*
+	// Print a truth table
+	for(double a = -1.0; a <= 1.0; a += 1.0)
+	{
+		for(double x = -1.0; x <= 1.0; x += 2.0)
+		{
+			for(double y = -1.0; y <= 1.0; y += 2.0)
+			{
+				std::cout << to_str(x) << " (" << to_str(a) << ") " << to_str(y) << " = " << to_str(GMath::fuzzy(x, y, a)) << "\n";
+			}
+		}
+	}
+	*/
+
+	// Test pure logic cases
+	const double in[] = {
+	//	x	y	and	or	xor	nand	nor	nxor
+		-1.0,	-1.0,	-1.0,	-1.0,	-1.0,	1.0,	1.0,	1.0,
+		-1.0,	1.0,	-1.0,	1.0,	1.0,	1.0,	-1.0,	-1.0,
+		1.0,	-1.0,	-1.0,	1.0,	1.0,	1.0,	-1.0,	-1.0,
+		1.0,	1.0, 	1.0,	1.0,	-1.0,	-1.0,	-1.0,	1.0
+	};
+
+	for(size_t i = 0; i < 4; i++)
+	{
+		double x = in[8 * i];
+		double y = in[8 * i + 1];
+		if(GMath::fuzzy(x, y, 1.0) != in[8 * i + 2]) throw Ex("and wrong, ", to_str(i));
+		if(-GMath::fuzzy(x, y, -1.0) != in[8 * i + 3]) throw Ex("or wrong, ", to_str(i));
+		if(-GMath::fuzzy(x, y, 0.0) != in[8 * i + 4]) throw Ex("xor wrong, ", to_str(i));
+		if(-GMath::fuzzy(x, y, 1.0) != in[8 * i + 5]) throw Ex("nand wrong, ", to_str(i));
+		if(GMath::fuzzy(x, y, -1.0) != in[8 * i + 6]) throw Ex("nor wrong, ", to_str(i));
+		if(GMath::fuzzy(x, y, 0.0) != in[8 * i + 7]) throw Ex("nxor wrong, ", to_str(i));
+	}
+
+	// Test compliance with DeMorgan's law
+	GRand rand(0);
+	for(size_t i = 0; i < 100; i++)
+	{
+		double alpha = rand.normal();
+		double x = rand.normal();
+		double y = rand.normal();
+		if(std::abs(GMath::fuzzy(x, y, -alpha) - GMath::fuzzy(-x, -y, alpha)) > 1e-8)
+			throw Ex("DeMorgan's law failed");
+	}
+
+	// Test bounds
+	for(size_t i = 0; i < 100; i++)
+	{
+		double alpha = rand.uniform();
+		double x = rand.uniform();
+		double y = rand.uniform();
+		double val = GMath::fuzzy(x, y, alpha);
+		if(val < -1.0 || val > 1.0)
+			throw Ex("Out of range");
+	}
+/*
+	// Test monotonicity
+	for(size_t i = 0; i < 10000; i++)
+	{
+		double x = rand.uniform();
+		double y = rand.uniform();
+		double a1 = rand.uniform();
+		double a2 = rand.uniform();
+		double a3 = rand.uniform();
+		if(a2 < a1) std::swap(a1, a2);
+		if(a3 < a1) std::swap(a1, a3);
+		if(a3 < a2) std::swap(a2, a3);
+		GAssert(a1 <= a2 && a2 <= a3);
+		if(GMath::fuzzy(x, y, a2) > GMath::fuzzy(x, y, a1))
+		{
+			if(GMath::fuzzy(x, y, a3) < GMath::fuzzy(x, y, a2))
+				throw Ex("not monotonic at x=", to_str(x), ", y=", to_str(y));
+		}
+		else if(GMath::fuzzy(x, y, a2) < GMath::fuzzy(x, y, a1))
+		{
+			if(GMath::fuzzy(x, y, a3) > GMath::fuzzy(x, y, a2))
+				throw Ex("not monotonic at x=", to_str(x), ", y=", to_str(y));
+		}
+	}
+*/
+}
+
 // static
 void GMath::test()
 {
+	// Test fuzzy logic
+	GMath_testFuzzy();
+
 	// Test Integrate
 	double dTarget = sin(M_PI / 2) - sin(-M_PI / 2);
 	double dComputed = GMath::integrate(ComputeCosine, -M_PI / 2, M_PI / 2, 500, NULL);

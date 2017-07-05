@@ -69,6 +69,10 @@ public:
 	/// Resizes this vector
 	void resize(size_t n);
 
+	/// Resizes this vector while preserving any elements that overlap with the new size.
+	/// Any new elements will contain garbage.
+	void resizePreserve(size_t n);
+
 	/// Sets all the elements in this vector to val.
 	void fill(const double val, size_t startPos = 0, size_t endPos = (size_t)-1);
 
@@ -140,8 +144,11 @@ public:
 	/// Fills with random values from a uniform distribution.
 	void fillUniform(GRand& rand, double min = 0.0, double max = 1.0);
 
-	/// Fills with random values from a Normal distribution.
+	/// Fills with random values from a Gaussian distribution.
 	void fillNormal(GRand& rand, double deviation = 1.0);
+
+	/// Adds Gaussian noise to each element of this vector.
+	void perturbNormal(GRand& rand, double deviation = 1.0);
 
 	/// Fills with random values on the surface of a sphere.
 	void fillSphericalShell(GRand& rand, double radius = 1.0);
@@ -214,6 +221,9 @@ public:
 
 	/// Puts a copy of that at the specified location in this.
 	/// Throws an exception if it does not fit there.
+	/// pos is the destination starting position.
+	/// start is the source starting position.
+	/// length is the source and destination length.
 	void put(size_t pos, const GVec& that, size_t start = 0, size_t length = (size_t)-1);
 
 	/// Erases the specified elements. The remaining elements are shifted over.
@@ -389,6 +399,9 @@ public:
 	GIndexVec(size_t n = 0);
 	~GIndexVec();
 
+	/// Returns the size of this vector.
+	size_t size() const { return m_size; }
+
 	/// Resizes this vector
 	void resize(size_t n);
 
@@ -406,8 +419,11 @@ public:
 		return m_data[index];
 	}
 
+	/// Fills this vector with the values 0, 1, 2, ...
+	void fillIndexes();
 
-
+	/// Picks a random element from this vector, removes it, and returns it
+	size_t popRandom(GRand& rand);
 
 
 
@@ -467,6 +483,9 @@ public:
 	/// Shuffles the order of the indexes, and starts the iterator over at the beginning.
 	void reset();
 
+	/// Shuffles only the first "size" indexes in the list and starts the iterator over at the beginning.
+	void resetPart(size_t size);
+
 	/// If the end of the list has been reached, returns false. Otherwise, sets outIndex
 	/// to the next index, and returns true. (Note that you should call reset() before
 	/// the first call to this method. The constructor does not call reset() for you.)
@@ -479,6 +498,9 @@ public:
 	/// to identify progress.) Note that you need to subtract 1 to obtain the position of the
 	/// value from the most recent call to "next".
 	size_t pos() { return m_pCur - m_pIndexes; }
+
+	/// Jumps to the specified position in the list.
+	void setPos(size_t index) { m_pCur = m_pIndexes + index; }
 
 	/// Returns a reference to the random number generator.
 	GRand& rand() { return m_rand; }

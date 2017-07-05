@@ -240,6 +240,7 @@ void GDomNode::saveJson(const char* filename) const
 
 void GDomNode::writeJson(std::ostream& stream) const
 {
+	std::ios_base::fmtflags oldflags = stream.flags();
 	stream << std::fixed;
 	switch(m_type)
 	{
@@ -287,7 +288,7 @@ void GDomNode::writeJson(std::ostream& stream) const
 		default:
 			throw Ex("Unrecognized node type");
 	}
-	stream << std::defaultfloat;
+	stream.flags(oldflags);
 }
 
 void newLineAndIndent(std::ostream& stream, size_t indents)
@@ -299,6 +300,7 @@ void newLineAndIndent(std::ostream& stream, size_t indents)
 
 void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
 {
+	std::ios_base::fmtflags oldflags = stream.flags();
 	stream << std::fixed;
 	switch(m_type)
 	{
@@ -380,11 +382,12 @@ void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
 		default:
 			throw Ex("Unrecognized node type");
 	}
-	stream << std::defaultfloat;
+	stream.flags(oldflags);
 }
 
 size_t GDomNode::writeJsonCpp(std::ostream& stream, size_t col) const
 {
+	std::ios_base::fmtflags oldflags = stream.flags();
 	stream << std::fixed;
 	switch(m_type)
 	{
@@ -462,7 +465,7 @@ size_t GDomNode::writeJsonCpp(std::ostream& stream, size_t col) const
 		stream << "\"\n\"";
 		col = 0;
 	}
-	stream << std::defaultfloat;
+	stream.flags(oldflags);
 	return col;
 }
 

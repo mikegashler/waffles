@@ -24,8 +24,6 @@
 
 namespace GClasses {
 
-class GActivationFunction;
-
 /// This is the base class of algorithms that transform data without supervision
 class GTransform
 {
@@ -155,7 +153,40 @@ protected:
 
 
 
-/// This wraps two two-way-incremental-transoforms to form a single combination transform
+/// This class facilitates automatic data preprocessing.
+/// The constructor requires a dataset and some parameters that specify which portion of the data to use, and how the data should be transformed.
+/// A transform will automatically be generated to preprocess the data to meet the specified requirements, and the data will be transformed.
+/// Additional datasets can be added with the "add" method.
+/// These will be processed by the same transform.
+/// The processed data can be retrieved with the "get" method, with an index corresponding to the order of the data.
+class GDataPreprocessor
+{
+protected:
+	GIncrementalTransform* m_pTransform;
+	std::vector<GMatrix*> m_processedData;
+
+public:
+	/// Generates a transform and preprocesses the specified portion of source to meet the specified data requirements.
+	GDataPreprocessor(const GMatrix& source, size_t rowStart = 0, size_t colStart = 0, size_t rowCount = (size_t)-1, size_t colCount = (size_t)-1, bool allowMissing = false, bool allowNominal = false, bool allowContinuous = true, double minVal = -1.0, double maxVal = 1.0);
+
+	/// Adds another dataset, and transforms it with the same transform used to preprocess the original data.
+	void add(const GMatrix& source, size_t rowStart = 0, size_t colStart = 0, size_t rowCount = (size_t)-1, size_t colCount = (size_t)-1);
+
+	/// Returns the preprocessed version of the data.
+	/// index specifies which dataset, such that get(0) returns the preprocessed form of the original
+	/// data passed to the constructor, get(1) returns the preprocessed form of the first dataset added
+	/// by a call to "add", get(2) is the preprocessed form of the second dataset added, and so forth.
+	GMatrix& get(size_t index) { return *m_processedData[index]; }
+
+	/// Automatically prepares and trains a minimal transform for the provided data to prep it to meet specified requirements.
+	/// Returns nullptr if no transformation is needed.
+	static GIncrementalTransform* autoTrans(const GMatrix& data, bool allowMissing = false, bool allowNominal = false, bool allowContinuous = true, double minVal = -1.0, double maxVal = 1.0);
+};
+
+
+
+
+/// This wraps two two-way-incremental-transforms to form a single combination transform
 class GIncrementalTransformChainer : public GIncrementalTransform
 {
 protected:
@@ -170,6 +201,9 @@ public:
 	GIncrementalTransformChainer(const GDomNode* pNode, GLearnerLoader& ll);
 	virtual ~GIncrementalTransformChainer();
 
+	/// If pA or pB is nullptr, returns the other one, else chains them together.
+	static GIncrementalTransform* chain(GIncrementalTransform* pA, GIncrementalTransform* pB);
+	
 #ifndef MIN_PREDICT
 	/// See the comment for GIncrementalTransform::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -518,9 +552,9 @@ protected:
 	GRand* m_pRand;
 	std::vector<size_t> m_ranks;
 	bool m_preserveUnknowns;
-
+	double m_lo, m_hi;
 public:
-	GNominalToCat(size_t valueCap = 12);
+	GNominalToCat(size_t valueCap = 12, double lo = 0.0, double hi = 1.0);
 
 	/// Load from a DOM.
 	GNominalToCat(const GDomNode* pNode);

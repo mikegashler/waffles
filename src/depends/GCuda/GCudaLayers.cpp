@@ -574,7 +574,8 @@ void GLayerConvolutional2DCuda::resetWeights(GRand &rand)
 {
 	double mag = std::max(0.03, 1.0 / (m_outputRows * m_outputCols));
 	m_kernels.fillNormal(m_engine, 0.0, mag);
-	m_bias.randomNormal(m_engine, 0.0, mag);
+//	m_bias.randomNormal(m_engine, 0.0, mag);
+	m_bias.fill(m_engine, 0.0);
 	m_delta.fill(m_engine, 0.0);
 	m_biasDelta.fill(m_engine, 0.0);
 }
