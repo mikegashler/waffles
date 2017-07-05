@@ -490,9 +490,9 @@ void GVec::put(size_t pos, const GVec& that, size_t start, size_t length)
 	if(length == (size_t)-1)
 		length = that.size() - start;
 	else if(start + length > that.size())
-		throw Ex("Input out of range. that size=", to_str(that.size()), ", start=", to_str(start), ", length=", to_str(length));
+		throw Ex("Input out of range. that size=", GClasses::to_str(that.size()), ", start=", GClasses::to_str(start), ", length=", GClasses::to_str(length));
 	if(pos + length > m_size || start + length > that.m_size)
-		throw Ex("Out of range. this size=", to_str(m_size), ", pos=", to_str(pos), ", that size=", to_str(that.m_size));
+		throw Ex("Out of range. this size=", GClasses::to_str(m_size), ", pos=", GClasses::to_str(pos), ", that size=", GClasses::to_str(that.m_size));
 	for(size_t i = 0; i < length; i++)
 		(*this)[pos + i] = that[start + i];
 }

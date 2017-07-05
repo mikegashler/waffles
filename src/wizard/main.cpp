@@ -1353,9 +1353,13 @@ void complete_command(int nArgs, char* pArgs[])
 		cout << s << "\n";
 	}
 }
-
+#include "../GClasses/GVec.h"
 int main(int nArgs, char* pArgs[])
 {
+	GVec a(12);
+	GVec b(13);
+	a.put(722, b);
+
 	int ret = 1;
 	try
 	{

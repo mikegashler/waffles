@@ -1874,7 +1874,7 @@ void GraphConnection::handleRequest(GDynamicPageSession* pDPSession, std::ostrea
 			}
 		}
 	}
-	GArgReader eqargs(args.size(), args.data());
+	GArgReader eqargs((int)args.size(), args.data());
 
 	// Plot it
 	response << "\n\n\n<!-- BEGIN SVG FILE --->\n";

@@ -409,7 +409,7 @@ void reduceAmbientNoiseWithNeuralApproach(GWave& wNoise, GWave& wSignal, size_t 
 	// Remove the noise from the signal
 	size_t len = wSignal.sampleCount() - wSignal.sampleCount() % blockSize;
 	GWave wClean;
-	wClean.setData(new unsigned char[len * wSignal.bitsPerSample() / 8], wSignal.bitsPerSample(), len, 1, wSignal.sampleRate());
+	wClean.setData(new unsigned char[len * wSignal.bitsPerSample() / 8], wSignal.bitsPerSample(), (int)len, 1, wSignal.sampleRate());
 	GWaveIterator itSignal(wSignal);
 	GWaveIterator itClean(wClean);
 	std::cout << "Processing the signal...\n";
