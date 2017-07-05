@@ -192,7 +192,6 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ClCompile Include="GAssignment.cpp" />
-    <ClCompile Include="GAssociative.cpp" />
     <ClCompile Include="GBayesianNetwork.cpp" />
     <ClCompile Include="GBezier.cpp" />
     <ClCompile Include="GBigInt.cpp" />
@@ -507,7 +506,6 @@
     <ClInclude Include="GActivation.h" />
     <ClInclude Include="GApp.h" />
     <ClInclude Include="GAssignment.h" />
-    <ClInclude Include="GAssociative.h" />
     <ClInclude Include="GBayesianNetwork.h" />
     <ClInclude Include="GBezier.h" />
     <ClInclude Include="GBigInt.h" />
