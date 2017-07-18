@@ -146,16 +146,24 @@ double GTime_parseDoubleVal(const char* buf, double min, double max, bool* pOk)
 	char buf[32];
 	while(*szFormat)
 	{
-		size_t i;
-		for(i = 0; i < 30; i++)
+		size_t formatChars = 0;
+		size_t dataChars = 0;
+		while(formatChars < 30)
 		{
-			if(szFormat[i] != szFormat[0])
+			if(szFormat[formatChars] != szFormat[0])
 				break;
-			if(szData[i] == '\0')
+			if(szData[formatChars] == '\0')
 				return false;
-			buf[i] = szData[i];
+			buf[dataChars] = szData[formatChars];
+			
+			// If we're reading integer values, and we already have at least one digit, but the numbers run out before the formatting changes, let that be okay.
+			if(dataChars > 0 && szData[dataChars - 1] >= '0' && szData[dataChars - 1] <= '9' && (szData[dataChars] < '0' || szData[dataChars] > '9'))
+				dataChars--;
+
+			formatChars++;
+			dataChars++;
 		}
-		buf[i] = '\0';
+		buf[dataChars] = '\0';
 		bool ok = true;
 		switch(szFormat[0])
 		{
@@ -186,7 +194,7 @@ double GTime_parseDoubleVal(const char* buf, double min, double max, bool* pOk)
 			}
 				break;
 			default:
-				for(size_t j = 0; j < i; j++)
+				for(size_t j = 0; j < formatChars; j++)
 				{
 					if(buf[j] != szFormat[0])
 						return false;
@@ -195,8 +203,8 @@ double GTime_parseDoubleVal(const char* buf, double min, double max, bool* pOk)
 		}
 		if(!ok)
 			return false;
-		szData += i;
-		szFormat += i;
+		szData += dataChars;
+		szFormat += formatChars;
 	}
 	time_t tt = mktime(&ts);
 	*pOutTime = (double)tt + fractional_seconds;

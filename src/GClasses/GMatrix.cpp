@@ -5104,7 +5104,9 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 			}
 			else
 				m_report[attr] = "";
-			m_report[attr] += "Formatted. ";
+			m_report[attr] += "Formatted date \"";
+			m_report[attr] += szFormat;
+			m_report[attr] += "\". ";
 			m_report[attr] += to_str(errs);
 			m_report[attr] += " errors";
 			if(errs > 0)
@@ -5118,13 +5120,20 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 
 		// Determine if the attribute can be real
 		bool real = true;
+		bool specified = false;
 		string firstNonNumericalValue;
 		std::map<size_t, size_t>::iterator itSpecifiedReal = m_specifiedReal.find(attr);
 		std::map<size_t, size_t>::iterator itSpecifiedNominal = m_specifiedNominal.find(attr);
 		if(itSpecifiedReal != m_specifiedReal.end())
+		{
 			real = true;
+			specified = true;
+		}
 		else if(itSpecifiedNominal != m_specifiedNominal.end())
+		{
 			real = false;
+			specified = true;
+		}
 		else
 		{
 			for(size_t rowNum = m_columnNamesInFirstRow ? 1 : 0; rowNum < rows.size(); rowNum++)
@@ -5199,7 +5208,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 			size_t uniqueVals = outMatrix.countUniqueValues(attr, m_clearlyNumericalThreshold);
 			if(itSpecifiedReal != m_specifiedReal.end())
 			{
-				m_report[attr] += "Constrained to be real. ";
+				m_report[attr] += "Specified to be real. ";
 				m_report[attr] += to_str(realErrs);
 				m_report[attr] += " errors";
 				if(realErrs > 0)
@@ -5221,7 +5230,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 		}
 		else
 		{
-			// Make the data
+			// It's categorical
 			vector<const char*> values;
 			GConstStringHashTable ht(31, true);
 			void* pVal;
@@ -5237,7 +5246,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 					outMatrix[i][attr] = UNKNOWN_DISCRETE_VALUE;
 				else
 				{
-					if(valueCount <= m_maxVals)
+					if(specified || valueCount <= m_maxVals)
 					{
 						if(ht.get(el, &pVal))
 							n = (uintptr_t)pVal;
@@ -5263,8 +5272,23 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 			}
 			else
 				m_report[attr] = "";
-			if(valueCount <= m_maxVals)
-				m_report[attr] += "Clearly categorical.";
+
+			if(specified)
+			{
+				m_report[attr] += "Specified to be categorical. ";
+				m_report[attr] += to_str(valueCount);
+				m_report[attr] += " unique values. (";
+				m_report[attr] += to_str((double)valueCount * 100.0 / rows.size());
+				m_report[attr] += "%.)\n";
+			}
+			else if(valueCount <= m_maxVals)
+			{
+				m_report[attr] += "Clearly categorical. ";
+				m_report[attr] += to_str(valueCount);
+				m_report[attr] += " unique values. (";
+				m_report[attr] += to_str((double)valueCount * 100.0 / rows.size());
+				m_report[attr] += "%.)\n";
+			}
 			else
 			{
 				m_report[attr] += "Problematic column!!! Contains non-numerical values, such as \"";
