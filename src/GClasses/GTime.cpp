@@ -117,11 +117,20 @@ int GTime_parseIntVal(const char* buf, int min, int max, bool* pOk)
 	return val;
 }
 
+bool is_double_char(char c)
+{
+	if(c == '.')
+		return true;
+	if(c >= '0' && c <= '9')
+		return true;
+	return false;
+}
+
 double GTime_parseDoubleVal(const char* buf, double min, double max, bool* pOk)
 {
 	for(size_t i = 0; buf[i] != '\0'; i++)
 	{
-		if(buf[i] != '.' && (buf[i] < '0' || buf[i] > '9'))
+		if(!is_double_char(buf[i]))
 			*pOk = false;
 	}
 	double val = atof(buf);
@@ -157,7 +166,7 @@ double GTime_parseDoubleVal(const char* buf, double min, double max, bool* pOk)
 			buf[dataChars] = szData[formatChars];
 			
 			// If we're reading integer values, and we already have at least one digit, but the numbers run out before the formatting changes, let that be okay.
-			if(dataChars > 0 && szData[dataChars - 1] >= '0' && szData[dataChars - 1] <= '9' && (szData[dataChars] < '0' || szData[dataChars] > '9'))
+			if(dataChars > 0 && is_double_char(szData[dataChars - 1]) && !is_double_char(szData[dataChars]))
 				dataChars--;
 
 			formatChars++;

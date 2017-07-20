@@ -5279,7 +5279,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 				m_report[attr] += to_str(valueCount);
 				m_report[attr] += " unique values. (";
 				m_report[attr] += to_str((double)valueCount * 100.0 / rows.size());
-				m_report[attr] += "%.)\n";
+				m_report[attr] += "% unique.)";
 			}
 			else if(valueCount <= m_maxVals)
 			{
@@ -5287,7 +5287,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 				m_report[attr] += to_str(valueCount);
 				m_report[attr] += " unique values. (";
 				m_report[attr] += to_str((double)valueCount * 100.0 / rows.size());
-				m_report[attr] += "%.)\n";
+				m_report[attr] += "% unique.)";
 			}
 			else
 			{
@@ -5308,7 +5308,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 				attrName += rows[0].m_elements[attr];
 				if(quot)
 					attrName += "\"";
-				if(valueCount > m_maxVals)
+				if(!specified && valueCount > m_maxVals)
 				{
 					attrName += "_aborted_due_to_too_many_vals";
 					pRelation->addAttribute(attrName.c_str(), valueCount, &values);
@@ -5320,7 +5320,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 			{
 				string attrName = "attr";
 				attrName += to_str(attr);
-				if(valueCount > m_maxVals)
+				if(!specified && valueCount > m_maxVals)
 					attrName += "_aborted_due_to_too_many_vals";
 				pRelation->addAttribute(attrName.c_str(), valueCount, &values);
 			}
