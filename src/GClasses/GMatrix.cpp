@@ -5037,7 +5037,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 	}
 
 	// Parse it all
-	size_t rowCount = rows.size();
+	size_t rowCount = rows.size() - (m_columnNamesInFirstRow ? 1 : 0);
 	outMatrix.flush();
 	GArffRelation* pRelation = new GArffRelation();
 	outMatrix.setRelation(pRelation);
@@ -5048,8 +5048,6 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 		pNewVec->resize(columnCount);
 	}
 	m_report.resize(columnCount);
-	if(m_columnNamesInFirstRow)
-		rowCount--;
 	for(size_t attr = 0; attr < columnCount; attr++)
 	{
 		std::map<size_t, string>::iterator itFormat = m_formats.find(attr);
