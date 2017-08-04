@@ -236,6 +236,13 @@ void GVocabulary::newDoc()
 	m_docNumber++;
 }
 
+const char* GVocabulary::word(size_t index)
+{
+	if(!m_pWordStats)
+		throw Ex("You didn't call newDoc before adding vocabulary words, so the indexes weren't tracked");
+	return (*m_pWordStats)[index].m_szWord;
+}
+
 double GVocabulary::weight(size_t word)
 {
 	GWordStats& ws = stats(word);

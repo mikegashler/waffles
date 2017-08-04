@@ -214,28 +214,6 @@ GTransducer* InstantiateAlgorithm(GArgReader& args)
 	return NULL;
 }
 
-void firstPrincipalComponents(GArgReader& args)
-{
-	// Load the sparse matrix
-	if(args.size() < 1)
-		throw Ex("No dataset specified.");
-	GSparseMatrix* pA;
-	std::unique_ptr<GSparseMatrix> hA(nullptr);
-	{
-		GDom doc;
-		doc.loadJson(args.pop_string());
-		pA = new GSparseMatrix(doc.root());
-		hA.reset(pA);
-	}
-
-	size_t k = args.pop_uint();
-
-	unsigned int seed = getpid() * (unsigned int)time(NULL);
-	GRand rand(seed);
-	GMatrix* pResult = pA->firstPrincipalComponents(k, rand);
-	pResult->print(cout);
-}
-
 void multiplyDense(GArgReader& args)
 {
 	// Load the sparse matrix
@@ -882,7 +860,6 @@ int main(int argc, char *argv[])
 			if(args.if_pop("usage"))
 				ShowUsage(appName);
 			else if(args.if_pop("docstosparsematrix")) docsToSparseMatrix(args);
-			else if(args.if_pop("fpc")) firstPrincipalComponents(args);
 			else if(args.if_pop("multiplydense")) multiplyDense(args);
 			else if(args.if_pop("predict")) predict(args);
 			else if(args.if_pop("shuffle")) shuffle(args);

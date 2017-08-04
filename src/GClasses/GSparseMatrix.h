@@ -161,11 +161,8 @@ public:
 	/// then call this method again.)
 	void principalComponentAboutOrigin(GVec& outVector, GRand* pRand);
 
-	/// Removes the specified component, assuming the mean is at the origin.
-	void removeComponentAboutOrigin(const GVec& component);
-
-	/// Returns a k-row dense matrix containing the first k principal components of this sparse matrix.
-	GMatrix* firstPrincipalComponents(size_t k, GRand& rand);
+	/// Projects this sparse matrix onto the specified components. Returns a dense matrix.
+	GMatrix* project(GMatrix& components);
 
 	/// Delete the last row in this sparse matrix. (Note that you can call swapRows to move any row
 	/// you want into the last position before you call this method.)
@@ -182,6 +179,9 @@ protected:
 class GSparseVec
 {
 public:
+	/// Returns the index of the element with the largest magnitude
+	static size_t indexOfMaxMagnitude(SparseVec& sparse);
+
 	/// Computes the dot product of a sparse vector with a dense vector
 	static double dotProduct(SparseVec& sparse, GVec& dense);
 

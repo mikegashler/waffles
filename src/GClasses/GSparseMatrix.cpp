@@ -154,17 +154,17 @@ GMatrix* GSparseMatrix::multiply(GMatrix* pThat, bool transposeThat)
 	return pResult;
 }
 
-GMatrix* GSparseMatrix::firstPrincipalComponents(size_t k, GRand& rand)
+GMatrix* GSparseMatrix::project(GMatrix& components)
 {
-	GSparseMatrix clone(rows(), cols(), defaultValue());
-	clone.copyFrom(this);
-	GMatrix* pResult = new GMatrix(k, cols());
-	for(size_t i = 0; i < k; i++)
+	GMatrix* pOut = new GMatrix(rows(), components.rows());
+	for(size_t i = 0; i < rows(); i++)
 	{
-		clone.principalComponentAboutOrigin(pResult->row(i), &rand);
-		clone.removeComponentAboutOrigin(pResult->row(i));
+		for(size_t j = 0; j < components.rows(); j++)
+		{
+			(*pOut)[i][j] = GSparseVec::dotProduct(row(i), components.row(j));
+		}
 	}
-	return pResult;
+	return pOut;
 }
 
 void GSparseMatrix::copyFrom(const GSparseMatrix* that)
@@ -834,20 +834,6 @@ void GSparseMatrix::principalComponentAboutOrigin(GVec& outVector, GRand* pRand)
 	}
 }
 
-void GSparseMatrix::removeComponentAboutOrigin(const GVec& component)
-{
-	size_t nCount = rows();
-	for(size_t i = 0; i < nCount; i++)
-	{
-		Iter itEnd = rowEnd(i);
-		double d = 0.0;
-		for(Iter it = rowBegin(i); it != itEnd; it++)
-			d += component[it->first] * it->second;
-		for(SparseVec::iterator it = m_rows[i].begin(); it != itEnd; it++)
-			it->second -= d * component[it->first];
-	}
-}
-
 void GSparseMatrix::deleteLastRow()
 {
 	m_rows.pop_back();
@@ -919,6 +905,23 @@ void GSparseMatrix::test()
 
 
 
+
+// static
+size_t GSparseVec::indexOfMaxMagnitude(SparseVec& sparse)
+{
+	size_t i = 0;
+	double mag = -1.0;
+	for(SparseVec::iterator it = sparse.begin(); it != sparse.end(); it++)
+	{
+		double m = it->second * it->second;
+		if(m > mag)
+		{
+			mag = m;
+			i = it->first;
+		}
+	}
+	return i;
+}
 
 // static
 double GSparseVec::dotProduct(SparseVec& sparse, GVec& dense)

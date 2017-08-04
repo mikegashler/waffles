@@ -1473,11 +1473,6 @@ UsageNode* makeSparseUsageTree()
 		pOpts->add("-vocabfile [filename]=vocab.txt", "Save the vocabulary of words to the specified file. The default is to not save the list of words. Note that the words will be stemmed (unless -nostem was specified), so it is normal for many of them to appear misspelled.");
 	}
 	{
-		UsageNode* pFPC = pRoot->add("fpc [sparse-matrix] [k]", "Computes the first [k] principal components of [sparse-matrix] and prints the results as a [k]-row dense matrix in ARFF format.");
-		pFPC->add("[sparse-matrix]=matrix.sparse", "The filename of a sparse matrix.");
-		pFPC->add("[k]=5", "The number of principal components to compute.");
-	}
-	{
 		UsageNode* pMD = pRoot->add("multiplydense [sparse-matrix] [dense-matrix] <options>", "Multiplies a sparse matrix by a dense matrix. Prints the resulting dense matrix to stdout in ARFF format.");
 		pMD->add("[sparse-matrix]=a.sparse", "The filename of a sparse matrix.");
 		pMD->add("[dense-matrix]=b.arff", "The filename of a dense matrix in ARFF format.");

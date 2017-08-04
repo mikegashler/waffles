@@ -109,6 +109,9 @@ public:
 	/// is a stop word).
 	size_t wordIndex(const char* szWord, size_t len);
 
+	/// Returns the word at the specified index
+	const char* word(size_t index);
+
 	/// Returns a pointer to the heap this uses to store strings
 	GHeap* heap() { return m_pHeap; }
 
