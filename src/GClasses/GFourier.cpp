@@ -158,7 +158,7 @@ void GFourier::fft(size_t arraySize, struct ComplexNumber* pComplexNumberArray, 
 	if(!bForward)
 	{
 		GVecWrapper vw(pData, totalSize);
-		vw.vec() *= (1.0 / (double)arraySize);
+		vw *= (1.0 / (double)arraySize);
 	}
 }
 

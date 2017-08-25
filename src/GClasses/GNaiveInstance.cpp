@@ -254,7 +254,7 @@ void GNaiveInstance::evalInput(size_t nInputDim, double dInput)
 		// Accumulate values
 		const double* pOutputVec = goRight ? itRight->second : itLeft->second;
 		GConstVecWrapper vw(pOutputVec, m_pSumBuffer.size());
-		m_pSumBuffer += vw.vec();
+		m_pSumBuffer += vw;
 		for(size_t j = 0; j < m_pRelLabels->size(); j++)
 			m_pSumOfSquares[j] += (pOutputVec[j] * pOutputVec[j]);
 

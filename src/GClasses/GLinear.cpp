@@ -170,7 +170,7 @@ void GLinearRegressor::trainInner(const GMatrix& features, const GMatrix& labels
 	m_pBeta = GMatrix::multiply(l, f, true, false);
 	m_epsilon.resize(outputs);
 	GConstVecWrapper vw(pca.centroid().data(), m_pBeta->cols());
-	m_pBeta->multiply(vw.vec(), m_epsilon, false);
+	m_pBeta->multiply(vw, m_epsilon, false);
 	m_epsilon *= -1.0;
 	for(size_t i = 0; i < outputs; i++)
 		m_epsilon[i] += pca.centroid()[inputs + i];
@@ -672,7 +672,7 @@ bool GLinearProgramming::simplexMethod(GMatrix* pA, const double* pB, int leCons
 	{
 		aa.row(i + 1).put(2, pA->row(i - 1));
 		GVecWrapper vw(aa.row(i + 1).data() + 2, pA->cols());
-		vw.vec() *= -1.0;
+		vw *= -1.0;
 		aa[i + 1][1] = pB[i - 1];
 	}
 

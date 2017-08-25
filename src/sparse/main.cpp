@@ -405,8 +405,8 @@ void test(GArgReader& args)
 		}
 	}
 	GVecWrapper vw(results, labels.cols());
-	vw.vec() *= (1.0 / pData->rows());
-	vw.vec().print(cout);
+	vw *= (1.0 / pData->rows());
+	vw.print(cout);
 }
 
 void transpose(GArgReader& args)

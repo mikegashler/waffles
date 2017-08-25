@@ -305,43 +305,36 @@ std::string to_str(const GVec& v);
 
 /// This class temporarily wraps a GVec around a const array of doubles.
 /// You should take care to ensure this object is destroyed before the array it wraps.
-class GConstVecWrapper
+class GConstVecWrapper : public GVec
 {
-protected:
-	GVec m_v;
-
 public:
 	GConstVecWrapper(const double* buf = nullptr, size_t size = 0)
+	: GVec(0)
 	{
-		m_v.m_data = (double*)buf;
-		m_v.m_size = size;
+		m_data = (double*)buf;
+		m_size = size;
 	}
 
 	~GConstVecWrapper()
 	{
-		m_v.m_data = NULL;
-		m_v.m_size = 0;
+		m_data = NULL;
+		m_size = 0;
 	}
 
 	void setData(const double* buf)
 	{
-		m_v.m_data = (double*)buf;
+		m_data = (double*)buf;
 	}
 
 	void setData(const double* buf, size_t size)
 	{
-		m_v.m_data = (double*)buf;
-		m_v.m_size = size;
+		m_data = (double*)buf;
+		m_size = size;
 	}
 
 	void setSize(size_t size)
 	{
-		m_v.m_size = size;
-	}
-
-	const GVec& vec()
-	{
-		return m_v;
+		m_size = size;
 	}
 };
 
@@ -349,42 +342,37 @@ public:
 
 /// This class temporarily wraps a GVec around an array of doubles.
 /// You should take care to ensure this object is destroyed before the array it wraps.
-class GVecWrapper
+class GVecWrapper : public GVec
 {
-protected:
-	GVec m_v;
-
 public:
 	GVecWrapper(double* buf = nullptr, size_t size = 0)
+	: GVec(0)
 	{
-		m_v.m_data = buf;
-		m_v.m_size = size;
+		m_data = buf;
+		m_size = size;
 	}
 
 	~GVecWrapper()
 	{
-		m_v.m_data = NULL;
-		m_v.m_size = 0;
+		m_data = NULL;
+		m_size = 0;
 	}
 
 	void setData(double* buf)
 	{
-		m_v.m_data = buf;
+		m_data = buf;
 	}
 
 	void setData(double* buf, size_t size)
 	{
-		m_v.m_data = buf;
-		m_v.m_size = size;
+		m_data = buf;
+		m_size = size;
 	}
 
 	void setSize(size_t size)
 	{
-		m_v.m_size = size;
+		m_size = size;
 	}
-
-	GVec& vec() { return m_v; }
-	const GVec& vec() const { return m_v; }
 };
 
 

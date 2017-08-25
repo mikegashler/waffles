@@ -1294,6 +1294,250 @@ void GBlockLinear::test()
 
 
 
+GBlockPAL::GBlockPAL(size_t outputs, size_t inputs)
+{
+	resize(inputs, outputs);
+}
+
+GBlockPAL::GBlockPAL(GDomNode* pNode)
+: GBlock(pNode), m_weights(pNode->field("weights")), m_bias(pNode->field("bias")), m_weightsProb(pNode->field("weightsprob")), m_biasProb(pNode->field("biasprob"))
+{}
+
+GDomNode* GBlockPAL::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "weights", m_weights.serialize(pDoc));
+	pNode->addField(pDoc, "bias", m_bias.serialize(pDoc));
+	pNode->addField(pDoc, "weightsprob", m_weightsProb.serialize(pDoc));
+	pNode->addField(pDoc, "biasprob", m_biasProb.serialize(pDoc));
+	return pNode;
+}
+
+void GBlockPAL::resize(size_t in, size_t out)
+{
+	if(in == inputs() && out == outputs())
+		return;
+	m_weights.resize(in, out);
+	m_bias.resize(out);
+	m_weightsProb.resize(in, out);
+	m_biasProb.resize(out);
+	m_probs.resize(out);
+	m_acts.resize(out);
+}
+
+void GBlockPAL::forwardProp(GContext& ctx, const GVec& input, GVec& output) const
+{
+	GAssert(input.size() == m_weights.rows());
+	GAssert(output.size() == m_weights.cols());
+
+	// Compute probabilities of activating
+	output.copy(m_biasProb);
+	GAssert(output[outputs() - 1] > -1e100 && output[outputs() - 1] < 1e100);
+	for(size_t i = 0; i < input.size(); i++)
+	{
+		if(input[i] != 0.0)
+			output.addScaled(input[i], m_weightsProb.row(i));
+	}
+	GAssert(output[outputs() - 1] > -1e100 && output[outputs() - 1] < 1e100);
+
+	// Compute actual activation values
+	for(size_t i = 0; i < output.size(); i++)
+	{
+		double t = tanh(output[i]);
+		((GBlockPAL*)this)->m_probs[i] = t * t * 0.99 + 0.01;
+		if(ctx.m_rand.uniform() < m_probs[i])
+		{
+			// Compute the activation value
+			output[i] = m_bias[i];
+			for(size_t j = 0; j < input.size(); j++)
+				output[i] += input[j] * m_weights[j][i];
+		}
+		else
+			output[i] = 0.0; // Nope, don't activate
+	}
+	((GBlockPAL*)this)->m_inps.copy(input);
+	((GBlockPAL*)this)->m_acts.copy(output);
+}
+
+void GBlockPAL::backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
+{
+	GAssert(outBlame.size() == m_weights.cols() && inBlame.size() == m_weights.rows());
+	for(size_t i = 0; i < inBlame.size(); i++)
+	{
+		if(input[i] != 0.0)
+		{
+			for(size_t j = 0; j < outBlame.size(); j++)
+			{
+				if(output[j] != 0.0)
+					inBlame[i] += outBlame[j] * m_weights[i][j];
+			}
+		}
+	}
+}
+
+void GBlockPAL::updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const
+{
+	GAssert(gradient.size() == weightCount(), "gradient must match the dimensions of weights!");
+	double *delta = gradient.data();
+	for(size_t i = 0; i < inputs(); ++i)
+	{
+		double act = input[i];
+		if(act != 0.0)
+		{
+			for(size_t j = 0; j < outputs(); ++j)
+				*delta++ += outBlame[j] * act * m_probs[j];
+		}
+		else
+			delta += outputs();
+	}
+	for(size_t j = 0; j < outputs(); ++j)
+		*delta++ += outBlame[j] * m_probs[j];
+	for(size_t i = 0; i < inputs(); ++i)
+	{
+		double act = input[i];
+		if(act != 0.0)
+		{
+			for(size_t j = 0; j < outputs(); ++j)
+				*delta++ += outBlame[j] * act * tanh(m_acts[j]); // todo: does the tanh really help?
+		}
+		else
+			delta += outputs();
+	}
+	for(size_t j = 0; j < outputs(); ++j)
+		*delta++ += outBlame[j] * tanh(m_acts[j]); // todo: does the tanh really help?
+}
+
+
+void GBlockPAL::step(double learningRate, const GVec& gradient)
+{
+	GAssert(gradient.size() == weightCount(), "gradient must match the dimensions of weights!");
+	const double *delta = gradient.data();
+	for(size_t i = 0; i < inputs(); ++i)
+	{
+		if(m_inps[i] != 0.0)
+		{
+			GVec& row = m_weights[i];
+			for(size_t j = 0; j < outputs(); ++j)
+				row[j] += learningRate * *delta++;
+		}
+		else
+			delta += outputs();
+	}
+	GVec& b = bias();
+	for(size_t j = 0; j < outputs(); ++j)
+		b[j] += learningRate * *delta++;
+	for(size_t i = 0; i < inputs(); ++i)
+	{
+		if(m_inps[i] != 0.0)
+		{
+			GVec& row = m_weightsProb[i];
+			for(size_t j = 0; j < outputs(); ++j)
+				row[j] += learningRate * *delta++;
+		}
+		else
+			delta += outputs();
+	}
+	GVec& bb = m_biasProb;
+	for(size_t j = 0; j < outputs(); ++j)
+		bb[j] += learningRate * *delta++;
+}
+
+size_t GBlockPAL::weightCount() const
+{
+	return 2 * (m_weights.rows() + 1) * m_weights.cols();
+}
+
+size_t GBlockPAL::weightsToVector(double* pOutVector) const
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+size_t GBlockPAL::vectorToWeights(const double* pVector)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+void GBlockPAL::copyWeights(const GBlock* pSource)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+void GBlockPAL::resetWeights(GRand& rand)
+{
+	size_t outputCount = outputs();
+	size_t inputCount = inputs();
+	double mag = std::max(0.03, 1.0 / inputCount);
+	for(size_t i = 0; i < m_weights.rows(); i++)
+	{
+		GVec& w = m_weights[i];
+		GVec& w2 = m_weightsProb[i];
+		for(size_t j = 0; j < outputCount; j++)
+		{
+			w[j] = rand.normal() * mag;
+			w2[j] = rand.normal() * mag;
+		}
+	}
+	for(size_t j = 0; j < outputCount; j++)
+	{
+		m_bias[j] = rand.normal() * mag;
+		m_biasProb[j] = rand.normal() * mag;
+	}
+}
+
+void GBlockPAL::perturbWeights(GRand &rand, double deviation)
+{
+	for(size_t j = 0; j < m_weights.rows(); j++)
+		m_weights[j].perturbNormal(rand, deviation);
+	m_bias.perturbNormal(rand, deviation);
+	for(size_t j = 0; j < m_weights.rows(); j++)
+		m_weightsProb[j].perturbNormal(rand, deviation);
+	m_biasProb.perturbNormal(rand, deviation);
+}
+
+void GBlockPAL::maxNorm(double min, double max)
+{
+	throw Ex("Sorry, not implemented yet");
+}
+
+void GBlockPAL::scaleWeights(double factor, bool scaleBiases)
+{
+	for(size_t i = 0; i < inputs(); i++)
+		m_weights[i] *= factor;
+	if(scaleBiases)
+		bias() *= factor;
+	for(size_t i = 0; i < inputs(); i++)
+		m_weightsProb[i] *= factor;
+	if(scaleBiases)
+		m_biasProb *= factor;
+}
+
+void GBlockPAL::diminishWeights(double amount, bool regularizeBiases)
+{
+	for(size_t i = 0; i < inputs(); i++)
+		m_weights[i].regularizeL1(amount);
+	if(regularizeBiases)
+		bias().regularizeL1(amount);
+	for(size_t i = 0; i < inputs(); i++)
+		m_weightsProb[i].regularizeL1(amount);
+	if(regularizeBiases)
+		m_biasProb.regularizeL1(amount);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 GBlockSparse::GBlockSparse(size_t outputs, size_t inputs, GRand& rand, size_t connections)
 : m_weights(inputs, outputs), m_bias(outputs), m_connections(connections)
 {
@@ -2263,10 +2507,10 @@ void GBlockRestrictedBoltzmannMachine::updateGradient(GContext& ctx, const GVec&
 	GVecWrapper delta(gradient.data(), m_weights.cols());
 	for(size_t i = 0; i < outputCount; i++)
 	{
-		delta.vec().addScaled(outBlame[i], input);
-		delta.setData(delta.vec().data() + m_weights.cols(), m_weights.cols());
+		delta.addScaled(outBlame[i], input);
+		delta.setData(delta.data() + m_weights.cols(), m_weights.cols());
 	}
-	delta.vec() += outBlame;
+	delta += outBlame;
 }
 
 void GBlockRestrictedBoltzmannMachine::step(double learningRate, const GVec& gradient)
@@ -2275,10 +2519,10 @@ void GBlockRestrictedBoltzmannMachine::step(double learningRate, const GVec& gra
 	GConstVecWrapper delta(gradient.data(), m_weights.cols());
 	for(size_t i = 0; i < outputCount; i++)
 	{
-		m_weights[i].addScaled(learningRate, delta.vec());
-		delta.setData(delta.vec().data() + m_weights.cols(), m_weights.cols());
+		m_weights[i].addScaled(learningRate, delta);
+		delta.setData(delta.data() + m_weights.cols(), m_weights.cols());
 	}
-	bias().addScaled(learningRate, delta.vec());
+	bias().addScaled(learningRate, delta);
 }
 
 void GBlockRestrictedBoltzmannMachine::scaleWeights(double factor, bool scaleBiases)
@@ -2831,11 +3075,11 @@ void GBlockConvolutional2D::updateGradient(GContext& ctx, const GVec& input, con
 	Image in(const_cast<GVec*>(&input), m_inputImage);
 	size_t count = m_kernels.cols();
 	GVecWrapper delta(gradient.data(), count);
-	Image delt(&delta.vec(), m_deltaImage);
+	Image delt(&delta, m_deltaImage);
 	for(err.dz = 0; err.dz < err.channels; ++err.dz)
 	{
 		double* biasDelta = delt.data->data() + count;
-		delta.vec().fill(0.0);
+		delta.fill(0.0);
 		for(in.dz = delt.dz = 0; in.dz < in.channels; ++in.dz, ++delt.dz)
 			for(in.dy = 0; in.dy < err.height; ++in.dy)
 				for(in.dx = 0; in.dx < err.width; ++in.dx)
@@ -2844,7 +3088,7 @@ void GBlockConvolutional2D::updateGradient(GContext& ctx, const GVec& input, con
 					*biasDelta += err.read(in.dx, in.dy);
 				}
 		delt.dz = 0;
-		delta.setData(delta.vec().data() + count + 1);
+		delta.setData(delta.data() + count + 1);
 	}
 }
 
@@ -2854,9 +3098,9 @@ void GBlockConvolutional2D::step(double learningRate, const GVec& gradient)
 	GConstVecWrapper delta(gradient.data(), count);
 	for(size_t i = 0; i < m_kernels.rows(); i++)
 	{
-		m_kernels[i].addScaled(learningRate, delta.vec());
-		m_bias[i] += learningRate * *(delta.vec().data() + count);
-		delta.setData(delta.vec().data() + count + 1);
+		m_kernels[i].addScaled(learningRate, delta);
+		m_bias[i] += learningRate * *(delta.data() + count);
+		delta.setData(delta.data() + count + 1);
 	}
 }
 
@@ -2878,14 +3122,14 @@ size_t GBlockConvolutional2D::weightCount() const
 size_t GBlockConvolutional2D::weightsToVector(double *pOutVector) const
 {
 	m_kernels.toVector(pOutVector);
-	GVecWrapper(pOutVector + m_kernels.rows() * m_kernels.cols(), m_kernels.rows()).vec().put(0, m_bias);
+	GVecWrapper(pOutVector + m_kernels.rows() * m_kernels.cols(), m_kernels.rows()).put(0, m_bias);
 	return weightCount();
 }
 
 size_t GBlockConvolutional2D::vectorToWeights(const double *pVector)
 {
 	m_kernels.fromVector(pVector, m_kernels.rows());
-	m_bias.put(0, GConstVecWrapper(pVector + m_kernels.rows() * m_kernels.cols(), m_kernels.rows()).vec());
+	m_bias.put(0, GConstVecWrapper(pVector + m_kernels.rows() * m_kernels.cols(), m_kernels.rows()));
 	return weightCount();
 }
 
@@ -3377,11 +3621,11 @@ void GBlockLSTM::step(double learningRate, const GVec& gradient)
 	size_t wcVal = m_val.weightCount();
 	size_t wcRead = m_read.weightCount();
 	GConstVecWrapper g(gradient.data(), wcWrite);
-	m_write.step(learningRate, g.vec());
+	m_write.step(learningRate, g);
 	g.setData(gradient.data() + wcWrite, wcVal);
-	m_val.step(learningRate, g.vec());
+	m_val.step(learningRate, g);
 	g.setData(gradient.data() + wcWrite + wcVal, wcRead);
-	m_read.step(learningRate, g.vec());
+	m_read.step(learningRate, g);
 }
 
 
@@ -3515,11 +3759,11 @@ void GContextLSTM::updateGradient(GContextRecurrentInstance* prev, const GVec& i
 	size_t wcVal = m_block.m_val.weightCount();
 	size_t wcRead = m_block.m_read.weightCount();
 	GVecWrapper g(gradient.data(), wcWrite);
-	m_block.m_write.updateGradient2(pPrev->m_h, input, m_blamef, g.vec());
+	m_block.m_write.updateGradient2(pPrev->m_h, input, m_blamef, g);
 	g.setData(gradient.data() + wcWrite, wcVal);
-	m_block.m_val.updateGradient2(pPrev->m_h, input, m_blamet, g.vec());
+	m_block.m_val.updateGradient2(pPrev->m_h, input, m_blamet, g);
 	g.setData(gradient.data() + wcWrite + wcVal, wcRead);
-	m_block.m_read.updateGradient2(pPrev->m_h, input, m_blameo, g.vec());
+	m_block.m_read.updateGradient2(pPrev->m_h, input, m_blameo, g);
 }
 
 
@@ -3664,11 +3908,11 @@ void GBlockGRU::step(double learningRate, const GVec& gradient)
 	size_t wcRemember = m_remember.weightCount();
 	size_t wcVal = m_val.weightCount();
 	GConstVecWrapper g(gradient.data(), wcUpdate);
-	m_update.step(learningRate, g.vec());
+	m_update.step(learningRate, g);
 	g.setData(gradient.data() + wcUpdate, wcRemember);
-	m_remember.step(learningRate, g.vec());
+	m_remember.step(learningRate, g);
 	g.setData(gradient.data() + wcUpdate + wcRemember, wcVal);
-	m_val.step(learningRate, g.vec());
+	m_val.step(learningRate, g);
 }
 
 #ifndef MIN_PREDICT
@@ -3793,11 +4037,11 @@ void GContextGRU::updateGradient(GContextRecurrentInstance* prev, const GVec& in
 	size_t wcRemember = m_block.m_remember.weightCount();
 	size_t wcVal = m_block.m_val.weightCount();
 	GVecWrapper g(gradient.data(), wcUpdate);
-	m_block.m_update.updateGradient2(pPrev->m_h, input, m_blamez, g.vec());
+	m_block.m_update.updateGradient2(pPrev->m_h, input, m_blamez, g);
 	g.setData(gradient.data() + wcUpdate, wcRemember);
-	m_block.m_remember.updateGradient2(pPrev->m_h, input, m_blamer, g.vec());
+	m_block.m_remember.updateGradient2(pPrev->m_h, input, m_blamer, g);
 	g.setData(gradient.data() + wcUpdate + wcRemember, wcVal);
-	m_block.m_val.updateGradient2(pPrev->m_h, input, m_blamet, g.vec());
+	m_block.m_val.updateGradient2(pPrev->m_h, input, m_blamet, g);
 }
 
 

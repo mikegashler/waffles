@@ -743,7 +743,7 @@ std::unique_ptr<GMatrix> GNeighborTransducer::transduceInner(const GMatrix& feat
 				}
 
 				GConstVecWrapper vw(tallys, labelValues);
-				int label = (int)vw.vec().indexOfMax();
+				int label = (int)vw.indexOfMax();
 				double conf = tallys[label];
 
 				// Penalize for dissenting votes

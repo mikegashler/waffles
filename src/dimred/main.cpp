@@ -950,7 +950,7 @@ void singularValueDecomposition(GArgReader& args)
 	else
 	{
 		GVecWrapper diag(pDiag, std::min(pU->rows(), pV->rows()));
-		diag.vec().print(cout);
+		diag.print(cout);
 		cout << "\n";
 	}
 }

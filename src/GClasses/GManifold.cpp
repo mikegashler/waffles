@@ -143,7 +143,7 @@ void GManifold::computeNeighborWeights(const GMatrix* pData, size_t point, size_
 
 	// Normalize the weights to sum to one
 	GVecWrapper vw(pOutWeights, pSquare->rows());
-	vw.vec().sumToOne();
+	vw.sumToOne();
 }
 
 // static

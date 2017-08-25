@@ -176,7 +176,7 @@ void GHiddenMarkovModel::baumWelchBeginPass()
 void GHMM_sumToOne(double* pVector, size_t size)
 {
 	GConstVecWrapper vw(pVector, size);
-	double sum = vw.vec().sum();
+	double sum = vw.sum();
 	if(sum == 0)
 		GHMM_setAll(pVector, 1.0 / size, size);
 	else

@@ -947,7 +947,7 @@ std::size_t GSelfOrganizingMap::bestMatch(const GVec& in) const{
     const double *weights = &(cur->weights.front());
     {
       GConstVecWrapper w(weights, cur->weights.size());
-      double dissim = (*m_pWeightDistance)(w.vec(), in);
+      double dissim = (*m_pWeightDistance)(w, in);
       if(dissim < bestDistance || best_Match >= nodes().size()){
         best_Match = cur - nodes().begin();
         bestDistance = dissim;
@@ -972,10 +972,10 @@ std::vector<std::size_t> GSelfOrganizingMap::bestData
   for(NIter cur = nodes().begin(); cur != nodes().end(); ++cur){
     const double *weights = &(cur->weights.front());
     GConstVecWrapper w(weights, cur->weights.size());
-    double bestDist=(*m_pWeightDistance)(w.vec(), data->row(0));
+    double bestDist=(*m_pWeightDistance)(w, data->row(0));
     size_t bestIdx=0;
     for(unsigned dataIdx = 1; dataIdx < data->rows(); ++dataIdx){
-      double dist = (*m_pWeightDistance)(w.vec(), data->row(dataIdx));
+      double dist = (*m_pWeightDistance)(w, data->row(dataIdx));
       if(dist < bestDist){
 	bestIdx = dataIdx;
 	bestDist = dist;
@@ -1016,7 +1016,7 @@ void GSelfOrganizingMap::regenerateSortedNeighbors() const{
 	dist->nodeIdx = other;
 	GConstVecWrapper a(m_nodes[curIdx].outputLocation.data(), m_nodes[curIdx].outputLocation.size());
 	GConstVecWrapper b(m_nodes[other].outputLocation.data(), m_nodes[other].outputLocation.size());
-	dist->distance = (*metric)(a.vec(), b.vec());
+	dist->distance = (*metric)(a, b);
 	++dist;
       }
     }
