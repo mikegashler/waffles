@@ -1815,6 +1815,8 @@ void GMatrix::inPlaceSquareTranspose()
 
 double GMatrix_pythag(double a, double b)
 {
+	GAssert(a < 1e300);
+	GAssert(b < 1e300);
 	double at = std::abs(a);
 	double bt = std::abs(b);
 	if(at > bt)

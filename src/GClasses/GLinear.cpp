@@ -161,11 +161,11 @@ void GLinearRegressor::trainInner(const GMatrix& features, const GMatrix& labels
 	GMatrix l(inputs, outputs);
 	for(size_t i = 0; i < inputs; i++)
 	{
-		memcpy(f[i].data(), pca.basis()->row(i).data(), sizeof(double) * inputs);
+		memcpy(f[i].data(), pca.components()->row(1 + i).data(), sizeof(double) * inputs);
 		double sqmag = f[i].squaredMagnitude();
 		if(sqmag > 1e-10)
 			f[i] *= 1.0 / sqmag;
-		l[i].set(pca.basis()->row(i).data() + inputs, outputs);
+		l[i].set(pca.components()->row(1 + i).data() + inputs, outputs);
 	}
 	m_pBeta = GMatrix::multiply(l, f, true, false);
 	m_epsilon.resize(outputs);

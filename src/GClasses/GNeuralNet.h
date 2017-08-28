@@ -436,10 +436,10 @@ public:
 	/// This method differs from forwardProp in that it unfolds recurrent blocks through time.
 	GVec& forwardProp_training(const GVec& input);
 
-	/// Backpropagates the blame from ctx.blameBuf()
+	/// Backpropagates the blame from ctx.blame()
 	void backProp();
 
-	/// Backpropagates the blame from ctx.blameBuf() all the way to the inputs
+	/// Backpropagates the blame from ctx.blame() all the way to the inputs
 	void backProp(const GVec& input, GVec& inBlame);
 
 	/// Updates the gradient.

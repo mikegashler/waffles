@@ -241,7 +241,6 @@ class GPCA : public GIncrementalTransform
 protected:
 	size_t m_targetDims;
 	GMatrix* m_pBasisVectors;
-	GMatrix* m_pCentroid;
 	GVec m_eigVals;
 	bool m_aboutOrigin;
 	GRand m_rand;
@@ -274,11 +273,7 @@ public:
 	size_t targetDims() { return m_targetDims; }
 
 	/// Returns the centroid about which the principal components were calculated.
-	GVec& centroid() { return m_pCentroid->row(0); }
-
-	/// Returns the matrix of basis vectors. Row 0 is the first principal component,
-	/// row 1 is the second principal component, and so forth.
-	GMatrix* basis() { return m_pBasisVectors; }
+	GVec& centroid() { return m_pBasisVectors->row(0); }
 
 	/// Returns a dataset where the first row is the centroid, and the remaining
 	/// rows are the principal component vectors in order of decreasing eigenvalue.
@@ -297,6 +292,7 @@ public:
 
 	/// Returns a reference to the pseudo-random number generator used by this object.
 	GRand& rand() { return m_rand; }
+
 protected:
 	/// See the comment for GIncrementalTransform::train
 	virtual GRelation* trainInner(const GMatrix& data);

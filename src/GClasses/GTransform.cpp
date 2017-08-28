@@ -449,7 +449,7 @@ void GIncrementalTransformChainer::untransformToDistribution(const GVec& in, GPr
 // ---------------------------------------------------------------
 
 GPCA::GPCA(size_t target_Dims)
-: GIncrementalTransform(), m_targetDims(target_Dims), m_pBasisVectors(NULL), m_pCentroid(NULL), m_aboutOrigin(false), m_rand(0)
+: GIncrementalTransform(), m_targetDims(target_Dims), m_pBasisVectors(NULL), m_aboutOrigin(false), m_rand(0)
 {
 }
 
@@ -458,7 +458,6 @@ GPCA::GPCA(const GDomNode* pNode)
 {
 	m_pBasisVectors = new GMatrix(pNode->field("basis"));
 	m_targetDims = m_pBasisVectors->rows();
-	m_pCentroid = new GMatrix(pNode->field("centroid"));
 	m_aboutOrigin = pNode->field("aboutOrigin")->asBool();
 }
 
@@ -466,7 +465,6 @@ GPCA::GPCA(const GDomNode* pNode)
 GPCA::~GPCA()
 {
 	delete(m_pBasisVectors);
-	delete(m_pCentroid);
 }
 
 #ifndef MIN_PREDICT
@@ -475,7 +473,6 @@ GDomNode* GPCA::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GPCA");
 	pNode->addField(pDoc, "basis", m_pBasisVectors->serialize(pDoc));
-	pNode->addField(pDoc, "centroid", m_pCentroid->serialize(pDoc));
 	pNode->addField(pDoc, "aboutOrigin", pDoc->newBool(m_aboutOrigin));
 	return pNode;
 }
@@ -492,12 +489,10 @@ GRelation* GPCA::trainInner(const GMatrix& data)
 	if(!before().areContinuous())
 		throw Ex("GPCA doesn't support nominal values. (You could filter with nominaltocat to make them real.)");
 	delete(m_pBasisVectors);
-	delete(m_pCentroid);
-	m_pBasisVectors = new GMatrix(m_targetDims, before().size());
-	m_pCentroid = new GMatrix(1, before().size());
+	m_pBasisVectors = new GMatrix(1 + m_targetDims, before().size());
 
 	// Compute the mean
-	GVec& mean = m_pCentroid->row(0);
+	GVec& mean = m_pBasisVectors->row(0);
 	if(m_aboutOrigin)
 		mean.fill(0.0);
 	else
@@ -513,7 +508,7 @@ GRelation* GPCA::trainInner(const GMatrix& data)
 		sse = tmpData.sumSquaredDistance(mean);
 	for(size_t i = 0; i < m_targetDims; i++)
 	{
-		GVec& vec = m_pBasisVectors->row(i);
+		GVec& vec = m_pBasisVectors->row(i + 1);
 		tmpData.principalComponentIgnoreUnknowns(vec, mean, &m_rand);
 		tmpData.removeComponent(mean, vec);
 		if(m_eigVals.size() > 0)
@@ -537,10 +532,10 @@ GRelation* GPCA::trainInner(const GRelation& relation)
 // virtual
 void GPCA::transform(const GVec& in, GVec& out)
 {
-	GVec& c = m_pCentroid->row(0);
+	GVec& c = m_pBasisVectors->row(0);
 	for(size_t i = 0; i < m_targetDims; i++)
 	{
-		GVec& basisVector = m_pBasisVectors->row(i);
+		GVec& basisVector = m_pBasisVectors->row(1 + i);
 		out[i] = basisVector.dotProductIgnoringUnknowns(c, in);
 	}
 }
@@ -548,9 +543,12 @@ void GPCA::transform(const GVec& in, GVec& out)
 // virtual
 void GPCA::untransform(const GVec& in, GVec& out)
 {
-	out.copy(m_pCentroid->row(0));
+	throw Ex("Sorry, not implemented yet");
+/* todo: need invert the basis matrix
+	out.copy(m_pBasisVectors->row(0));
 	for(size_t i = 0; i < m_targetDims; i++)
-		out.addScaled(in[i], m_pBasisVectors->row(i));
+		out.addScaled(in[i], m_pBasisVectors->row(1 + i));
+*/
 }
 
 // virtual
