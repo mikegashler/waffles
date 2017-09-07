@@ -369,6 +369,12 @@ public:
 		m_size = size;
 	}
 
+	void setData(GVec& vec, size_t start = 0, size_t len = (size_t)-1)
+	{
+		m_data = vec.data() + start;
+		m_size = std::min(len, vec.size() - start);
+	}
+
 	void setSize(size_t size)
 	{
 		m_size = size;

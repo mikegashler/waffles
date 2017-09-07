@@ -153,16 +153,16 @@ public:
 	virtual void resetState() override;
 
 	/// Feeds input forward through the layer that was used to construct this object.
-	void forwardProp(const GVec& input, GVec& output);
+	void forwardProp(GVec& input, GVec& output);
 
 	/// Identical to forwardProp, except recurrent blocks additionally propagate through time during training.
-	void forwardProp_training(const GVec& input, GVec& output);
+	void forwardProp_training(GVec& input, GVec& output);
 
 	/// Backpropagates the blame through the layer that was used to construct this object.
-	void backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame);
+	void backProp(GVec& input, GVec& output, GVec& outBlame, GVec& inBlame);
 
 	/// Updates the gradient for the layer that was used to construct this object.
-	void updateGradient(const GVec& input, const GVec& outBlame, GVec &gradient);
+	void updateGradient(GVec& input, GVec& output, GVec& outBlame, GVec &gradient);
 
 #ifdef GCUDA
 	GCudaEngine& cudaEngine() { return *m_pEngine; }
@@ -371,16 +371,16 @@ public:
 protected:
 	/// Deliberately protected. Call GContextNeuralNet::forwardProp instead.
 	/// Evaluates input, computes output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Deliberately protected. Call GContextNeuralNet::backProp instead. 
 	/// Evaluates outBlame, computes inBlame.
 	/// For efficiency reasons, as a special case, if inBlame.data() == outBlame.data(), then inBlame will not be computed.
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// Deliberately protected. Call GContextNeuralNet::updateGradient instead. 
 	/// Updates the gradient.
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const override;
+	virtual void updateGradient(GContext& ctx) const override;
 
 #ifdef GCUDA
 	virtual void forwardPropCuda(GContext& ctx, const GCudaVector& input, GCudaVector& output) const override;
@@ -440,10 +440,10 @@ public:
 	void backProp();
 
 	/// Backpropagates the blame from ctx.blame() all the way to the inputs
-	void backProp(const GVec& input, GVec& inBlame);
+	void backProp(GVec& inBlame);
 
 	/// Updates the gradient.
-	void updateGradient(const GVec &input, GVec &gradient);
+	void updateGradient(GVec &gradient);
 
 #ifdef GCUDA
 	virtual GCudaEngine& cudaEngine() { return *m_pEngine; }

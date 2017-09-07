@@ -139,6 +139,12 @@ void GNeuralNetOptimizer::resetState()
 	context().resetState();
 }
 
+void GNeuralNetOptimizer::resetContext()
+{
+	delete(m_pContext);
+	m_pContext = nullptr;
+}
+
 void GNeuralNetOptimizer::optimizeIncremental(const GVec& feat, const GVec& lab)
 {
 	GAssert(feat.size() == m_model.layer(0).inputs() && lab.size() == m_model.outputLayer().outputs(), "Features/labels size mismatch!");
@@ -285,9 +291,10 @@ double GNeuralNetOptimizer::sumLoss(const GMatrix &features, const GMatrix &labe
 {
 	GVec loss(labels.cols());
 	double sum = 0.0;
+	GContextNeuralNet& ctx = context();
 	for(size_t i = 0; i < features.rows(); ++i)
 	{
-		GVec& pred = m_pContext->forwardProp(features[i]);
+		GVec& pred = ctx.forwardProp(features[i]);
 		m_objective->evaluate(pred, labels[i], loss);
 		sum += loss.sum();
 	}
@@ -330,7 +337,7 @@ void GSGDOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 	m_objective->calculateOutputLayerBlame(pred, lab, ctx.blame());
 	ctx.backProp();
 	m_gradient *= m_momentum;
-	ctx.updateGradient(feat, m_gradient);
+	ctx.updateGradient(m_gradient);
 }
 
 void GSGDOptimizer::descendGradient(double learningRate)
@@ -388,7 +395,7 @@ void GAdamOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 	m_objective->calculateOutputLayerBlame(pred, lab, ctx.blame());
 	ctx.backProp();
 	m_gradient.fill(0.0);
-	ctx.updateGradient(feat, m_gradient);
+	ctx.updateGradient(m_gradient);
 	m_correct1 *= m_beta1;
 	m_correct2 *= m_beta2;
 	for(size_t i = 0; i < m_gradient.size(); i++)
@@ -451,7 +458,7 @@ void GRMSPropOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 	m_objective->calculateOutputLayerBlame(pred, lab, ctx.blame());
 	ctx.backProp();
 	m_gradient *= m_momentum;
-	ctx.updateGradient(feat, m_gradient);
+	ctx.updateGradient(m_gradient);
 }
 
 void GRMSPropOptimizer::descendGradient(double learningRate)

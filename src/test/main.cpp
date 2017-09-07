@@ -63,7 +63,6 @@
 #include "../GClasses/GNaiveBayes.h"
 #include "../GClasses/GNaiveInstance.h"
 #include "../GClasses/GNeighborFinder.h"
-#include "../GClasses/GNeuralDecomposition.h"
 #include "../GClasses/GNeuralNet.h"
 #include "../GClasses/GParticleSwarm.h"
 #include "../GClasses/GPolynomial.h"
@@ -946,9 +945,7 @@ public:
 		runTest("GMomentumGreedySearch", GMomentumGreedySearch::test);
 		runTest("GNaiveBayes", GNaiveBayes::test);
 		runTest("GNaiveInstance", GNaiveInstance::test);
-		runTest("GNeuralDecomposition", GNeuralDecomposition::test);
 		runTest("GNeuralNetLearner", GNeuralNetLearner::test);
-//		runTest("GNonlinearPCA", GNonlinearPCA::test);
 		runTest("GPackageServer", GPackageServer::test);
 		runTest("GPolynomial", GPolynomial::test);
 		runTest("GPriorityQueue", GPriorityQueue::test);

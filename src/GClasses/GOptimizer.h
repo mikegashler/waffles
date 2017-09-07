@@ -135,6 +135,9 @@ public:
 	/// This method should be called when beginning a new training sequence with neural networks that contain any recurrent blocks.
 	void resetState();
 
+	/// Deletes the current context, causing it to be regenerated. (This should be called, for example, if the neural network topology changes.)
+	void resetContext();
+
 	/// Update and apply the gradient for a single training sample (on-line).
 	virtual void optimizeIncremental(const GVec &feat, const GVec &lab);
 

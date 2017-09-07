@@ -87,7 +87,7 @@ public:
 	};
 
 private:
-	int m_type;
+	char m_type;
 	union
 	{
 		GDomObjField* m_pLastField;

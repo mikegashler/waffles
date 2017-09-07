@@ -325,6 +325,7 @@ void GNeuralDecomposition::trainIncremental(const GVec& pIn, const GVec& pOut)
 			GLayer& layIn = m_nn->layer(0);
 			GBlockLinear* pInBlock = (GBlockLinear*)&layIn.block(0);
 			pInBlock->dropOutput(i);
+			m_pOptimizer->resetContext();
 		}
 	}
 

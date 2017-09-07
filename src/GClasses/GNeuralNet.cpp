@@ -333,73 +333,73 @@ void GContextLayer::resetState()
 	}
 }
 
-void GContextLayer::forwardProp(const GVec& input, GVec& output)
+void GContextLayer::forwardProp(GVec& input, GVec& output)
 {
-	GConstVecWrapper vwInput;
-	GVecWrapper vwOutput;
 	size_t outPos = 0;
 	size_t recurrents = 0;
 	size_t comp = 0;
 	for(size_t i = 0; i < m_layer.blockCount(); i++)
 	{
 		const GBlock& b = m_layer.block(i);
-		vwInput.setData(input.data() + b.inPos(), b.inputs());
-		vwOutput.setData(output.data() + outPos, b.outputs());
-		const GVec& in = vwInput;
-		GVec& out = vwOutput;
 		if(b.type() == GBlock::block_neuralnet)
 		{
 			GContextNeuralNet* pCompContext = m_components[comp++];
-			b.forwardProp(*pCompContext, in, out);
+			pCompContext->input.setData(input.data() + b.inPos(), b.inputs());
+			pCompContext->output.setData(output.data() + outPos, b.outputs());
+			b.forwardProp(*pCompContext);
 		}
 		else if(b.isRecurrent())
 		{
 			GContextRecurrent* pRecContext = m_recurrents[recurrents++];
-			pRecContext->forwardProp(in, out);
+			pRecContext->input.setData(input.data() + b.inPos(), b.inputs());
+			pRecContext->output.setData(output.data() + outPos, b.outputs());
+			pRecContext->forwardProp();
 		}
 		else
-			b.forwardProp(*this, in, out);
+		{
+			this->input.setData(input.data() + b.inPos(), b.inputs());
+			this->output.setData(output.data() + outPos, b.outputs());
+			b.forwardProp(*this);
+		}
 		outPos += b.outputs();
 	}
 }
 
-void GContextLayer::forwardProp_training(const GVec& input, GVec& output)
+void GContextLayer::forwardProp_training( GVec& input, GVec& output)
 {
-	GConstVecWrapper vwInput;
-	GVecWrapper vwOutput;
 	size_t outPos = 0;
 	size_t recurrents = 0;
 	size_t comp = 0;
 	for(size_t i = 0; i < m_layer.blockCount(); i++)
 	{
 		const GBlock& b = m_layer.block(i);
-		vwInput.setData(input.data() + b.inPos(), b.inputs());
-		vwOutput.setData(output.data() + outPos, b.outputs());
-		const GVec& in = vwInput;
-		GVec& out = vwOutput;
 		if(b.type() == GBlock::block_neuralnet)
 		{
 			GContextNeuralNet* pCompContext = m_components[comp++];
-			b.forwardProp(*pCompContext, in, out);
+			pCompContext->input.setData(input.data() + b.inPos(), b.inputs());
+			pCompContext->output.setData(output.data() + outPos, b.outputs());
+			b.forwardProp(*pCompContext);
 		}
 		else if(b.isRecurrent())
 		{
 			GContextRecurrent* pRecContext = m_recurrents[recurrents++];
-			pRecContext->forwardPropThroughTime(in, out);
+			pRecContext->input.setData(input.data() + b.inPos(), b.inputs());
+			pRecContext->output.setData(output.data() + outPos, b.outputs());
+			pRecContext->forwardPropThroughTime();
 		}
 		else
-			b.forwardProp(*this, in, out);
+		{
+			this->input.setData(input.data() + b.inPos(), b.inputs());
+			this->output.setData(output.data() + outPos, b.outputs());
+			b.forwardProp(*this);
+		}
 		outPos += b.outputs();
 	}
 }
 
-void GContextLayer::backProp(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame)
+void GContextLayer::backProp(GVec& input, GVec& output, GVec& outBlame, GVec& inBlame)
 {
 	GAssert(output.size() == outBlame.size());
-	GConstVecWrapper vwInput;
-	GConstVecWrapper vwOutput;
-	GConstVecWrapper vwOutBlame;
-	GVecWrapper vwInBlame;
 	size_t outPos = 0;
 	size_t recurrents = 0;
 	size_t comp = 0;
@@ -407,31 +407,38 @@ void GContextLayer::backProp(const GVec& input, const GVec& output, const GVec& 
 	for(size_t i = 0; i < m_layer.blockCount(); i++)
 	{
 		const GBlock& b = m_layer.block(i);
-		vwInput.setData(input.data() + b.inPos(), b.inputs());
-		vwOutput.setData(output.data() + outPos, b.outputs());
-		vwOutBlame.setData(outBlame.data() + outPos, b.outputs());
-		vwInBlame.setData(inBlame.data() + b.inPos(), b.inputs());
 		if(b.type() == GBlock::block_neuralnet)
 		{
 			GContextNeuralNet* pCompContext = m_components[comp++];
-			b.backProp(*pCompContext, vwInput, vwOutput, vwOutBlame, vwInBlame);
+			pCompContext->input.setData(input.data() + b.inPos(), b.inputs());
+			pCompContext->output.setData(output.data() + outPos, b.outputs());
+			pCompContext->outBlame.setData(outBlame.data() + outPos, b.outputs());
+			pCompContext->inBlame.setData(inBlame.data() + b.inPos(), b.inputs());
+			b.backProp(*pCompContext);
 		}
 		else if(b.isRecurrent())
 		{
 			GContextRecurrent* pRecContext = m_recurrents[recurrents++];
-			pRecContext->backPropThroughTime(vwInput, vwOutput, vwOutBlame, vwInBlame);
+			pRecContext->input.setData(input.data() + b.inPos(), b.inputs());
+			pRecContext->output.setData(output.data() + outPos, b.outputs());
+			pRecContext->outBlame.setData(outBlame.data() + outPos, b.outputs());
+			pRecContext->inBlame.setData(inBlame.data() + b.inPos(), b.inputs());
+			pRecContext->backPropThroughTime();
 		}
 		else
-			b.backProp(*this, vwInput, vwOutput, vwOutBlame, vwInBlame);
+		{
+			this->input.setData(input.data() + b.inPos(), b.inputs());
+			this->output.setData(output.data() + outPos, b.outputs());
+			this->outBlame.setData(outBlame.data() + outPos, b.outputs());
+			this->inBlame.setData(inBlame.data() + b.inPos(), b.inputs());
+			b.backProp(*this);
+		}
 		outPos += b.outputs();
 	}
 }
 
-void GContextLayer::updateGradient(const GVec& input, const GVec& outBlame, GVec& gradient)
+void GContextLayer::updateGradient(GVec& input, GVec& output, GVec& outBlame, GVec& gradient)
 {
-	GConstVecWrapper vwInput;
-	GConstVecWrapper vwOutBlame;
-	GVecWrapper vwGradient;
 	size_t gradPos = 0;
 	size_t outPos = 0;
 	size_t recurrents = 0;
@@ -440,21 +447,32 @@ void GContextLayer::updateGradient(const GVec& input, const GVec& outBlame, GVec
 	{
 		const GBlock& b = m_layer.block(i);
 		size_t wc = b.weightCount();
-		vwInput.setData(input.data() + b.inPos(), b.inputs());
-		vwOutBlame.setData(outBlame.data() + outPos, b.outputs());
-		vwGradient.setData(gradient.data() + gradPos, wc);
 		if(b.type() == GBlock::block_neuralnet)
 		{
 			GContextNeuralNet* pCompContext = m_components[comp++];
-			b.updateGradient(*pCompContext, vwInput, vwOutBlame, vwGradient);
+			pCompContext->input.setData(input.data() + b.inPos(), b.inputs());
+			pCompContext->output.setData(output.data() + outPos, b.outputs());
+			pCompContext->outBlame.setData(outBlame.data() + outPos, b.outputs());
+			pCompContext->gradient.setData(gradient.data() + gradPos, wc);
+			b.updateGradient(*pCompContext);
 		}
 		else if(b.isRecurrent())
 		{
 			GContextRecurrent* pRecContext = m_recurrents[recurrents++];
-			pRecContext->updateGradient(vwInput, vwOutBlame, vwGradient);
+			pRecContext->input.setData(input.data() + b.inPos(), b.inputs());
+			pRecContext->output.setData(output.data() + outPos, b.outputs());
+			pRecContext->outBlame.setData(outBlame.data() + outPos, b.outputs());
+			pRecContext->gradient.setData(gradient.data() + gradPos, wc);
+			pRecContext->updateGradient();
 		}
 		else
-			b.updateGradient(*this, vwInput, vwOutBlame, vwGradient);
+		{
+			this->input.setData(input.data() + b.inPos(), b.inputs());
+			this->output.setData(output.data() + outPos, b.outputs());
+			this->outBlame.setData(outBlame.data() + outPos, b.outputs());
+			this->gradient.setData(gradient.data() + gradPos, wc);
+			b.updateGradient(*this);
+		}
 		outPos += b.outputs();
 		gradPos += wc;
 	}
@@ -721,13 +739,13 @@ void GNeuralNet::init(size_t inputs, size_t outputs, GRand& rand)
 	resetWeights(rand);
 }
 
-void GNeuralNet::forwardProp(GContext& ctx, const GVec& input, GVec& output) const
+void GNeuralNet::forwardProp(GContext& ctx) const
 {
-	GAssert(input.size() == layer(0).inputs());
-	GAssert(output.size() == outputLayer().outputs());
-	const GVec* pInput = &input;
+	GAssert(ctx.input.size() == layer(0).inputs());
+	GAssert(ctx.output.size() == outputLayer().outputs());
+	GVec* pInput = &ctx.input;
 	GContextNeuralNet* pContext = (GContextNeuralNet*)&ctx;
-	GAssert(output.data() == pContext->prediction().data());
+	GAssert(ctx.output.data() == pContext->prediction().data());
 	GAssert(pContext->layerCount() == layerCount());
 	for(size_t i = 0; i < m_layers.size(); i++)
 	{
@@ -737,27 +755,26 @@ void GNeuralNet::forwardProp(GContext& ctx, const GVec& input, GVec& output) con
 	}
 }
 
-void GNeuralNet::backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const
+void GNeuralNet::backProp(GContext& ctx) const
 {
 	GContextNeuralNet* pContext = (GContextNeuralNet*)&ctx;
-	GAssert(output.data() == pContext->prediction().data());
-	GAssert(outBlame.data() == pContext->blame().data());
+	GAssert(ctx.outBlame.data() == pContext->blame().data());
 	for(size_t i = pContext->m_layers.size() - 1; i > 0; i--)
 	{
 		GContextLayer* pLayer = pContext->m_layers[i];
 		GContextLayer* pPrevLayer = pContext->m_layers[i - 1];
 		pLayer->backProp(pPrevLayer->m_activation, pLayer->m_activation, pLayer->m_blame, pPrevLayer->m_blame);
 	}
-	if(inBlame.data() != outBlame.data())
+	if(ctx.inBlame.data() != ctx.outBlame.data())
 	{
 		GContextLayer* pLayer = pContext->m_layers[0];
-		pLayer->backProp(input, pLayer->m_activation, pLayer->m_blame, inBlame);
+		pLayer->backProp(ctx.input, pLayer->m_activation, pLayer->m_blame, ctx.inBlame);
 	}
 }
 
-void GNeuralNet::updateGradient(GContext& ctx, const GVec &input, const GVec& outBlame, GVec &gradient) const
+void GNeuralNet::updateGradient(GContext& ctx) const
 {
-	const GVec* pInput = &input;
+	GVec* pInput = &ctx.input;
 	size_t gradPos = 0;
 	GVecWrapper vwGradient;
 	GContextNeuralNet* pContext = (GContextNeuralNet*)&ctx;
@@ -765,9 +782,9 @@ void GNeuralNet::updateGradient(GContext& ctx, const GVec &input, const GVec& ou
 	{
 		GContextLayer* pLayer = pContext->m_layers[i];
 		size_t wc = pLayer->m_layer.weightCount();
-		vwGradient.setData(gradient.data() + gradPos, wc);
-		GAssert(gradPos + wc <= gradient.size());
-		pLayer->updateGradient(*pInput, pLayer->m_blame, vwGradient);
+		vwGradient.setData(ctx.gradient.data() + gradPos, wc);
+		GAssert(gradPos + wc <= ctx.gradient.size());
+		pLayer->updateGradient(*pInput, pLayer->m_activation, pLayer->m_blame, vwGradient);
 		pInput = &pLayer->m_activation;
 		gradPos += wc;
 	}
@@ -1189,7 +1206,6 @@ double GNeuralNet::measureLoss(const GMatrix& features, const GMatrix& labels, d
 		throw Ex("Mismatching number of inputs. Data has ", GClasses::to_str(features.cols()), ". Neural net expects ", GClasses::to_str(inputs()));
 	GRand rand(0);
 	GContextNeuralNet* pCtx = newContext(rand);
-	GVec& prediction = pCtx->prediction();
 	double sae = 0.0;
 	double sse = 0.0;
 	if(labels.cols() == outputs())
@@ -1197,7 +1213,7 @@ double GNeuralNet::measureLoss(const GMatrix& features, const GMatrix& labels, d
 		// Regression. Compute SSE and SAE.
 		for(size_t i = 0; i < features.rows(); i++)
 		{
-			forwardProp(*pCtx, features[i], prediction);
+			GVec& prediction = pCtx->forwardProp(features[i]);
 			const GVec& targ = labels[i];
 			for(size_t j = 0; j < prediction.size(); j++)
 			{
@@ -1215,7 +1231,7 @@ double GNeuralNet::measureLoss(const GMatrix& features, const GMatrix& labels, d
 		// Classification. Count misclassifications.
 		for(size_t i = 0; i < features.rows(); i++)
 		{
-			forwardProp(*pCtx, features[i], prediction);
+			GVec& prediction = pCtx->forwardProp(features[i]);
 			const GVec& targ = labels[i];
 			if(targ[0] >= 0.0)
 			{
@@ -1446,18 +1462,23 @@ void GContextNeuralNet::resetState()
 		m_layers[i]->resetState();
 }
 
-GVec& GContextNeuralNet::forwardProp(const GVec& input)
+GVec& GContextNeuralNet::forwardProp(const GVec& in)
 {
-	GVec& output = prediction();
-	m_nn.forwardProp(*this, input, output);
-	return output;
+	input.setData((double*)in.data(), in.size());
+	GVec& out = prediction();
+	output.setData(out.data(), out.size());
+	m_nn.forwardProp(*this);
+	return out;
 }
 
-GVec& GContextNeuralNet::forwardProp_training(const GVec& input)
+GVec& GContextNeuralNet::forwardProp_training(const GVec& in)
 {
 	GAssert(layerCount() == m_nn.layerCount());
-	GAssert(input.size() == m_nn.layer(0).inputs());
-	const GVec* pInput = &input;
+	GAssert(in.size() == m_nn.layer(0).inputs());
+	input.setData((double*)in.data(), in.size());
+	GVec& out = prediction();
+	output.setData(out.data(), out.size());
+	GVec* pInput = (GVec*)&in;
 	for(size_t i = 0; i < m_layers.size(); i++)
 	{
 		GContextLayer* pLayer = m_layers[i];
@@ -1469,17 +1490,24 @@ GVec& GContextNeuralNet::forwardProp_training(const GVec& input)
 
 void GContextNeuralNet::backProp()
 {
-	m_nn.backProp(*this, prediction()/*bogus ignored*/, prediction(), blame(), blame()/*bogus ignored*/);
+	GVec& bl = blame();
+	outBlame.setData(bl.data(), bl.size());
+	inBlame.setData(bl.data(), bl.size());
+	m_nn.backProp(*this);
 }
 
-void GContextNeuralNet::backProp(const GVec& input, GVec& inBlame)
+void GContextNeuralNet::backProp(GVec& inBlam)
 {
-	m_nn.backProp(*this, input, prediction(), blame(), inBlame);
+	GVec& bl = blame();
+	outBlame.setData(bl.data(), bl.size());
+	inBlame.setData(inBlam.data(), inBlam.size());
+	m_nn.backProp(*this);
 }
 
-void GContextNeuralNet::updateGradient(const GVec &input, GVec &gradient)
+void GContextNeuralNet::updateGradient(GVec &grad)
 {
-	m_nn.updateGradient(*this, input, input/*bogus ignored*/, gradient);
+	gradient.setData(grad.data(), grad.size());
+	m_nn.updateGradient(*this);
 }
 
 #ifdef GCUDA

@@ -398,26 +398,32 @@ int main(int argc, char *argv[])
 <pre class="code">
 % Training patterns: 60000
 % Testing patterns: 10000
-% Topology: 784 -> 80 -> 30 -> 10
-% Total weights: 65540
+% Topology:
+% [GNeuralNet: 784-&gt;10, Weights=65540
+%    0) [GBlockLinear: 784-&gt;80, Weights=62800]
+%    1) [GBlockTanh: 80-&gt;80, Weights=0]
+%    2) [GBlockLinear: 80-&gt;30, Weights=2430]
+%    3) [GBlockTanh: 30-&gt;30, Weights=0]
+%    4) [GBlockLinear: 30-&gt;10, Weights=310]
+%    5) [GBlockTanh: 10-&gt;10, Weights=0]
+% ]
 @RELATION neural_net_training
-@ATTRIBUTE internal_rmse_train real
-@ATTRIBUTE internal_rmse_test real
 @ATTRIBUTE misclassification_rate real
+@ATTRIBUTE elapsed_time real
 @DATA
-1.0062320115962, 1.0062882869588, 0.9235
-0.35827917057482, 0.35285602819834, 0.0588
-0.29920038633219, 0.30503380076365, 0.0455
-0.29897590956784, 0.30469283251474, 0.0436
-0.27005888129929, 0.28255127487034, 0.0382
-0.26209564354629, 0.28000584880966, 0.039
-0.25383945740352, 0.27075626507427, 0.0361
-0.23419057786692, 0.25915069511568, 0.0335
-0.23568715771943, 0.26541501669647, 0.036
-0.23326108174385, 0.26323053581819, 0.0332
+0.9235,0.41962885856628
+0.0588,25.853845834732
+0.0455,51.202766895294
+0.0436,76.504915952682
+0.0382,101.84748888016
+0.039,127.16595101357
+0.0361,152.64489006996
+0.0335,178.02455592155
+0.036,203.4120118618
+0.0332,228.8822748661
 </pre>
 
-<p>The right-most column shows that we get 332 misclassifications after about 2 minutes of training.
+<p>The left-most column shows that we get 332 misclassifications in less than 4 minutes of training.
 You can get much better accuracy using bigger layers, but then training will take longer too.</p>
 
 

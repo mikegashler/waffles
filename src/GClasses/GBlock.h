@@ -41,6 +41,11 @@ class GContext
 {
 public:
 	GRand& m_rand;
+	GVecWrapper input;
+	GVecWrapper output;
+	GVecWrapper outBlame;
+	GVecWrapper inBlame;
+	GVecWrapper gradient;
 #ifdef GCUDA
 	GVec m_scratchIn;
 	GVec m_scratchOut;
@@ -165,14 +170,14 @@ public:
 	virtual size_t outputs() const = 0;
 
 	/// Evaluates the input, sets the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const = 0;
+	virtual void forwardProp(GContext& ctx) const = 0;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const = 0;
+	virtual void backProp(GContext& ctx) const = 0;
 
 	/// Evaluate the input and outBlame, update the gradient for updating the weights by gradient descent.
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const = 0;
+	virtual void updateGradient(GContext& ctx) const = 0;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec& gradient) = 0;
@@ -291,7 +296,7 @@ public:
 	virtual void maxNorm(double min, double max) override {}
 	virtual void scaleWeights(double factor, bool scaleBiases) override {}
 	virtual void diminishWeights(double amount, bool regularizeBiases) override {}
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override {}
+	virtual void updateGradient(GContext& ctx) const override {}
 	virtual void step(double learningRate, const GVec &gradient) override {}
 };
 
@@ -333,14 +338,14 @@ public:
 	virtual size_t outputs() const override { return m_outputCount; }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// A special forward prop that accepts two vectors of the same size.
 	void forwardProp2(const GVec& in1, const GVec& in2, GVec& output) const;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// A convenience version of backProp that mirrors forwardProp2.
 	void backProp2(const GVec& outBlame, GVec& inBlame1, GVec& inBlame2) const;
@@ -384,14 +389,14 @@ public:
 	virtual size_t outputs() const override { return m_outputCount; }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// A special forward prop that accepts two vectors of the same size.
 	void forwardProp2(const GVec& in1, const GVec& in2, GVec& output) const;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// A convenience version of backProp pthat mirrors forwardProp2.
 	void backProp2(const GVec& input1, const GVec& input2, const GVec& outBlame, GVec& inBlame1, GVec& inBlame2) const;
@@ -437,14 +442,14 @@ public:
 	virtual size_t outputs() const override { return m_outputCount; }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// A special forward prop that accepts three vectors of the same size.
 	void forwardProp3(const GVec& inA, const GVec& inB, const GVec& inC, GVec& output) const;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// A convenience version of backProp that mirrors forwardProp3
 	void backProp3(const GVec& inA, const GVec& inB, const GVec& inC, const GVec& outBlame, GVec& inBlameA, GVec& inBlameB, GVec& inBlameC) const;
@@ -496,11 +501,11 @@ public:
 	virtual size_t outputs() const override { return m_inputRows * m_inputCols * m_inputChannels / (m_regionSize * m_regionSize); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 };
 
 
@@ -538,11 +543,11 @@ public:
 	virtual size_t outputs() const override { return m_units; }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// Computes the input that would produce the specified output.
 	/// (May throw an exception if this activation function is not invertible.)
@@ -882,15 +887,15 @@ public:
 	virtual size_t outputs() const override { return m_alpha.size(); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx) const override;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
@@ -991,15 +996,15 @@ public:
 	virtual size_t outputs() const override { return m_alpha.size(); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx) const override;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
@@ -1080,21 +1085,21 @@ public:
 	virtual size_t outputs() const override { return m_weights.cols(); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// A convenience method that concatenates two vectors before feeding into this block
 	void forwardProp2(const GVec& in1, const GVec& in2, GVec& output) const;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// A convenience method that mirrors forwardProp2.
 	void backProp2(const GVec& outBlame, GVec& inBlame1, GVec& inBlame2) const;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx) const override;
 
 	/// A convenience method that goes with forwardProp2 and backProp2.
 	void updateGradient2(const GVec& in1, const GVec& in2, const GVec& outBlame, GVec &gradient) const;
@@ -1235,15 +1240,15 @@ public:
 	virtual size_t outputs() const override { return m_weights.cols(); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx) const override;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
@@ -1332,15 +1337,15 @@ public:
 	virtual size_t outputs() const override { return m_weights.cols(); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx) const override;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
@@ -1422,15 +1427,15 @@ public:
 	virtual size_t outputs() const override { return m_weights.cols(); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx) const override;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
@@ -1514,11 +1519,11 @@ public:
 	virtual size_t outputs() const override { return m_inputCount * (m_inputCount - 1) + 4 * m_inputCount; }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// Returns the input unit that is connected with the specifed output unit.
 	/// Returns inputs() for "lo", and inputs()+1 for "hi".
@@ -1562,15 +1567,15 @@ public:
 	virtual size_t outputs() const override { return m_alpha.size(); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx) const override;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
@@ -1648,15 +1653,15 @@ public:
 	virtual size_t outputs() const override { return m_weights.cols(); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx) const override;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
@@ -1755,18 +1760,18 @@ public:
 	virtual size_t outputs() const override { return m_weights.rows(); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// Feed a vector backwards through this block.
 	void feedBackward(const GVec& output, GVec& input) const;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx) const override;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
@@ -1883,15 +1888,15 @@ public:
         virtual size_t outputs() const override { return m_outputSamples * m_inputChannels * m_kernelsPerChannel; }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx) const override;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
@@ -2009,16 +2014,16 @@ public:
         virtual size_t outputs() const override { return m_outputWidth * m_outputHeight * m_bias.size(); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec &gradient) const override;
+	virtual void updateGradient(GContext& ctx) const override;
 
 	/// Add the weight and bias gradient to the weights.
 	virtual void step(double learningRate, const GVec &gradient) override;
@@ -2101,15 +2106,15 @@ public:
 protected:
 	/// Deliberately protected.
 	/// Throws an exception telling you to call GContextRecurrent::forwardProp instead.
-	virtual void forwardProp(GContext& ctx, const GVec& input, GVec& output) const override;
+	virtual void forwardProp(GContext& ctx) const override;
 
 	/// Deliberately protected.
 	/// Throws an exception telling you to call GContextRecurrent::backProp instead.
-	virtual void backProp(GContext& ctx, const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame) const override;
+	virtual void backProp(GContext& ctx) const override;
 
 	/// Deliberately protected.
 	/// Throws an exception telling you to call GContextRecurrent::updateGradient instead.
-	virtual void updateGradient(GContext& ctx, const GVec& input, const GVec& outBlame, GVec& gradient) const override;
+	virtual void updateGradient(GContext& ctx) const override;
 
 #ifndef MIN_PREDICT
 	static double testEngine(GNeuralNet& nn);
@@ -2140,13 +2145,13 @@ public:
 
 	virtual void resetState() override;
 
-	void forwardProp(const GVec& input, GVec& output);
+	void forwardProp();
 
-	void forwardPropThroughTime(const GVec& input, GVec& output);
+	void forwardPropThroughTime();
 
-	void backPropThroughTime(const GVec& input, const GVec& output, const GVec& outBlame, GVec& inBlame);
+	void backPropThroughTime();
 
-	void updateGradient(const GVec& input, const GVec& outBlame, GVec& gradient) const;
+	void updateGradient();
 
 #ifdef GCUDA
 	virtual GCudaEngine& cudaEngine()
@@ -2185,9 +2190,9 @@ public:
 	virtual ~GContextRecurrentInstance() {}
 
 	virtual void clearBlame() = 0;
-	virtual void forwardProp(GContextRecurrentInstance* pPrev, const GVec& input, GVec& output) = 0;
-	virtual void backProp(GContextRecurrentInstance* pPrev, const GVec& outBlame, GVec& inBlame) = 0;
-	virtual void updateGradient(GContextRecurrentInstance* prev, const GVec& input, GVec& gradient) const = 0;
+	virtual void forwardProp(GContextRecurrentInstance* pPrev) = 0;
+	virtual void backProp(GContextRecurrentInstance* pPrev) = 0;
+	virtual void updateGradient(GContextRecurrentInstance* prev) = 0;
 };
 
 
@@ -2293,9 +2298,9 @@ public:
 
 	virtual void resetState() override;
 	virtual void clearBlame() override;
-	virtual void forwardProp(GContextRecurrentInstance* pPrev, const GVec& input, GVec& output) override;
-	virtual void backProp(GContextRecurrentInstance* pPrev, const GVec& outBlame, GVec& inBlame) override;
-	virtual void updateGradient(GContextRecurrentInstance* prev, const GVec& input, GVec& gradient) const override;
+	virtual void forwardProp(GContextRecurrentInstance* pPrev) override;
+	virtual void backProp(GContextRecurrentInstance* pPrev) override;
+	virtual void updateGradient(GContextRecurrentInstance* prev) override;
 
 #ifdef GCUDA
 	virtual GCudaEngine& cudaEngine()
@@ -2405,11 +2410,11 @@ public:
 
 	GContextGRU(GRand& rand, GBlockGRU& block);
 
-	virtual void forwardProp(GContextRecurrentInstance* pPrev, const GVec& input, GVec& output) override;
+	virtual void forwardProp(GContextRecurrentInstance* pPrev) override;
 	virtual void resetState() override;
 	virtual void clearBlame() override;
-	virtual void backProp(GContextRecurrentInstance* pPrev, const GVec& outBlame, GVec& inBlame) override;
-	virtual void updateGradient(GContextRecurrentInstance* prev, const GVec& input, GVec& gradient) const override;
+	virtual void backProp(GContextRecurrentInstance* pPrev) override;
+	virtual void updateGradient(GContextRecurrentInstance* prev) override;
 
 #ifdef GCUDA
 	virtual GCudaEngine& cudaEngine()
