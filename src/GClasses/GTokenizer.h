@@ -26,8 +26,6 @@
 
 namespace GClasses {
 
-class GCharSet;
-
 
 /// This class represents a set of characters.
 class GCharSet

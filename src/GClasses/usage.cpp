@@ -1696,6 +1696,7 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-time [attr] [format]", "Specify that a particular attribute is a date or time stamp in a particular format. Example format: \"YYYY-MM-DD hh:mm:ssssss\".");
 		pOpts->add("-nominal [attr]=0", "Indiciate that the specified attribute should be treated as nominal.");
 		pOpts->add("-real [attr]=0", "Indiciate that the specified attribute should be treated as real.");
+		pOpts->add("-stripquotes [attr]=0", "Indiciate that the specified attribute should have quotes stripped from its values.");
 	}
 	{
 		UsageNode* pEV = pRoot->add("enumeratevalues [dataset] [col]", "Enumerates all of the unique values in the specified column, and replaces each value with its enumeration. (For example, if you have a column that contains the social-security-number of each user, this will change them to numbers from 0 to n-1, where n is the number of unique users.)");

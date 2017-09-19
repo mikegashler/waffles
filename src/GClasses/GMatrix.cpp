@@ -575,7 +575,10 @@ void GArffRelation::addAttribute(const char* szName, size_t nValues, vector<cons
 		if(nValues != pValues->size())
 			throw Ex("mismatching value counts");
 		for(size_t i = 0; i < nValues; i++)
+		{
+			GAssert((*pValues)[i][0] > ' ');
 			m_attrs[index].m_values.push_back((*pValues)[i]);
+		}
 	}
 }
 
@@ -704,7 +707,10 @@ void GArffRelation::printAttrValue(ostream& stream, size_t column, double value,
 		else if(val >= (int)valCount)
 			throw Ex("value out of range");
 		else if(m_attrs[column].m_values.size() > 0)
+		{
+			GAssert(m_attrs[column].m_values[val][0] > ' ');
 			stream << m_attrs[column].m_values[val];
+		}
 		else if(val < 26)
 		{
 			char tmp[2];
@@ -4863,6 +4869,12 @@ void GCSVParser::setRealAttr(size_t attr)
 	m_specifiedReal.insert(std::pair<size_t,size_t>(attr, 0));
 }
 
+void GCSVParser::setStripQuotes(size_t attr)
+{
+	m_stripQuotes.insert(std::pair<size_t,size_t>(attr, 0));
+}
+
+
 class ImportRow
 {
 public:
@@ -5001,7 +5013,65 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 				{
 				}
 			}
+			GAssert(pFile[nPos] > ' ' || l == 0);
+			GAssert(pFile[nPos] != m_separator || l == 0);
+			GAssert(pFile[nPos + l - 1] > ' ' || l == 0);
+			GAssert(pFile[nPos + l - 1] != m_separator || l == 0);
+			std::map<size_t, size_t>::iterator itStripQuotes = m_stripQuotes.find(row.m_elements.size());
+			if(itStripQuotes != m_stripQuotes.end())
+			{
+				if(pFile[nPos] == '"' && pFile[nPos + l - 1] == '"')
+				{
+					nPos++;
+					i--;
+					l -= 2;
+				}
+				if(pFile[nPos] == '\'' && pFile[nPos + l - 1] == '\'')
+				{
+					nPos++;
+					i--;
+					l -= 2;
+				}
+
+				// Strip any bounding whitespace inside the quotes
+				while(l > 0 && pFile[nPos + l - 1] == ' ')
+					l--;
+				while(l > 0 && pFile[nPos] == ' ')
+				{
+					nPos++;
+					i--;
+					l--;
+				}
+			}
+			GAssert(pFile[nPos] > ' ' || l == 0);
+			GAssert(pFile[nPos] != m_separator || l == 0);
+			GAssert(pFile[nPos + l - 1] > ' ' || l == 0);
+			GAssert(pFile[nPos + l - 1] != m_separator || l == 0);
 			char* el = heap.add(pFile + nPos, l);
+
+			// Replace any unquoted separator chars with '_'
+			bool quo = false;
+			bool quoquo = false;
+			for(size_t k = 0; el[k] != '\0'; k++)
+			{
+				if(quo)
+				{
+					if(el[k] == '\'')
+						quo = false;
+				}
+				else if(quoquo)
+				{
+					if(el[k] == '"')
+						quoquo = false;
+				}
+				else if(el[k] == '\'')
+					quo = true;
+				else if(el[k] == '"')
+					quoquo = true;
+				else if(el[k] == m_separator)
+					el[k] = '_';
+			}
+
 			row.m_elements.push_back(el);
 			if(row.m_elements.size() > columnCount)
 				break;
@@ -5114,6 +5184,15 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 				m_report[attr] += ", such as \"";
 				m_report[attr] += firstErr;
 				m_report[attr] += "\".";
+				string tmp = m_report[attr];
+				m_report[attr] = "ERROR   ";
+				m_report[attr] += tmp;
+			}
+			else
+			{
+				string tmp = m_report[attr];
+				m_report[attr] = "OK      ";
+				m_report[attr] += tmp;
 			}
 			continue;
 		}
@@ -5216,6 +5295,15 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 					m_report[attr] += ", such as \"";
 					m_report[attr] += firstRealError;
 					m_report[attr] += "\"";
+					string tmp = m_report[attr];
+					m_report[attr] = "ERROR   ";
+					m_report[attr] += tmp;
+				}
+				else
+				{
+					string tmp = m_report[attr];
+					m_report[attr] = "OK      ";
+					m_report[attr] += tmp;
 				}
 				m_report[attr] += ".";
 			}
@@ -5224,9 +5312,17 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 				m_report[attr] += "Ambiguous type. All values in this column are numerical, but there are only ";
 				m_report[attr] += to_str(uniqueVals);
 				m_report[attr] += " unique values. Assuming a numerical attribute was intended.";
+				string tmp = m_report[attr];
+				m_report[attr] = "WARNING ";
+				m_report[attr] += tmp;
 			}
 			else
+			{
 				m_report[attr] += "Clearly numerical.";
+				string tmp = m_report[attr];
+				m_report[attr] = "OK      ";
+				m_report[attr] += tmp;
+			}
 		}
 		else
 		{
@@ -5252,6 +5348,10 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 							n = (uintptr_t)pVal;
 						else
 						{
+							GAssert(el[0] > ' ');
+							GAssert(el[0] != m_separator);
+							GAssert(el[strlen(el) - 1] > ' ');
+							GAssert(el[strlen(el) - 1] != m_separator);
 							values.push_back(el);
 							n = valueCount++;
 							ht.add(el, (const void*)n);
@@ -5280,6 +5380,12 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 				m_report[attr] += " unique values. (";
 				m_report[attr] += to_str((double)valueCount * 100.0 / rows.size());
 				m_report[attr] += "% unique.)";
+				string tmp = m_report[attr];
+				if((double)valueCount / rows.size() < 0.8)
+					m_report[attr] = "OK      ";
+				else
+					m_report[attr] = "WARNING ";
+				m_report[attr] += tmp;
 			}
 			else if(valueCount <= m_maxVals)
 			{
@@ -5288,6 +5394,9 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 				m_report[attr] += " unique values. (";
 				m_report[attr] += to_str((double)valueCount * 100.0 / rows.size());
 				m_report[attr] += "% unique.)";
+				string tmp = m_report[attr];
+				m_report[attr] = "OK      ";
+				m_report[attr] += tmp;
 			}
 			else
 			{
@@ -5296,6 +5405,9 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 				m_report[attr] += "\", but contains more than ";
 				m_report[attr] += to_str(m_maxVals);
 				m_report[attr] += " unique values. Parsing of this column was aborted!!!";
+				string tmp = m_report[attr];
+				m_report[attr] = "ERROR   ";
+				m_report[attr] += tmp;
 			}
 			if(m_columnNamesInFirstRow)
 			{
@@ -5368,6 +5480,94 @@ GDataRowSplitter::~GDataRowSplitter()
 	m_f2.releaseAllRows();
 	m_l2.releaseAllRows();
 }
+
+
+
+
+
+
+
+GRaggedMatrix::GRaggedMatrix()
+{
+}
+
+GRaggedMatrix::~GRaggedMatrix()
+{
+	flush();
+}
+
+void GRaggedMatrix::flush()
+{
+	for(size_t i = 0; i < rows(); i++)
+		delete(m_rows[i]);
+	m_rows.clear();
+}
+
+GVec& GRaggedMatrix::newRow(size_t size)
+{
+	GVec* pNewRow = new GVec(size);
+	m_rows.push_back(pNewRow);
+	return *pNewRow;
+}
+
+void GRaggedMatrix::parseCSV(GTokenizer& tok)
+{
+	GCharSet c_whitespace("\t\n\r ");
+	GCharSet c_newline("\n");
+	GCharSet c_commaNewlineTab(",\n\t");
+	GArffRelation rel;
+	rel.addAttribute("", 0, nullptr);
+	flush();
+	vector<double> vals;
+	while(true)
+	{
+		vals.clear();
+		tok.skip(c_whitespace);
+		char c = tok.peek();
+		if(c == '\0')
+			break;
+		else if(c == '%')
+		{
+			tok.advance(1);
+			tok.skipTo(c_newline);
+		}
+		else
+		{
+			while(true)
+			{
+				tok.nextArg(c_commaNewlineTab);
+				const char* szVal = tok.trim(c_whitespace);
+				vals.push_back(GMatrix_parseValue(&rel, 0, szVal, tok));
+				char c2 = tok.peek();
+				while(c2 == '\t' || c2 == ' ')
+				{
+					tok.advance(1);
+					c2 = tok.peek();
+				}
+				if(c2 == ',')
+					tok.advance(1);
+				else if(c2 == '\n' || c2 == '\0')
+					break;
+				else if(c2 == '%')
+				{
+					tok.advance(1);
+					tok.skipTo(c_newline);
+					break;
+				}
+			}
+			GVec& r = newRow(vals.size());
+			for(size_t i = 0; i < vals.size(); i++)
+				r[i] = vals[i];
+		}
+	}
+}
+
+void GRaggedMatrix::loadCSV(const char* szFilename)
+{
+	GTokenizer tok(szFilename);
+	parseCSV(tok);
+}
+
 
 
 

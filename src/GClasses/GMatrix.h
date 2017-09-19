@@ -48,6 +48,7 @@ class GArffTokenizer;
 class GDistanceMetric;
 class GSimpleAssignment;
 class GDistanceMetric;
+class GTokenizer;
 
 
 /// \brief Holds the metadata for a dataset.
@@ -560,7 +561,7 @@ public:
 	/// \brief Copies the specified column into pOutVector
 	void col(size_t index, double* pOutVector);
 
-	/// \brief Returns the number of columns in the dataset
+	/// \brief Returns the number of columns in this matrix
 	size_t cols() const { return m_pRelation->size(); }
 
 	/// \brief Computes the determinant of this matrix
@@ -665,7 +666,7 @@ public:
 	/// found.
 	GMatrix* eigs(size_t nCount, GVec& eigenVals, GRand* pRand, bool mostSignificant);
 
-	/// \brief Multiplies every element in the dataset by scalar.
+	/// \brief Multiplies every element in this matrix by a scalar.
 	/// Behavior is undefined for nominal columns.
 	void multiply(double scalar);
 
@@ -708,14 +709,14 @@ public:
 	/// avoid superfluous resizing)
 	void reserve(size_t n) { m_rows.reserve(n); }
 
-	/// \brief Returns the number of rows in the dataset
+	/// \brief Returns the number of rows in this matrix
 	size_t rows() const { return m_rows.size(); }
 
 #ifndef MIN_PREDICT
-	/// \brief Saves the dataset to a file in ARFF format
+	/// \brief Saves this matrix to a file in ARFF format
 	void saveArff(const char* szFilename);
 
-	/// \brief Saves the dataset to a file in raw (binary) format
+	/// \brief Saves this matrix to a file in raw (binary) format
 	void saveRaw(const char* szFilename);
 #endif // MIN_PREDICT
 
@@ -845,7 +846,7 @@ public:
 	void deleteColumns(size_t index, size_t count);
 
 	/// \brief Swaps the specified row with the last row, and then
-	/// releases it from the dataset.
+	/// releases it from this matrix.
 	///
 	/// The caller is responsible to delete the row (array of doubles) this method returns.
 	GVec* releaseRow(size_t index);
@@ -853,7 +854,7 @@ public:
 	/// \brief Swaps the specified row with the last row, and then deletes it.
 	void deleteRow(size_t index);
 
-	/// \brief Releases the specified row from the dataset and shifts
+	/// \brief Releases the specified row from this matrix and shifts
 	/// everything after it up one slot.
 	///
 	/// The caller is responsible to delete the row this method returns.
@@ -1074,7 +1075,7 @@ public:
 	size_t countPrincipalComponents(double d, GRand* pRand) const;
 
 	/// \brief Computes the sum-squared distance between pPoint and all
-	/// of the points in the dataset.
+	/// of the rows in this matrix.
 	///
 	/// If pPoint is NULL, it computes the sum-squared distance with the origin.
 	///
@@ -1254,6 +1255,7 @@ protected:
 	std::map<size_t, std::string> m_formats;
 	std::map<size_t, size_t> m_specifiedReal;
 	std::map<size_t, size_t> m_specifiedNominal;
+	std::map<size_t, size_t> m_stripQuotes;
 
 public:
 	GCSVParser();
@@ -1284,6 +1286,9 @@ public:
 
 	/// Indiciate that the specified attribute should be treated as real.
 	void setRealAttr(size_t attr);
+
+	/// Indiciate that the specified attribute should have enclosing quotes stripped.
+	void setStripQuotes(size_t attr);
 
 	/// Load the specified file, and parse it.
 	void parse(GMatrix& outMatrix, const char* szFilename);
@@ -1401,6 +1406,39 @@ public:
 
 	/// returns a reference to the second part of the labels matrix
 	const GMatrix& labels2() { return m_l2; }
+};
+
+
+/// A matrix in which each row may have a differing number of columns.
+class GRaggedMatrix
+{
+protected:
+	std::vector<GVec*> m_rows;
+
+public:
+	GRaggedMatrix();
+	~GRaggedMatrix();
+
+	/// \brief Removes all the rows in this ragged matrix.
+	void flush();
+	
+	/// \brief Returns the number of rows in this matrix.
+	size_t rows() const { return m_rows.size(); }
+	
+	/// \brief Returns a reference to the specified row
+	inline GVec& operator [](size_t index) { return *m_rows[index]; }
+
+	/// \brief Returns a const reference to the specified row
+	inline const GVec& operator [](size_t index) const { return *m_rows[index]; }
+
+	/// \brief Adds a new row with the specified size to this ragged matrix.
+	GVec& newRow(size_t size);
+
+	/// \brief Parses a CSV file.
+	void parseCSV(GTokenizer& tok);
+
+	/// \brief Loads from a CSV file.
+	void loadCSV(const char* szFilename);
 };
 
 

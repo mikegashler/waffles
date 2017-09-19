@@ -798,6 +798,11 @@ void Import(GArgReader& args)
 			size_t attr = args.pop_uint();
 			parser.setRealAttr(attr);
 		}
+		else if(args.if_pop("-stripquotes"))
+		{
+			size_t attr = args.pop_uint();
+			parser.setStripQuotes(attr);
+		}
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
