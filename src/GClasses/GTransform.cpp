@@ -41,7 +41,6 @@
 #include <string>
 #include <cmath>
 #include <memory>
-#include "GBlock.h"
 
 namespace GClasses {
 
@@ -668,75 +667,6 @@ void GPairProduct::transform(const GVec& in, GVec& out)
 
 // --------------------------------------------------------------------------
 
-GReservoir::GReservoir(double weightDeviation, size_t outputs, size_t hiddenLayers)
-: GIncrementalTransform(), m_pNN(NULL), m_outputs(outputs), m_deviation(weightDeviation), m_hiddenLayers(hiddenLayers)
-{
-}
-
-GReservoir::GReservoir(const GDomNode* pNode)
-: GIncrementalTransform(pNode)
-{
-	m_pNN = new GNeuralNetLearner(pNode->field("nn"));
-	m_outputs = m_pNN->relLabels().size();
-	m_deviation = pNode->field("dev")->asDouble();
-	m_hiddenLayers = (size_t)pNode->field("hl")->asInt();
-}
-
-// virtual
-GReservoir::~GReservoir()
-{
-	delete(m_pNN);
-}
-
-#ifndef MIN_PREDICT
-// virtual
-GDomNode* GReservoir::serialize(GDom* pDoc) const
-{
-	GDomNode* pNode = baseDomNode(pDoc, "GReservoir");
-	pNode->addField(pDoc, "nn", m_pNN->serialize(pDoc));
-	pNode->addField(pDoc, "dev", pDoc->newDouble(m_deviation));
-	pNode->addField(pDoc, "hl", pDoc->newInt(m_hiddenLayers));
-	return pNode;
-}
-#endif // MIN_PREDICT
-
-
-// virtual
-GRelation* GReservoir::trainInner(const GMatrix& data)
-{
-	return trainInner(data.relation());
-}
-
-// virtual
-GRelation* GReservoir::trainInner(const GRelation& relation)
-{
-	delete(m_pNN);
-	GNeuralNetLearner* pNN = new GNeuralNetLearner();
-	for(size_t i = 0; i < m_hiddenLayers; i++)
-	{
-		pNN->nn().add(new GBlockLinear(m_outputs));
-		pNN->nn().add(new GBlockTanh());
-	}
-	pNN->nn().add(new GBlockLinear((size_t)0));
-	pNN->nn().add(new GBlockTanh());
-	GUniformRelation* pRel = new GUniformRelation(m_outputs);
-	m_pNN = pNN;
-	if(!relation.areContinuous())
-		m_pNN = new GFeatureFilter(m_pNN, new GNominalToCat());
-	m_pNN->beginIncrementalLearning(relation, *pRel);
-	pNN->nn().perturbWeights(pNN->rand(), m_deviation);
-	return pRel;
-}
-
-// virtual
-void GReservoir::transform(const GVec& in, GVec& out)
-{
-	m_pNN->predict(in, out);
-}
-
-
-// --------------------------------------------------------------------------
-
 GDataAugmenter::GDataAugmenter(GIncrementalTransform* pTransform)
 : GIncrementalTransform(), m_pTransform(pTransform)
 {
@@ -789,7 +719,7 @@ void GDataAugmenter::transform(const GVec& in, GVec& out)
 {
 	memcpy(out.data(), in.data(), before().size() * sizeof(double));
 	m_pTransform->transform(in, m_pTransform->innerBuf());
-	out.put(before().size(), m_pTransform->innerBuf());
+	out.copy(before().size(), m_pTransform->innerBuf());
 }
 
 // virtual
@@ -877,47 +807,43 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		indexMap.push_back(i);
 
 	// Produce a ranked attributed ordering by deselecting the weakest attribute each time
+	GRand rand(m_seed);
 	while(curDims > 1)
 	{
 		// Convert nominal attributes to a categorical distribution
 		GNominalToCat ntc;
 		ntc.train(*pFeatures);
-		GMatrix* pFeatures2 = ntc.transformBatch(*pFeatures);
-		std::unique_ptr<GMatrix> hFeatures2(pFeatures2);
+		GMatrix* pFeaturesReal = ntc.transformBatch(*pFeatures);
+		std::unique_ptr<GMatrix> hFeaturesReal(pFeaturesReal);
 		vector<size_t> rmap;
 		ntc.reverseAttrMap(rmap);
 		GNominalToCat ntc2;
 		ntc2.train(*pLabels);
-		GMatrix* pLabels2 = ntc2.transformBatch(*pLabels);
-		std::unique_ptr<GMatrix> hLabels2(pLabels2);
+		GMatrix* pLabelsReal = ntc2.transformBatch(*pLabels);
+		std::unique_ptr<GMatrix> hLabelsReal(pLabelsReal);
 
 		// Train a single-layer neural network with the normalized remaining data
-		GNeuralNetLearner nn;
-		nn.nn().add(new GBlockLinear((size_t)0));
-		nn.nn().add(new GBlockTanh());
-		nn.rand().setSeed(m_seed);
-		nn.beginIncrementalLearning(pFeatures2->relation(), pLabels2->relation());
-		m_seed += 77152487;
-		m_seed *= 37152487;
-
-		GSGDOptimizer optimizer(nn.nn(), nn.rand());
+		GNeuralNet nn;
+		GBlockLinear* pB = new GBlockLinear(pFeaturesReal->cols(), pLabelsReal->cols());
+		nn.add(pB);
+		nn.add(new GBlockTanh(pLabelsReal->cols()));
+		GSGDOptimizer optimizer(nn, rand);
 		optimizer.setWindowSize(30);
 		optimizer.setImprovementThresh(0.002);
-		optimizer.optimizeWithValidation(*pFeatures2, *pLabels2);
+		optimizer.optimizeWithValidation(*pFeaturesReal, *pLabelsReal);
 
 		// Identify the weakest attribute
-		GLayer& lay = nn.nn().layer(nn.nn().layerCount() - 2);
-		GBlockLinear& layer = *(GBlockLinear*)&lay.block(0);
 		size_t pos = 0;
 		double weakest = 1e308;
 		size_t weakestIndex = 0;
+		GVec& weights = optimizer.weights();
 		for(size_t i = 0; i < curDims; i++)
 		{
 			double w = 0;
-			while(pos < nn.relFeatures().size() && rmap[pos] == i)
+			while(pos < pFeaturesReal->cols() && rmap[pos] == i)
 			{
-				for(size_t neuron = 0; neuron < layer.outputs(); neuron++)
-					w = std::max(w, std::abs(layer.weights()[pos][neuron]));
+				for(size_t neuron = 0; neuron < pB->outputs(); neuron++)
+					w = std::max(w, std::abs(weights[pLabelsReal->cols() + pLabelsReal->cols() * pos + neuron]));
 				pos++;
 			}
 			if(w < weakest)

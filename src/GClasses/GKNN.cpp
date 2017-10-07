@@ -851,7 +851,7 @@ void GInstanceTable::predict(const GVec& in, GVec& out)
 		pos += n * m_pScales[i];
 	}
 	size_t labelDims = m_pRelLabels->size();
-	out.set(m_pTable + pos * labelDims, labelDims);
+	out.copy(m_pTable + pos * labelDims, labelDims);
 }
 
 // virtual

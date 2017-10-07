@@ -902,9 +902,6 @@ public:
 		runTest("GBezier", GBezier::test);
 		runTest("GBits", GBits::test);
 		runTest("GBitTable", GBitTable::test);
-//		runTest("GBlockGRU", GBlockGRU::test);
-		runTest("GBlockLinear", GBlockLinear::test);
-//		runTest("GBlockLSTM", GBlockLSTM::test);
 		runTest("GBouncyBalls", GBouncyBalls::test);
 		runTest("GReverseBits", reverseBitsTest);
 		runTest("GBrandesBetweenness", GBrandesBetweennessCentrality::test);
@@ -957,7 +954,6 @@ public:
 		runTest("GRelation", GRelation::test);
 		runTest("GRelationalTable", GRelationalTable_test);
 		runTest("GResamplingAdaBoost", GResamplingAdaBoost::test);
-		runTest("GReservoirNet", GReservoirNet::test);
 		runTest("GRunningCovariance", GRunningCovariance::test);
 		runTest("GSelfOrganizingMap", GSelfOrganizingMap::test);
 		runTest("GShortcutPruner", GShortcutPruner::test);

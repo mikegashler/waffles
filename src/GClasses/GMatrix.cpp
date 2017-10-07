@@ -2566,7 +2566,7 @@ void GMatrix::fromVector(const double* pVec, size_t nRows)
 	for(size_t r = 0; r < nRows; r++)
 	{
 		GVec& pRow = row(r);
-		pRow.set(pVec, nCols);
+		pRow.copy(pVec, nCols);
 		pVec += nCols;
 	}
 }

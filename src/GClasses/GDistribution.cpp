@@ -114,7 +114,7 @@ void GCategoricalDistribution::normalizeFromLogSpace()
 void GCategoricalDistribution::setValues(size_t nValueCount, const double* pValues)
 {
 	values(nValueCount); // Make sure the right amount of space is allocated
-	m_pValues.set(pValues, nValueCount);
+	m_pValues.copy(pValues, nValueCount);
 	normalize();
 }
 

@@ -52,7 +52,6 @@ OPT_CFLAGS = $(CFLAGS) -O3
 
 CPP_FILES = \
 	G3D.cpp\
-	GActivation.cpp\
 	GApp.cpp\
 	GAssignment.cpp\
 	GBayesianNetwork.cpp\
@@ -61,7 +60,6 @@ CPP_FILES = \
 	GBits.cpp\
 	GBitTable.cpp\
 	GBlob.cpp\
-	GBlock.cpp\
 	GCluster.cpp\
 	GCrypto.cpp\
 	GCudaMatrix.cpp\
@@ -104,7 +102,6 @@ CPP_FILES = \
 	GNaiveBayes.cpp\
 	GNaiveInstance.cpp\
 	GNeighborFinder.cpp\
-	GNeuralDecomposition.cpp\
 	GNeuralNet.cpp\
 	GOptimizer.cpp\
 	GParticleSwarm.cpp\

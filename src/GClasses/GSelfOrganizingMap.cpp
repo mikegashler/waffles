@@ -1144,7 +1144,7 @@ void GSelfOrganizingMap::test(){
   GSelfOrganizingMap squareSom(2, 10, rand, pReporter);
   GMatrix uniformSquareMat(0,2);
   for(unsigned i = 0; i < 170; ++i){
-    uniformSquareMat.newRow().set(uniformSquare[i], 2);
+    uniformSquareMat.newRow().copy(uniformSquare[i], 2);
   }
   squareSom.train(uniformSquareMat);
 
@@ -1158,7 +1158,7 @@ void GSelfOrganizingMap::test(){
 
   GMatrix uniformCylinderMat(0,3);
   for(unsigned i = 0; i < 170; ++i){
-    uniformCylinderMat.newRow().set(uniformCylinder[i], 3);
+    uniformCylinderMat.newRow().copy(uniformCylinder[i], 3);
   }
   cylinderSom.train(uniformCylinderMat);
 

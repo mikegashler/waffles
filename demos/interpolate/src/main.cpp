@@ -380,19 +380,19 @@ public:
 		else if(index == 12)
 		{
 			GNeuralNetLearner* pModel = new GNeuralNetLearner();
-			pModel->nn().add(new GBlockLinear(0ul));
-			pModel->nn().add(new GBlockTanh());
+			pModel->nn().add(new GBlockLinear(2, 3));
+			pModel->nn().add(new GBlockTanh(3));
 			doSupervisedLearner(pModel);
 		}
 		else if(index == 13)
 		{
 			GNeuralNetLearner* pNN = new GNeuralNetLearner();
-			pNN->nn().add(new GBlockLinear(30));
-			pNN->nn().add(new GBlockTanh());
-			pNN->nn().add(new GBlockLinear(256));
-			pNN->nn().add(new GBlockTanh());
-			pNN->nn().add(new GBlockLinear(0ul));
-			pNN->nn().add(new GBlockTanh());
+			pNN->nn().add(new GBlockLinear(2, 30));
+			pNN->nn().add(new GBlockTanh(30));
+			pNN->nn().add(new GBlockLinear(30, 256));
+			pNN->nn().add(new GBlockTanh(256));
+			pNN->nn().add(new GBlockLinear(256, 3));
+			pNN->nn().add(new GBlockTanh(3));
 
 			doBackProp(pNN);
 		}
@@ -451,7 +451,7 @@ public:
 			{
 				GSpinLockHolder hLock(&m_weightsLock, "updating display");
 				GNeuralNetLearner* pNN = (GNeuralNetLearner*)m_pNNForTraining;
-				m_pNNCopyForVisualizing->nn().copyWeights(&pNN->nn());
+				m_pNNCopyForVisualizing->optimizer().weights().copy(pNN->optimizer().weights());
 			}
 			m_workerMode = 3; // train
 

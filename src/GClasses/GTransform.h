@@ -387,52 +387,6 @@ protected:
 };
 
 
-/// This transforms data by passing it through a multi-layer perceptron
-/// with randomely-initialized weights. (This transform automatically
-/// converts nominal attributes to categorical as necessary, but it does
-/// not normalize. In other words, it assumes that all continuous attributes
-/// fall approximately within a 0-1 range.)
-class GReservoir : public GIncrementalTransform
-{
-protected:
-	GIncrementalLearner* m_pNN;
-	size_t m_outputs;
-	double m_deviation;
-	size_t m_hiddenLayers;
-
-public:
-	GReservoir(double weightDeviation = 2.0, size_t outputs = 64, size_t hiddenLayers = 2);
-
-	/// Load from a DOM.
-	GReservoir(const GDomNode* pNode);
-
-	virtual ~GReservoir();
-
-#ifndef MIN_PREDICT
-	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc) const;
-#endif // MIN_PREDICT
-
-	/// See the comment for GIncrementalTransform::transform
-	virtual void transform(const GVec& in, GVec& out);
-
-	/// Throws an exception (because this transform cannot be reversed).
-	virtual void untransform(const GVec& in, GVec& out)
-	{ throw Ex("This transformation cannot be reversed"); }
-
-	/// Throws an exception (because this transform cannot be undone).
-	virtual void untransformToDistribution(const GVec& in, GPrediction* pOut)
-	{ throw Ex("This transformation cannot be reversed"); }
-
-protected:
-	/// See the comment for GIncrementalTransform::train
-	virtual GRelation* trainInner(const GMatrix& data);
-
-	/// See the comment for GIncrementalTransform::train
-	virtual GRelation* trainInner(const GRelation& relation);
-};
-
-
 /// This class augments data. That is, it transforms the data according to
 /// some provided transformation, and attaches the transformed data as new
 /// attributes to the existing data.

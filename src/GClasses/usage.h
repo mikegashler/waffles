@@ -81,6 +81,5 @@ UsageNode* makePlotUsageTree();
 UsageNode* makeRecommendUsageTree();
 UsageNode* makeSparseUsageTree();
 UsageNode* makeTransformUsageTree();
-UsageNode* makeTimeSeriesUsageTree();
 
 #endif // _USAGE_H_

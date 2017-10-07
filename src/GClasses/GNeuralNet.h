@@ -19,7 +19,6 @@
 #ifndef __GNEURALNET_H__
 #define __GNEURALNET_H__
 
-#include "GBlock.h"
 #include "GLearner.h"
 #include "GOptimizer.h"
 #include "GVec.h"
@@ -28,10 +27,992 @@
 
 namespace GClasses {
 
-class GBlock;
 class GContextLayer;
 class GContextNeuralNet;
 class GContextRecurrent;
+class GLayer;
+
+
+
+
+
+
+
+
+
+
+/// Represents a block of network units (artificial neurons) in a neural network.
+class GBlock
+{
+protected:
+	size_t inputCount;
+	size_t outputCount;
+	size_t m_inPos;
+
+public:
+	GConstVecWrapper input;
+	GVecWrapper output;
+	GVecWrapper outBlame;
+	GVecWrapper inBlame;
+
+	enum BlockType
+	{
+		block_neuralnet,
+
+		// activation functions
+		block_identity,
+		block_tanh,
+		block_scaledtanh,
+		block_logistic,
+		block_bentidentity,
+		block_sigexp,
+		block_gaussian,
+		block_sine,
+		block_rectifier,
+		block_leakyrectifier,
+		block_softplus,
+		block_softroot,
+
+		// weights transfer
+		block_linear,
+		block_temperedlinear,
+		block_pal,
+		block_hinge,
+		block_softexp,
+
+		// weightless transfer
+		block_scalarsum,
+		block_scalarproduct,
+		block_switch,
+
+		// recurrent
+		block_lstm,
+
+		// still needed
+		// block_softmax,
+		// block_maxout,
+		// block_batch_normalization,
+		// block_drop_out,
+		// block_drop_connect,
+		// block_softmax,
+		// block_gru,
+	};
+
+	GBlock(size_t inputs, size_t outputs);
+	GBlock(const GBlock& that);
+	GBlock(GDomNode* pNode);
+	virtual ~GBlock() {}
+
+	/// Returns the type of this block
+	virtual BlockType type() const = 0;
+
+	/// Returns the name of this block in the form of a string
+	virtual std::string name() const = 0;
+
+	/// Returns a string representation of this block
+	virtual std::string to_str() const;
+
+	/// Returns true iff this block operates only on individual elements
+	virtual bool elementWise() const { return false; }
+
+	/// Returns true iff this block is recurrent
+	virtual bool isRecurrent() const { return false; }
+
+	/// Marshall this block into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// Unmarshalls the specified DOM node into a block object.
+	static GBlock* deserialize(GDomNode* pNode);
+
+	/// Returns a copy of this block
+	virtual GBlock* clone() const = 0;
+
+	/// Returns the offset in the previous layer's output where values are fed as input to this block.
+	size_t inPos() const { return m_inPos; }
+
+	/// Sets the starting offset in the previous layer's output where values will be fed as input to this block.
+	void setInPos(size_t n, GLayer* pPrevLayer);
+
+	/// Returns the number of inputs this block consumes
+	virtual size_t inputs() const { return inputCount; }
+
+	/// Returns the number of outputs this block produces
+	virtual size_t outputs() const { return outputCount; }
+
+	/// Evaluate the input, compute the output.
+	virtual void forwardProp(const GVec& weights) = 0;
+
+	/// Computes the blame on the output of this block.
+	/// The default implementation computes it for SSE, but specialty blocks such as SoftMax may override it as needed.
+	virtual void computeBlame(const GVec& target);
+
+	/// Resets the state in any recurrent connections.
+	virtual void resetState() {}
+
+	/// Resets the state in any recurrent connections.
+	virtual GBlock* advanceState(size_t unfoldedInstances) { return this; }
+
+	/// Evaluate outBlame, update inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) = 0;
+
+	/// Evaluate the input and outBlame, update the gradient of the weights.
+	virtual void updateGradient(GVec& weights, GVec& gradient) = 0;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const = 0;
+
+	/// Initialize the weights, usually with small random values.
+	virtual void initWeights(GRand& rand, GVec& weights) = 0;
+
+protected:
+	GDomNode* baseDomNode(GDom* pDoc) const;
+
+	/// Exercises some basic functionality that all blocks have in common
+	void basicTest();
+};
+
+
+
+
+/// The base class of blocks that have no weights
+class GBlockWeightless : public GBlock
+{
+public:
+	GBlockWeightless(size_t inputs, size_t outputs) : GBlock(inputs, outputs) {}
+	GBlockWeightless(const GBlockWeightless& that) : GBlock(that) {}
+	GBlockWeightless(GDomNode* pNode) : GBlock(pNode) {}
+	virtual ~GBlockWeightless() {}
+
+	virtual size_t weightCount() const override { return 0; }
+	virtual void initWeights(GRand& rand, GVec& weights) override {}
+	virtual void updateGradient(GVec& weights, GVec& gradient) override {}
+};
+
+
+
+/// The base class of blocks that apply an activation function, such as tanh, in an element-wise manner.
+class GBlockActivation : public GBlockWeightless
+{
+protected:
+	size_t m_units;
+
+public:
+	GBlockActivation(size_t size);
+	GBlockActivation(const GBlockActivation& that) : GBlockWeightless(that) {}
+	GBlockActivation(GDomNode* pNode);
+	virtual ~GBlockActivation() {}
+
+	/// Returns true iff this block operates only on individual elements
+	virtual bool elementWise() const override { return true; }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+
+	/// Computes the input that would produce the specified output.
+	/// (May throw an exception if this activation function is not invertible.)
+	void inverseProp(const GVec& output, GVec& input);
+
+	/// Evaluates the activation function
+	virtual double eval(double x) const = 0;
+
+	/// Evaluates the derivative of the activation function.
+	/// x is the net input, and f_x is the output activation--the value obtained by calling eval(x).
+	virtual double derivative(double x, double f_x) const = 0;
+
+	virtual double inverse(double y) const
+	{
+		throw Ex("Sorry, this activation function is not invertible");
+	}
+};
+
+
+
+
+/// Applies the [Identity function](https://en.wikipedia.org/wiki/Identity_function) element-wise to the input. 
+/// Serves as a pass-through block of units in a neural network.
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = x \f]   | ![](Activation_identity.png)
+///
+class GBlockIdentity : public GBlockActivation
+{
+public:
+	GBlockIdentity(size_t size) : GBlockActivation(size) {}
+	GBlockIdentity(const GBlockIdentity& that) : GBlockActivation(that) {}
+	GBlockIdentity(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual ~GBlockIdentity() {}
+	virtual BlockType type() const override { return block_identity; }
+	virtual std::string name() const override { return "GBlockIdentity"; }
+	virtual GBlockIdentity* clone() const { return new GBlockIdentity(*this); }
+	virtual double eval(double x) const override { return x; }
+	virtual double derivative(double x, double f_x) const override { return 1.0; }
+	virtual double inverse(double y) const { return y; }
+};
+
+
+
+
+
+
+/// Applies the [TanH function](https://en.wikipedia.org/wiki/Hyperbolic_function#Hyperbolic_tangent) element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = tanh(x) \f]   | ![](Activation_tanh.png)
+///
+// (Note, the following code is a bit faster:
+// 		if(std::abs(x) >= 700.0)
+// 			return (x >= 0 ? 1.0 : -1.0);
+// 		double a = exp(x);
+// 		double b = 1.0 / a;
+// 		return (a - b) / (a + b);
+// and here is a fast version of the derivative
+// 		if(std::abs(x) >= 700.0)
+// 			return (x >= 0 ? 1.0 : 0.0);
+// 		double a = exp(x);
+// 		double b = 1.0 / a;
+// 		double d = 2.0 / (a + b); // sech(x)
+// 		return d * d;
+class GBlockTanh : public GBlockActivation
+{
+public:
+	GBlockTanh(size_t size) : GBlockActivation(size) {}
+	GBlockTanh(const GBlockTanh& that) : GBlockActivation(that) {}
+	GBlockTanh(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual ~GBlockTanh() {}
+	virtual BlockType type() const override { return block_tanh; }
+	virtual std::string name() const override { return "GBlockTanh"; }
+	virtual GBlockTanh* clone() const { return new GBlockTanh(*this); }
+	virtual double eval(double x) const override { return std::tanh(x); }
+	virtual double derivative(double x, double f_x) const override { return 1.0 - (f_x * f_x); }
+	virtual double inverse(double y) const { return 0.5 * std::log(-(y + 1) / (y - 1)); }
+};
+
+
+
+
+/// Applies a scaled TanH function element-wise to the input. 
+/// | Equation  |
+/// | --------- |
+/// | \f[ f(x) = tanh(x \times 0.66666667) \times  1.7159\f] |
+/// LeCun et al. suggest scale_in=2/3 and scale_out=1.7159. By carefully matching 
+/// scale_in and scale_out, the nonlinearity can also be tuned to preserve the mean and variance of its input:
+/// - scale_in=0.5, scale_out=2.4: If the input is a random normal variable, the output will have zero mean and unit variance.
+/// - scale_in=1, scale_out=1.6: Same property, but with a smaller linear regime in input space.
+/// - scale_in=0.5, scale_out=2.27: If the input is a uniform normal variable, the output will have zero mean and unit variance.
+/// - scale_in=1, scale_out=1.48: Same property, but with a smaller linear regime in input space.
+///
+class GBlockScaledTanh : public GBlockActivation
+{
+	const double SCALE_IN = 0.66666667;
+	const double SCALE_OUT = 1.7159;
+public:
+	GBlockScaledTanh(size_t size) : GBlockActivation(size) {}
+	GBlockScaledTanh(const GBlockScaledTanh& that) : GBlockActivation(that) {}
+	GBlockScaledTanh(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual ~GBlockScaledTanh() {}
+	virtual BlockType type() const override { return block_scaledtanh; }
+	virtual std::string name() const override { return "GBlockScaledTanh"; }
+	virtual GBlockScaledTanh* clone() const { return new GBlockScaledTanh(*this); }
+	virtual double eval(double x) const override { return std::tanh(x * SCALE_IN) * SCALE_OUT; }
+	virtual double derivative(double x, double f_x) const override { return SCALE_IN/SCALE_OUT*(SCALE_OUT-f_x)*(SCALE_OUT+f_x); }
+	virtual double inverse(double y) const { return 0.5 / SCALE_IN * std::log(-(y / SCALE_OUT + 1) / (y / SCALE_OUT - 1)); }
+};
+
+
+
+/// Applies the [Logistic function](https://en.wikipedia.org/wiki/Logistic_function) element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = \frac{1}{1 + e^{-x}} \f]   | ![](Activation_logistic.png)
+///
+class GBlockLogistic : public GBlockActivation
+{
+public:
+	GBlockLogistic(size_t size) : GBlockActivation(size) {}
+	GBlockLogistic(const GBlockLogistic& that) : GBlockActivation(that) {}
+	GBlockLogistic(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual ~GBlockLogistic() {}
+	virtual BlockType type() const override { return block_logistic; }
+	virtual std::string name() const override { return "GBlockLogistic"; }
+	virtual GBlockLogistic* clone() const { return new GBlockLogistic(*this); }
+	virtual double eval(double x) const override
+	{
+		if(x >= 700.0) // Don't trigger a floating point exception
+			return 1.0;
+		else if(x < -700.0) // Don't trigger a floating point exception
+			return 0.0;
+		else return 1.0 / (std::exp(-x) + 1.0);
+
+	}
+	virtual double derivative(double x, double f_x) const override { return f_x * (1.0 - f_x); }
+	virtual double inverse(double y) const { return std::log(y / (1.0 - y)); }
+};
+
+
+
+#define BEND_AMOUNT 0.5
+#define BEND_SIZE 0.1
+/// Applies the Bent identity element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = \frac{\sqrt{x^2+0.01}-0.1}{2}+x \f]   | ![](Activation_bent_identity.png)
+///
+class GBlockBentIdentity : public GBlockActivation
+{
+public:
+	GBlockBentIdentity(size_t size) : GBlockActivation(size) {}
+	GBlockBentIdentity(const GBlockBentIdentity& that) : GBlockActivation(that) {}
+	GBlockBentIdentity(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual ~GBlockBentIdentity() {}
+	virtual BlockType type() const override { return block_bentidentity; }
+	virtual std::string name() const override { return "GBlockBentIdentity"; }
+	virtual GBlockBentIdentity* clone() const { return new GBlockBentIdentity(*this); }
+	virtual double eval(double x) const override { return BEND_AMOUNT * (std::sqrt(x * x + BEND_SIZE * BEND_SIZE) - BEND_SIZE) + x; }
+	virtual double derivative(double x, double f_x) const override { return BEND_AMOUNT * x / std::sqrt(x * x + BEND_SIZE * BEND_SIZE) + 1.0; }
+	virtual double inverse(double y) const { return (std::sqrt(2.0 * BEND_AMOUNT * BEND_AMOUNT * BEND_AMOUNT * BEND_SIZE * y + BEND_AMOUNT * BEND_AMOUNT * BEND_SIZE * BEND_SIZE + BEND_AMOUNT * BEND_AMOUNT * y * y) - BEND_AMOUNT * BEND_SIZE - y) / (BEND_AMOUNT * BEND_AMOUNT - 1.0); }
+};
+
+
+
+/// An element-wise nonlinearity block
+/// This activation function forms a sigmoid shape by splicing exponential and logarithmic functions together.
+class GBlockSigExp : public GBlockActivation
+{
+public:
+	GBlockSigExp(size_t size) : GBlockActivation(size) {}
+	GBlockSigExp(const GBlockSigExp& that) : GBlockActivation(that) {}
+	GBlockSigExp(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual ~GBlockSigExp() {}
+	virtual BlockType type() const override { return block_sigexp; }
+	virtual std::string name() const override { return "GBlockSigExp"; }
+	virtual GBlockSigExp* clone() const { return new GBlockSigExp(*this); }
+	virtual double eval(double x) const override { return (x <= 0.0 ? exp(x) - 1.0 : std::log(x + 1.0)); }
+	virtual double derivative(double x, double f_x) const override { return (x <= 0.0 ? std::exp(x) : 1.0 / (x + 1.0)); }
+	virtual double inverse(double y) const { return (y > 0.0 ? exp(y) - 1.0 : std::log(y + 1.0)); }
+};
+
+
+
+/// Applies the [Gaussian function](https://en.wikipedia.org/wiki/Gaussian_function) element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = e^{-x^2} \f]   | ![](Activation_gaussian.png)
+///
+class GBlockGaussian : public GBlockActivation
+{
+public:
+	GBlockGaussian(size_t size) : GBlockActivation(size) {}
+	GBlockGaussian(const GBlockGaussian& that) : GBlockActivation(that) {}
+	GBlockGaussian(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual ~GBlockGaussian() {}
+	virtual BlockType type() const override { return block_gaussian; }
+	virtual std::string name() const override { return "GBlockGaussian"; }
+	virtual GBlockGaussian* clone() const { return new GBlockGaussian(*this); }
+	virtual double eval(double x) const override { return std::exp(-(x * x)); }
+	virtual double derivative(double x, double f_x) const override { return -2.0 * x * std::exp(-(x * x)); }
+};
+
+
+
+/// Applies the [Sinusoid](https://en.wikipedia.org/wiki/Sine_wave) element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = \sin(x) \f]   | ![](Activation_sinusoid.png)
+///
+class GBlockSine : public GBlockActivation
+{
+public:
+	GBlockSine(size_t size) : GBlockActivation(size) {}
+	GBlockSine(const GBlockSine& that) : GBlockActivation(that) {}
+	GBlockSine(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual ~GBlockSine() {}
+	virtual BlockType type() const override { return block_sine; }
+	virtual std::string name() const override { return "GBlockSine"; }
+	virtual GBlockSine* clone() const { return new GBlockSine(*this); }
+	virtual double eval(double x) const override { return std::sin(x); }
+	virtual double derivative(double x, double f_x) const override { return std::cos(x); }
+};
+
+
+
+
+/// Applies the [Rectified linear unit](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)) (ReLU) element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = \left \{ \begin{array}{rcl} 0 & \mbox{for} & x < 0 \\ x & \mbox{for} & x \ge 0\end{array} \right. \f]   | ![](Activation_rectified_linear.png)
+///
+class GBlockRectifier : public GBlockActivation
+{
+public:
+	GBlockRectifier(size_t size) : GBlockActivation(size) {}
+	GBlockRectifier(const GBlockSine& that) : GBlockActivation(that) {}
+	GBlockRectifier(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual ~GBlockRectifier() {}
+	virtual BlockType type() const override { return block_rectifier; }
+	virtual std::string name() const override { return "GBlockRectifier"; }
+	virtual GBlockRectifier* clone() const { return new GBlockRectifier(*this); }
+	virtual double eval(double x) const override { return std::max(0.0, x); }
+	virtual double derivative(double x, double f_x) const override { return (x >= 0.0 ? 1.0 : 0.0); }
+};
+
+
+
+
+/// Applies the Leaky rectified linear unit (Leaky ReLU) element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x) = \left \{ \begin{array}{rcl} 0.01x & \mbox{for} & x < 0\\ x & \mbox{for} & x \ge 0\end{array} \right. \f]   | ![](Activation_prelu.png)
+///
+class GBlockLeakyRectifier : public GBlockActivation
+{
+public:
+	GBlockLeakyRectifier(size_t size) : GBlockActivation(size) {}
+	GBlockLeakyRectifier(const GBlockLeakyRectifier& that) : GBlockActivation(that) {}
+	GBlockLeakyRectifier(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual ~GBlockLeakyRectifier() {}
+	virtual BlockType type() const override { return block_leakyrectifier; }
+	virtual std::string name() const override { return "GBlockLeakyRectifier"; }
+	virtual GBlockLeakyRectifier* clone() const { return new GBlockLeakyRectifier(*this); }
+	virtual double eval(double x) const override { return x >= 0.0 ? x : 0.01 * x; }
+	virtual double derivative(double x, double f_x) const override { return x >= 0.0 ? 1.0 : 0.01; }
+	virtual double inverse(double y) const { return (y > 0.0 ? y : 100.0 * y); }
+};
+
+
+
+
+/// Applies the SoftPlus function element-wise to the input. 
+/// | Equation  | Plot
+/// | --------- | -------
+/// | \f[ f(x)=\ln(1+e^x) \f]   | ![](Activation_softplus.png)
+///
+// (Note: A similar, but less well-known function is the integral of the logistic function. I think it is slightly faster to compute.)
+class GBlockSoftPlus : public GBlockActivation
+{
+public:
+	GBlockSoftPlus(size_t size) : GBlockActivation(size) {}
+	GBlockSoftPlus(const GBlockSoftPlus& that) : GBlockActivation(that) {}
+	GBlockSoftPlus(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual ~GBlockSoftPlus() {}
+	virtual BlockType type() const override { return block_softplus; }
+	virtual std::string name() const override { return "GBlockSoftPlus"; }
+	virtual GBlockSoftPlus* clone() const { return new GBlockSoftPlus(*this); }
+	virtual double eval(double x) const override { return x > 500 ? x : log(1.0 + exp(x)); }
+	virtual double derivative(double x, double f_x) const override { return 1.0 / (1.0 + exp(-x)); }
+	virtual double inverse(double y) const { return log(exp(y) - 1.0); }
+};
+
+
+
+
+/// An element-wise nonlinearity block.
+/// This function is shaped like a sigmoid, but with both a co-domain and domain
+/// that spans the continuous values. At very negative values,
+/// it is shaped like y=-sqrt(-2x). Near zero, it is shaped
+/// like y=x. At very positive values, it is shaped like y=sqrt(2x).
+class GBlockSoftRoot : public GBlockActivation
+{
+public:
+	GBlockSoftRoot(size_t size) : GBlockActivation(size) {}
+	GBlockSoftRoot(const GBlockSoftRoot& that) : GBlockActivation(that) {}
+	GBlockSoftRoot(GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual ~GBlockSoftRoot() {}
+	virtual BlockType type() const override { return block_softroot; }
+	virtual std::string name() const override { return "GBlockSoftRoot"; }
+	virtual GBlockSoftRoot* clone() const { return new GBlockSoftRoot(*this); }
+	virtual double eval(double x) const override
+	{
+		double d = std::sqrt(x * x + 1.0);
+		return std::sqrt(d + x) - std::sqrt(d - x);
+	}
+	virtual double derivative(double x, double f_x) const override
+	{
+		if(std::abs(x) > 1e7)
+			return 0.0;
+		double d = std::sqrt(x * x + 1.0);
+		double t = x / d;
+		return (t + 1.0) / (2.0 * std::sqrt(d + x)) - (t - 1.0) / (2.0 * std::sqrt(d - x));
+	}
+	virtual double inverse(double y) const { return 0.5 * y * std::sqrt(y * y + 4.0); }
+};
+
+
+
+
+
+
+/// Standard fully-connected block of weights. Often followed by a GBlockActivation.
+class GBlockLinear : public GBlock
+{
+public:
+	/// General-purpose constructor
+	GBlockLinear(size_t inputs, size_t outputs);
+
+	/// Copy constructor
+	GBlockLinear(const GBlockLinear& that) : GBlock(that) {}
+
+	/// Unmarshalling constructor
+	GBlockLinear(GDomNode* pNode);
+
+	/// Destructor
+	virtual ~GBlockLinear() {}
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_linear; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockLinear"; }
+
+	/// Returns a copy of this block
+	virtual GBlockLinear* clone() const { return new GBlockLinear(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand, GVec& weights) override;
+};
+
+
+
+
+
+/// A linear layer with protections against saturation.
+class GBlockTemperedLinear : public GBlock
+{
+protected:
+	double deviationCap;
+	double forgetRate;
+	GVec moment1;
+	GVec moment2;
+
+public:
+	/// General-purpose constructor
+	GBlockTemperedLinear(size_t inputs, size_t outputs, double deviation_cap = 3.0, double forget_rate = 0.001);
+
+	/// Copy constructor
+	GBlockTemperedLinear(const GBlockTemperedLinear& that);
+
+	/// Unmarshalling constructor
+	GBlockTemperedLinear(GDomNode* pNode);
+
+	/// Destructor
+	virtual ~GBlockTemperedLinear() {}
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_temperedlinear; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockTemperedLinear"; }
+
+	/// Returns a copy of this block
+	virtual GBlockTemperedLinear* clone() const { return new GBlockTemperedLinear(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand, GVec& weights) override;
+};
+
+
+
+
+
+/// Treats the input as two concatenated vectors.
+/// Adds each corresponding pair of values together to produce the output.
+class GBlockScalarSum : public GBlockWeightless
+{
+public:
+	/// General-purpose constructor.
+	GBlockScalarSum(size_t outputs);
+
+	/// Copy constructor
+	GBlockScalarSum(const GBlockScalarSum& that) : GBlockWeightless(that) {}
+
+	/// Deserializing constructor
+	GBlockScalarSum(GDomNode* pNode);
+
+	/// Destructor
+	~GBlockScalarSum();
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_scalarsum; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockScalarSum"; }
+
+	/// Returns a copy of this block
+	virtual GBlockScalarSum* clone() const { return new GBlockScalarSum(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+};
+
+
+
+
+
+/// Treats the input as two concatenated vectors.
+/// Multiplies each corresponding pair of values together to produce the output.
+class GBlockScalarProduct : public GBlockWeightless
+{
+public:
+	/// General-purpose constructor.
+	GBlockScalarProduct(size_t outputs);
+
+	/// Copy constructor
+	GBlockScalarProduct(const GBlockScalarProduct& that) : GBlockWeightless(that) {}
+
+	/// Deserializing constructor
+	GBlockScalarProduct(GDomNode* pNode);
+
+	/// Destructor
+	~GBlockScalarProduct();
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_scalarproduct; }
+
+	/// Returns the name of this block
+	virtual std::string name() const { return "GBlockScalarProduct"; }
+
+	/// Returns a copy of this block
+	virtual GBlockScalarProduct* clone() const { return new GBlockScalarProduct(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+};
+
+
+
+
+
+
+/// Treats the input as three concatenated vectors: a, b, and c.
+/// (The values in 'a' typically fall in the range [0,1].)
+/// The output is computed element-wise as a*b + (1-a)*c.
+class GBlockSwitch : public GBlockWeightless
+{
+public:
+	/// General-purpose constructor.
+	GBlockSwitch(size_t outputs);
+
+	/// Copy constructor
+	GBlockSwitch(const GBlockScalarProduct& that) : GBlockWeightless(that) {}
+
+	/// Deserializing constructor
+	GBlockSwitch(GDomNode* pNode);
+
+	/// Destructor
+	~GBlockSwitch();
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_switch; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockSwitch"; }
+
+	/// Returns a copy of this block
+	virtual GBlockSwitch* clone() const { return new GBlockSwitch(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+};
+
+
+
+
+
+
+
+
+/// A parameterized activation function (a.k.a. adaptive transfer function).
+class GBlockHinge : public GBlock
+{
+public:
+	/// General-purpose constructor
+	/// When alpha is 0, this activation function always approximates identity. When alpha is positive, it bends upward. When alpha is negative, it bends downward.
+	/// Beta specifies approximately how big the bending curve is. When beta is 0, it bends on a point.
+	/// Size specifies the number of units in this layer.
+	GBlockHinge(size_t size);
+
+	/// Copy constructor
+	GBlockHinge(const GBlockHinge& that) : GBlock(that) {}
+
+	GBlockHinge(GDomNode* pNode);
+
+	/// Destructor
+	virtual ~GBlockHinge() {}
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_hinge; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockHinge"; }
+
+	/// Returns true iff this block operates only on individual elements
+	virtual bool elementWise() const { return true; }
+
+	/// Returns a copy of this block
+	virtual GBlockHinge* clone() const { return new GBlockHinge(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand, GVec& weights) override;
+};
+
+
+
+
+
+/// A parameterized activation function (a.k.a. adaptive transfer function).
+class GBlockSoftExp : public GBlock
+{
+protected:
+	double m_beta;
+
+public:
+	/// General-purpose constructor
+	/// When beta is 0, this activation function always approximates identity near the origin, but approximates e^x-1 when alpha is 1.
+	/// When beta is 1, this activation function approximates e^x when alpha is 1.
+	GBlockSoftExp(size_t size, double beta = 0.0);
+
+	/// Copy constructor
+	GBlockSoftExp(const GBlockSoftExp& that) : GBlock(that), m_beta(that.m_beta) {}
+
+	GBlockSoftExp(GDomNode* pNode);
+
+	/// Destructor
+	virtual ~GBlockSoftExp() {}
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_softexp; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockSoftExp"; }
+
+	/// Returns true iff this block operates only on individual elements
+	virtual bool elementWise() const { return true; }
+
+	/// Marshall this block into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const override;
+
+	/// Returns a copy of this block
+	virtual GBlockSoftExp* clone() const { return new GBlockSoftExp(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand, GVec& weights) override;
+};
+
+
+
+
+
+
+
+
+
+
+
+/// A Probabilistically Activating Linear block.
+/// This is an experimental block type.
+class GBlockPAL : public GBlock
+{
+protected:
+	GVec m_probs; // stores the probability for activating of each unit
+	GRand m_rand;
+
+public:
+	/// General-purpose constructor
+	GBlockPAL(size_t inputs, size_t outputs, GRand& rand);
+
+	/// Copy constructor
+	GBlockPAL(const GBlockPAL& that) : GBlock(that), m_probs(that.m_probs.size()), m_rand(that.m_rand) {}
+
+	GBlockPAL(GDomNode* pNode, GRand& rand);
+
+	/// Destructor
+	virtual ~GBlockPAL() {}
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_pal; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockPAL"; }
+
+	/// Returns a copy of this block
+	virtual GBlockPAL* clone() const { return new GBlockPAL(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand, GVec& weights) override;
+};
+
+
+
+
+
+
+
+
+
+
+
+/// A Long-short-term-memory block
+class GBlockLSTM : public GBlock
+{
+protected:
+	GVec n; // net input consisting of x, h, and c
+	GVec f; // controls what stays in memory
+	GVec t; // computed value that may (or may not) be written to memory
+	GVec o; // controls when to output the memory
+	GVec c; // incoming memory values
+	GVec h; // incoming previous output
+	GVec blame_h; // blame on the output of h
+	GVec blame_c; // blame on the output of c
+	GBlockLSTM* pPrevInstance; // backward around the ring
+	GBlockLSTM* pNextInstance; // forward around the ring
+	GBlockLSTM* pSpare; // chain (not ring) of unused instances
+
+public:
+	/// General-purpose constructor
+	GBlockLSTM(size_t inputs, size_t outputs);
+
+	/// Copy constructor
+	GBlockLSTM(const GBlockLSTM& that);
+
+	/// Unmarshalling constructor
+	GBlockLSTM(GDomNode* pNode);
+
+	/// Destructor
+	virtual ~GBlockLSTM();
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_lstm; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockLSTM"; }
+
+	/// Returns a copy of this block
+	virtual GBlockLSTM* clone() const { return new GBlockLSTM(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Advances through time
+	virtual void resetState() override;
+
+	/// Advances through time
+	virtual GBlock* advanceState(size_t unfoldedInstances) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand, GVec& weights) override;
+
+protected:
+	void stepInTime();
+	void forwardProp_instance(const GVec& weights);
+	void backProp_instance(const GVec& weights, bool current);
+	void updateGradient_instance(GVec& weights, GVec& gradient);
+};
+
+
+
+
+
+
+
+
+
 
 
 /// GNeuralNet contains GLayers stacked upon each other.
@@ -41,24 +1022,22 @@ class GContextRecurrent;
 class GLayer
 {
 protected:
-	size_t m_inputs, m_outputs, m_weightCount;
+	size_t input_count;
+	size_t output_count;
+	size_t weight_count;
 	std::vector<GBlock*> m_blocks;
 
 public:
+	GVec output;
+	GVec outBlame;
+
 	GLayer();
+	GLayer(const GLayer& that, GLayer* pPrevLayer);
 	GLayer(GDomNode* pNode);
 	virtual ~GLayer();
 
 	/// Marshal this object into a dom node.
 	GDomNode* serialize(GDom* pDoc) const;
-
-	/// Allocates a new GContextLayer object, which can be used to train or predict with this layer.
-	/// (Behavior is undefined if you add any blocks after you call newContext.)
-	GContextLayer* newContext(GRand& rand) const;
-
-#ifdef GCUDA
-	GContextLayer* newContext(GRand& rand, GCudaEngine& engine) const;
-#endif
 
 	/// Returns the number of blocks in this layer.
 	size_t blockCount() const { return m_blocks.size(); }
@@ -69,7 +1048,7 @@ public:
 
 	/// Adds a block of network units (artificial neurons) to this layer.
 	/// inPos specifies the index of the first output from the previous layer that will feed into this block of units.
-	void add(GBlock* pBlock, size_t inPos = 0);
+	void add(GBlock* pBlock, GLayer* pPrevLayer, size_t inPos);
 
 	/// Recounts the number of inputs, outputs, and weights in this layer.
 	void recount();
@@ -80,98 +1059,39 @@ public:
 	/// Returns the number of outputs that this layer produces.
 	size_t outputs() const;
 
+	/// Hooks up an input vector to this layer
+	void setInput(const GVec& in);
+
+	/// Hooks up an input vector to this layer
+	void setInBlame(GVec& inBlame);
+
 	/// Resets the weights in all of the blocks in this layer
-	void resetWeights(GRand& rand);
+	void initWeights(GRand& rand, GVec& weights);
 
 	/// Returns the total number of weights in this layer
 	size_t weightCount() const;
 
-	/// Marshals all the weights in this layer into a vector
-	size_t weightsToVector(double* pOutVector) const;
+	/// Evaluate the input, set the output.
+	void forwardProp(const GVec& weights);
 
-	/// Unmarshals all the weights in this layer from a vector
-	size_t vectorToWeights(const double *pVector);
+	/// Computes the out blame for all of the blocks in this layer
+	void computeBlame(const GVec& target);
 
-	/// Copies the weights from pOther. (Assumes pOther has the same structure.)
-	void copyWeights(const GLayer* pOther);
+	/// Resets the state in any recurrent connections
+	void resetState();
 
-	/// Perturbs all the weights in this layer by adding Gaussian noise with the specified deviation.
-	void perturbWeights(GRand& rand, double deviation);
+	/// Resets the state in any recurrent connections
+	void advanceState(size_t unfoldedInstances);
 
-	/// Clips the magnitude of the weight vector in each network unit to fall within the specified range.
-	void maxNorm(double min, double max);
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	void backProp(const GVec& weights);
 
-	/// Scales all the weights in this layer
-	void scaleWeights(double factor, bool scaleBiases);
-
-	/// Moves all weights by a constant amount toward 0
-	void diminishWeights(double amount, bool diminishBiases);
-
-	/// Take a step to descend the gradient by updating the weights.
-	void step(double learningRate, const GVec& gradient);
-
-#ifdef GCUDA
-	void uploadCuda();
-	void downloadCuda();
-	void stepCuda(GContextLayer& ctx, double learningRate, const GCudaVector& gradient);
-#endif
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	void updateGradient(GVec& weights, GVec& gradient);
 };
 
-
-
-
-
-
-/// Contains the buffers that a thread needs to train or use a GLayer.
-/// Each thread should use a separate GContextLayer object.
-/// Call GLayer::newContext to obtain a new GContextLayer object.
-class GContextLayer : public GContext
-{
-friend class GLayer;
-public:
-	const GLayer& m_layer;
-	GVec m_activation;
-	GVec m_blame;
-#ifdef GCUDA
-	GCudaEngine* m_pEngine;
-	GCudaVector m_activationCuda;
-	GCudaVector m_blameCuda;
-#endif
-	std::vector<GContextRecurrent*> m_recurrents;
-	std::vector<GContextNeuralNet*> m_components;
-
-protected:
-	GContextLayer(GRand& rand, const GLayer& layer); // deliberately protected. Call GLayer::newContext to construct one.
-#ifdef GCUDA
-	GContextLayer(GRand& rand, const GLayer& layer, GCudaEngine& engine); // deliberately protected. Call GLayer::newContext to construct one.
-#endif
-
-public:
-	~GContextLayer();
-
-	/// See the comment for GContext::resetState.
-	virtual void resetState() override;
-
-	/// Feeds input forward through the layer that was used to construct this object.
-	void forwardProp(GVec& input, GVec& output);
-
-	/// Identical to forwardProp, except recurrent blocks additionally propagate through time during training.
-	void forwardProp_training(GVec& input, GVec& output);
-
-	/// Backpropagates the blame through the layer that was used to construct this object.
-	void backProp(GVec& input, GVec& output, GVec& outBlame, GVec& inBlame);
-
-	/// Updates the gradient for the layer that was used to construct this object.
-	void updateGradient(GVec& input, GVec& output, GVec& outBlame, GVec &gradient);
-
-#ifdef GCUDA
-	GCudaEngine& cudaEngine() { return *m_pEngine; }
-	void forwardPropCuda(const GCudaVector& input, GCudaVector& output);
-	void forwardProp_trainingCuda(const GCudaVector& input, GCudaVector& output);
-	void backPropCuda(GContextLayer& ctx, const GCudaVector& input, const GCudaVector& output, const GCudaVector& outBlame, GCudaVector& inBlame);
-	void updateGradientCuda(const GCudaVector& input, const GCudaVector& outBlame, GCudaVector& gradient);
-#endif
-};
 
 
 
@@ -184,14 +1104,23 @@ public:
 /// The user must add at least one GBlock to each GLayer.
 class GNeuralNet : public GBlock
 {
-friend class GContextNeuralNet;
+friend class GNeuralNetOptimizer;
 protected:
 	size_t m_weightCount;
 	std::vector<GLayer*> m_layers;
+	bool m_fullBackProp;
 
 public:
+	/// General-purpose constructor
 	GNeuralNet();
+
+	/// Copy constructor
+	GNeuralNet(const GNeuralNet& that);
+
+	/// Deserializing constructor
 	GNeuralNet(GDomNode* pNode);
+
+	/// Destructor
 	virtual ~GNeuralNet();
 
 	/// Returns the type of this layer
@@ -200,15 +1129,11 @@ public:
 	/// Returns the name of this block
 	virtual std::string name() const override { return "GNeuralNet"; }
 
+	/// Retuns a copy of this neural network
+	virtual GNeuralNet* clone() const override { return new GNeuralNet(*this); }
+
 	/// Marshal this object into a dom node.
 	GDomNode* serialize(GDom* pDoc) const override;
-
-	/// Allocates a new GContextNeuralNet object, which can be used to train or predict with this neural net.
-	/// (Behavior is undefined if you add or modify any layers after you call newContext.)
-	GContextNeuralNet* newContext(GRand& rand) const;
-#ifdef GCUDA
-	GContextNeuralNet* newContext(GRand& rand, GCudaEngine& engine) const;
-#endif
 
 	/// Adds a block as a new layer to this neural network.
 	void add(GBlock* pBlock);
@@ -245,12 +1170,6 @@ public:
 	/// Same as to_str, but it lets the use specify a string to prepend to each line
 	std::string to_str(const std::string& line_prefix) const;
 
-	/// Resizes this layer.
-	virtual void resize(size_t inputs, size_t outputs) override;
-
-	/// Calls resize, then resetWeights.
-	void init(size_t inputs, size_t outputs, GRand& rand);
-
 	/// Returns the number of inputs this layer consumes
 	virtual size_t inputs() const override { return m_layers[0]->inputs(); }
 
@@ -263,199 +1182,49 @@ public:
 	/// Returns the number of weights.
 	virtual size_t weightCount() const override;
 
-	/// Serializes the network weights into an array of doubles. The
-	/// number of doubles in the array can be determined by calling
-	/// weightCount().
-	virtual size_t weightsToVector(double* pOutWeights) const override;
-
-	/// Sets all the weights from an array of doubles. The number of
-	/// doubles in the array can be determined by calling weightCount().
-	virtual size_t vectorToWeights(const double* pWeights) override;
-
-	/// Copy the weights from pOther. It is assumed (but not checked) that
-	/// pOther already is a GNeuralNet with the same structure as this one.
-	/// This method is faster than copyStructure.
-	virtual void copyWeights(const GBlock* pOther) override;
-
 	/// Makes this object into a deep copy of pOther, including layers, nodes, settings and weights.
 	void copyStructure(const GNeuralNet* pOther);
 
 	/// Initialize the weights, usually with small random values.
-	virtual void resetWeights(GRand& rand) override;
-
-	/// Perturbs all weights in the network by a random normal offset with the
-	/// specified deviation.
-	virtual void perturbWeights(GRand& rand, double deviation) override;
-
-	/// Scales weights if necessary such that the magnitude of the weights (not including the bias) feeding into each unit are >= min and <= max.
-	virtual void maxNorm(double min, double max) override;
-
-	/// Multiplies all weights in the network by the specified factor. This can be used
-	/// to implement L2 regularization, which prevents weight saturation.
-	/// The factor for L2 regularization should be less than 1.0, but most likely somewhat close to 1.
-	virtual void scaleWeights(double factor, bool scaleBiases = true) override;
-
-	/// Diminishes all weights in the network by the specified amount. This can be used
-	/// to implemnet L1 regularization, which promotes sparse representations. That is,
-	/// it makes many of the weights approach zero.
-	virtual void diminishWeights(double amount, bool regularizeBiases = true) override;
-
-	/// This method assumes forwardProp has been called. It copies the predicted vector into pOut.
-	void copyPrediction(GVec& out);
-
-	/// Inverts the weights of the specified node, and adjusts the weights in
-	/// the next layer (if there is one) such that this will have no effect
-	/// on the output of the network.
-	/// (Assumes this model is already trained.)
-	void invertNode(size_t layer, size_t node);
-
-	/// Swaps two nodes in the specified layer. If layer specifies one of the hidden
-	/// layers, then this will have no net effect on the output of the network.
-	/// (Assumes this model is already trained.)
-	void swapNodes(size_t layer, size_t a, size_t b);
-
-	/// Removes the specified node from the neural network.
-	/// (Assumes lay refers to a linear layer.)
-	void dropNode(size_t lay, size_t index);
-
-	/// Splits the specifed node into two nodes.
-	/// The in-bound weights are copied, such that the new node will activate the same as the old node.
-	/// The out-bound weights are randomly divided between the two nodes, so that they will hopefully learn to take on different roles.
-	/// (Assumes lay refers to a linear layer.)
-	void splitNode(size_t lay, size_t index, GRand& rand);
-
-	/// Swaps nodes in hidden layers of this neural network to align with those in
-	/// that neural network, as determined using bipartite matching. (This might
-	/// be done, for example, before averaging weights together.)
-	void align(const GNeuralNet& that);
-
-	/// Prints weights in a human-readable format
-	void printWeights(std::ostream& stream);
+	virtual void initWeights(GRand& rand, GVec& weights) override;
 
 	/// Measures the loss with respect to some data. Returns sum-squared error.
 	/// if pOutSAE is not nullptr, then sum-absolute error will be storead where it points.
 	/// As a special case, if labels have exactly one categorical column, then it will be assumed
 	/// that the maximum output unit of this neural network represents a categorical prediction,
 	/// and sum hamming loss will be returned.
-	double measureLoss(const GMatrix& features, const GMatrix& labels, double* pOutSAE = nullptr);
+	double measureLoss(const GVec& weights, const GMatrix& features, const GMatrix& labels, double* pOutSAE = nullptr);
 
-	/// Performs principal component analysis (without reducing dimensionality) on the features to shift the
-	/// variance of the data to the first few columns. Adjusts the weights on the input layer accordingly,
-	/// such that the network output remains the same. Returns the transformed feature matrix.
-//	GMatrix* compressFeatures(GMatrix& features);
+	/// Evaluates the input vector. Returns an output vector.
+	GVec& forwardProp(const GVec& weights, const GVec& input);
 
-	/// Finds the column in the intrinsic matrix with the largest deviation, then
-	/// centers the matrix at the origin and renormalizes so the largest deviation
-	/// is 1. Also renormalizes the input layer so these changes will have no effect.
-//	void containIntrinsics(GMatrix& intrinsics);
+	/// Computes blame on the output of this neural network.
+	virtual void computeBlame(const GVec& target);
 
-	/// Generate a neural network that is initialized with the Fourier transform
-	/// to reconstruct the given time-series data. The number of rows in the given
-	/// time-series data is expected to be a power of 2. The resulting neural network will
-	/// accept one input, representing time. The outputs will match the number of columns
-	/// in the given time-series data. The series is assumed to represent one period
-	/// of time in a repeating cycle. The duration of this period is specified as the
-	/// parameter, period. The returned network has already had
-	/// beginIncrementalLearning called.
-//	static GNeuralNet* fourier(GMatrix& series, double period = 1.0);
-
-	/// Take a step to descend the gradient by updating the weights.
-	virtual void step(double learningRate, const GVec& gradient) override;
-
-#ifdef GCUDA
-	virtual void uploadCuda() override;
-	virtual void downloadCuda() override;
-	virtual void stepCuda(GContext& ctx, double learningRate, const GCudaVector& gradient) override;
-#endif // GCUDA
-
-protected:
-	/// Deliberately protected. Call GContextNeuralNet::forwardProp instead.
-	/// Evaluates input, computes output.
-	virtual void forwardProp(GContext& ctx) const override;
-
-	/// Deliberately protected. Call GContextNeuralNet::backProp instead. 
-	/// Evaluates outBlame, computes inBlame.
-	/// For efficiency reasons, as a special case, if inBlame.data() == outBlame.data(), then inBlame will not be computed.
-	virtual void backProp(GContext& ctx) const override;
-
-	/// Deliberately protected. Call GContextNeuralNet::updateGradient instead. 
-	/// Updates the gradient.
-	virtual void updateGradient(GContext& ctx) const override;
-
-#ifdef GCUDA
-	virtual void forwardPropCuda(GContext& ctx, const GCudaVector& input, GCudaVector& output) const override;
-	virtual void backPropCuda(GContext& ctx, const GCudaVector& input, const GCudaVector& output, const GCudaVector& outBlame, GCudaVector& inBlame) const override;
-	virtual void updateGradientCuda(GContext& ctx, const GCudaVector& input, const GCudaVector& outBlame, GCudaVector& gradient) const override;
-#endif // GCUDA
-
-};
-
-
-
-
-
-/// Contains the buffers that a thread needs to train or use a GNeuralNet.
-/// Each thread should use a separate GContextNeuralNet object.
-/// Call GNeuralNet::newContext to obtain a new GContextNeuralNet object.
-class GContextNeuralNet : public GContext
-{
-friend class GNeuralNet;
-protected:
-	const GNeuralNet& m_nn;
-	std::vector<GContextLayer*> m_layers;
-	GContextLayer* m_pOutputLayer; // redundant pointer to the last layer for efficiency purposes
-#ifdef GCUDA
-	GCudaEngine* m_pEngine;
-#endif
-
-	GContextNeuralNet(GRand& rand, const GNeuralNet& nn); // deliberately protected. Call GNeuralNet::newContext to construct one.
-#ifdef GCUDA
-	GContextNeuralNet(GRand& rand, const GNeuralNet& nn, GCudaEngine& engine); // deliberately protected. Call GNeuralNet::newContext to construct one.
-#endif
-
-public:
-	~GContextNeuralNet();
-
-	const GNeuralNet& nn() { return m_nn; }
-	size_t layerCount() const { return m_layers.size(); }
-	GContextLayer& layer(size_t i) { return *m_layers[i]; }
-
-	/// See the comment for GContext::resetState.
+	/// Resets the state in any recurrent connections
 	virtual void resetState() override;
 
-	/// Returns the activation buffer for the output layer
-	GVec& prediction() { return m_pOutputLayer->m_activation; }
+	/// Resets the state in any recurrent connections
+	virtual GBlock* advanceState(size_t unfoldedInstances) override;
 
-	/// Returns the blame buffer for the output layer
-	GVec& blame() { return m_pOutputLayer->m_blame; }
+	/// Backpropagates the error. If inputBlame is non-null, the blame for the inputs will also be computed.
+	void backpropagate(const GVec& weights, GVec* inputBlame = nullptr);
 
-	/// Evaluates input, returns the output.
-	GVec& forwardProp(const GVec& input);
+	/// Updates the gradient vector
+	virtual void updateGradient(GVec& weights, GVec& gradient) override;
 
-	/// Evaluates input, computes output.
-	/// This method differs from forwardProp in that it unfolds recurrent blocks through time.
-	GVec& forwardProp_training(const GVec& input);
+protected:
 
-	/// Backpropagates the blame from ctx.blame()
-	void backProp();
+	/// Internal method to forward propagate. Assumes the input and output have already been hooked up.
+	virtual void forwardProp(const GVec& weights) override;
 
-	/// Backpropagates the blame from ctx.blame() all the way to the inputs
-	void backProp(GVec& inBlame);
-
-	/// Updates the gradient.
-	void updateGradient(GVec &gradient);
-
-#ifdef GCUDA
-	virtual GCudaEngine& cudaEngine() { return *m_pEngine; }
-	GCudaVector& predictionCuda() { return m_pOutputLayer->m_activationCuda; }
-	GCudaVector& blameCuda() { return m_pOutputLayer->m_blameCuda; }
-	GCudaVector& forwardPropCuda(const GCudaVector& input);
-	GCudaVector& forwardProp_trainingCuda(const GCudaVector& input);
-	void backPropCuda();
-	void backPropCuda(const GCudaVector& input, GCudaVector& inBlame);
-	void updateGradientCuda(const GCudaVector& input, GCudaVector& gradient);
-#endif
+	/// Internal method to backpropate error. Assumes inBlame and outBlame have already been hooked up.
+	virtual void backProp(const GVec& weights) override;
 };
+
+
+
+
 
 
 
@@ -467,7 +1236,6 @@ class GNeuralNetLearner : public GIncrementalLearner
 protected:
 	GNeuralNet m_nn;
 	GNeuralNetOptimizer* m_pOptimizer;
-	bool m_ready;
 
 public:
 	GNeuralNetLearner();
@@ -535,109 +1303,32 @@ protected:
 	GNeuralNet& m_nn;
 	const GMatrix& m_features;
 	const GMatrix& m_labels;
+	GRand& m_rand;
 
 public:
 	/// features and labels should be pre-filtered to contain only continuous values for the neural network.
-	GNeuralNetTargetFunction(GNeuralNet& nn, const GMatrix& features, const GMatrix& labels)
-	: GTargetFunction(nn.weightCount()), m_nn(nn), m_features(features), m_labels(labels)
+	GNeuralNetTargetFunction(GNeuralNet& nn, const GMatrix& features, const GMatrix& labels, GRand& rand)
+	: GTargetFunction(nn.weightCount()), m_nn(nn), m_features(features), m_labels(labels), m_rand(rand)
 	{
 	}
 
 	virtual ~GNeuralNetTargetFunction() {}
 
 	/// Copies the neural network weights into the vector.
-	virtual void initVector(GVec& pVector)
+	virtual void initVector(GVec& vector)
 	{
-		m_nn.weightsToVector(pVector.data());
+		GRand rand(0);
+		m_nn.initWeights(m_rand, vector);
 	}
 
 	/// Copies the vector into the neural network and measures sum-squared error.
-	virtual double computeError(const GVec& pVector)
+	virtual double computeError(const GVec& vec)
 	{
-		m_nn.vectorToWeights(pVector.data());
-		return m_nn.measureLoss(m_features, m_labels);
+		return m_nn.measureLoss(vec, m_features, m_labels);
 	}
 };
 
 
-
-
-
-/// This model uses a randomely-initialized network to map the inputs into
-/// a higher-dimensional space, and it uses a layer of perceptrons to learn
-/// in this augmented space.
-class GReservoirNet : public GIncrementalLearner
-{
-protected:
-	GIncrementalLearner* m_pModel;
-	GNeuralNetLearner* m_pNN;
-	double m_weightDeviation;
-	size_t m_augments;
-	size_t m_reservoirLayers;
-
-public:
-	/// General-purpose constructor
-	GReservoirNet();
-
-	/// Deserializing constructor
-	GReservoirNet(const GDomNode* pNode, GLearnerLoader& ll);
-
-	virtual ~GReservoirNet();
-
-#ifndef MIN_PREDICT
-	static void test();
-#endif // MIN_PREDICT
-
-	/// Specify the deviation of the random weights in the reservoir
-	void setWeightDeviation(double d) { m_weightDeviation = d; }
-
-	/// Specify the number of additional attributes to augment the data with
-	void setAugments(size_t n) { m_augments = n; }
-
-	/// Specify the number of hidden layers in the reservoir
-	void setReservoirLayers(size_t n) { m_reservoirLayers = n; }
-
-#ifndef MIN_PREDICT
-	/// Marshall this object to a DOM
-	virtual GDomNode* serialize(GDom* pDoc) const;
-#endif // MIN_PREDICT
-
-	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const GVec& in, GVec& out);
-
-	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
-
-	/// See the comment for GSupervisedLearner::clear
-	virtual void clear();
-
-	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GIncrementalLearner::trainIncremental
-	virtual void trainIncremental(const GVec& in, const GVec& out);
-
-	/// See the comment for GIncrementalLearner::trainSparse
-	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
-
-	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
-	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
-
-	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
-	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
-
-	/// See the comment for GTransducer::supportedFeatureRange
-	virtual bool supportedFeatureRange(double* pOutMin, double* pOutMax);
-
-	/// See the comment for GTransducer::canImplicitlyHandleMissingFeatures
-	virtual bool canImplicitlyHandleMissingFeatures() { return false; }
-
-	/// See the comment for GTransducer::canImplicitlyHandleNominalLabels
-	virtual bool canImplicitlyHandleNominalLabels() { return false; }
-
-	/// See the comment for GTransducer::supportedFeatureRange
-	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax);
-};
 
 
 } // namespace GClasses

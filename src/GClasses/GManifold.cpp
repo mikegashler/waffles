@@ -17,7 +17,6 @@
 */
 
 #include "GManifold.h"
-#include "GActivation.h"
 #include <stdio.h>
 #include <math.h>
 #include "GBits.h"

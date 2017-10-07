@@ -670,50 +670,6 @@ protected:
 
 
 
-class GCalibrator : public GFilter
-{
-protected:
-	GNeuralNetLearner** m_pCalibrations;
-
-public:
-	/// This takes ownership of pLearner.
-	GCalibrator(GSupervisedLearner* pLearner);
-
-	/// Deserialization constructor
-	GCalibrator(const GDomNode* pNode, GLearnerLoader& ll);
-
-	/// Deletes the supervised learner and the transform
-	virtual ~GCalibrator();
-
-	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc) const;
-
-	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const GVec& in, GVec& out);
-
-	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
-
-	/// See the comment for GIncrementalLearner::trainIncremental
-	virtual void trainIncremental(const GVec& in, const GVec& out);
-
-	/// Transform a feature vector to the form for presenting to the inner learner
-	virtual const GVec& prefilterFeatures(const GVec& in);
-
-	/// Transform a label vector to the form for presenting to the inner learner
-	virtual const GVec& prefilterLabels(const GVec& in);
-
-protected:
-	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GIncrementalLearner::beginIncrementalLearningInner
-	virtual void beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel);
-};
-
-
-
-
 /// Always outputs the label mean (for continuous labels) and the most common
 /// class (for nominal labels).
 class GBaselineLearner : public GSupervisedLearner

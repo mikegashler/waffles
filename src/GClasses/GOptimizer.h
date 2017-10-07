@@ -35,61 +35,13 @@ class GNeuralNet;
 class GContextNeuralNet;
 
 
-/// A loss function used to train a differentiable function.
-class GObjective
-{
-public:
-	GObjective() : m_slack(0), m_useSlack(false) {}
-	virtual ~GObjective() {}
-	
-	/// Calculate the error.
-	virtual void evaluate(const GVec &prediction, const GVec &label, GVec &loss) = 0;
-	
-	/// Calculate the error term (a.k.a. blame) associated with the activation of this layer
-	virtual void calculateOutputLayerBlame(const GVec &prediction, const GVec &label, GVec &blame) = 0;
-
-#ifdef GCUDA
-	virtual void calculateOutputLayerBlameCuda(GCudaEngine& e, const GCudaVector& prediction, const GCudaVector& label, GCudaVector& blame) = 0;
-#endif
-
-	/// Enable the use of slack (a margin-of-error).
-	virtual void setSlack(const GVec &slack)
-	{
-		m_slack.copy(slack);
-		m_useSlack = true;
-	}
-
-protected:
-	GVec m_slack;
-	bool m_useSlack;
-};
-
-
-
-/// The default loss function is squared error.
-class GSquaredError : public GObjective
-{
-public:
-	/// Calculate the error.
-	virtual void evaluate(const GVec &prediction, const GVec &label, GVec &loss) override;
-	
-	/// Calculate the error term (a.k.a. blame) associated with the activation of this layer
-	virtual void calculateOutputLayerBlame(const GVec &prediction, const GVec &label, GVec &blame) override;
-
-#ifdef GCUDA
-	virtual void calculateOutputLayerBlameCuda(GCudaEngine& e, const GCudaVector& prediction, const GCudaVector& label, GCudaVector& blame);
-#endif
-};
-
-
-
 /// Optimizes the parameters of a differentiable function using an objective function.
 class GNeuralNetOptimizer
 {
 protected:
-	GObjective* m_objective;
 	GNeuralNet& m_model;
-	GContextNeuralNet* m_pContext;
+	GVec m_weights;
+	GVec m_gradient;
 
 	const GMatrix* m_pTrainingFeatures;
 	const GMatrix* m_pTrainingLabels;
@@ -108,16 +60,14 @@ protected:
 	GRandomIndexIterator* m_pII;
 
 public:
-	GNeuralNetOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTrainingFeatures = nullptr, const GMatrix* pTrainingLabels = nullptr, GObjective* objective = nullptr);
+	GNeuralNetOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTrainingFeatures = nullptr, const GMatrix* pTrainingLabels = nullptr);
 	virtual ~GNeuralNetOptimizer();
 
-	/// Returns the default context for training the model.
-	/// (Note: It is allocated lazily. This should not be called before layers are added to the model.
-	/// For multi-threaded optimization, a separate context should be allocated for each thread.)
-	GContextNeuralNet& context();
+	GVec& weights() { return m_weights; }
+	GVec& gradient() { return m_gradient; }
 
 	/// Prepare for optimization (i.e. allocate delta vectors).
-	virtual void prepareForOptimizing() = 0;
+	virtual void init() = 0;
 	
 	/// Evaluate feat and lab, and update the model's gradient.
 	virtual void computeGradient(const GVec &feat, const GVec &lab) = 0;
@@ -134,9 +84,6 @@ public:
 	/// Flushes the memory in any recurrent units in the network.
 	/// This method should be called when beginning a new training sequence with neural networks that contain any recurrent blocks.
 	void resetState();
-
-	/// Deletes the current context, causing it to be regenerated. (This should be called, for example, if the neural network topology changes.)
-	void resetContext();
 
 	/// Update and apply the gradient for a single training sample (on-line).
 	virtual void optimizeIncremental(const GVec &feat, const GVec &lab);
@@ -156,7 +103,6 @@ public:
 	void optimize(const GMatrix &features, const GMatrix &labels);
 	void optimizeWithValidation(const GMatrix &features, const GMatrix &labels, const GMatrix &validationFeat, const GMatrix &validationLab);
 	void optimizeWithValidation(const GMatrix &features, const GMatrix &labels, double validationPortion = 0.35);
-	double sumLoss(const GMatrix &features, const GMatrix &labels);
 	
 	// getters/setters
 #ifdef GCUDA
@@ -164,9 +110,6 @@ public:
 #endif
 
 	GNeuralNet& model() { return m_model; }
-	
-	void setObjective(GObjective *objective) { delete m_objective; m_objective = (objective != NULL ? objective : new GSquaredError()); }
-	GObjective *objective() { return m_objective; }
 	
 	GRand& rand() { return m_rand; }
 	
@@ -194,10 +137,10 @@ public:
 class GSGDOptimizer : public GNeuralNetOptimizer
 {
 public:
-	GSGDOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTrainingFeatures = nullptr, const GMatrix* pTrainingLabels = nullptr, GObjective *error = nullptr);
+	GSGDOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTrainingFeatures = nullptr, const GMatrix* pTrainingLabels = nullptr);
 	
 	/// Prepare for optimization (i.e. allocate buffers).
-	virtual void prepareForOptimizing() override;
+	virtual void init() override;
 	
 	/// Evaluate feat and lab, and update the model's gradient.
 	virtual void computeGradient(const GVec &feat, const GVec &lab) override;
@@ -228,10 +171,10 @@ private:
 class GAdamOptimizer : public GNeuralNetOptimizer
 {
 public:
-	GAdamOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTrainingFeatures = nullptr, const GMatrix* pTrainingLabels = nullptr, GObjective *error = nullptr);
+	GAdamOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTrainingFeatures = nullptr, const GMatrix* pTrainingLabels = nullptr);
 	
 	/// Prepare for optimization (i.e. allocate buffers).
-	virtual void prepareForOptimizing() override;
+	virtual void init() override;
 	
 	/// Evaluate feat and lab, and update the model's gradient.
 	virtual void computeGradient(const GVec &feat, const GVec &lab) override;
@@ -262,10 +205,10 @@ private:
 class GRMSPropOptimizer : public GNeuralNetOptimizer
 {
 public:
-	GRMSPropOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTrainingFeatures = nullptr, const GMatrix* pTrainingLabels = nullptr, GObjective* error = nullptr);
+	GRMSPropOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTrainingFeatures = nullptr, const GMatrix* pTrainingLabels = nullptr);
 	
 	/// Prepare for optimization (i.e. allocate buffers).
-	virtual void prepareForOptimizing() override;
+	virtual void init() override;
 	
 	/// Evaluate feat and lab, and update the model's gradient.
 	virtual void computeGradient(const GVec &feat, const GVec &lab) override;

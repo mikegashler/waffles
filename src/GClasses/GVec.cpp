@@ -94,13 +94,6 @@ GVec& GVec::operator=(const GVec& orig)
 	return *this;
 }
 
-void GVec::copy(const GVec& orig)
-{
-	resize(orig.m_size);
-	for(size_t i = 0; i < m_size; i++)
-		m_data[i] = orig.m_data[i];
-}
-
 void GVec::resize(size_t n)
 {
 	if(m_size == n)
@@ -207,11 +200,32 @@ GVec& GVec::operator/=(double scalar)
 	return *this;
 }
 
-void GVec::set(const double* pSource, size_t n)
+void GVec::copy(const GVec& orig, size_t start, size_t size)
+{
+	GAssert(start <= orig.size());
+	size = std::min(size, orig.size() - start);
+	resize(size);
+	for(size_t i = 0; i < size; i++)
+		m_data[i] = orig[start + i];
+}
+
+void GVec::copy(const double* pSource, size_t n)
 {
 	resize(n);
 	for(size_t i = 0; i < n; i++)
 		(*this)[i] = *(pSource++);
+}
+
+void GVec::copy(size_t pos, const GVec& that, size_t start, size_t length)
+{
+	if(length == (size_t)-1)
+		length = that.size() - start;
+	else if(start + length > that.size())
+		throw Ex("Input out of range. that size=", GClasses::to_str(that.size()), ", start=", GClasses::to_str(start), ", length=", GClasses::to_str(length));
+	if(pos + length > m_size || start + length > that.m_size)
+		throw Ex("Out of range. this size=", GClasses::to_str(m_size), ", pos=", GClasses::to_str(pos), ", that size=", GClasses::to_str(that.m_size));
+	for(size_t i = 0; i < length; i++)
+		(*this)[pos + i] = that[start + i];
 }
 
 double GVec::mean() const
@@ -467,11 +481,13 @@ double GVec::estimateSquaredDistanceWithUnknowns(const GVec& that) const
 		return dist * m_size / (m_size - nMissing);
 }
 
-void GVec::addScaled(double scalar, const GVec& that)
+void GVec::addScaled(double scalar, const GVec& that, size_t start, size_t size)
 {
-	GAssert(size() == that.size());
-	for(size_t i = 0; i < m_size; i++)
-		(*this)[i] += (scalar * that[i]);
+	GAssert(start + size <= that.size() || size == (size_t)-1);
+	size = std::min(size, that.size() - start);
+	GAssert(this->size() == size);
+	for(size_t i = 0; i < size; i++)
+		(*this)[i] += (scalar * that[start + i]);
 }
 
 void GVec::regularizeL1(double amount)
@@ -483,18 +499,6 @@ void GVec::regularizeL1(double amount)
 		else
 			(*this)[i] = std::max(0.0, (*this)[i] - amount);
 	}
-}
-
-void GVec::put(size_t pos, const GVec& that, size_t start, size_t length)
-{
-	if(length == (size_t)-1)
-		length = that.size() - start;
-	else if(start + length > that.size())
-		throw Ex("Input out of range. that size=", GClasses::to_str(that.size()), ", start=", GClasses::to_str(start), ", length=", GClasses::to_str(length));
-	if(pos + length > m_size || start + length > that.m_size)
-		throw Ex("Out of range. this size=", GClasses::to_str(m_size), ", pos=", GClasses::to_str(pos), ", that size=", GClasses::to_str(that.m_size));
-	for(size_t i = 0; i < length; i++)
-		(*this)[pos + i] = that[start + i];
 }
 
 void GVec::erase(size_t start, size_t count)

@@ -171,7 +171,6 @@ UsageNode* makeMasterUsageTree()
 	pRoot->choices().push_back(makeRecommendUsageTree());
 	pRoot->choices().push_back(makeSparseUsageTree());
 	pRoot->choices().push_back(makeTransformUsageTree());
-	pRoot->choices().push_back(makeTimeSeriesUsageTree());
 	return pRoot;
 }
 
@@ -334,38 +333,6 @@ UsageNode* makeAlgorithmUsageTree()
 		pRF->add("[trees]=50", "Specify the number of trees in the random forest");
 		UsageNode* pOpts = pRF->add("<options>");
 		pOpts->add("-samples [n]=1", "Specify the number of randomly-drawn attributes to evaluate. The one that maximizes information gain will be chosen for the decision boundary. If [n] is 1, then the divisions are completely random. Larger values will decrease the randomness.");
-	}
-	{
-		UsageNode* pRes = pRoot->add("reservoir <options>", "A reservoir network.");
-		UsageNode* pOpts = pRes->add("<options>");
-		pOpts->add("-augments [d]=64", "The number of dimensions to augment the data with. (Smaller values lead to smoother models.)");
-		pOpts->add("-deviation [dev]=2.0", "The deviation to use to randomly initialize the weights in the reservoir.");
-		pOpts->add("-layers [n]=2", "The number of hidden layers to use in the reservoir.");
-	}
-	{
-		UsageNode* pWag = pRoot->add("wag <options>", "A multi-layer perceptron (MLP) that is trained by first training several MLP models, and then averaging their weights together using a process called wagging. (Before the weights in hidden layers can be averaged, they are first aligned using bipartite matching.)");
-		UsageNode* pOpts = pWag->add("<options>");
-		pOpts->add("-addlayer [size]=16", "Add a hidden layer with \"size\" logisitic units to the network. You may use this option multiple times to add multiple layers. The first layer added is adjacent to the input features. The last layer added is adjacent to the output labels. If you don't add any hidden layers, the network is just a single layer of sigmoid units.");
-		pOpts->add("-learningrate [value]=0.1", "Specify a value for the learning rate. The default is 0.1");
-		pOpts->add("-models [k]=10", "Specify the number of MLP models to train and then average together.");
-		pOpts->add("-momentum [value]=0.0", "Specifies a value for the momentum. The default is 0.0");
-		pOpts->add("-windowepochs [value]=200", "Specifies the number of training epochs that are performed before the stopping criteria is tested again. Bigger values will result in a more stable stopping criteria. Smaller values will check the stopping criteria more frequently.");
-		pOpts->add("-minwindowimprovement [value]=0.002", "Specify the minimum improvement that must occur over the window of epochs for training to continue. [value] specifies the minimum decrease in error as a ratio. For example, if value is 0.02, then training will stop when the mean squared error does not decrease by two percent over the window of epochs. Smaller values will typically result in longer training times.");
-		pOpts->add("-noalign", "Specify to compute weight averages without first aligning the corresponding weights. This option will typically make results significantly worse, but it may be useful for evaluating the value of aligning the weights before averaging them together.");
-		pOpts->add("-holdout [portion]=0.35", "Specify the portion of the data (between 0 and 1) to use as a hold-out set for validation. That is, this portion of the data will not be used for training, but will be used to determine when to stop training. If the holdout portion is set to 0, then no holdout set will be used, and the entire training set will be used for validation (which may lead to long training time and overfit).");
-		pOpts->add("-dontsquashoutputs", "Don't squash the outputs values with the logistic function. Just report the net value at the output layer. This is often used for regression.");
-/*		UsageNode* pAct = pOpts->add("-activation [func]", "Specify the activation function to use with all subsequently added layers. (For example, if you add this option after all of the -addlayer options, then the specified activation function will only"
-			" apply to the output layer. If you add this option before all of the -addlayer options, then the specified activation function will be used in all layers. It is okay to use a different activation function with each layer, if you want.)");
-		{
-			pAct->add("logistic", "The logistic sigmoid function. (This is the default activation function.)");
-			pAct->add("arctan", "The arctan sigmoid function.");
-			pAct->add("tanh", "The hyperbolic tangeant sigmoid function.");
-			pAct->add("algebraic", "An algebraic sigmoid function.");
-			pAct->add("identity", "The identity function. This activation function is used to create a layer of linear perceptrons. (For regression problems, it is common to use this activation function on the output layer.)");
-			pAct->add("bidir", "A sigmoid-shaped function with a range from -inf to inf. It converges at both ends to -sqrt(-x) and sqrt(x). This activation function is designed to be used on the output layer with regression problems intead of identity.");
-			pAct->add("gaussian", "A gaussian activation function");
-			pAct->add("sinc", "A sinc wavelet activation function");
-		}*/
 	}
 	{
 		pRoot->add("usage", "Print usage information.");
@@ -1036,7 +1003,6 @@ UsageNode* makeLearnUsageTree()
 		UsageNode* pTrain = pRoot->add("train <options> [dataset] <data_opts> [algorithm]", "Trains a supervised learning algorithm. The trained model-file is printed to stdout. (Typically, you will want to pipe this to a file.)");
 		UsageNode* pOpts = pTrain->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
-		pOpts->add("-calibrate", "Calibrate the model after it is trained, such that predicted distributions will approximate the distributions represented in the training data. This switch is typically used only if you plan to predict distributions (by calling predictdistribution) instead of just class labels or regression values. Calibration will not effect the predictions made by regular calls to 'predict', which is used by most other tools.");
 		pOpts->add("-embed", "Escape the output model such that it can easily be embedded in C or C++ code.");
 		pTrain->add("[dataset]=train.arff", "The filename of a dataset.");
 		UsageNode* pDO = pTrain->add("<data_opts>");
@@ -1058,7 +1024,7 @@ UsageNode* makeLearnUsageTree()
 			"A '*' preceding a value means to index from the right instead of the left. For example, \"0,2-5\" refers to columns 0, 2, 3, 4, and 5. \"*0\" refers to the last column. \"0-*1\" refers to all but the last column.");
 	}
 	{
-		UsageNode* pPOP = pRoot->add("predictdistribution <options> [model-file] [dataset] <data_opts>", "Predict a distribution for all of the patterns in [dataset]. Results are printed in the form of a \".arff\" file. (Typically, the '-calibrate' switch should be used when training the model. If the model is not calibrated, then the predicted distribution may not be a very good estimated distribution. Also, some models cannot be used to predict a distribution.)");
+		UsageNode* pPOP = pRoot->add("predictdistribution <options> [model-file] [dataset] <data_opts>", "Predict a distribution for all of the patterns in [dataset]. Results are printed in the form of a \".arff\" file.");
 		UsageNode* pOpts = pPOP->add("<options>");
 		pOpts->add("-seed [value]=0", "Specify a seed for the random number generator. (Use this option to ensure that your results are reproduceable.)");
 		pPOP->add("[model-file]=model.json", "The filename of a trained model. (This is the file to which you saved the output when you trained a supervised learning algorithm.)");
@@ -1908,41 +1874,3 @@ UsageNode* makeTransformUsageTree()
 	return pRoot;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-UsageNode* makeTimeSeriesUsageTree()
-{
-	UsageNode* pRoot = new UsageNode("waffles_ts [command]", "Analyze and extrapolate time-series data.");
-	{
-		UsageNode *pAdd = pRoot->add("train [dataset] <options>", "Trains an instance of Neural Decomposition on a time-series dataset.");
-		pAdd->add("[dataset]=time-series.arff", "The filename of the dataset.");
-		UsageNode *pOpts = pAdd->add("<options>");
-		pOpts->add("-regularization [value]=0.01", "Specify the L1 regularization amount.");
-		pOpts->add("-learningRate [value]=0.001", "Specify the learning rate.");
-		pOpts->add("-linearUnits [value]=10", "Specify the number of linear units to use to augment sinusoid units.");
-		pOpts->add("-softplusUnits [value]=10", "Specify the number of softplus units to use to augment sinusoid units.");
-		pOpts->add("-sigmoidUnits [value]=10", "Specify the number of sigmoid units to use to augment sinusoid units.");
-		pOpts->add("-epochs [value]=1000", "Specify the number of epochs to train the model.");
-		pOpts->add("-filterLogarithm", "Use a logarithmic pre- and post-processing step.");
-		pOpts->add("-features [dataset]", "Specify a features matrix instead of generating one automatically. Must be a single-column matrix in arff format.");
-	}
-	{
-		UsageNode *pPredict = pRoot->add("extrapolate [model-file] <options>", "Use a trained model to extrapolate time-series data.");
-		UsageNode *pOpts = pPredict->add("<options>");
-		pOpts->add("-start [value]=1.0", "Specify where to begin extrapolation. 0 represents the beginning of the training data, 1 represents the beginning of the testing data.");
-		pOpts->add("-length [value]=1.0", "Specify how far into the future to extrapolate. 1 represents the length of the training data.");
-		pOpts->add("-step [value]=0.0002", "Specify how tight to make predictions.");
-		pOpts->add("-outputFeatures", "Include a features column in the output matrix.");
-		pOpts->add("-features [dataset]", "Specify a features matrix instead of generating one automatically. Must be a single-column matrix in arff format. If this is set, then the start, length, step, and outputFeatures flags will be ignored.");
-	}
-	return pRoot;
-}

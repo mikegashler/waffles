@@ -954,7 +954,7 @@ void GDecisionTree::predict(const GVec& in, GVec& out)
 {
 	size_t depth;
 	GDecisionTreeLeafNode* pLeaf = findLeaf(in, &depth);
-	out.set(pLeaf->m_pOutputValues, m_pRelLabels->size());
+	out.copy(pLeaf->m_pOutputValues, m_pRelLabels->size());
 }
 
 // virtual

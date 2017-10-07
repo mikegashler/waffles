@@ -21,7 +21,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fstream>
-#include "GActivation.h"
 #include "GApp.h"
 #include "GMatrix.h"
 #include "GCluster.h"
@@ -128,10 +127,6 @@ public:
 	static GNeighborTransducer* InstantiateNeighborTransducer(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
 	static GRandomForest* InstantiateRandomForest(GArgReader& args);
-
-	static GReservoirNet* InstantiateReservoirNet(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
-
-	static GWag* InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
 	static void showInstantiateAlgorithmError(const char* szMessage, GArgReader& args);
 

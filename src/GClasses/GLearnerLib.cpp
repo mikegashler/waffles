@@ -33,7 +33,6 @@
 #include <string>
 #include <vector>
 #include <set>
-#include "GBlock.h"
 
 using namespace GClasses;
 
@@ -552,12 +551,6 @@ GBayesianModelCombination* GLearnerLib::InstantiateHodgePodge(GArgReader& args, 
 	GBaselineLearner* pBL = new GBaselineLearner();
 	pEnsemble->addLearner(pBL);
 
-	for(size_t i = 0; i < 2; i++)
-	{
-		GReservoirNet* pRN = new GReservoirNet();
-		pEnsemble->addLearner(pRN);
-	}
-
 	for(size_t i = 0; i < 6; i++)
 	{
 		GDecisionTree* pDT = new GDecisionTree();
@@ -721,8 +714,8 @@ GBlock* GLearnerLib::instantiateBlock(GArgReader& args)
 {
 	const char* szBlockName = args.pop_string();
 	if(strcmp(szBlockName, "linear") == 0)
-		return new GBlockLinear(args.pop_uint());
-	else if(strcmp(szBlockName, "bentidentity") == 0)
+		return new GBlockLinear(args.pop_uint(), args.pop_uint());
+/*	else if(strcmp(szBlockName, "bentidentity") == 0)
 		return new GBlockBentIdentity();
 	else if(strcmp(szBlockName, "gaussian") == 0)
 		return new GBlockGaussian();
@@ -741,9 +734,9 @@ GBlock* GLearnerLib::instantiateBlock(GArgReader& args)
 	else if(strcmp(szBlockName, "softplus") == 0)
 		return new GBlockSoftPlus();
 	else if(strcmp(szBlockName, "softroot") == 0)
-		return new GBlockSoftRoot();
+		return new GBlockSoftRoot();*/
 	else if(strcmp(szBlockName, "tanh") == 0)
-		return new GBlockTanh();
+		return new GBlockTanh(args.pop_uint());
 	throw Ex("Unrecognized block type: ", szBlockName);
 }
 
@@ -790,49 +783,6 @@ GRandomForest* GLearnerLib::InstantiateRandomForest(GArgReader& args)
 			throw Ex("Invalid random forest option: ", args.peek());
 	}
 	return new GRandomForest(trees, samples);
-}
-
-GReservoirNet* GLearnerLib::InstantiateReservoirNet(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
-{
-	GReservoirNet* pModel = new GReservoirNet();
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-augments")){
-			pModel->setAugments(args.pop_uint());
-		}else if(args.if_pop("-deviation")){
-			pModel->setWeightDeviation(args.pop_double());
-		}else if(args.if_pop("-layers")){
-			pModel->setReservoirLayers(args.pop_uint());
-		}else{
-			throw Ex("Invalid option: ", args.peek());
-		}
-	}
-	return pModel;
-}
-
-GWag* GLearnerLib::InstantiateWag(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
-{
-	GWag* pWag = new GWag(0);
-	GNeuralNetLearner* pModel = pWag->model();
-	size_t modelCount = 10;
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-noalign"))
-			pWag->noAlign();
-		else if(args.if_pop("-addlayer"))
-		{
-			pModel->nn().add(new GBlockLinear(args.pop_uint()));
-			pModel->nn().add(new GBlockTanh());
-		}
-		else if(args.if_pop("-models"))
-			modelCount = args.pop_uint();
-		else
-			throw Ex("Invalid option: ", args.peek());
-	}
-	pModel->nn().add(new GBlockLinear(pLabels->cols()));
-	pModel->nn().add(new GBlockTanh());
-	pWag->setModelCount(modelCount);
-	return pWag;
 }
 
 void GLearnerLib::showInstantiateAlgorithmError(const char* szMessage, GArgReader& args)
@@ -916,10 +866,6 @@ GTransducer* GLearnerLib::InstantiateAlgorithm(GArgReader& args, GMatrix* pFeatu
 			pAlg = InstantiateNeuralNet(args, pFeatures, pLabels);
 		else if(args.if_pop("randomforest"))
 			pAlg = InstantiateRandomForest(args);
-		else if(args.if_pop("reservoir"))
-			pAlg = InstantiateReservoirNet(args, pFeatures, pLabels);
-		else if(args.if_pop("wag"))
-			pAlg = InstantiateWag(args, pFeatures, pLabels);
 		else
 			throw Ex("Unrecognized algorithm name: ", args.peek());
 	}
@@ -1026,14 +972,11 @@ void GLearnerLib::Train(GArgReader& args)
 {
 	// Parse options
 	size_t seed = getpid() * (unsigned int)time(NULL);
-	bool calibrate = false;
 	bool embed = false;
 	while(args.next_is_flag())
 	{
 		if(args.if_pop("-seed"))
 			seed = args.pop_uint();
-		else if(args.if_pop("-calibrate"))
-			calibrate = true;
 		else if(args.if_pop("-embed"))
 			embed = true;
 		else
@@ -1055,12 +998,6 @@ void GLearnerLib::Train(GArgReader& args)
 	if(!pSupLearner->canGeneralize())
 		throw Ex("This algorithm cannot be \"trained\". It can only be used to \"transduce\".");
 	GSupervisedLearner* pModel = (GSupervisedLearner*)pSupLearner;
-	if(calibrate)
-	{
-		GCalibrator* pCal = new GCalibrator(pModel);
-		pModel = pCal;
-		hModel.reset(pCal);
-	}
 
 	// Train the modeler
 	pModel->train(*pFeatures, *pLabels);

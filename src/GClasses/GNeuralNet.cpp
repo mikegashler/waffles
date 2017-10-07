@@ -20,9 +20,6 @@
 #include "GNeuralNet.h"
 #ifndef MIN_PREDICT
 #include "GMath.h"
-#endif // MIN_PREDICT
-#include "GActivation.h"
-#ifndef MIN_PREDICT
 #include "GDistribution.h"
 #endif // MIN_PREDICT
 #include "GError.h"
@@ -44,7 +41,6 @@
 #include <memory>
 #include <string>
 #include <sstream>
-#include "GBlock.h"
 #include "GOptimizer.h"
 #include "GString.h"
 
@@ -52,16 +48,1027 @@ using std::vector;
 
 namespace GClasses {
 
-
-GLayer::GLayer()
-: m_inputs(0), m_outputs(0), m_weightCount(0)
+GBlock::GBlock(size_t inputs, size_t outputs)
+: inputCount(inputs), outputCount(outputs)
 {
 }
 
+GBlock::GBlock(const GBlock& that)
+: inputCount(that.inputCount), outputCount(that.outputCount), m_inPos(that.m_inPos)
+{
+	input.setData(that.input);
+	output.setData(((GBlock*)&that)->output);
+	outBlame.setData(((GBlock*)&that)->outBlame);
+	inBlame.setData(((GBlock*)&that)->inBlame);
+}
+
+GBlock::GBlock(GDomNode* pNode)
+{
+	m_inPos = pNode->field("inpos")->asInt();
+	inputCount = pNode->field("in")->asInt();
+	outputCount = pNode->field("out")->asInt();
+}
+
+GDomNode* GBlock::baseDomNode(GDom* pDoc) const
+{
+	GDomNode* pNode = pDoc->newObj();
+	pNode->addField(pDoc, "type", pDoc->newInt(type()));
+	pNode->addField(pDoc, "inpos", pDoc->newInt(m_inPos));
+	pNode->addField(pDoc, "in", pDoc->newInt(inputCount));
+	pNode->addField(pDoc, "out", pDoc->newInt(outputCount));
+	return pNode;
+}
+
+GDomNode* GBlock::serialize(GDom* pDoc) const
+{
+	return baseDomNode(pDoc);
+}
+
+GBlock* GBlock::deserialize(GDomNode* pNode)
+{
+	BlockType e = (BlockType)pNode->field("type")->asInt();
+	switch(e)
+	{
+		case block_tanh: return new GBlockTanh(pNode);
+		case block_linear: return new GBlockLinear(pNode);
+		default: throw Ex("Unrecognized neural network layer type: ", GClasses::to_str((int)e));
+	}
+}
+
+void GBlock::setInPos(size_t n, GLayer* pPrevLayer)
+{
+	m_inPos = n;
+	if(pPrevLayer)
+	{
+		input.setData(pPrevLayer->output, m_inPos, inputCount);
+		inBlame.setData(pPrevLayer->outBlame, m_inPos, inputCount);
+	}
+}
+
+void GBlock::computeBlame(const GVec& target)
+{
+	GAssert(target.size() == outBlame.size());
+	outBlame.copy(target);
+	outBlame -= output;
+}
+
+std::string GBlock::to_str() const
+{
+	std::ostringstream os;
+	os << "[" << name() << ": ";
+	os << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << ", Weights=" << GClasses::to_str(weightCount()) << "]";
+	return os.str();
+}
+
+
+
+
+
+
+
+
+
+
+GBlockActivation::GBlockActivation(size_t size)
+: GBlockWeightless(size, size)
+{
+}
+
+GBlockActivation::GBlockActivation(GDomNode* pNode)
+: GBlockWeightless(pNode), m_units(pNode->field("units")->asInt())
+{}
+
+void GBlockActivation::forwardProp(const GVec& weights)
+{
+	for(size_t i = 0; i < inputCount; i++)
+		output[i] = eval(input[i]);
+}
+
+void GBlockActivation::backProp(const GVec& weights)
+{
+	for(size_t i = 0; i < inputCount; i++)
+		inBlame[i] += outBlame[i] * derivative(input[i], output[i]);
+}
+
+void GBlockActivation::inverseProp(const GVec& output, GVec& input)
+{
+	for(size_t i = 0; i < outputCount; i++)
+		input[i] = inverse(output[i]);
+}
+
+
+
+
+
+
+
+GBlockLinear::GBlockLinear(size_t inputs, size_t outputs)
+: GBlock(inputs, outputs)
+{
+}
+
+GBlockLinear::GBlockLinear(GDomNode* pNode)
+: GBlock(pNode)
+{}
+
+void GBlockLinear::forwardProp(const GVec& weights)
+{
+	// Start with the bias
+	output.copy(weights, 0, outputCount);
+
+	// Do the weights
+	size_t pos = outputCount;
+	GAssert(output[outputCount - 1] > -1e100 && output[outputCount - 1] < 1e100);
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		output.addScaled(input[i], weights, pos, outputCount);
+		pos += outputCount;
+	}
+	GAssert(output[outputCount - 1] > -1e100 && output[outputCount - 1] < 1e100);
+}
+
+void GBlockLinear::backProp(const GVec& weights)
+{
+	size_t pos = outputCount; // skip the bias weights
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		const GConstVecWrapper v(weights, pos, outputCount);
+		inBlame[i] += outBlame.dotProduct(v);
+		pos += outputCount;
+	}
+}
+
+void GBlockLinear::updateGradient(GVec& weights, GVec& gradient)
+{
+	size_t pos = 0;
+	for(size_t j = 0; j < outputCount; j++)
+		gradient[pos++] += outBlame[j];
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		double act = input[i];
+		for(size_t j = 0; j < outputCount; j++)
+			gradient[pos++] += outBlame[j] * act;
+	}
+}
+
+size_t GBlockLinear::weightCount() const
+{
+	return (inputCount + 1) * outputCount;
+}
+
+void GBlockLinear::initWeights(GRand& rand, GVec& weights)
+{
+	size_t wc = weightCount();
+	double mag = std::max(0.03, 1.0 / inputCount);
+	for(size_t i = 0; i < wc; i++)
+		weights[i] = rand.normal() * mag;
+}
+
+
+
+
+
+
+
+GBlockTemperedLinear::GBlockTemperedLinear(size_t inputs, size_t outputs, double deviation_cap, double forget_rate)
+: GBlock(inputs, outputs), deviationCap(deviation_cap), forgetRate(forget_rate), moment1(outputs), moment2(outputs)
+{
+	moment1.fill(0.0);
+	moment2.fill(0.0);
+}
+
+GBlockTemperedLinear::GBlockTemperedLinear(const GBlockTemperedLinear& that)
+: GBlock(that), deviationCap(that.deviationCap), forgetRate(that.forgetRate), moment1(outputCount), moment2(outputCount)
+{
+	moment1.copy(that.moment1);
+	moment2.copy(that.moment2);
+}
+
+GBlockTemperedLinear::GBlockTemperedLinear(GDomNode* pNode)
+: GBlock(pNode), deviationCap(pNode->field("dc")->asDouble()), forgetRate(pNode->field("fr")->asDouble()),
+moment1(pNode->field("mom1")), moment2(pNode->field("mom2"))
+{
+}
+
+void GBlockTemperedLinear::forwardProp(const GVec& weights)
+{
+	// Start with the bias
+	output.copy(weights, 0, outputCount);
+
+	// Do the weights
+	size_t pos = outputCount;
+	GAssert(output[outputCount - 1] > -1e100 && output[outputCount - 1] < 1e100);
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		output.addScaled(input[i], weights, pos, outputCount);
+		pos += outputCount;
+	}
+	GAssert(output[outputCount - 1] > -1e100 && output[outputCount - 1] < 1e100);
+}
+
+void GBlockTemperedLinear::backProp(const GVec& weights)
+{
+	size_t pos = outputCount; // skip the bias weights
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		const GConstVecWrapper v(weights, pos, outputCount);
+		inBlame[i] += outBlame.dotProduct(v);
+		pos += outputCount;
+	}
+}
+
+void GBlockTemperedLinear::updateGradient(GVec& weights, GVec& gradient)
+{
+	// Contain the output deviation
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		moment1[i] *= (1.0 - forgetRate);
+		moment1[i] += (forgetRate * output[i]);
+		moment2[i] *= (1.0 - forgetRate);
+		moment2[i] += (forgetRate * output[i] * output[i]);
+		double var = moment2[i] - (moment1[i] * moment1[i]);
+		if(var > deviationCap * deviationCap)
+		{
+			double scalar = deviationCap / std::sqrt(var);
+			for(size_t j = 0; j < inputCount; j++)
+				weights[outputCount + j * outputCount] *= scalar;
+		}
+	}
+
+	// Update the gradient
+	size_t pos = 0;
+	for(size_t j = 0; j < outputCount; j++)
+		gradient[pos++] += outBlame[j];
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		double act = input[i];
+		for(size_t j = 0; j < outputCount; j++)
+			gradient[pos++] += outBlame[j] * act;
+	}
+}
+
+size_t GBlockTemperedLinear::weightCount() const
+{
+	return (inputCount + 1) * outputCount;
+}
+
+void GBlockTemperedLinear::initWeights(GRand& rand, GVec& weights)
+{
+	size_t wc = weightCount();
+	double mag = std::max(0.03, 1.0 / inputCount);
+	for(size_t i = 0; i < wc; i++)
+		weights[i] = rand.normal() * mag;
+}
+
+
+
+
+
+
+
+GBlockScalarSum::GBlockScalarSum(size_t outputs)
+: GBlockWeightless(outputs * 2, outputs)
+{
+}
+
+GBlockScalarSum::GBlockScalarSum(GDomNode* pNode)
+: GBlockWeightless(pNode)
+{
+}
+
+GBlockScalarSum::~GBlockScalarSum()
+{
+}
+
+// virtual
+void GBlockScalarSum::forwardProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+		output[i] = input[i] + input[outputCount + i];
+}
+
+void GBlockScalarSum::backProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		inBlame[i] += outBlame[i];
+		inBlame[outputCount + i] += outBlame[i];
+	}
+}
+
+
+
+
+
+
+
+
+
+GBlockScalarProduct::GBlockScalarProduct(size_t outputs)
+: GBlockWeightless(outputs * 2, outputs)
+{
+}
+
+GBlockScalarProduct::GBlockScalarProduct(GDomNode* pNode)
+: GBlockWeightless(pNode)
+{
+}
+
+GBlockScalarProduct::~GBlockScalarProduct()
+{
+}
+
+// virtual
+void GBlockScalarProduct::forwardProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+		output[i] = input[i] * input[outputCount + i];
+}
+
+void GBlockScalarProduct::backProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		inBlame[i] += outBlame[i] * input[outputCount + i];
+		inBlame[outputCount + i] += outBlame[i] * input[i];
+	}
+}
+
+
+
+
+
+
+
+
+GBlockSwitch::GBlockSwitch(size_t outputs)
+: GBlockWeightless(outputs * 3, outputs)
+{
+}
+
+GBlockSwitch::GBlockSwitch(GDomNode* pNode)
+: GBlockWeightless(pNode)
+{
+}
+
+GBlockSwitch::~GBlockSwitch()
+{
+}
+
+// virtual
+void GBlockSwitch::forwardProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+		output[i] = input[i] * input[outputCount + i] + (1.0 - input[i]) * input[outputCount + outputCount + i];
+}
+
+void GBlockSwitch::backProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		inBlame[i] += (input[outputCount + i] - input[outputCount + outputCount + i]) * outBlame[i];
+		inBlame[outputCount + i] += input[i] * outBlame[i];
+		inBlame[outputCount + outputCount + i] += (1.0 - input[i]) * outBlame[i];
+	}
+}
+
+
+
+
+
+
+
+GBlockHinge::GBlockHinge(size_t size)
+: GBlock(size, size)
+{
+}
+
+GBlockHinge::GBlockHinge(GDomNode* pNode)
+: GBlock(pNode)
+{}
+
+void GBlockHinge::forwardProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double alpha = std::max(-1.0, std::min(1.0, weights[i]));
+		double beta = std::max(0.0, weights[outputCount + i]);
+		output[i] = alpha * (std::sqrt(input[i] * input[i] + beta * beta) - beta) + input[i];
+	}
+}
+
+void GBlockHinge::backProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double alpha = weights[i];
+		double beta = weights[outputCount + i];
+		inBlame[i] += outBlame[i] * (alpha * input[i] / std::sqrt(input[i] * input[i] + beta * beta) + 1.0);
+	}
+}
+
+void GBlockHinge::updateGradient(GVec& weights, GVec& gradient)
+{
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		weights[i] = std::max(-1.0, std::min(1.0, weights[i]));
+		double beta = weights[outputCount + i];
+		gradient[i] += outBlame[i] * (std::sqrt(input[i] * input[i] + beta * beta) - beta);
+	}
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		weights[outputCount + i] = std::max(0.0, weights[outputCount + i]);
+		double alpha = weights[i];
+		double beta = weights[outputCount + i];
+		gradient[outputCount + i] += outBlame[i] * alpha * (beta / std::sqrt(input[i] * input[i] + beta * beta) - 1.0);
+	}
+}
+
+size_t GBlockHinge::weightCount() const
+{
+	return outputCount * 2;
+}
+
+void GBlockHinge::initWeights(GRand& rand, GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		weights[i] = 0.0;
+		weights[outputCount + i] = 0.1;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+GBlockSoftExp::GBlockSoftExp(size_t size, double beta)
+: GBlock(size, size), m_beta(beta)
+{
+}
+
+GBlockSoftExp::GBlockSoftExp(GDomNode* pNode)
+: GBlock(pNode), m_beta(pNode->field("beta")->asDouble())
+{}
+
+GDomNode* GBlockSoftExp::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "beta", pDoc->newDouble(m_beta));
+	return pNode;
+}
+
+void GBlockSoftExp::forwardProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double alpha = std::max(-1.0, std::min(1.0, weights[i]));
+		if(alpha > 1.0e-7)
+			output[i] = (exp(std::min(4.6, alpha * input[i]) - 1.0)) / alpha + alpha * m_beta;
+		else if(alpha < -1.0e-7)
+			output[i] = -log(std::max(1e-43, alpha * (-m_beta * alpha - input[i]) + 1.0)) / alpha;
+		else
+			output[i] = input[i];
+	}
+}
+
+void GBlockSoftExp::backProp(const GVec& weights)
+{
+	for(size_t i = 0; i < inBlame.size(); i++)
+	{
+		double alpha = weights[i];
+		if(alpha >= 0.0)
+			inBlame[i] += (outBlame[i] * exp(std::min(4.6, alpha * input[i])));
+		else
+			inBlame[i] += (outBlame[i] * 1.0 / std::max(0.01, (1.0 - alpha * (alpha * m_beta + input[i]))));
+	}
+}
+
+void GBlockSoftExp::updateGradient(GVec& weights, GVec& gradient)
+{
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		weights[i] = std::max(-1.0, std::min(1.0, weights[i]));
+		double alpha = weights[i];
+		if(alpha > 1.0e-6)
+			gradient[i] += outBlame[i] * ((alpha * alpha * m_beta + (alpha * input[i] - 1.0) * exp(alpha * input[i]) + 1.0) / (alpha * alpha));
+		else if(alpha < -1.0e-6)
+			gradient[i] += outBlame[i] * (log(alpha * alpha * (-m_beta) - alpha * input[i] + 1.0) / (alpha * alpha) + (2.0 * alpha * m_beta + input[i]) / (alpha * (alpha * alpha * (-m_beta) - alpha * input[i] + 1.0)));
+		else
+			gradient[i] += outBlame[i] * (input[i] * input[i] / 2.0 + m_beta);
+	}
+}
+
+size_t GBlockSoftExp::weightCount() const
+{
+	return outputCount;
+}
+
+void GBlockSoftExp::initWeights(GRand& rand, GVec& weights)
+{
+	weights.fill(0.0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GBlockPAL::GBlockPAL(size_t inputs, size_t outputs, GRand& rand)
+: GBlock(inputs, outputs), m_probs(outputs), m_rand(rand)
+{
+}
+
+GBlockPAL::GBlockPAL(GDomNode* pNode, GRand& rand)
+: GBlock(pNode), m_probs(outputCount), m_rand(rand)
+{
+}
+
+void GBlockPAL::forwardProp(const GVec& weights)
+{
+	// Compute probabilities of activating
+	size_t pos = 0;
+	output.copy(weights, pos, outputCount);
+	pos += outputCount;
+	GAssert(output[outputs() - 1] > -1e100 && output[outputs() - 1] < 1e100);
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		if(input[i] != 0.0)
+			output.addScaled(input[i], weights, pos, outputCount);
+		pos += outputCount;
+	}
+	GAssert(output[outputs() - 1] > -1e100 && output[outputs() - 1] < 1e100);
+
+	// Compute actual activation values
+	size_t biasStart = pos;
+	size_t weightsStart = pos + outputCount;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double t = tanh(output[i]);
+		m_probs[i] = t * t * 0.99 + 0.01;
+		if(m_rand.uniform() < m_probs[i])
+		{
+			// Compute the activation value
+			output[i] = weights[biasStart + i];
+			for(size_t j = 0; j < input.size(); j++)
+				output[i] += input[j] * weights[weightsStart + outputCount * j + i];
+		}
+		else
+			output[i] = 0.0; // Nope, don't activate
+	}
+}
+
+void GBlockPAL::backProp(const GVec& weights)
+{
+	size_t pos = outputCount + inputCount * outputCount + outputCount;
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		if(input[i] != 0.0)
+		{
+			for(size_t j = 0; j < outputCount; j++)
+			{
+				if(output[j] != 0.0)
+					inBlame[i] += outBlame[j] * weights[pos++];
+			}
+		}
+	}
+}
+
+void GBlockPAL::updateGradient(GVec& weights, GVec& gradient)
+{
+	size_t pos = 0;
+
+	// Probability weights
+	for(size_t j = 0; j < outputCount; j++)
+		gradient[pos++] += outBlame[j] * output[j];
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		double act = input[i];
+		if(act != 0.0)
+		{
+			for(size_t j = 0; j < outputCount; j++)
+				gradient[pos++] += outBlame[j] * act * output[j];
+		}
+		else
+			pos += outputCount;
+	}
+
+	// Value weights
+	for(size_t j = 0; j < outputCount; j++)
+		gradient[pos++] += outBlame[j] * m_probs[j];
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		double act = input[i];
+		if(act != 0.0)
+		{
+			for(size_t j = 0; j < outputCount; j++)
+				gradient[pos++] += outBlame[j] * act * m_probs[j];
+		}
+		else
+			pos += outputCount;
+	}
+}
+
+
+size_t GBlockPAL::weightCount() const
+{
+	return 2 * (inputCount + 1) * outputCount;
+}
+
+void GBlockPAL::initWeights(GRand& rand, GVec& weights)
+{
+	size_t wc = weightCount();
+	double mag = std::max(0.03, 1.0 / inputCount);
+	for(size_t i = 0; i < wc; i++)
+		weights[i] = mag * rand.normal();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+GBlockLSTM::GBlockLSTM(size_t inputs, size_t outputs)
+: GBlock(inputs, outputs), n(inputs + 2), f(outputs), t(outputs), o(outputs), c(outputs), h(outputs), blame_h(outputs), blame_c(outputs), pPrevInstance(this), pNextInstance(this)
+{
+}
+
+GBlockLSTM::GBlockLSTM(const GBlockLSTM& that)
+: GBlock(that), n(that.inputCount + 2), f(that.outputCount), t(that.outputCount), o(that.outputCount), c(that.outputCount), h(that.outputCount), blame_h(that.outputCount), blame_c(that.outputCount), pPrevInstance(this), pNextInstance(this)
+{
+}
+
+GBlockLSTM::GBlockLSTM(GDomNode* pNode)
+: GBlock(pNode), n(inputCount + 2), f(outputCount), t(outputCount), o(outputCount), c(outputCount), h(outputCount), blame_h(outputCount), blame_c(outputCount), pPrevInstance(this), pNextInstance(this)
+{
+}
+
+GBlockLSTM::~GBlockLSTM()
+{
+	while(pSpare)
+	{
+		GBlockLSTM* pCondemned = pSpare;
+		pSpare = pCondemned->pSpare;
+		GAssert(pCondemned->pSpare == nullptr);
+		pCondemned->pNextInstance = nullptr;
+		delete(pCondemned);
+	}
+	while(pNextInstance != this)
+	{
+		GBlockLSTM* pCondemned = pNextInstance;
+		pNextInstance = pCondemned->pNextInstance;
+		GAssert(pCondemned->pSpare == nullptr);
+		pCondemned->pNextInstance = nullptr;
+		delete(pCondemned);
+	}
+}
+
+void GBlockLSTM::forwardProp_instance(const GVec& weights)
+{
+	size_t pos = 0;
+
+	// Compute f
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		n[inputCount] = h[i];
+		n[inputCount + 1] = c[i];
+		f[i] = weights[pos++];
+		const GConstVecWrapper vw(weights, pos, inputCount + 2);
+		pos += inputCount + 2;
+		f[i] += n.dotProduct(vw);
+		f[i] = 1.0 / (1.0 + exp(-f[i]));
+	}
+
+	// Compute t
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		n[inputCount] = h[i];
+		n[inputCount + 1] = c[i];
+		t[i] = weights[pos++];
+		const GConstVecWrapper vw(weights, pos, inputCount + 2);
+		pos += inputCount + 2;
+		t[i] += n.dotProduct(vw);
+		t[i] = tanh(t[i]);
+	}
+
+	// Compute o
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		n[inputCount] = h[i];
+		n[inputCount + 1] = c[i];
+		o[i] = weights[pos++];
+		const GConstVecWrapper vw(weights, pos, inputCount + 2);
+		pos += inputCount + 2;
+		o[i] += n.dotProduct(vw);
+		o[i] = 1.0 / (1.0 + exp(-o[i]));
+	}
+}
+
+void GBlockLSTM::forwardProp(const GVec& weights)
+{
+	for(GBlockLSTM* pInst = pNextInstance; pInst != this; pInst = pInst->pNextInstance)
+	{
+		pInst->forwardProp_instance(weights);
+		pInst->stepInTime();
+	}
+	n.copy(0, input);
+	forwardProp_instance(weights);
+
+	// Compute output
+	for(size_t i = 0; i < outputCount; i++)
+		output[i] = tanh(f[i] * c[i] + (1.0 - f[i]) * t[i]) * o[i];
+}
+
+void GBlockLSTM::resetState()
+{
+	// Move the ring of instances into the spare chain
+	while(pNextInstance != this)
+	{
+		GBlockLSTM* pCondemned = pNextInstance;
+		pNextInstance = pCondemned->pNextInstance;
+		pCondemned->pNextInstance->pPrevInstance = this;
+		pCondemned->pSpare = pSpare;
+		pSpare = pCondemned;
+	}
+
+	// Reset the state in this instance
+	c.fill(0.0);
+	h.fill(0.0);
+}
+
+void GBlockLSTM::stepInTime()
+{
+	pNextInstance->h.copy(output);
+	for(size_t i = 0; i < outputCount; i++)
+		pNextInstance->c[i] = f[i] * c[i] + (1.0 - f[i]) * t[i];
+}
+
+GBlock* GBlockLSTM::advanceState(size_t unfoldedInstances)
+{
+	// Count the instances
+	size_t count = 0;
+	for(GBlockLSTM* pInst = pNextInstance; true; pInst = pInst->pNextInstance)
+	{
+		count++;
+		if(pInst == this)
+			break;
+	}
+
+	// Destroy superfluous instances
+	GAssert(unfoldedInstances > 0);
+	while(count > unfoldedInstances)
+	{
+		GBlockLSTM* pCondemned = pNextInstance;
+		pNextInstance = pCondemned->pNextInstance;
+		pCondemned->pNextInstance->pPrevInstance = this;
+		pCondemned->pNextInstance = nullptr;
+		pCondemned->pPrevInstance = nullptr;
+		delete(pCondemned);
+		count--;
+	}
+
+	// Pull in spare instances if necessary
+	while(count < unfoldedInstances)
+	{
+		// find a spare instance
+		if(!pSpare)
+			pSpare = clone();
+		pSpare = pSpare->pNextInstance;
+
+		// Add to the main ring
+		pSpare->pNextInstance = pNextInstance;
+		pSpare->pPrevInstance = this;
+		pSpare->pNextInstance->pPrevInstance = pSpare;
+		pNextInstance = pSpare;
+		count++;
+	}
+
+	// Pass the spares forward
+	if(pNextInstance != this)
+	{
+		GAssert(!pNextInstance->pSpare);
+		pNextInstance->pSpare = pSpare;
+		pSpare = nullptr;
+	}
+
+	// Step in time
+	stepInTime();
+
+	return pNextInstance;
+}
+
+void GBlockLSTM::backProp_instance(const GVec& weights, bool current)
+{
+	size_t pos = 0;
+
+	// Blame f
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double dd = tanh(f[i] * c[i] + (1.0 - f[i]) * t[i]);
+		double b = blame_h[i] * o[i];
+		b *= (1.0 - (dd * dd)); // derivative of tanh
+		b += blame_c[i];
+		b *= c[i];
+		b *= f[i] * (1.0 - f[i]); // derivative of logistic
+		pos++; // skip the bias weight
+		if(current)
+		{
+			for(size_t j = 0; j < inputCount; j++)
+				inBlame[j] += b * weights[pos++];
+		}
+		else
+			pos += inputCount;
+		pPrevInstance->blame_h[i] += b * weights[pos++];
+		pPrevInstance->blame_c[i] += b * weights[pos++];
+	}
+
+	// Blame t
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double dd = tanh(f[i] * c[i] + (1.0 - f[i]) * t[i]);
+		double b = blame_h[i] * o[i];
+		b *= (1.0 - (dd * dd)); // derivative of tanh
+		b += blame_c[i];
+		b *= (1.0 - f[i]);
+		b *= (1.0 - t[i] * t[i]); // derivative of tanh
+		pos++; // skip the bias weight
+		if(current)
+		{
+			for(size_t j = 0; j < inputCount; j++)
+				inBlame[j] += b * weights[pos++];
+		}
+		else
+			pos += inputCount;
+		pPrevInstance->blame_h[i] += b * weights[pos++];
+		pPrevInstance->blame_c[i] += b * weights[pos++];
+	}
+
+	// Blame o
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double b = blame_h[i];
+		b *= tanh(f[i] * c[i] + (1.0 - f[i]) * t[i]);
+		b *= o[i] * (1.0 - o[i]); // derivative of logistic
+		pos++; // skip the bias weight
+		if(current)
+		{
+			for(size_t j = 0; j < inputCount; j++)
+				inBlame[j] += b * weights[pos++];
+		}
+		else
+			pos += inputCount;
+		pPrevInstance->blame_h[i] += b * weights[pos++];
+		pPrevInstance->blame_c[i] += b * weights[pos++];
+	}
+}
+
+void GBlockLSTM::backProp(const GVec& weights)
+{
+	for(GBlockLSTM* pInst = pPrevInstance; pInst != this; pInst = pInst->pPrevInstance)
+	{
+		pInst->blame_c.fill(0.0);
+		pInst->blame_h.fill(0.0);
+	}
+	blame_c.fill(0.0);
+	blame_h.copy(outBlame);
+	if(pPrevInstance != this)
+		backProp_instance(weights, true);
+	for(GBlockLSTM* pInst = pPrevInstance; pInst != this && pInst->pPrevInstance != this; pInst = pInst->pPrevInstance)
+		pInst->backProp_instance(weights, false);
+}
+
+void GBlockLSTM::updateGradient_instance(GVec& weights, GVec& gradient)
+{
+	size_t pos = 0;
+
+	// Update f
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double dd = tanh(f[i] * c[i] + (1.0 - f[i]) * t[i]);
+		double b = blame_h[i] * o[i];
+		b *= (1.0 - (dd * dd)); // derivative of tanh
+		b += blame_c[i];
+		b *= c[i];
+		b *= f[i] * (1.0 - f[i]); // derivative of logistic
+		gradient[pos++] += b;
+		for(size_t j = 0; j < inputCount; j++)
+			gradient[pos++] += b * n[j];
+		gradient[pos++] += b * h[i];
+		gradient[pos++] += b * c[i];
+	}
+
+	// Update t
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double dd = tanh(f[i] * c[i] + (1.0 - f[i]) * t[i]);
+		double b = blame_h[i] * o[i];
+		b *= (1.0 - (dd * dd)); // derivative of tanh
+		b += blame_c[i];
+		b *= (1.0 - f[i]);
+		b *= (1.0 - t[i] * t[i]); // derivative of tanh
+		gradient[pos++] += b;
+		for(size_t j = 0; j < inputCount; j++)
+			gradient[pos++] += b * n[j];
+		gradient[pos++] += b * h[i];
+		gradient[pos++] += b * c[i];
+	}
+
+	// Update o
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double b = blame_h[i];
+		b *= tanh(f[i] * c[i] + (1.0 - f[i]) * t[i]);
+		b *= o[i] * (1.0 - o[i]); // derivative of logistic
+		gradient[pos++] += b;
+		for(size_t j = 0; j < inputCount; j++)
+			gradient[pos++] += b * n[j];
+		gradient[pos++] += b * h[i];
+		gradient[pos++] += b * c[i];
+	}
+}
+
+void GBlockLSTM::updateGradient(GVec& weights, GVec& gradient)
+{
+	for(GBlockLSTM* pInst = pNextInstance; pInst != this; pInst = pInst->pNextInstance)
+		pInst->updateGradient_instance(weights, gradient);
+	updateGradient_instance(weights, gradient);
+}
+
+size_t GBlockLSTM::weightCount() const
+{
+	return 3 * outputCount * (1 + inputCount + 2);
+}
+
+void GBlockLSTM::initWeights(GRand& rand, GVec& weights)
+{
+	size_t wc = weightCount();
+	double mag = std::max(0.03, 1.0 / (inputCount + 3));
+	for(size_t i = 0; i < wc; i++)
+		weights[i] = rand.normal() * mag;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+GLayer::GLayer()
+: input_count(0), output_count(0), weight_count(0)
+{
+}
+
+GLayer::GLayer(const GLayer& that, GLayer* pPrevLayer)
+: input_count(that.input_count), output_count(that.output_count), weight_count(that.weight_count), output(that.output.size()), outBlame(that.outBlame.size())
+{
+	size_t pos = 0;
+	for(size_t i = 0; i < m_blocks.size(); i++)
+	{
+		GBlock* pB = that.m_blocks[i]->clone();
+		if(pPrevLayer)
+		{
+			pB->input.setData(pPrevLayer->output, pB->inPos(), pB->inputs());
+			pB->inBlame.setData(pPrevLayer->outBlame, pB->inPos(), pB->inputs());
+		}
+		pB->output.setData(output, pos, pB->outputs());
+		pB->outBlame.setData(outBlame, pos, pB->outputs());
+		pos += pB->outputs();
+		m_blocks.push_back(pB);
+	}
+}
+
 GLayer::GLayer(GDomNode* pNode)
-: m_inputs(pNode->field("inputs")->asInt()),
-m_outputs(pNode->field("outputs")->asInt()),
-m_weightCount(0)
+: input_count(pNode->field("inputs")->asInt()),
+output_count(pNode->field("outputs")->asInt()),
+weight_count(0)
 {
 	GDomNode* pBlocks = pNode->field("blocks");
 	GDomListIterator it(pBlocks);
@@ -82,40 +1089,47 @@ GLayer::~GLayer()
 GDomNode* GLayer::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "inputs", pDoc->newInt(m_inputs));
-	pNode->addField(pDoc, "outputs", pDoc->newInt(m_outputs));
+	pNode->addField(pDoc, "inputs", pDoc->newInt(input_count));
+	pNode->addField(pDoc, "outputs", pDoc->newInt(output_count));
 	GDomNode* pBlocks = pNode->addField(pDoc, "blocks", pDoc->newList());
 	for(size_t i = 0; i < m_blocks.size(); i++)
 		pBlocks->addItem(pDoc, m_blocks[i]->serialize(pDoc));
 	return pNode;
 }
 
-GContextLayer* GLayer::newContext(GRand& rand) const
+void GLayer::add(GBlock* pBlock, GLayer* pPrevLayer, size_t inPos)
 {
-	return new GContextLayer(rand, *this);
-}
-
-#ifdef GCUDA
-GContextLayer* GLayer::newContext(GRand& rand, GCudaEngine& engine) const
-{
-	return new GContextLayer(rand, *this, engine);
-}
-#endif // GCUDA
-
-void GLayer::add(GBlock* pBlock, size_t inPos)
-{
-	m_inputs = 0;
-	m_outputs = 0;
-	pBlock->setInPos(inPos);
+	pBlock->setInPos(inPos, pPrevLayer);
 	m_blocks.push_back(pBlock);
+	recount();
+	output.resize(output_count);
+	outBlame.resize(output_count);
+	size_t pos = 0;
+	for(size_t i = 0; i < m_blocks.size(); i++)
+	{
+		GBlock& b = *m_blocks[i];
+		if(pPrevLayer)
+		{
+			b.input.setData(pPrevLayer->output, b.inPos(), b.inputs());
+			b.inBlame.setData(pPrevLayer->outBlame, b.inPos(), b.inputs());
+		}
+		else
+		{
+			b.input.setData(nullptr, 0);
+			b.inBlame.setData(nullptr, 0);
+		}
+		b.output.setData(output, pos, b.outputs());
+		b.outBlame.setData(outBlame, pos, b.outputs());
+		pos += b.outputs();
+	}
 }
 
 void GLayer::recount()
 {
 	// Count the inputs and outputs
-	m_inputs = 0;
-	m_outputs = 0;
-	m_weightCount = 0;
+	input_count = 0;
+	output_count = 0;
+	weight_count = 0;
 	for(size_t i = 0; i < m_blocks.size(); i++)
 	{
 		size_t inPos = m_blocks[i]->inPos();
@@ -125,107 +1139,461 @@ void GLayer::recount()
 		size_t outSize = m_blocks[i]->outputs();
 		if(outSize == 0)
 			throw Ex("Empty block");
-		m_inputs = std::max(m_inputs, inPos + inSize);
-		m_outputs += outSize;
-		m_weightCount += m_blocks[i]->weightCount();
+		input_count = std::max(input_count, inPos + inSize);
+		output_count += outSize;
+		weight_count += m_blocks[i]->weightCount();
 	}
 }
 
 size_t GLayer::inputs() const
 {
-	if(m_inputs == 0)
+	if(input_count == 0)
 		((GLayer*)this)->recount();
-	return m_inputs;
+	return input_count;
 }
 
 size_t GLayer::outputs() const
 {
-	if(m_outputs == 0)
+	if(output_count == 0)
 		((GLayer*)this)->recount();
-	return m_outputs;
+	return output_count;
 }
 
 size_t GLayer::weightCount() const
 {
-	if(m_weightCount == 0)
+	if(weight_count == 0)
 		((GLayer*)this)->recount();
+	return weight_count;
+}
+
+void GLayer::initWeights(GRand& rand, GVec& weights)
+{
+	if(weights.size() != weightCount())
+		throw Ex("Mismatching number of weights. Got ", to_str(weights.size()), ". Expected ", to_str(weightCount()));
+	size_t pos = 0;
+	for(size_t i = 0; i < m_blocks.size(); i++)
+	{
+		size_t n = m_blocks[i]->weightCount();
+		GVecWrapper w(weights, pos, n);
+		m_blocks[i]->initWeights(rand, w);
+		pos += n;
+	}
+}
+
+void GLayer::setInput(const GVec& in)
+{
+	for(size_t i = 0; i < blockCount(); i++)
+	{
+		GBlock& b = block(i);
+		b.input.setData(in, b.inPos(), b.inputs());
+	}
+}
+
+void GLayer::setInBlame(GVec& inBlame)
+{
+	for(size_t i = 0; i < blockCount(); i++)
+	{
+		GBlock& b = block(i);
+		b.inBlame.setData(inBlame, b.inPos(), b.inputs());
+	}
+}
+
+void GLayer::forwardProp(const GVec& weights)
+{
+	size_t w = 0;
+	for(size_t i = 0; i < blockCount(); i++)
+	{
+		GBlock& b = block(i);
+		size_t wc = b.weightCount();
+		const GConstVecWrapper vw(weights, w, wc);
+		w += wc;
+		b.forwardProp(vw);
+	}
+	GAssert(w == weights.size());
+}
+
+void GLayer::backProp(const GVec& weights)
+{
+	size_t pos = weights.size();
+	for(size_t i = blockCount() - 1; i < blockCount(); i--)
+	{
+		GBlock& b = block(i);
+		size_t wc = b.weightCount();
+		pos -= wc;
+		const GConstVecWrapper vw(weights, pos, wc);
+		b.backProp(vw);
+	}
+	GAssert(pos == 0);
+}
+
+void GLayer::updateGradient(GVec& weights, GVec& gradient)
+{
+	size_t pos = 0;
+	for(size_t i = 0; i < blockCount(); i++)
+	{
+		GBlock& b = block(i);
+		size_t wc = b.weightCount();
+		GVecWrapper w(weights, pos, wc);
+		GVecWrapper g(gradient, pos, wc);
+		pos += wc;
+		b.updateGradient(w, g);
+	}
+	GAssert(pos == weights.size());
+}
+
+void GLayer::resetState()
+{
+	for(size_t i = 0; i < blockCount(); i++)
+		block(i).resetState();
+}
+
+void GLayer::advanceState(size_t unfoldedInstances)
+{
+	for(size_t i = 0; i < blockCount(); i++)
+	{
+		GBlock* pOld = m_blocks[i];
+		GBlock* pNew = pOld->advanceState(unfoldedInstances);
+		if(pNew != pOld)
+		{
+			GAssert(pNew->input.data() == pOld->input.data());
+			GAssert(pNew->output.data() == pOld->output.data());
+			m_blocks[i] = pNew;
+		}
+	}
+}
+
+void GLayer::computeBlame(const GVec& target)
+{
+	GAssert(target.size() == outBlame.size());
+	size_t pos = 0;
+	for(size_t i = 0; i < blockCount(); i++)
+	{
+		GBlock& b = block(i);
+		size_t n = b.outputs();
+		const GConstVecWrapper t(target, pos, n);
+		pos += n;
+		b.computeBlame(t);
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+GNeuralNet::GNeuralNet()
+: GBlock(0, 0), m_weightCount(0), m_fullBackProp(true)
+{
+}
+
+GNeuralNet::GNeuralNet(const GNeuralNet& that)
+: GBlock(that), m_weightCount(that.m_weightCount), m_fullBackProp(true)
+{
+	for(size_t i = 0; i < that.m_layers.size(); i++)
+	{
+		m_layers.push_back(new GLayer(*that.m_layers[i], i > 0 ? m_layers[i - 1] : nullptr));
+	}
+}
+
+GNeuralNet::GNeuralNet(GDomNode* pNode)
+: GBlock(pNode), m_weightCount(0), m_fullBackProp(true)
+{
+	GDomNode* pLayers = pNode->field("layers");
+	GDomListIterator it(pLayers);
+	while(it.remaining() > 0)
+	{
+		m_layers.push_back(new GLayer(it.current()));
+		it.advance();
+	}
+}
+
+// virtual
+GNeuralNet::~GNeuralNet()
+{
+	for(size_t i = 0; i < m_layers.size(); i++)
+		delete(m_layers[i]);
+}
+
+GDomNode* GNeuralNet::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	GDomNode* pLayers = pNode->addField(pDoc, "layers", pDoc->newList());
+	for(size_t i = 0; i < m_layers.size(); i++)
+		pLayers->addItem(pDoc, m_layers[i]->serialize(pDoc));
+	return pNode;
+}
+
+std::string GNeuralNet::to_str(const std::string& line_prefix) const
+{
+	std::ostringstream oss;
+	oss << line_prefix << "[GNeuralNet: " << inputs() << "->" << outputs() << ", Weights=" << GClasses::to_str(weightCount()) << "\n";
+	for(size_t i = 0; i < m_layers.size(); i++)
+	{
+		oss << line_prefix << "  " << pre_pad(2, ' ', GClasses::to_str(i)) << ") ";
+		for(size_t j = 0; j < m_layers[i]->blockCount(); j++)
+		{
+			GBlock& b = m_layers[i]->block(j);
+			if(b.type() == block_neuralnet)
+				oss << "[GNeuralNet (contents not shown):" << b.inputs() << "->" << b.outputs() << ", Weights=" << GClasses::to_str(b.weightCount()) << "\n";
+			else
+				oss << b.to_str();
+		}
+		oss << "\n";
+	}
+	oss << line_prefix << "]";
+	return oss.str();
+}
+
+std::string GNeuralNet::to_str() const
+{
+	return to_str("");
+}
+
+void GNeuralNet::add(GBlock* pBlock)
+{
+	GAssert(m_weightCount == 0, "weights were counted before all blocks were added");
+	GLayer* pPrevLayer = nullptr;
+	if(m_layers.size() > 0)
+		pPrevLayer = m_layers[m_layers.size() - 1];
+	GLayer* pNewLayer = new GLayer();
+	m_layers.push_back(pNewLayer);
+	pNewLayer->add(pBlock, pPrevLayer, 0);
+	if(m_layers.size() == 1)
+		inputCount = pNewLayer->inputs();
+	outputCount = pNewLayer->outputs();
+	outBlame.setData(outputLayer().outBlame);
+}
+
+void GNeuralNet::concat(GBlock* pBlock, size_t inPos)
+{
+	GAssert(m_weightCount == 0, "weights were counted before all blocks were added");
+	GLayer* pPrevLayer = nullptr;
+	if(m_layers.size() > 1)
+		pPrevLayer = m_layers[m_layers.size() - 2];
+	GLayer* pLastLayer = m_layers[m_layers.size() - 1];
+	pLastLayer->add(pBlock, pPrevLayer, inPos);
+	if(m_layers.size() == 1)
+		inputCount = pLastLayer->inputs();
+	outputCount = pLastLayer->outputs();
+	outBlame.setData(outputLayer().outBlame);
+}
+
+void GNeuralNet::forwardProp(const GVec& weights)
+{
+	GAssert(input.size() == m_layers[0]->inputs());
+	m_layers[0]->setInput(input);
+	output.setData(outputLayer().output);
+	size_t pos = 0;
+	GConstVecWrapper vw;
+	for(size_t i = 0; i < m_layers.size(); i++)
+	{
+		GLayer& lay = *m_layers[i];
+		size_t wc = lay.weightCount();
+		vw.setData(weights, pos, wc);
+		pos += wc;
+		lay.forwardProp(vw);
+	}
+	GAssert(pos == weights.size());
+}
+
+GVec& GNeuralNet::forwardProp(const GVec& weights, const GVec& in)
+{
+	input.setData(in);
+	forwardProp(weights);
+	return output;
+}
+
+void GNeuralNet::computeBlame(const GVec& target)
+{
+	outputLayer().computeBlame(target);
+}
+
+void GNeuralNet::backProp(const GVec& weights)
+{
+	if(m_fullBackProp)
+		m_layers[0]->setInBlame(inBlame);
+	size_t pos = weights.size();
+	GConstVecWrapper vw;
+	for(size_t i = m_layers.size() - 1; i > 0; i--)
+	{
+		GLayer& layPrev = *m_layers[i - 1];
+		layPrev.outBlame.fill(0.0);
+		GLayer& lay = *m_layers[i];
+		size_t wc = lay.weightCount();
+		pos -= wc;
+		vw.setData(weights, pos, wc);
+		lay.backProp(vw);
+	}
+	GAssert(pos == m_layers[0]->weightCount());
+	if(m_fullBackProp)
+	{
+		GLayer& lay = *m_layers[0];
+		vw.setData(weights, 0, pos);
+		lay.backProp(vw);
+	}
+}
+
+void GNeuralNet::backpropagate(const GVec& weights, GVec* inputBlame)
+{
+	if(inputBlame)
+	{
+		GAssert(inputBlame->size() == m_layers[0]->inputs());
+		inputBlame->fill(0.0);
+		inBlame.setData(*inputBlame);
+	}
+	else
+		m_fullBackProp = false;
+	backProp(weights);
+	m_fullBackProp = true;
+}
+
+void GNeuralNet::updateGradient(GVec& weights, GVec& gradient)
+{
+	GAssert(weights.size() == gradient.size());
+	size_t pos = 0;
+	GVecWrapper w;
+	GVecWrapper g;
+	for(size_t i = 0; i < m_layers.size(); i++)
+	{
+		GLayer& lay = *m_layers[i];
+		size_t wc = lay.weightCount();
+		w.setData(weights, pos, wc);
+		g.setData(gradient, pos, wc);
+		pos += wc;
+		lay.updateGradient(w, g);
+	}
+	GAssert(pos == weights.size());
+}
+
+void GNeuralNet::recount()
+{
+	m_weightCount = 0;
+	for(size_t i = 0; i < m_layers.size(); i++)
+		m_weightCount += m_layers[i]->weightCount();
+}
+
+size_t GNeuralNet::weightCount() const
+{
+	if(m_weightCount == 0)
+		((GNeuralNet*)this)->recount();
 	return m_weightCount;
 }
 
-void GLayer::resetWeights(GRand& rand)
+void GNeuralNet::copyStructure(const GNeuralNet* pOther)
 {
-	for(size_t i = 0; i < m_blocks.size(); i++)
-		m_blocks[i]->resetWeights(rand);
-}
-
-size_t GLayer::weightsToVector(double* pOutVector) const
-{
-	size_t total = 0;
-	for(size_t i = 0; i < m_blocks.size(); i++)
+	m_weightCount = pOther->weightCount();
+	for(size_t i = 0; i < m_layers.size(); i++)
+		delete(m_layers[i]);
+	m_layers.clear();
+	for(size_t i = 0; i < pOther->m_layers.size(); i++)
 	{
-		size_t n = m_blocks[i]->weightsToVector(pOutVector);
-		pOutVector += n;
-		total += n;
-	}
-	return total;
-}
-
-size_t GLayer::vectorToWeights(const double* pVector)
-{
-	size_t total = 0;
-	for(size_t i = 0; i < m_blocks.size(); i++)
-	{
-		size_t n = m_blocks[i]->vectorToWeights(pVector);
-		pVector += n;
-		total += n;
-	}
-	return total;
-}
-
-void GLayer::copyWeights(const GLayer* pOther)
-{
-	for(size_t i = 0; i < m_blocks.size(); i++)
-		m_blocks[i]->copyWeights(pOther->m_blocks[i]);
-}
-
-void GLayer::perturbWeights(GRand& rand, double deviation)
-{
-	for(size_t i = 0; i < m_blocks.size(); i++)
-		m_blocks[i]->perturbWeights(rand, deviation);
-}
-
-void GLayer::maxNorm(double min, double max)
-{
-	for(size_t i = 0; i < m_blocks.size(); i++)
-		m_blocks[i]->maxNorm(min, max);
-}
-
-void GLayer::scaleWeights(double factor, bool scaleBiases)
-{
-	for(size_t i = 0; i < m_blocks.size(); i++)
-		m_blocks[i]->scaleWeights(factor, scaleBiases);
-}
-
-void GLayer::diminishWeights(double amount, bool diminishBiases)
-{
-	for(size_t i = 0; i < m_blocks.size(); i++)
-		m_blocks[i]->diminishWeights(amount, diminishBiases);
-}
-
-void GLayer::step(double learningRate, const GVec& gradient)
-{
-	GConstVecWrapper vwGradient;
-	size_t gradPos = 0;
-	for(size_t i = 0; i < m_blocks.size(); i++)
-	{
-		GBlock& b = *m_blocks[i];
-		size_t wc = b.weightCount();
-		vwGradient.setData(gradient.data() + gradPos, wc);
-		b.step(learningRate, vwGradient);
-		gradPos += wc;
+		// todo: this is not a very efficient way to copy a layer
+		GDom doc;
+		GDomNode* pNode = pOther->m_layers[i]->serialize(&doc);
+		m_layers.push_back(new GLayer(pNode));
 	}
 }
 
+void GNeuralNet::initWeights(GRand& rand, GVec& weights)
+{
+	size_t pos = 0;
+	GVecWrapper vw;
+	for(size_t i = 0; i < m_layers.size(); i++)
+	{
+		GLayer& lay = *m_layers[i];
+		size_t wc = lay.weightCount();
+		vw.setData(weights, pos, wc);
+		pos += wc;
+		lay.initWeights(rand, vw);
+	}
+	GAssert(pos == weights.size());
+}
+
+double GNeuralNet::measureLoss(const GVec& weights, const GMatrix& features, const GMatrix& labels, double* pOutSAE)
+{
+	if(features.rows() != labels.rows())
+		throw Ex("Expected the features and labels to have the same number of rows");
+	if(features.cols() != inputs())
+		throw Ex("Mismatching number of inputs. Data has ", GClasses::to_str(features.cols()), ". Neural net expects ", GClasses::to_str(inputs()));
+	GRand rand(0);
+	double sae = 0.0;
+	double sse = 0.0;
+	if(labels.cols() == outputs())
+	{
+		// Regression. Compute SSE and SAE.
+		for(size_t i = 0; i < features.rows(); i++)
+		{
+			GVec& prediction = forwardProp(weights, features[i]);
+			const GVec& targ = labels[i];
+			for(size_t j = 0; j < prediction.size(); j++)
+			{
+				if(targ[j] != UNKNOWN_REAL_VALUE)
+				{
+					double d = targ[j] - prediction[j];
+					sse += (d * d);
+					sae += std::abs(d);
+				}
+			}
+		}
+	}
+	else if(labels.cols() == 1 && labels.relation().valueCount(0) == outputs())
+	{
+		// Classification. Count misclassifications.
+		for(size_t i = 0; i < features.rows(); i++)
+		{
+			GVec& prediction = forwardProp(weights, features[i]);
+			const GVec& targ = labels[i];
+			if(targ[0] >= 0.0)
+			{
+				size_t j = prediction.indexOfMax();
+				if(j != (size_t)targ[0])
+					sse++;
+			}
+		}
+		sae = sse;
+	}
+	else
+	{
+		if(labels.cols() == 1)
+			throw Ex("Mismatching number of outputs. Data has 1 column with ", GClasses::to_str(labels.relation().valueCount(0)), " categorical values. Neural net outputs ", GClasses::to_str(outputs()));
+		else
+			throw Ex("Mismatching number of outputs. Data has ", GClasses::to_str(labels.cols()), ". Neural net expects ", GClasses::to_str(outputs()));
+	}
+
+	if(pOutSAE)
+		*pOutSAE = sae;
+	return sse;
+}
+
+void GNeuralNet::resetState()
+{
+	for(size_t i = 0; i < m_layers.size(); i++)
+		m_layers[i]->resetState();
+}
+
+GBlock* GNeuralNet::advanceState(size_t unfoldedInstances)
+{
+	for(size_t i = 0; i < m_layers.size(); i++)
+		m_layers[i]->advanceState(unfoldedInstances);
+	return this;
+}
+
+
+
+
+
+
+
+
+
+/*
 #ifdef GCUDA
 void GLayer::uploadCuda()
 {
@@ -257,228 +1625,7 @@ void GLayer::stepCuda(GContextLayer& ctx, double learningRate, const GCudaVector
 		gradPos += wc;
 	}
 }
-#endif
 
-
-
-
-
-
-
-
-
-GContextLayer::GContextLayer(GRand& rand, const GLayer& layer)
-: GContext(rand),
-m_layer(layer),
-m_activation(layer.outputs()),
-m_blame(layer.outputs())
-#ifdef GCUDA
-,m_pEngine(nullptr)
-#endif
-{
-	for(size_t i = 0; i < layer.blockCount(); i++)
-	{
-		const GBlock* b = &layer.block(i);
-		if(b->type() == GBlock::block_neuralnet)
-			m_components.push_back(((GNeuralNet*)b)->newContext(rand));
-		else if(b->isRecurrent())
-			m_recurrents.push_back(new GContextRecurrent(rand, *(GBlockRecurrent*)b));
-	}
-}
-
-#ifdef GCUDA
-GContextLayer::GContextLayer(GRand& rand, const GLayer& layer, GCudaEngine& engine)
-: GContext(rand),
-m_layer(layer),
-m_activation(layer.outputs()),
-m_blame(layer.outputs()),
-m_pEngine(&engine)
-{
-	for(size_t i = 0; i < layer.blockCount(); i++)
-	{
-		const GBlock* b = &layer.block(i);
-		if(b->type() == GBlock::block_neuralnet)
-			m_components.push_back(((GNeuralNet*)b)->newContext(rand));
-		else if(b->isRecurrent())
-			m_recurrents.push_back(new GContextRecurrent(rand, *(GBlockRecurrent*)b));
-	}
-}
-#endif // GCUDA
-
-GContextLayer::~GContextLayer()
-{
-	for(size_t i = 0; i < m_recurrents.size(); i++)
-		delete(m_recurrents[i]);
-	for(size_t i = 0; i < m_components.size(); i++)
-		delete(m_components[i]);
-}
-
-void GContextLayer::resetState()
-{
-	size_t recurrents = 0;
-	size_t comp = 0;
-	for(size_t i = 0; i < m_layer.blockCount(); i++)
-	{
-		const GBlock& block = m_layer.block(i);
-		if(block.type() == GBlock::block_neuralnet)
-		{
-			GContextNeuralNet* pCompContext = m_components[comp++];
-			pCompContext->resetState();
-		}
-		else if(block.isRecurrent())
-		{
-			GContextRecurrent* pRecContext = m_recurrents[recurrents++];
-			pRecContext->resetState();
-		}
-	}
-}
-
-void GContextLayer::forwardProp(GVec& input, GVec& output)
-{
-	size_t outPos = 0;
-	size_t recurrents = 0;
-	size_t comp = 0;
-	for(size_t i = 0; i < m_layer.blockCount(); i++)
-	{
-		const GBlock& b = m_layer.block(i);
-		if(b.type() == GBlock::block_neuralnet)
-		{
-			GContextNeuralNet* pCompContext = m_components[comp++];
-			pCompContext->input.setData(input.data() + b.inPos(), b.inputs());
-			pCompContext->output.setData(output.data() + outPos, b.outputs());
-			b.forwardProp(*pCompContext);
-		}
-		else if(b.isRecurrent())
-		{
-			GContextRecurrent* pRecContext = m_recurrents[recurrents++];
-			pRecContext->input.setData(input.data() + b.inPos(), b.inputs());
-			pRecContext->output.setData(output.data() + outPos, b.outputs());
-			pRecContext->forwardProp();
-		}
-		else
-		{
-			this->input.setData(input.data() + b.inPos(), b.inputs());
-			this->output.setData(output.data() + outPos, b.outputs());
-			b.forwardProp(*this);
-		}
-		outPos += b.outputs();
-	}
-}
-
-void GContextLayer::forwardProp_training( GVec& input, GVec& output)
-{
-	size_t outPos = 0;
-	size_t recurrents = 0;
-	size_t comp = 0;
-	for(size_t i = 0; i < m_layer.blockCount(); i++)
-	{
-		const GBlock& b = m_layer.block(i);
-		if(b.type() == GBlock::block_neuralnet)
-		{
-			GContextNeuralNet* pCompContext = m_components[comp++];
-			pCompContext->input.setData(input.data() + b.inPos(), b.inputs());
-			pCompContext->output.setData(output.data() + outPos, b.outputs());
-			b.forwardProp(*pCompContext);
-		}
-		else if(b.isRecurrent())
-		{
-			GContextRecurrent* pRecContext = m_recurrents[recurrents++];
-			pRecContext->input.setData(input.data() + b.inPos(), b.inputs());
-			pRecContext->output.setData(output.data() + outPos, b.outputs());
-			pRecContext->forwardPropThroughTime();
-		}
-		else
-		{
-			this->input.setData(input.data() + b.inPos(), b.inputs());
-			this->output.setData(output.data() + outPos, b.outputs());
-			b.forwardProp(*this);
-		}
-		outPos += b.outputs();
-	}
-}
-
-void GContextLayer::backProp(GVec& input, GVec& output, GVec& outBlame, GVec& inBlame)
-{
-	GAssert(output.size() == outBlame.size());
-	size_t outPos = 0;
-	size_t recurrents = 0;
-	size_t comp = 0;
-	inBlame.fill(0.0);
-	for(size_t i = 0; i < m_layer.blockCount(); i++)
-	{
-		const GBlock& b = m_layer.block(i);
-		if(b.type() == GBlock::block_neuralnet)
-		{
-			GContextNeuralNet* pCompContext = m_components[comp++];
-			pCompContext->input.setData(input.data() + b.inPos(), b.inputs());
-			pCompContext->output.setData(output.data() + outPos, b.outputs());
-			pCompContext->outBlame.setData(outBlame.data() + outPos, b.outputs());
-			pCompContext->inBlame.setData(inBlame.data() + b.inPos(), b.inputs());
-			b.backProp(*pCompContext);
-		}
-		else if(b.isRecurrent())
-		{
-			GContextRecurrent* pRecContext = m_recurrents[recurrents++];
-			pRecContext->input.setData(input.data() + b.inPos(), b.inputs());
-			pRecContext->output.setData(output.data() + outPos, b.outputs());
-			pRecContext->outBlame.setData(outBlame.data() + outPos, b.outputs());
-			pRecContext->inBlame.setData(inBlame.data() + b.inPos(), b.inputs());
-			pRecContext->backPropThroughTime();
-		}
-		else
-		{
-			this->input.setData(input.data() + b.inPos(), b.inputs());
-			this->output.setData(output.data() + outPos, b.outputs());
-			this->outBlame.setData(outBlame.data() + outPos, b.outputs());
-			this->inBlame.setData(inBlame.data() + b.inPos(), b.inputs());
-			b.backProp(*this);
-		}
-		outPos += b.outputs();
-	}
-}
-
-void GContextLayer::updateGradient(GVec& input, GVec& output, GVec& outBlame, GVec& gradient)
-{
-	size_t gradPos = 0;
-	size_t outPos = 0;
-	size_t recurrents = 0;
-	size_t comp = 0;
-	for(size_t i = 0; i < m_layer.blockCount(); i++)
-	{
-		const GBlock& b = m_layer.block(i);
-		size_t wc = b.weightCount();
-		if(b.type() == GBlock::block_neuralnet)
-		{
-			GContextNeuralNet* pCompContext = m_components[comp++];
-			pCompContext->input.setData(input.data() + b.inPos(), b.inputs());
-			pCompContext->output.setData(output.data() + outPos, b.outputs());
-			pCompContext->outBlame.setData(outBlame.data() + outPos, b.outputs());
-			pCompContext->gradient.setData(gradient.data() + gradPos, wc);
-			b.updateGradient(*pCompContext);
-		}
-		else if(b.isRecurrent())
-		{
-			GContextRecurrent* pRecContext = m_recurrents[recurrents++];
-			pRecContext->input.setData(input.data() + b.inPos(), b.inputs());
-			pRecContext->output.setData(output.data() + outPos, b.outputs());
-			pRecContext->outBlame.setData(outBlame.data() + outPos, b.outputs());
-			pRecContext->gradient.setData(gradient.data() + gradPos, wc);
-			pRecContext->updateGradient();
-		}
-		else
-		{
-			this->input.setData(input.data() + b.inPos(), b.inputs());
-			this->output.setData(output.data() + outPos, b.outputs());
-			this->outBlame.setData(outBlame.data() + outPos, b.outputs());
-			this->gradient.setData(gradient.data() + gradPos, wc);
-			b.updateGradient(*this);
-		}
-		outPos += b.outputs();
-		gradPos += wc;
-	}
-}
-
-#ifdef GCUDA
 void GContextLayer::forwardPropCuda(const GCudaVector& input, GCudaVector& output)
 {
 	size_t outPos = 0;
@@ -595,61 +1742,6 @@ void GContextLayer::updateGradientCuda(const GCudaVector& input, const GCudaVect
 
 #endif // GCUDA
 
-
-
-
-
-
-
-
-
-GNeuralNet::GNeuralNet()
-: GBlock(), m_weightCount(0)
-{
-}
-
-GNeuralNet::GNeuralNet(GDomNode* pNode)
-: GBlock(pNode), m_weightCount(0)
-{
-	GDomNode* pLayers = pNode->field("layers");
-	GDomListIterator it(pLayers);
-	while(it.remaining() > 0)
-	{
-		m_layers.push_back(new GLayer(it.current()));
-		it.advance();
-	}
-}
-
-// virtual
-GNeuralNet::~GNeuralNet()
-{
-	for(size_t i = 0; i < m_layers.size(); i++)
-		delete(m_layers[i]);
-}
-
-GDomNode* GNeuralNet::serialize(GDom* pDoc) const
-{
-	GDomNode* pNode = baseDomNode(pDoc);
-	GDomNode* pLayers = pNode->addField(pDoc, "layers", pDoc->newList());
-	for(size_t i = 0; i < m_layers.size(); i++)
-		pLayers->addItem(pDoc, m_layers[i]->serialize(pDoc));
-	return pNode;
-}
-
-GContextNeuralNet* GNeuralNet::newContext(GRand& rand) const
-{
-	if(m_layers.size() == 0 || m_layers[0]->blockCount() == 0 || m_layers[0]->block(0).inputs() == 0)
-		throw Ex("GNeuralNet::init should be called before GNeuralNet::newContext is called");
-	return new GContextNeuralNet(rand, *this);
-}
-
-#ifdef GCUDA
-GContextNeuralNet* GNeuralNet::newContext(GRand& rand, GCudaEngine& engine) const
-{
-	return new GContextNeuralNet(rand, *this, engine);
-}
-#endif // GCUDA
-
 std::string GNeuralNet::to_str(const std::string& line_prefix) const
 {
 	std::ostringstream oss;
@@ -669,141 +1761,6 @@ std::string GNeuralNet::to_str(const std::string& line_prefix) const
 	}
 	oss << line_prefix << "]";
 	return oss.str();
-}
-
-std::string GNeuralNet::to_str() const
-{
-	return to_str("");
-}
-
-void GNeuralNet::add(GBlock* pBlock)
-{
-	GAssert(m_weightCount == 0, "weights were counted before all blocks were added");
-	GLayer* pNewLayer = new GLayer();
-	m_layers.push_back(pNewLayer);
-	pNewLayer->add(pBlock);
-}
-
-void GNeuralNet::concat(GBlock* pBlock, size_t inPos)
-{
-	GAssert(m_weightCount == 0, "weights were counted before all blocks were added");
-	GLayer* pLastLayer = m_layers[m_layers.size() - 1];
-	pLastLayer->add(pBlock, inPos);
-}
-
-void GNeuralNet::resize(size_t inputs, size_t outputs)
-{
-	// Resize the inputs of the first layer
-	if(m_layers[0]->blockCount() == 1)
-		m_layers[0]->block(0).resize(inputs, m_layers[0]->block(0).outputs());
-	else
-		throw Ex("Cannot resize a layer with multiple blocks");
-
-	// Resize the outputs of the last non-elementwise layer, and all subsequent element-wise layers, to fit the outputs
-	size_t lay = m_layers.size() - 1;
-	while(lay > 0 && m_layers[lay]->blockCount() == 1 && m_layers[lay]->block(0).elementWise())
-	{
-		m_layers[lay]->block(0).resize(outputs, outputs);
-		lay--;
-	}
-	if(m_layers[lay]->blockCount() == 1)
-		m_layers[lay]->block(0).resize(m_layers[lay]->block(0).inputs(), outputs);
-	else
-		throw Ex("Cannot resize a layer with multiple blocks");
-
-	// Initialize the layers
-	size_t inCount = inputs;
-	for(size_t i = 0; i < m_layers.size(); i++)
-	{
-		if(m_layers[i]->blockCount() == 1)
-		{
-			if(m_layers[i]->block(0).elementWise())
-				m_layers[i]->block(0).resize(inCount, inCount);
-			else
-				m_layers[i]->block(0).resize(inCount, m_layers[i]->block(0).outputs());
-		}
-		m_layers[i]->recount();
-		if(m_layers[i]->inputs() != inCount)
-			throw Ex(GClasses::to_str(inCount), " values feed into layer ", GClasses::to_str(i), ", but it expects ", GClasses::to_str(m_layers[i]->inputs()));
-		inCount = m_layers[i]->outputs();
-	}
-
-	m_weightCount = 0;
-	if(inCount != outputs)
-		throw Ex("The last layer outputs ", GClasses::to_str(inCount), " values, but ", GClasses::to_str(outputs), " were expected");
-}
-
-void GNeuralNet::init(size_t inputs, size_t outputs, GRand& rand)
-{
-	resize(inputs, outputs);
-	resetWeights(rand);
-}
-
-void GNeuralNet::forwardProp(GContext& ctx) const
-{
-	GAssert(ctx.input.size() == layer(0).inputs());
-	GAssert(ctx.output.size() == outputLayer().outputs());
-	GVec* pInput = &ctx.input;
-	GContextNeuralNet* pContext = (GContextNeuralNet*)&ctx;
-	GAssert(ctx.output.data() == pContext->prediction().data());
-	GAssert(pContext->layerCount() == layerCount());
-	for(size_t i = 0; i < m_layers.size(); i++)
-	{
-		GContextLayer* pLayer = pContext->m_layers[i];
-		pLayer->forwardProp(*pInput, pLayer->m_activation);
-		pInput = &pLayer->m_activation;
-	}
-}
-
-void GNeuralNet::backProp(GContext& ctx) const
-{
-	GContextNeuralNet* pContext = (GContextNeuralNet*)&ctx;
-	GAssert(ctx.outBlame.data() == pContext->blame().data());
-	for(size_t i = pContext->m_layers.size() - 1; i > 0; i--)
-	{
-		GContextLayer* pLayer = pContext->m_layers[i];
-		GContextLayer* pPrevLayer = pContext->m_layers[i - 1];
-		pLayer->backProp(pPrevLayer->m_activation, pLayer->m_activation, pLayer->m_blame, pPrevLayer->m_blame);
-	}
-	if(ctx.inBlame.data() != ctx.outBlame.data())
-	{
-		GContextLayer* pLayer = pContext->m_layers[0];
-		pLayer->backProp(ctx.input, pLayer->m_activation, pLayer->m_blame, ctx.inBlame);
-	}
-}
-
-void GNeuralNet::updateGradient(GContext& ctx) const
-{
-	GVec* pInput = &ctx.input;
-	size_t gradPos = 0;
-	GVecWrapper vwGradient;
-	GContextNeuralNet* pContext = (GContextNeuralNet*)&ctx;
-	for(size_t i = 0; i < pContext->m_layers.size(); i++)
-	{
-		GContextLayer* pLayer = pContext->m_layers[i];
-		size_t wc = pLayer->m_layer.weightCount();
-		vwGradient.setData(ctx.gradient.data() + gradPos, wc);
-		GAssert(gradPos + wc <= ctx.gradient.size());
-		pLayer->updateGradient(*pInput, pLayer->m_activation, pLayer->m_blame, vwGradient);
-		pInput = &pLayer->m_activation;
-		gradPos += wc;
-	}
-	GAssert(gradPos == weightCount());
-}
-
-void GNeuralNet::step(double learningRate, const GVec& gradient)
-{
-	GConstVecWrapper vwGradient;
-	size_t gradPos = 0;
-	for(size_t i = 0; i < layerCount(); ++i)
-	{
-		GLayer& lay = layer(i);
-		size_t wc = lay.weightCount();
-		vwGradient.setData(gradient.data() + gradPos, wc);
-		lay.step(learningRate, vwGradient);
-		gradPos += wc;
-	}
-	GAssert(gradPos == weightCount());
 }
 
 #ifdef GCUDA
@@ -897,95 +1854,6 @@ void GNeuralNet::stepCuda(GContext& ctx, double learningRate, const GCudaVector&
 	GAssert(gradPos == weightCount());
 }
 #endif // GCUDA
-
-void GNeuralNet::recount()
-{
-	m_weightCount = 0;
-	for(size_t i = 0; i < m_layers.size(); i++)
-		m_weightCount += m_layers[i]->weightCount();
-}
-
-size_t GNeuralNet::weightCount() const
-{
-	if(m_weightCount == 0)
-		((GNeuralNet*)this)->recount();
-	return m_weightCount;
-}
-
-size_t GNeuralNet::weightsToVector(double* pOutWeights) const
-{
-	size_t total = 0;
-	for(size_t i = 0; i < m_layers.size(); i++)
-	{
-		size_t n = m_layers[i]->weightsToVector(pOutWeights);
-		pOutWeights += n;
-		total += n;
-	}
-	return total;
-}
-
-size_t GNeuralNet::vectorToWeights(const double* pWeights)
-{
-	size_t total = 0;
-	for(size_t i = 0; i < m_layers.size(); i++)
-	{
-		size_t n = m_layers[i]->vectorToWeights(pWeights);
-		pWeights += n;
-		total += n;
-	}
-	return total;
-}
-
-void GNeuralNet::copyWeights(const GBlock* pOther)
-{
-	GNeuralNet* pThat = (GNeuralNet*)pOther;
-	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->copyWeights(pThat->m_layers[i]);
-}
-
-void GNeuralNet::copyStructure(const GNeuralNet* pOther)
-{
-	for(size_t i = 0; i < m_layers.size(); i++)
-		delete(m_layers[i]);
-	m_layers.clear();
-	for(size_t i = 0; i < pOther->m_layers.size(); i++)
-	{
-		// todo: this is not a very efficient way to copy a layer
-		GDom doc;
-		GDomNode* pNode = pOther->m_layers[i]->serialize(&doc);
-		m_layers.push_back(new GLayer(pNode));
-	}
-}
-
-void GNeuralNet::resetWeights(GRand& rand)
-{
-	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->resetWeights(rand);
-}
-
-void GNeuralNet::perturbWeights(GRand& rand, double deviation)
-{
-	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->perturbWeights(rand, deviation);
-}
-
-void GNeuralNet::maxNorm(double min, double max)
-{
-	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->maxNorm(min, max);
-}
-
-void GNeuralNet::scaleWeights(double factor, bool scaleBiases)
-{
-	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->scaleWeights(factor, scaleBiases);
-}
-
-void GNeuralNet::diminishWeights(double amount, bool diminishBiases)
-{
-	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->diminishWeights(amount, diminishBiases);
-}
 
 void GNeuralNet::invertNode(size_t lay, size_t node)
 {
@@ -1198,121 +2066,6 @@ void GNeuralNet::align(const GNeuralNet& that)
 }
 #endif // MIN_PREDICT
 
-double GNeuralNet::measureLoss(const GMatrix& features, const GMatrix& labels, double* pOutSAE)
-{
-	if(features.rows() != labels.rows())
-		throw Ex("Expected the features and labels to have the same number of rows");
-	if(features.cols() != inputs())
-		throw Ex("Mismatching number of inputs. Data has ", GClasses::to_str(features.cols()), ". Neural net expects ", GClasses::to_str(inputs()));
-	GRand rand(0);
-	GContextNeuralNet* pCtx = newContext(rand);
-	double sae = 0.0;
-	double sse = 0.0;
-	if(labels.cols() == outputs())
-	{
-		// Regression. Compute SSE and SAE.
-		for(size_t i = 0; i < features.rows(); i++)
-		{
-			GVec& prediction = pCtx->forwardProp(features[i]);
-			const GVec& targ = labels[i];
-			for(size_t j = 0; j < prediction.size(); j++)
-			{
-				if(targ[j] != UNKNOWN_REAL_VALUE)
-				{
-					double d = targ[j] - prediction[j];
-					sse += (d * d);
-					sae += std::abs(d);
-				}
-			}
-		}
-	}
-	else if(labels.cols() == 1 && labels.relation().valueCount(0) == outputs())
-	{
-		// Classification. Count misclassifications.
-		for(size_t i = 0; i < features.rows(); i++)
-		{
-			GVec& prediction = pCtx->forwardProp(features[i]);
-			const GVec& targ = labels[i];
-			if(targ[0] >= 0.0)
-			{
-				size_t j = prediction.indexOfMax();
-				if(j != (size_t)targ[0])
-					sse++;
-			}
-		}
-		sae = sse;
-	}
-	else
-	{
-		if(labels.cols() == 1)
-			throw Ex("Mismatching number of outputs. Data has 1 column with ", GClasses::to_str(labels.relation().valueCount(0)), " categorical values. Neural net outputs ", GClasses::to_str(outputs()));
-		else
-			throw Ex("Mismatching number of outputs. Data has ", GClasses::to_str(labels.cols()), ". Neural net expects ", GClasses::to_str(outputs()));
-	}
-
-	if(pOutSAE)
-		*pOutSAE = sae;
-	return sse;
-}
-
-void GNeuralNet::printWeights(std::ostream& stream)
-{
-	stream.precision(6);
-	stream << "NeuralNet:\n";
-/*	for(size_t i = layerCount() - 1; i < layerCount(); i--)
-	{
-		if(i == layerCount() - 1)
-			stream << "	Output Layer:\n";
-		else
-			stream << "	Hidden Layer " << to_str(i) << ":\n";
-		GBlock& l = layer(i);
-		if(!l.hasWeights())
-			stream << "		weightless layer type: " << to_str((size_t)l.type());
-		else if(l.type() == GBlock::layer_linear)
-		{
-			GLayerLinear& lay = *(GLayerLinear*)&l;
-			for(size_t j = 0; j < lay.outputs(); j++)
-			{
-				stream << "		Unit " << to_str(j) << ":	";
-				stream << "(bias: " << to_str(lay.bias()[j]) << ")	";
-				for(size_t k = 0; k < lay.inputs(); k++)
-				{
-					if(k > 0)
-						stream << "	";
-					stream << to_str(lay.weights()[k][j]);
-				}
-				stream << "\n";
-			}
-		}
-		else
-			throw Ex("I don't know how to print the weights in layers of this type");
-	}*/
-}
-/*
-void GNeuralNet::containIntrinsics(GMatrix& intrinsics)
-{
-	size_t dims = intrinsics.cols();
-	GBlock& llay = layer(0);
-	if(llay.inputs() != dims)
-		throw Ex("Mismatching number of columns and inputs");
-	if(llay.type() == GBlock::layer_linear)
-	{
-		GLayerLinear& lay = *(GLayerLinear*)&llay;
-		GVec pCentroid(dims);
-		intrinsics.centroid(pCentroid);
-		double maxDev = 0.0;
-		for(size_t i = 0; i < dims; i++)
-		{
-			double dev = sqrt(intrinsics.columnVariance(i, pCentroid[i]));
-			maxDev = std::max(maxDev, dev);
-			intrinsics.normalizeColumn(i, pCentroid[i] - dev, pCentroid[i] + dev, -1.0, 1.0);
-			lay.renormalizeInput(i, pCentroid[i] - dev, pCentroid[i] + dev, -1.0, 1.0);
-		}
-	}
-	else
-		throw Ex("I don't know how to contain this type of layer");
-}
-
 GMatrix* GNeuralNet::compressFeatures(GMatrix& features)
 {
 	GBlock& llay = layer(0);
@@ -1406,10 +2159,6 @@ GNeuralNet* GNeuralNet::fourier(GMatrix& series, double period)
 
 	return pNN;
 }
-*/
-
-
-
 
 
 
@@ -1445,72 +2194,7 @@ GContextNeuralNet::GContextNeuralNet(GRand& rand, const GNeuralNet& nn, GCudaEng
 	}
 	m_pOutputLayer = m_layers[m_layers.size() - 1];
 }
-#endif // GCUDA
 
-GContextNeuralNet::~GContextNeuralNet()
-{
-	for(size_t i = 0; i < m_layers.size(); i++)
-	{
-		delete(m_layers[i]);
-	}
-}
-
-// virtual
-void GContextNeuralNet::resetState()
-{
-	for(size_t i = 0; i < m_layers.size(); i++)
-		m_layers[i]->resetState();
-}
-
-GVec& GContextNeuralNet::forwardProp(const GVec& in)
-{
-	input.setData((double*)in.data(), in.size());
-	GVec& out = prediction();
-	output.setData(out.data(), out.size());
-	m_nn.forwardProp(*this);
-	return out;
-}
-
-GVec& GContextNeuralNet::forwardProp_training(const GVec& in)
-{
-	GAssert(layerCount() == m_nn.layerCount());
-	GAssert(in.size() == m_nn.layer(0).inputs());
-	input.setData((double*)in.data(), in.size());
-	GVec& out = prediction();
-	output.setData(out.data(), out.size());
-	GVec* pInput = (GVec*)&in;
-	for(size_t i = 0; i < m_layers.size(); i++)
-	{
-		GContextLayer* pLayer = m_layers[i];
-		pLayer->forwardProp_training(*pInput, pLayer->m_activation);
-		pInput = &pLayer->m_activation;
-	}
-	return *(GVec*)pInput;
-}
-
-void GContextNeuralNet::backProp()
-{
-	GVec& bl = blame();
-	outBlame.setData(bl.data(), bl.size());
-	inBlame.setData(bl.data(), bl.size());
-	m_nn.backProp(*this);
-}
-
-void GContextNeuralNet::backProp(GVec& inBlam)
-{
-	GVec& bl = blame();
-	outBlame.setData(bl.data(), bl.size());
-	inBlame.setData(inBlam.data(), inBlam.size());
-	m_nn.backProp(*this);
-}
-
-void GContextNeuralNet::updateGradient(GVec &grad)
-{
-	gradient.setData(grad.data(), grad.size());
-	m_nn.updateGradient(*this);
-}
-
-#ifdef GCUDA
 GCudaVector& GContextNeuralNet::forwardPropCuda(const GCudaVector& input)
 {
 	GCudaVector& output = predictionCuda();
@@ -1536,7 +2220,7 @@ GCudaVector& GContextNeuralNet::forwardProp_trainingCuda(const GCudaVector& inpu
 
 void GContextNeuralNet::backPropCuda()
 {
-	m_nn.backPropCuda(*this, predictionCuda()/*bogus ignored*/, predictionCuda(), blameCuda(), blameCuda()/*bogus ignored*/);
+	m_nn.backPropCuda(*this, predictionCuda(), predictionCuda(), blameCuda(), blameCuda());
 }
 
 void GContextNeuralNet::backPropCuda(const GCudaVector& input, GCudaVector& inBlame)
@@ -1546,10 +2230,10 @@ void GContextNeuralNet::backPropCuda(const GCudaVector& input, GCudaVector& inBl
 
 void GContextNeuralNet::updateGradientCuda(const GCudaVector &input, GCudaVector& gradient)
 {
-	m_nn.updateGradientCuda(*this, input, input/*bogus ignored*/, gradient);
+	m_nn.updateGradientCuda(*this, input, input, gradient);
 }
 #endif // GCUDA
-
+*/
 
 
 
@@ -1558,7 +2242,7 @@ void GContextNeuralNet::updateGradientCuda(const GCudaVector &input, GCudaVector
 
 
 GNeuralNetLearner::GNeuralNetLearner()
-: GIncrementalLearner(), m_pOptimizer(nullptr), m_ready(false)
+: GIncrementalLearner(), m_pOptimizer(nullptr)
 {}
 
 GNeuralNetLearner::GNeuralNetLearner(const GDomNode* pNode)
@@ -1570,6 +2254,7 @@ m_pOptimizer(nullptr)
 
 GNeuralNetLearner::~GNeuralNetLearner()
 {
+	delete(m_pOptimizer);
 }
 
 GNeuralNetOptimizer& GNeuralNetLearner::optimizer()
@@ -1648,7 +2333,7 @@ void GNeuralNetLearner::predictDistribution(const GVec& in, GPrediction* pOut)
 void GNeuralNetLearner::predict(const GVec& in, GVec& out)
 {
 	GNeuralNetOptimizer& opt = optimizer();
-	out.copy(opt.context().forwardProp(in));
+	out.copy(m_nn.forwardProp(opt.weights(), in));
 }
 
 // virtual
@@ -1656,11 +2341,13 @@ void GNeuralNetLearner::beginIncrementalLearningInner(const GRelation& featureRe
 {
 	if(labelRel.size() < 1)
 		throw Ex("The label relation must have at least 1 attribute");
-
-	m_nn.resize(featureRel.size(), labelRel.size());
-	m_nn.resetWeights(m_rand);
-
-	m_ready = true;
+	if(m_nn.inputs() != featureRel.size())
+		throw Ex("This data has ", to_str(featureRel.size()), " features, but the model expects ", to_str(m_nn.inputs()));
+	if(m_nn.outputs() != labelRel.size())
+		throw Ex("This data has ", to_str(labelRel.size()), " labels, but the model expects ", to_str(m_nn.outputs()));
+	delete(m_pOptimizer);
+	m_pOptimizer = nullptr;
+	optimizer();
 }
 
 
@@ -1676,659 +2363,86 @@ void GNeuralNet_testMath()
 
 	// Make the Neural Network
 	GNeuralNetLearner nn;
-	GBlockLinear* b0 = new GBlockLinear(3);
-	GBlockTanh* b1 = new GBlockTanh();
-	GBlockLinear* b2 = new GBlockLinear(1);
-	GBlockTanh* b3 = new GBlockTanh();
+	GBlockLinear* b0 = new GBlockLinear(2, 3);
+	GBlockTanh* b1 = new GBlockTanh(3);
+	GBlockLinear* b2 = new GBlockLinear(3, 1);
+	GBlockTanh* b3 = new GBlockTanh(1);
 	nn.nn().add(b0);
 	nn.nn().add(b1);
 	nn.nn().add(b2);
 	nn.nn().add(b3);
 	nn.beginIncrementalLearning(features.relation(), labels.relation());
-
-	GSGDOptimizer optimizer(nn.nn(), nn.rand());
-	optimizer.setLearningRate(0.175);
-	optimizer.setMomentum(0.9);
-
+	GNeuralNetOptimizer& opt = nn.optimizer();
+	opt.setLearningRate(0.175);
 	if(nn.nn().weightCount() != 13)
 		throw Ex("Wrong number of weights");
-	b2->bias()[0] = 0.02; // w_0
-	b2->weights()[0][0] = -0.01; // w_1
-	b2->weights()[1][0] = 0.03; // w_2
-	b2->weights()[2][0] = 0.02; // w_3
-	b0->bias()[0] = -0.01; // w_4
-	b0->weights()[0][0] = -0.03; // w_5
-	b0->weights()[1][0] = 0.03; // w_6
-	b0->bias()[1] = 0.01; // w_7
-	b0->weights()[0][1] = 0.04; // w_8
-	b0->weights()[1][1] = -0.02; // w_9
-	b0->bias()[2] = -0.02; // w_10
-	b0->weights()[0][2] = 0.03; // w_11
-	b0->weights()[1][2] = 0.02; // w_12
+	GVec& w = opt.weights();
 
-	// Test forward prop
+	// Init the weights
+	w[0] = -0.01;
+	w[1] = 0.01;
+	w[2] = -0.02;
+	w[3] = -0.03;
+	w[4] = 0.04;
+	w[5] = 0.03;
+	w[6] = 0.03;
+	w[7] = -0.02;
+	w[8] = 0.02;
+	w[9] = 0.02;
+	w[10] = -0.01;
+	w[11] = 0.03;
+	w[12] = 0.02;
+
+	// Present one pattern for training
 	double tol = 1e-12;
 	GVec pat(2);
 	pat.copy(features[0]);
 	GVec pred(1);
-	optimizer.optimizeIncremental(features[0], labels[0]);
+	opt.optimizeIncremental(features[0], labels[0]);
 
-	GContextLayer& c0 = optimizer.context().layer(0);
-	GContextLayer& c1 = optimizer.context().layer(1);
-	GContextLayer& c2 = optimizer.context().layer(2);
-	GContextLayer& c3 = optimizer.context().layer(3);
+	// Check forward prop values
+	if(std::abs(-0.031 - b0->output[0]) > tol) throw Ex("forward prop problem");
+	if(std::abs(-0.030990073482402569 - b1->output[0]) > tol) throw Ex("forward prop problem");
+	if(std::abs(0.020350024432229302 - b2->output[0]) > tol) throw Ex("forward prop problem");
+	if(std::abs(0.020347215756407563 - b3->output[0]) > tol) throw Ex("forward prop problem");
 
-	// Test forward prop
-	if(std::abs(-0.031 - c0.m_activation[0]) > tol) throw Ex("forward prop problem");
-	if(std::abs(-0.030990073482402569 - c1.m_activation[0]) > tol) throw Ex("forward prop problem");
-	if(std::abs(0.020350024432229302 - c2.m_activation[0]) > tol) throw Ex("forward prop problem");
-	if(std::abs(0.020347215756407563 - c3.m_activation[0]) > tol) throw Ex("forward prop problem");
+	// Check blame values
+	if(std::abs(0.97965278424359248 - b3->outBlame[0]) > tol) throw Ex("problem computing output blame");
+	if(std::abs(0.97924719898884915 - b2->outBlame[0]) > tol) throw Ex("back prop problem");
+	if(std::abs(-0.0097924719898884911 - b1->outBlame[0]) > tol) throw Ex("back prop problem");
+	if(std::abs(0.029377415969665473 - b1->outBlame[1]) > tol) throw Ex("back prop problem");
+	if(std::abs(0.019584943979776982 - b1->outBlame[2]) > tol) throw Ex("back prop problem");	
+	if(std::abs(-0.00978306745006032 - b0->outBlame[0]) > tol) throw Ex("back prop problem");
+	if(std::abs(0.02936050107376107 - b0->outBlame[1]) > tol) throw Ex("back prop problem");
+	if(std::abs(0.01956232122115741 - b0->outBlame[2]) > tol) throw Ex("back prop problem");
 
-	// Test output blame
-	if(std::abs(0.97965278424359248 - c3.m_blame[0]) > tol) throw Ex("problem computing output blame");
-
-	// Test back prop
-	if(std::abs(0.97924719898884915 - c2.m_blame[0]) > tol) throw Ex("back prop problem");
-	if(std::abs(-0.0097924719898884911 - c1.m_blame[0]) > tol) throw Ex("back prop problem");
-	if(std::abs(0.029377415969665473 - c1.m_blame[1]) > tol) throw Ex("back prop problem");
-	if(std::abs(0.019584943979776982 - c1.m_blame[2]) > tol) throw Ex("back prop problem");	
-	if(std::abs(-0.00978306745006032 - c0.m_blame[0]) > tol) throw Ex("back prop problem");
-	if(std::abs(0.02936050107376107 - c0.m_blame[1]) > tol) throw Ex("back prop problem");
-	if(std::abs(0.01956232122115741 - c0.m_blame[2]) > tol) throw Ex("back prop problem");
-
-	// Test bias updates
-	if(std::abs(0.191368259823049 - b2->bias()[0]) > tol) throw Ex("weight update problem");
-	if(std::abs(-0.011712036803760557 - b0->bias()[0]) > tol) throw Ex("weight update problem");
-	if(std::abs(0.015138087687908187 - b0->bias()[1]) > tol) throw Ex("weight update problem");
-	if(std::abs(-0.016576593786297455 - b0->bias()[2]) > tol) throw Ex("weight update problem");
-
-	// Test weight updates
-	if(std::abs(-0.015310714964467731 - b2->weights()[0][0]) > tol) throw Ex("weight update problem");
-	if(std::abs(0.034112048752708297 - b2->weights()[1][0]) > tol) throw Ex("weight update problem");
-	if(std::abs(0.014175723281037968 - b2->weights()[2][0]) > tol) throw Ex("weight update problem");
-	if(std::abs(-0.03 - b0->weights()[0][0]) > tol) throw Ex("weight update problem");
-	if(std::abs(0.03119842576263239 - b0->weights()[1][0]) > tol) throw Ex("weight update problem");
-	if(std::abs(0.04 - b0->weights()[0][1]) > tol) throw Ex("weight update problem");
-	if(std::abs(-0.023596661381535732 - b0->weights()[1][1]) > tol) throw Ex("weight update problem");
-	if(std::abs(0.03 - b0->weights()[0][2]) > tol) throw Ex("weight update problem");
-	if(std::abs(0.01760361565040822 - b0->weights()[1][2]) > tol) throw Ex("weight update problem");
+	// Check updated weights
+	if(std::abs(-0.011712036803760557 - w[0]) > tol) throw Ex("weight update problem");
+	if(std::abs(0.015138087687908187 - w[1]) > tol) throw Ex("weight update problem");
+	if(std::abs(-0.016576593786297455 - w[2]) > tol) throw Ex("weight update problem");
+	if(std::abs(-0.03 - w[3]) > tol) throw Ex("weight update problem");
+	if(std::abs(0.04 - w[4]) > tol) throw Ex("weight update problem");
+	if(std::abs(0.03 - w[5]) > tol) throw Ex("weight update problem");
+	if(std::abs(0.03119842576263239 - w[6]) > tol) throw Ex("weight update problem");
+	if(std::abs(-0.023596661381535732 - w[7]) > tol) throw Ex("weight update problem");
+	if(std::abs(0.01760361565040822 - w[8]) > tol) throw Ex("weight update problem");
+	if(std::abs(0.191368259823049 - w[9]) > tol) throw Ex("weight update problem");
+	if(std::abs(-0.015310714964467731 - w[10]) > tol) throw Ex("weight update problem");
+	if(std::abs(0.034112048752708297 - w[11]) > tol) throw Ex("weight update problem");
+	if(std::abs(0.014175723281037968 - w[12]) > tol) throw Ex("weight update problem");
 }
 
-void GNeuralNet_testBinaryClassification(GRand* pRand)
-{
-	vector<size_t> vals;
-	vals.push_back(2);
-	GMatrix features(vals);
-	GMatrix labels(vals);
-	for(size_t i = 0; i < 100; i++)
-	{
-		double d = (double)pRand->next(2);
-		features.newRow()[0] = d;
-		labels.newRow()[0] = 1.0 - d;
-	}
-	GNeuralNetLearner* pNN = new GNeuralNetLearner();
-	pNN->nn().add(new GBlockLinear(1));
-	pNN->nn().add(new GBlockTanh());
-	GAutoFilter af(pNN);
-	af.train(features, labels);
-	double r = af.sumSquaredError(features, labels);
-	if(r > 0.0)
-		throw Ex("Failed simple sanity test");
-}
-
-#define TEST_INVERT_INPUTS 5
-void GNeuralNet_testInvertAndSwap(GRand& rand)
-{
-	size_t layers = 2;
-	size_t layerSize = 5;
-
-	// This test ensures that the GNeuralNetLearner::swapNodes and GNeuralNetLearner::invertNode methods
-	// have no net effect on the output of the neural network
-	GVec in(TEST_INVERT_INPUTS);
-	GVec outBefore(TEST_INVERT_INPUTS);
-	GVec outAfter(TEST_INVERT_INPUTS);
-	for(size_t i = 0; i < 30; i++)
-	{
-		GNeuralNetLearner nn;
-		for(size_t j = 0; j < layers; j++)
-		{
-			nn.nn().add(new GBlockLinear(layerSize));
-			nn.nn().add(new GBlockTanh());
-		}
-		nn.nn().add(new GBlockLinear(TEST_INVERT_INPUTS));
-		nn.nn().add(new GBlockTanh());
-		GUniformRelation rel(TEST_INVERT_INPUTS);
-		nn.beginIncrementalLearning(rel, rel);
-		nn.nn().perturbWeights(nn.rand(), 0.5);
-		in.fillUniform(rand);
-		nn.predict(in, outBefore);
-		for(size_t j = 0; j < 8; j++)
-		{
-			if(rand.next(2) == 0)
-				nn.nn().swapNodes((size_t)rand.next(layers) * 2, (size_t)rand.next(layerSize), (size_t)rand.next(layerSize));
-			else
-				nn.nn().invertNode((size_t)rand.next(layers) * 2, (size_t)rand.next(layerSize));
-		}
-		nn.predict(in, outAfter);
-		if(outBefore.squaredDistance(outAfter) > 1e-10)
-			throw Ex("GNeuralNetLearner::invertAndSwap failed");
-	}
-
-	for(size_t i = 0; i < 30; i++)
-	{
-		// Generate two identical neural networks
-		GNeuralNetLearner nn1;
-		GNeuralNetLearner nn2;
-		for(size_t j = 0; j < layers; j++)
-		{
-			nn1.nn().add(new GBlockLinear(layerSize));
-			nn1.nn().add(new GBlockTanh());
-			nn2.nn().add(new GBlockLinear(layerSize));
-			nn2.nn().add(new GBlockTanh());
-		}
-		nn1.nn().add(new GBlockLinear(TEST_INVERT_INPUTS));
-		nn1.nn().add(new GBlockTanh());
-		nn2.nn().add(new GBlockLinear(TEST_INVERT_INPUTS));
-		nn2.nn().add(new GBlockTanh());
-		GUniformRelation rel(TEST_INVERT_INPUTS);
-		nn1.beginIncrementalLearning(rel, rel);
-		nn2.beginIncrementalLearning(rel, rel);
-		nn1.nn().perturbWeights(nn1.rand(), 0.5);
-		nn2.nn().copyWeights(&nn1.nn());
-
-		// Predict something
-		in.fillUniform(rand);
-		nn1.predict(in, outBefore);
-
-		// Mess with the topology of both networks
-		for(size_t j = 0; j < 20; j++)
-		{
-			if(rand.next(2) == 0)
-			{
-				if(rand.next(2) == 0)
-					nn1.nn().swapNodes((size_t)rand.next(layers) * 2, (size_t)rand.next(layerSize), (size_t)rand.next(layerSize));
-				else
-					nn1.nn().invertNode((size_t)rand.next(layers) * 2, (size_t)rand.next(layerSize));
-			}
-			else
-			{
-				if(rand.next(2) == 0)
-					nn2.nn().swapNodes((size_t)rand.next(layers) * 2, (size_t)rand.next(layerSize), (size_t)rand.next(layerSize));
-				else
-					nn2.nn().invertNode((size_t)rand.next(layers) * 2, (size_t)rand.next(layerSize));
-			}
-		}
-
-		// Align the first network to match the second one
-		nn1.nn().align(nn2.nn());
-
-		// Check that predictions match before
-		nn2.predict(in, outAfter);
-		if(outBefore.squaredDistance(outAfter) > 1e-10)
-			throw Ex("Failed");
-		nn1.predict(in, outAfter);
-		if(outBefore.squaredDistance(outAfter) > 1e-10)
-			throw Ex("Failed");
-
-		// Check that they have matching weights
-		size_t wc = nn1.nn().weightCount();
-		double* pW1 = new double[wc];
-		std::unique_ptr<double[]> hW1(pW1);
-		nn1.nn().weightsToVector(pW1);
-		double* pW2 = new double[wc];
-		std::unique_ptr<double[]> hW2(pW2);
-		nn2.nn().weightsToVector(pW2);
-		for(size_t j = 0; j < wc; j++)
-		{
-			if(std::abs(*pW1 - *pW2) >= 1e-9)
-				throw Ex("Failed");
-			pW1++;
-			pW2++;
-		}
-	}
-}
-
-void GNeuralNet_testNormalizeInput(GRand& rand)
-{
-	GVec in(5);
-	for(size_t i = 0; i < 20; i++)
-	{
-		GNeuralNetLearner nn;
-		GBlockLinear* pLayerIn = new GBlockLinear(5);
-		nn.nn().add(pLayerIn);
-		GBlockTanh* pLayerAct = new GBlockTanh();
-		nn.nn().add(pLayerAct);
-		GBlockLinear* pLayerOut = new GBlockLinear(1);
-		nn.nn().add(pLayerOut);
-		GBlockTanh* pLayerOutAct = new GBlockTanh();
-		nn.nn().add(pLayerOutAct);
-		GUniformRelation relIn(5);
-		GUniformRelation relOut(1);
-		nn.beginIncrementalLearning(relIn, relOut);
-		nn.nn().perturbWeights(nn.rand(), 1.0);
-		in.fillNormal(rand);
-		in.normalize();
-		GVec before(1);
-		GVec after(1);
-		nn.predict(in, before);
-		double a = rand.normal();
-		double b = rand.normal();
-		if(b < a)
-			std::swap(a, b);
-		double c = rand.normal();
-		double d = rand.normal();
-		if(d < c)
-			std::swap(c, d);
-		size_t ind = (size_t)rand.next(5);
-		pLayerIn->renormalizeInput(ind, a, b, c, d);
-		in[ind] = GMatrix::normalizeValue(in[ind], a, b, c, d);
-		nn.predict(in, after);
-		if(std::abs(after[0] - before[0]) > 1e-9)
-			throw Ex("Failed");
-	}
-}
-
-void GNeuralNet_testTransformWeights(GRand& prng)
-{
-	for(size_t i = 0; i < 10; i++)
-	{
-		// Set up
-		GNeuralNetLearner nn;
-		GBlockLinear* pLayerInput = new GBlockLinear(3);
-		nn.nn().add(pLayerInput);
-		GBlockTanh* pLayerAct = new GBlockTanh();
-		nn.nn().add(pLayerAct);
-		GUniformRelation in(2);
-		GUniformRelation out(3);
-		nn.beginIncrementalLearning(in, out);
-		nn.nn().perturbWeights(nn.rand(), 1.0);
-		GVec x1(2);
-		GVec x2(2);
-		GVec y1(3);
-		GVec y2(3);
-		x1.fillSphericalShell(prng);
-
-		// Predict normally
-		nn.predict(x1, y1);
-
-		// Transform the inputs and weights
-		GMatrix transform(2, 2);
-		transform[0].fillSphericalShell(prng);
-		transform[1].fillSphericalShell(prng);
-		GVec offset(2);
-		offset.fillSphericalShell(prng);
-		x1 += offset;
-		transform.multiply(x1, x2, false);
-
-		GVec tmp(2);
-		offset *= -1.0;
-		transform.multiply(offset, tmp);
-		offset.copy(tmp);
-		GMatrix* pTransInv = transform.pseudoInverse();
-		std::unique_ptr<GMatrix> hTransInv(pTransInv);
-		pLayerInput->transformWeights(*pTransInv, offset);
-
-		// Predict again
-		nn.predict(x2, y2);
-		if(y1.squaredDistance(y2) > 1e-15)
-			throw Ex("transformWeights failed");
-	}
-}
-/*
-#define NN_TEST_DIMS 5
-
-void GNeuralNet_testCompressFeatures(GRand& prng)
-{
-	GMatrix feat(50, NN_TEST_DIMS);
-	for(size_t i = 0; i < feat.rows(); i++)
-		feat[i].fillSphericalShell(prng);
-
-	// Set up
-	GNeuralNetLearner nn1;
-	nn1.newLayer().add(new GBlockLinear(NN_TEST_DIMS * 2));
-	nn1.newLayer().add(new GBlockTanh());
-	nn1.beginIncrementalLearning(feat.relation(), feat.relation());
-	nn1.nn().perturbWeights(nn1.rand(), 1.0);
-	GNeuralNetLearner nn2;
-	nn2.nn().copyStructure(&nn1.nn());
-	nn2.nn().copyWeights(&nn1.nn());
-
-	// Test
-	GMatrix* pNewFeat = nn1.compressFeatures(feat);
-	std::unique_ptr<GMatrix> hNewFeat(pNewFeat);
-	GVec out1(NN_TEST_DIMS);
-	GVec out2(NN_TEST_DIMS);
-	for(size_t i = 0; i < feat.rows(); i++)
-	{
-		nn1.predict(pNewFeat->row(i), out1);
-		nn2.predict(feat[i], out2);
-		if(out1.squaredDistance(out2) > 1e-14)
-			throw Ex("failed");
-	}
-}
-
-void GNeuralNet_testConvolutionalLayer2D(GRand &prng)
-{
-	// a 5x5x3 "image"
-	// each channel may be given in deinterlaced order (i.e. red as 5x5x1, then blue as 5x5x1, then green as 5x5x1) or in interlaced order (i.e. rgb for pixel 1, rgb for pixel 2, etc)
-	// interlaced is assumed, but deinterlaced may be used if the layer is set to interpret the input as deinterlaced
-	GVec feature(5*5*3);
-	{
-		// std::string data = "1 2 0 1 0 0 2 2 2 0 1 1 1 0 0 1 1 1 0 2 1 0 2 0 2 2 1 2 1 0 2 0 1 2 1 2 1 0 1 2 0 2 1 1 0 2 1 1 0 1 1 0 0 0 0 1 0 2 1 1 0 1 2 1 1 0 0 2 2 0 1 2 0 2 1";
-		std::string data = "1 2 1 2 1 0 0 2 0 1 1 0 0 0 0 0 2 1 2 0 0 2 1 2 2 2 1 0 1 1 1 2 0 1 1 1 1 0 2 0 1 1 0 2 1 1 0 0 1 2 0 1 1 2 0 1 2 2 0 0 1 2 1 0 1 2 2 1 0 0 0 2 2 1 1";
-		std::istringstream ss(data);
-		for(size_t i = 0; i < feature.size(); i++)
-			ss >> feature[i];
-	}
-
-	// the correct convolution for the image above given the kernels below
-	// also encoded as the image above
-	GVec label(3*3*2);
-	{
-		// std::string data = "8 5 0 4 -7 4 1 4 8 -4 3 2 0 4 0 0 -2 -3";
-		std::string data = "8 -4 5 3 0 2 4 0 -7 4 4 0 1 0 4 -2 8 -3";
-		std::istringstream ss(data);
-		for(size_t i = 0; i < label.size(); i++)
-			ss >> label[i];
-	}
-	
-	GLayerConvolutional2D *pLayer = new GLayerConvolutional2D(5, 5, 3, 3, 3, 2);
-	GLayerConvolutional2D &layer = *pLayer;
-
-	GLayerLinear* pLay1 = new GLayerLinear(1, layer.inputs());
-	GLayerLinear &lay1 = *pLay1;
-	GLayerTanh* pLay2 = new GLayerTanh();
-
-	GNeuralNetLearner nn;
-	nn.addLayers(pLay1, pLay2, pLayer);
-	nn.beginIncrementalLearning(GUniformRelation(1), GUniformRelation(layer.outputs()));
-
-	for(size_t i = 0; i < layer.inputs(); i++)
-		lay1.weights()[0][i] = feature[i] + prng.normal();
-	lay1.bias().fill(0.0);
-
-	layer.setPadding(1);
-	layer.setStride(2);
-	{
-		// std::string data1 = "0 1 -1 -1 1 1 1 0 1 1 0 0 -1 1 0 -1 1 1 1 -1 1 0 -1 -1 1 -1 -1 1";
-		// std::string data2 = "-1 0 0 0 0 -1 1 1 0 1 0 1 0 0 0 1 -1 0 -1 1 -1 -1 0 -1 -1 0 1 0";
-		std::string data1 = "0 1 1 1 0 -1 -1 0 1 -1 -1 0 1 1 -1 1 0 -1 1 -1 1 0 1 -1 1 1 -1 1";
-		std::string data2 = "-1 1 -1 0 0 1 0 1 -1 0 0 -1 0 0 0 -1 0 -1 1 1 -1 1 -1 0 0 0 1 0";
-		std::istringstream ss1(data1);
-		std::istringstream ss2(data2);
-
-		for(size_t i = 0; i < layer.kernels().cols(); i++)
-		{
-			ss1 >> layer.kernels()[0][i];
-			ss2 >> layer.kernels()[1][i];
-		}
-		ss1 >> layer.bias()[0];
-		ss2 >> layer.bias()[1];
-	}
-
-	// test serialization
-
-	GDom doc;
-	GDomNode *root = layer.serialize(&doc);
-	GLayerConvolutional2D *p_layer = (GLayerConvolutional2D *) GBlock::deserialize(root);
-	for(size_t i = 0; i < layer.bias().size(); ++i)
-		if(layer.bias()[i] != p_layer->bias()[i])
-			throw Ex("GLayerConvolutional2D serialization failed (1)");
-	for(size_t i = 0; i < layer.kernels().rows(); ++i)
-		for(size_t j = 0; j < layer.kernels().cols(); ++j)
-			if(layer.kernels()[i][j] != p_layer->kernels()[i][j])
-				throw Ex("GLayerConvolutional2D serialization failed (2)");
-	delete p_layer;
-
-	// test forward propagation
-
-	layer.feedForward(feature);
-	for(size_t i = 0; i < label.size(); i++)
-		if(label[i] != layer.activation()[i])
-			throw Ex("GLayerConvolutional2D forward prop failed");
-
-	// test backpropagation (1)
-	// -- can we update weights in the previous layer?
-
-	GVec oneVec(1);
-	oneVec.fill(1.0);
-
-	GSGDOptimizer optimizer(nn);
-	optimizer.setLearningRate(1e-2);
-
-	for(size_t i = 0; i < 200; i++)
-		optimizer.optimizeIncremental(oneVec, label);
-
-	nn.forwardProp(oneVec);
-	if(layer.activation().squaredDistance(label) > 1e-6)
-		throw Ex("GLayerConvolutional2D backpropagation failed (1)");
-
-	// test backpropagation (2)
-	// -- can we update weights in the convolutional layer?
-
-	for(size_t c = 0; c < layer.kernels().rows(); c++)
-	{
-		layer.bias()[c] += prng.normal();
-		for(size_t i = 0; i < layer.kernels().cols(); i++)
-			layer.kernels()[c][i] += prng.normal();
-	}
-
-	for(size_t i = 0; i < 200; i++)
-		optimizer.optimizeIncremental(oneVec, label);
-
-	nn.forwardProp(oneVec);
-	if(layer.activation().squaredDistance(label) > 1e-6)
-		throw Ex("GLayerConvolutional2D backpropagation failed (2)");
-}
-
-void GNeuralNet_testFourier()
-{
-	GMatrix m(16, 3);
-	m[0][0] = 2.7; m[0][1] = 1.0; m[0][2] = 2.0;
-	m[1][0] = 3.1; m[1][1] = 1.3; m[1][2] = 2.0;
-	m[2][0] = 0.1; m[2][1] = 1.0; m[2][2] = 6.0;
-	m[3][0] = 0.7; m[3][1] = 0.7; m[3][2] = 2.0;
-	m[4][0] = 2.4; m[4][1] = 0.4; m[4][2] = 0.0;
-	m[5][0] = 3.0; m[5][1] = 0.8; m[5][2] = 2.0;
-	m[6][0] = 3.8; m[6][1] = 1.3; m[6][2] = 2.0;
-	m[7][0] = 2.9; m[7][1] = 1.2; m[7][2] = 2.0;
-	m[8][0] = 2.7; m[8][1] = 1.0; m[8][2] = 3.0;
-	m[9][0] = 3.1; m[9][1] = 1.3; m[9][2] = 3.0;
-	m[10][0] = 0.1; m[10][1] = 1.0; m[10][2] = 7.0;
-	m[11][0] = 0.7; m[11][1] = 0.7; m[11][2] = 3.0;
-	m[12][0] = 2.4; m[12][1] = 0.4; m[12][2] = 1.0;
-	m[13][0] = 3.0; m[13][1] = 0.8; m[13][2] = 3.0;
-	m[14][0] = 3.8; m[14][1] = 1.3; m[14][2] = 3.0;
-	m[15][0] = 2.9; m[15][1] = 1.2; m[15][2] = 3.0;
-	double period = 3.0;
-	GNeuralNetLearner* pNN = GNeuralNetLearner::fourier(m, period);
-	std::unique_ptr<GNeuralNetLearner> hNN(pNN);
-	GVec out(3);
-	for(size_t i = 0; i < m.rows(); i++)
-	{
-		GVec in(1);
-		in[0] = (double)i * period / m.rows();
-		pNN->predict(in, out);
-		if(out.squaredDistance(m[i]) > 1e-9)
-			throw Ex("failed");
-	}
-}
-*/
 
 // static
 void GNeuralNetLearner::test()
 {
 	GRand prng(0);
 	GNeuralNet_testMath();
-	GNeuralNet_testBinaryClassification(&prng);
-	GNeuralNet_testNormalizeInput(prng);
-	GNeuralNet_testTransformWeights(prng);
-//	GNeuralNet_testConvolutionalLayer2D(prng);
-//	GNeuralNet_testInvertAndSwap(prng);
-//	GNeuralNet_testCompressFeatures(prng);
-//	GNeuralNet_testFourier();
-
-	// Test with no hidden layers (logistic regression)
-	{
-		GNeuralNetLearner* pNN = new GNeuralNetLearner();
-		pNN->nn().add(new GBlockLinear((size_t)0));
-		pNN->nn().add(new GBlockTanh());
-		GAutoFilter af(pNN);
-		af.basicTest(0.78, 0.93);
-	}
-
-	// Test NN with one hidden layer
-	{
-		GNeuralNetLearner* pNN = new GNeuralNetLearner();
-		pNN->nn().add(new GBlockLinear(3));
-		pNN->nn().add(new GBlockTanh());
-		pNN->nn().add(new GBlockLinear((size_t)0));
-		pNN->nn().add(new GBlockTanh());
-		GAutoFilter af(pNN);
-		af.basicTest(0.76, 0.92);
-	}
 }
 
 #endif // MIN_PREDICT
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-GReservoirNet::GReservoirNet()
-: GIncrementalLearner(), m_pModel(NULL), m_pNN(NULL), m_weightDeviation(0.5), m_augments(64), m_reservoirLayers(2)
-{
-}
-
-GReservoirNet::GReservoirNet(const GDomNode* pNode, GLearnerLoader& ll)
-: GIncrementalLearner(pNode)
-{
-	m_pModel = (GIncrementalLearner*)ll.loadLearner(pNode->field("model"));
-	m_weightDeviation = pNode->field("wdev")->asDouble();
-	m_augments = (size_t)pNode->field("augs")->asInt();
-	m_reservoirLayers = (size_t)pNode->field("reslays")->asInt();
-}
-
-GReservoirNet::~GReservoirNet()
-{
-	delete(m_pModel);
-}
-
-// virtual
-void GReservoirNet::predict(const GVec& in, GVec& out)
-{
-	m_pModel->predict(in, out);
-}
-
-// virtual
-void GReservoirNet::predictDistribution(const GVec& in, GPrediction* out)
-{
-	m_pModel->predictDistribution(in, out);
-}
-
-// virtual
-void GReservoirNet::clear()
-{
-	m_pModel->clear();
-}
-
-// virtual
-void GReservoirNet::trainInner(const GMatrix& features, const GMatrix& labels)
-{
-	if(!features.relation().areContinuous())
-		throw Ex("GReservoirNet only supports continuous features. Perhaps you should wrap it in a GAutoFilter.");
-	if(!labels.relation().areContinuous())
-		throw Ex("GReservoirNet only supports continuous labels. Perhaps you should wrap it in a GAutoFilter.");
-
-	delete(m_pModel);
-	GNeuralNetLearner* pNN = new GNeuralNetLearner();
-	pNN->nn().add(new GBlockLinear((size_t)0));
-	pNN->nn().add(new GBlockTanh());
-	GReservoir* pRes = new GReservoir(m_weightDeviation, m_augments, m_reservoirLayers);
-	GDataAugmenter* pAug = new GDataAugmenter(pRes);
-	m_pModel = new GFeatureFilter(pNN, pAug);
-	m_pModel->train(features, labels);
-}
-
-// virtual
-void GReservoirNet::trainIncremental(const GVec& in, const GVec& out)
-{
-	m_pModel->trainIncremental(in, out);
-}
-
-// virtual
-void GReservoirNet::trainSparse(GSparseMatrix& features, GMatrix& labels)
-{
-	m_pModel->trainSparse(features, labels);
-}
-
-// virtual
-void GReservoirNet::beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel)
-{
-	delete(m_pModel);
-	m_pNN = new GNeuralNetLearner();
-	m_pNN->nn().add(new GBlockLinear((size_t)0));
-	m_pNN->nn().add(new GBlockTanh());
-	GDataAugmenter* pAug = new GDataAugmenter(new GReservoir(m_weightDeviation, m_augments, m_reservoirLayers));
-	m_pModel = new GFeatureFilter(m_pNN, pAug);
-	m_pModel->beginIncrementalLearning(featureRel, labelRel);
-}
-
-// virtual
-bool GReservoirNet::supportedFeatureRange(double* pOutMin, double* pOutMax)
-{
-	*pOutMin = -1.0;
-	*pOutMax = 1.0;
-	return false;
-}
-
-// virtual
-bool GReservoirNet::supportedLabelRange(double* pOutMin, double* pOutMax)
-{
-	*pOutMin = -1.0;
-	*pOutMax = 1.0;
-	return false;
-}
-
-#ifndef MIN_PREDICT
-// virtual
-GDomNode* GReservoirNet::serialize(GDom* pDoc) const
-{
-	GDomNode* pNode = baseDomNode(pDoc, "GReservoirNet");
-	pNode->addField(pDoc, "model", m_pModel->serialize(pDoc));
-	pNode->addField(pDoc, "wdev", pDoc->newDouble(m_weightDeviation));
-	pNode->addField(pDoc, "augs", pDoc->newInt(m_augments));
-	pNode->addField(pDoc, "reslays", pDoc->newInt(m_reservoirLayers));
-	return pNode;
-}
-
-// static
-void GReservoirNet::test()
-{
-	GAutoFilter af(new GReservoirNet());
-	af.basicTest(0.58, 0.74, 0.001, false, 0.9);
-}
-#endif // MIN_PREDICT
 
 
 

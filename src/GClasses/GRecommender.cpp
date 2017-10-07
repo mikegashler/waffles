@@ -22,7 +22,6 @@
 #include "GSparseMatrix.h"
 #include "GCluster.h"
 #include "GMatrix.h"
-#include "GActivation.h"
 #include "GHeap.h"
 #include "GRand.h"
 #include "GNeuralNet.h"

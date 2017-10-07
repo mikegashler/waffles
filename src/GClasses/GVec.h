@@ -63,9 +63,6 @@ public:
 	/// Returns the size of this vector.
 	size_t size() const { return m_size; }
 
-	/// Copies all the values in orig.
-	void copy(const GVec& orig);
-
 	/// Resizes this vector
 	void resize(size_t n);
 
@@ -123,8 +120,18 @@ public:
 	/// Scales this vector.
 	GVec& operator/=(double scalar);
 
+	/// Copies all the values in orig.
+	void copy(const GVec& orig, size_t start = 0, size_t size = (size_t)-1);
+
 	/// Sets the data in this vector.
-	void set(const double* pSource, size_t size);
+	void copy(const double* pSource, size_t size);
+
+	/// Copies that (or a portion of that) to the specified location in this.
+	/// Throws an exception if it does not fit there.
+	/// pos is the destination starting position.
+	/// start is the source starting position.
+	/// length is the source and destination length.
+	void copy(size_t pos, const GVec& that, size_t start = 0, size_t length = (size_t)-1);
 
 	/// Returns the mean of all of the elements in this vector.
 	double mean() const;
@@ -214,17 +221,10 @@ public:
 	double estimateSquaredDistanceWithUnknowns(const GVec& that) const;
 
 	/// Adds scalar * that to this vector.
-	void addScaled(double scalar, const GVec& that);
+	void addScaled(double scalar, const GVec& that, size_t start = 0, size_t length = (size_t)-1);
 
 	/// Applies L1 regularization to this vector.
 	void regularizeL1(double amount);
-
-	/// Puts a copy of that at the specified location in this.
-	/// Throws an exception if it does not fit there.
-	/// pos is the destination starting position.
-	/// start is the source starting position.
-	/// length is the source and destination length.
-	void put(size_t pos, const GVec& that, size_t start = 0, size_t length = (size_t)-1);
 
 	/// Erases the specified elements. The remaining elements are shifted over.
 	/// The size of the vector is decreased, but the buffer is not reallocated
@@ -308,11 +308,16 @@ std::string to_str(const GVec& v);
 class GConstVecWrapper : public GVec
 {
 public:
+	GConstVecWrapper(const GVec& vec, size_t start = 0, size_t len = (size_t)-1)
+	: GVec(0)
+	{
+		setData(vec, start, len);
+	}
+
 	GConstVecWrapper(const double* buf = nullptr, size_t size = 0)
 	: GVec(0)
 	{
-		m_data = (double*)buf;
-		m_size = size;
+		setData(buf, size);
 	}
 
 	~GConstVecWrapper()
@@ -321,9 +326,11 @@ public:
 		m_size = 0;
 	}
 
-	void setData(const double* buf)
+	void setData(const GVec& vec, size_t start = 0, size_t len = (size_t)-1)
 	{
-		m_data = (double*)buf;
+		GAssert(start + len <= vec.size() || len == (size_t)-1);
+		m_data = (double*)vec.data() + start;
+		m_size = std::min(len, vec.size() - start);
 	}
 
 	void setData(const double* buf, size_t size)
@@ -345,11 +352,16 @@ public:
 class GVecWrapper : public GVec
 {
 public:
+	GVecWrapper(GVec& vec, size_t start = 0, size_t len = (size_t)-1)
+	: GVec(0)
+	{
+		setData(vec, start, len);
+	}
+
 	GVecWrapper(double* buf = nullptr, size_t size = 0)
 	: GVec(0)
 	{
-		m_data = buf;
-		m_size = size;
+		setData(buf, size);
 	}
 
 	~GVecWrapper()
@@ -358,21 +370,17 @@ public:
 		m_size = 0;
 	}
 
-	void setData(double* buf)
+	void setData(GVec& vec, size_t start = 0, size_t len = (size_t)-1)
 	{
-		m_data = buf;
+		GAssert(start + len <= vec.size() || len == (size_t)-1);
+		m_data = vec.data() + start;
+		m_size = std::min(len, vec.size() - start);
 	}
 
 	void setData(double* buf, size_t size)
 	{
 		m_data = buf;
 		m_size = size;
-	}
-
-	void setData(GVec& vec, size_t start = 0, size_t len = (size_t)-1)
-	{
-		m_data = vec.data() + start;
-		m_size = std::min(len, vec.size() - start);
 	}
 
 	void setSize(size_t size)

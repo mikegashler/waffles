@@ -16,7 +16,6 @@
   our code to be useful, the Waffles team would love to hear how you use it.
 */
 
-#include "GBlock.h"
 #include "GLearner.h"
 #include <stdlib.h>
 #include <string.h>
@@ -32,7 +31,6 @@
 #include "GKNN.h"
 #include "GDecisionTree.h"
 #include "GNaiveInstance.h"
-#include "GNeuralDecomposition.h"
 #include "GNeuralNet.h"
 #include "GLinear.h"
 #include "GNaiveBayes.h"
@@ -982,8 +980,6 @@ GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(const GDomNode* 
 					return new GPairProduct(pNode);
 				else if(strcmp(szClass, "GPCA") == 0)
 					return new GPCA(pNode);
-				else if(strcmp(szClass, "GReservoir") == 0)
-					return new GReservoir(pNode);
 			}
 		}
 	}
@@ -1051,8 +1047,6 @@ GSupervisedLearner* GLearnerLoader::loadLearner(const GDomNode* pNode)
 						return new GNaiveBayes(pNode);
 					else if(strcmp(szClass, "GNaiveInstance") == 0)
 						return new GNaiveInstance(pNode);
-					else if(strcmp(szClass, "GNeuralDecomposition") == 0)
-						return new GNeuralDecomposition(pNode);
 					else if(strcmp(szClass, "GNeuralNetLearner") == 0)
 						return new GNeuralNetLearner(pNode);
 				}
@@ -1064,10 +1058,6 @@ GSupervisedLearner* GLearnerLoader::loadLearner(const GDomNode* pNode)
 						return new GRandomForest(pNode, *this);
 					else if(strcmp(szClass, "GResamplingAdaBoost") == 0)
 						return new GResamplingAdaBoost(pNode, *this);
-					else if(strcmp(szClass, "GReservoirNet") == 0)
-						return new GReservoirNet(pNode, *this);
-					else if(strcmp(szClass, "GWag") == 0)
-						return new GWag(pNode, *this);
 				}
 			}
 		}
@@ -1687,183 +1677,6 @@ void GAutoFilter::trainIncremental(const GVec& in, const GVec& out)
 
 // ---------------------------------------------------------------
 
-GCalibrator::GCalibrator(GSupervisedLearner* pLearner)
-: GFilter(pLearner)
-{
-}
-
-GCalibrator::GCalibrator(const GDomNode* pNode, GLearnerLoader& ll)
-: GFilter(pNode, ll)
-{
-}
-
-// virtual
-GCalibrator::~GCalibrator()
-{
-}
-
-// virtual
-GDomNode* GCalibrator::serialize(GDom* pDoc) const
-{
-	GDomNode* pNode = domNode(pDoc, "GCalibrator");
-	return pNode;
-}
-
-// virtual
-void GCalibrator::trainInner(const GMatrix& features, const GMatrix& labels)
-{
-	// Throw out any existing calibration
-	if(m_pCalibrations)
-	{
-		size_t labelDims = m_pRelLabels->size();
-		for(size_t i = 0; i < labelDims; i++)
-			delete(m_pCalibrations[i]);
-		delete[] m_pCalibrations;
-		m_pCalibrations = NULL;
-	}
-
-	// Train
-	m_pLearner->train(features, labels);
-
-	// Calibrate
-	size_t labelDims = m_pRelLabels->size();
-	vector<GNeuralNetLearner*> calibrations;
-	VectorOfPointersHolder<GNeuralNetLearner> hCalibrations(calibrations);
-	size_t neighbors = std::max(size_t(4), std::min(size_t(100), (size_t)sqrt(double(features.rows()))));
-	GPrediction* out = new GPrediction[labelDims];
-	std::unique_ptr<GPrediction[]> hOut(out);
-	for(size_t i = 0; i < labelDims; i++)
-	{
-		// Gather the predicted (before) distribution values
-		size_t vals = labels.relation().valueCount(i);
-		GMatrix tmpBefore(features.rows(), std::max(size_t(1), vals));
-		if(vals == 0)
-		{
-			for(size_t j = 0; j < features.rows(); j++)
-			{
-				predictDistribution(features[j], out);
-				tmpBefore[j][0] = out[i].asNormal()->variance();
-			}
-		}
-		else
-		{
-			for(size_t j = 0; j < features.rows(); j++)
-			{
-				predictDistribution(features[j], out);
-				tmpBefore[j].copy(out[i].asCategorical()->values(vals));
-			}
-		}
-
-		// Use a temporary k-NN model to measure the target (after) distribution values
-		GKNN knn;
-		knn.setNeighborCount(neighbors);
-		knn.train(tmpBefore, labels);
-		GMatrix tmpAfter(features.rows(), std::max(size_t(1), vals));
-		if(vals == 0)
-		{
-			for(size_t j = 0; j < tmpBefore.rows(); j++)
-			{
-				knn.predictDistribution(tmpBefore[j], out);
-				tmpAfter[j][0] = out[0].asNormal()->variance();
-			}
-		}
-		else
-		{
-			for(size_t j = 0; j < features.rows(); j++)
-			{
-				knn.predictDistribution(tmpBefore[j], out);
-				tmpAfter[j].copy(out[0].asCategorical()->values(vals));
-			}
-		}
-
-		// Train a layer of logistic units to map from the before distribution to the after distribution
-		GNeuralNetLearner* pNN = new GNeuralNetLearner();
-		calibrations.push_back(pNN);
-		pNN->nn().add(new GBlockLinear((size_t)0));
-		pNN->nn().add(new GBlockTanh());
-		pNN->train(tmpBefore, tmpAfter);
-	}
-
-	// Store the resulting calibration functions
-	GAssert(calibrations.size() == labelDims);
-	m_pCalibrations = new GNeuralNetLearner*[labelDims];
-	for(size_t i = 0; i < labelDims; i++)
-	{
-		m_pCalibrations[i] = calibrations[i];
-		calibrations[i] = NULL;
-	}
-}
-
-// virtual
-void GCalibrator::predict(const GVec& in, GVec& out)
-{
-	m_pLearner->predict(in, out);
-}
-
-// virtual
-void GCalibrator::predictDistribution(const GVec& in, GPrediction* out)
-{
-	m_pLearner->predictDistribution(in, out);
-
-	// Adjust the predicted distributions to make them approximate real distributions
-	GVec vb;
-	if(m_pCalibrations)
-	{
-		size_t labelDims = m_pRelLabels->size();
-		for(size_t i = 0; i < labelDims; i++)
-		{
-			if(out[i].isContinuous())
-			{
-				GNormalDistribution* pNorm = out[i].asNormal();
-				GVec varBefore(1);
-				varBefore[0] = pNorm->variance();
-				GVec varAfter(1);
-				m_pCalibrations[i]->predict(varBefore, varAfter);
-				pNorm->setMeanAndVariance(pNorm->mean(), varAfter[0]);
-			}
-			else
-			{
-				GCategoricalDistribution* pCat = out[i].asCategorical();
-				vb.resize(pCat->valueCount());
-				m_pCalibrations[i]->predict(pCat->values(pCat->valueCount()), vb);
-				pCat->values(pCat->valueCount()).copy(vb);
-			}
-		}
-	}
-}
-
-// virtual
-void GCalibrator::beginIncrementalLearningInner(const GRelation& featureRel, const GRelation& labelRel)
-{
-	throw Ex("Sorry, GCalibrator does not support incremental learning");
-}
-
-// virtual
-void GCalibrator::trainIncremental(const GVec& in, const GVec& out)
-{
-	throw Ex("Sorry, GCalibrator does not support incremental learning");
-}
-
-// virtual
-const GVec& GCalibrator::prefilterFeatures(const GVec& in)
-{
-	if(m_pLearner->isFilter())
-		return ((GFilter*)m_pLearner)->prefilterFeatures(in);
-	else
-		return in;
-}
-
-// virtual
-const GVec& GCalibrator::prefilterLabels(const GVec& in)
-{
-	if(m_pLearner->isFilter())
-		return ((GFilter*)m_pLearner)->prefilterLabels(in);
-	else
-		return in;
-}
-
-// ---------------------------------------------------------------
-
 GBaselineLearner::GBaselineLearner()
 : GSupervisedLearner()
 {
@@ -1997,10 +1810,10 @@ void GIdentityFunction::predictDistribution(const GVec& in, GPrediction* out)
 void GIdentityFunction::predict(const GVec& in, GVec& out)
 {
 	if(m_labelDims <= m_featureDims)
-		out.set(in.data(), m_labelDims);
+		out.copy(in.data(), m_labelDims);
 	else
 	{
-		out.put(0, in);
+		out.copy(0, in);
 		GVec::setAll(out.data() + m_featureDims, 0.0, m_labelDims - m_featureDims);
 	}
 }

@@ -20,7 +20,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "GActivation.h"
 #include "GApp.h"
 #include "GCluster.h"
 #include "GMatrix.h"

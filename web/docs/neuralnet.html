@@ -26,20 +26,19 @@
 <br>
 <center><img src="nndiagram.svg" width=400></center><br>
 <ul>
-	<li>Some traditional textbooks consider each layer in a neural network to contain weights and a nonlinearity (a.k.a. activation function, a.k.a. transfer function).
+	<li>Some traditional textbooks consider each layer in a neural network to contain both weights and a nonlinearity (a.k.a. activation function, a.k.a. transfer function).
 		To enable greater flexibility, we treat these as two separate blocks of network units.</li>
 	<li>Each <b>GBlock</b> object represents a block of network units.
 		There are many types of blocks: GBlockLinear contains a fully-connected set of weights. GBlockTanh contains tanh units. Etc.</li>
-	<li>A <b>GNeuralNet</b> contains many GBlock objects, organized into layers.</li>
-	<li>You can call GNeuralNet::add to add a block to your neural network. It will be added on the output-most end as a new layer.</li>
+	<li>A <b>GNeuralNet</b> combines many GBlock objects.</li>
+	<li>You can call GNeuralNet::add to add a block to your neural network as its own layer.
+		It will be added on the output-most end.</li>
 	<li>Alternatively, you can call GNeuralNet::concatenate to append a block to the last existing layer.</li>
 	<li>GNeuralNet is also a type of GBlock, so you can nest entire neural networks inside of neural networks if you want to.</li>
 	<li><b>GNeuralNetOptimizer</b> is the base class for methods that train the weights of a GNeuralNet.
 		There are several types of GNeuralNetOptimizer. For example, GSGDOptimizer trains the neural net with stochastic gradient descent.</li>
-	<li><b>GNeuralNetContext</b> holds all of the buffers that a thread needs to train or evaluate a GNeuralNet in a thread-safe manner.
-		(For example it enables two threads to simultaneously feed a vector through the neural net without stomping over the activations of the other thread.)</li>
-	<li><b>GNeuralNetLearner</b> is a wrapper around GNeuralNet that implements GIncrementalLearner (which implements GSupervisedLearner).
-		This class enables using a GNeuralNet in place of any other learning algorithm in Waffles.</li>
+	<li><b>GNeuralNetLearner</b> is a convenience wrapper around a GNeuralNet and a GSGDOptimizer.
+		It implements GSupervisedLearner, so it makes it easy to compare a neural network with other learning algorithms in Waffles.</li>
 </ul>
 
 </p>
@@ -53,7 +52,6 @@
 
 <pre class="code">
 	#include &lt;GClasses/GActivation.h&gt;
-	#include &lt;GClasses/GHolders.h&gt;
 	#include &lt;GClasses/GMatrix.h&gt;
 	#include &lt;GClasses/GNeuralNet.h&gt;
 	#include &lt;GClasses/GRand.h&gt;
@@ -102,8 +100,8 @@ The activation function is specified as a separate layer:</p>
 
 <pre class="code">
 	GNeuralNet nn;
-	nn.add(new GBlockLinear(3));
-	nn.add(new GBlockLogistic());
+	nn.add(new GBlockLinear(4, 3));
+	nn.add(new GBlockLogistic(3));
 </pre>
 
 To train our model, we will create an optimizer. We wil use stochastic gradient descent (SGD). We also set the learning rate here:
@@ -118,7 +116,7 @@ To train our model, we will create an optimizer. We wil use stochastic gradient 
 <p>Let's test our model to see how well it performs:</p>
 
 <pre class="code">
-	double sse = nn.measureLoss(testingFeatures, testingLabels);
+	double sse = nn.measureLoss(optimizer.weights(), testingFeatures, testingLabels);
 	double mse = sse / testingLabels.rows();
 	double rmse = sqrt(mse);
 	std::cout &lt;&lt; "The root-mean-squared test error is " &lt;&lt; to_str(rmse) &lt;&lt; "\n";
@@ -149,8 +147,8 @@ we can use the GAutoFilter class to turn the neural network into a classifier:</
 
 <pre class="code">
 	GNeuralNetLearner learner;
-	learner.nn().add(new GBlockLinear(3));
-	learner.nn().add(new GBlockLogistic());
+	learner.nn().add(new GBlockLinear(4, 3));
+	learner.nn().add(new GBlockLogistic(3));
 	GAutoFilter af(&amp;learner, false); // false means the auto-filter does not need to "delete(&amp;nn)" when it is destroyed.
 </pre>
 
@@ -180,50 +178,11 @@ training.)</p>
 
 
 
-<br><br>
-<h3>Adding layers</h3>
-
-<p>Layers are added in feed-forward order. The first layer added is the input layer.
-The last layer added is the output layer.
-It is common to alternate between layers with blocks that have weights (such as GBlockLinear) and a layer with blocks that introduce non-linearity (such as GBlockTanh).
-Example:</p>
-
-<pre class="code">
-	nn.add(new GBlockLinear(1000));
-	nn.add(new GBlockTanh);
-	nn.add(new GBlockLinear(300));
-	nn.add(new GBlockTanh);
-	nn.add(new GBlockLinear(90));
-	nn.add(new GBlockTanh);
-	nn.add(new GBlockLinear(10));
-	nn.add(new GBlockTanh);
-</pre>
-
-<p>The layers may be resized as needed when the enclosing neural network is resized to fit the training data.</p>
-
-<p>A GBlockLinear just produces linear combinations of its inputs with no activation function.
-To use an activation function, add a layer with some nonlinear block. Some examples include:
-GBlockRectifiedLinear, GBlockSoftPlus, GBlockGaussian, GBlockBentIdentity.</p>
-
-
-<br><br>
-<h3>Blocks with weights</h3>
-
-<p>There are several types of weighted blocks that you can use in your neural networks. These include:
-<ul>
-	<li><b>GBlockLinear</b> - A traditional fully-connected feed-forward block of network units.</li>
-	<li><b>GBlockRestrictedBoltzmannMachine</b>: A restricted boltzmann machine block.</li>
-	<li><b>GBlockConvolutional1D</b> - A 1-dimensional block of convolutional units.</li>
-	<li><b>GBlockConvolutional2D</b> - A 2-dimensional block of convolutional units.</li>
-	<li>(Other layer types are currently under development...)</li>
-</ul>
-
-
 
 <br><br>
 <h3>Stopping criteria</h3>
 
-<p>The GDifferentiableOptimizer::optimizeWithValidation method divides the training data into a training portion and a validation
+<p>The GNeuralNetOptimizer::optimizeWithValidation method divides the training data into a training portion and a validation
 portion. The default uses 65% for training and 35% for validation. Suppose you wanted to change this
 ratio to 60/40. This would be done as follows:</p>
 
@@ -254,37 +213,6 @@ By default, optimize will run stochastically through the entire set of training 
 </pre>
 
 
-<br><br>
-<h3>Training incrementally</h3>
-
-<p>Sometimes, it is preferable to train your neural network incrementally, instead of simply calling the "optimizeWithValidation" method.
-For example, you might want to use a custom stopping criteria, you might want to report validation accuracy before
-each training epoch, you might want to decay the learning rate in a particular manner, etc. The following example
-shows how such things can be implemented:
-
-<pre class="code">
-	nn.beginIncrementalLearning(trainingFeatures.relation(), trainingLabels.relation());
-	GRandomIndexIterator ii(trainingFeatures.rows(), nn.rand());
-	for(size_t epoch = 0; epoch &lt; total_epochs; epoch++)
-	{
-		// Report validation accuracy
-		double rmse = sqrt(nn1.sumSquaredError(validateFeatures, validateLabels) / validateLabels.rows());
-		std::cout &lt;&lt; to_str(rmse) &lt;&lt; "\n";
-		std::cout.flush();
-	
-		// Train
-		ii.reset();
-		size_t index;
-		while(ii.next(index))
-		{
-			optimizer.optimizeIncremental(trainingFeatures[index], trainingLabels[index]);
-		}
-	
-		// Decay the learning rate
-		optimizer.setLearningRate(optimizer.learningRate() * 0.98);
-	}
-</pre>
-
 
 
 
@@ -305,8 +233,7 @@ doc.saveJson("my_neural_net.json");
 <pre class="code">
 GDom doc;
 doc.loadJson("my_neural_net.json");
-GLearnerLoader ll;
-GNeuralNet* pNN = (GNeuralNet*)ll.loadLearner(doc.root());
+GNeuralNet* pNN = new GNeuralNet(doc.root());
 </pre>
 
 
@@ -328,7 +255,6 @@ And, here is some code that trains a neural network with this data:</p>
 #include &lt;GClasses/GTransform.h&gt;
 #include &lt;GClasses/GTime.h&gt;
 #include &lt;GClasses/GVec.h&gt;
-#include &lt;GClasses/GHolders.h&gt;
 
 using namespace GClasses;
 using std::cerr;
@@ -362,15 +288,11 @@ int main(int argc, char *argv[])
 
 	// Make a neural network
 	GNeuralNet nn;
-	nn.add( new GBlockLinear(80), new GBlockTanh(),
-		new GBlockLinear(30), new GBlockTanh(),
-		new GBlockLinear(10), new GBlockTanh());
-	GRand rand(0);
-	nn.init(trainFeatures.cols(), trainLabels.cols(), rand);
+	nn.add(new GBlockLinear(28 * 28, 80), new GBlockTanh(80),
+		new GBlockLinear(80, 30), new GBlockTanh(30),
+		new GBlockLinear(30, 10), new GBlockTanh(10));
 
-	// Prepare for training
-	GSGDOptimizer optimizer(nn, rand, &amp;trainFeatures, &amp;trainLabels);
-	optimizer.setLearningRate(0.01);
+	// Print some info
 	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Topology:\n";
@@ -381,10 +303,13 @@ int main(int argc, char *argv[])
 	cout &lt;&lt; "@DATA\n";
 
 	// Train
+	GRand rand(0);
+	GSGDOptimizer optimizer(nn, rand, &amp;trainFeatures, &amp;trainLabels);
+	optimizer.setLearningRate(0.01);
 	double starttime = GTime::seconds();
 	for(size_t epoch = 0; epoch &lt; 10; epoch++)
 	{
-		double mis = nn.measureLoss(testFeatures, rawTestLabels);
+		double mis = nn.measureLoss(optimizer.weights(), testFeatures, rawTestLabels);
 		cout &lt;&lt; to_str((double)mis / testFeatures.rows()) &lt;&lt; "," &lt;&lt; to_str(GTime::seconds() - starttime) &lt;&lt; "\n";
 		cout.flush();
 		optimizer.optimizeEpoch();
@@ -411,16 +336,16 @@ int main(int argc, char *argv[])
 @ATTRIBUTE misclassification_rate real
 @ATTRIBUTE elapsed_time real
 @DATA
-0.9235,0.41962885856628
-0.0588,25.853845834732
-0.0455,51.202766895294
-0.0436,76.504915952682
-0.0382,101.84748888016
-0.039,127.16595101357
-0.0361,152.64489006996
-0.0335,178.02455592155
-0.036,203.4120118618
-0.0332,228.8822748661
+0.9243,0.4613778591156
+0.0622,10.968685865402
+0.0509,21.50560092926
+0.0422,32.133005857468
+0.0406,42.690910816193
+0.043,53.197825908661
+0.0337,63.745694875717
+0.037,74.263633966446
+0.0367,85.197949886322
+0.0338,95.829666852951
 </pre>
 
 <p>The left-most column shows that we get 332 misclassifications in less than 4 minutes of training.
@@ -439,30 +364,30 @@ Here are some changes to the training section of the previous example to train t
 
 <pre class="code">
 	// Train
-<font color="red">	double learningRate = 0.01;
+	GRand rand(0);
+	<font color="red">GVec weights(nn.weightCount());
+	GVec grad(nn.weightCount());
+	grad.fill(0.0);
+	nn.initWeights(rand, weights);
+	double learningRate = 0.01;
 	double momentum = 0.0;
-	GVec gradient(nn.weightCount());
-	gradient.fill(0.0);
-	GContextNeuralNet* pCtx = nn.newContext(rand);
-	std::unique_ptr&lt;GContextNeuralNet&gt; hCtx(pCtx);
 	GRandomIndexIterator ii(trainFeatures.rows(), rand);</font>
+	double starttime = GTime::seconds();
 	for(size_t epoch = 0; epoch &lt; 10; epoch++)
 	{
-		double mis = nn.measureLoss(testFeatures, rawTestLabels);
+		double mis = nn.measureLoss(<font color="red">weights</font>, testFeatures, rawTestLabels);
 		cout &lt;&lt; to_str((double)mis / testFeatures.rows()) &lt;&lt; "," &lt;&lt; to_str(GTime::seconds() - starttime) &lt;&lt; "\n";
 		cout.flush();
-
-<font color="red">		ii.reset();
+		<font color="red">ii.reset();
 		size_t index;
 		while(ii.next(index))
 		{
-			GVec&amp; prediction = pCtx->forwardProp(trainFeatures[index]);
-			pCtx->blame().copy(trainLabels[index]);
-			pCtx->blame() -= prediction;
-			pCtx->backProp();
-			gradient *= momentum;
-			pCtx->updateGradient(trainFeatures[index], gradient);
-			nn.step(learningRate, gradient);
+			nn.forwardProp(weights, trainFeatures[index]);
+			nn.computeBlame(trainLabels[index]);
+			nn.backpropagate(weights);
+			grad *= momentum;
+			nn.updateGradient(weights, grad);
+			weights.addScaled(learningRate, grad);
 		}</font>
 	}
 	return 0;

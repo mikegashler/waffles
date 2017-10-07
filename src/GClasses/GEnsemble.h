@@ -362,63 +362,6 @@ protected:
 };
 
 
-/// This model trains several multi-layer perceptrons, then
-/// averages their weights together in an intelligent manner.
-class GWag : public GSupervisedLearner
-{
-protected:
-	size_t m_models;
-	GNeuralNetLearner* m_pNN;
-	bool m_noAlign;
-
-public:
-	/// General-purpose constructor. size specifies the number of
-	/// models to train and then average together.
-	GWag(size_t size);
-
-	/// Deserializing constructor
-	GWag(const GDomNode* pNode, GLearnerLoader& ll);
-
-	virtual ~GWag();
-
-	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc) const;
-
-	/// See the comment for GSupervisedLearner::clear
-	virtual void clear();
-
-	/// Returns a pointer to the internal neural network. (You must add at least one
-	/// layer to this model before training, and you should probably add at least two.
-	/// Wagging only works with classic layers. You may also use this method to obtain the average
-	/// neural network after training.)
-	GNeuralNetLearner* model() { return m_pNN; }
-
-	/// Specify the number of neural networks to average together
-	void setModelCount(size_t n) { m_models = n; }
-
-	/// Specify to average weights without first aligning the nodes. (This should
-	/// never improve results, but it might be useful for measuring the value of aligning them.)
-	void noAlign() { m_noAlign = true; }
-
-protected:
-	/// See the comment for GSupervisedLearner::trainInner
-	virtual void trainInner(const GMatrix& features, const GMatrix& labels);
-
-	/// See the comment for GSupervisedLearner::predict
-	virtual void predict(const GVec& in, GVec& out);
-
-	/// See the comment for GSupervisedLearner::predictDistribution
-	virtual void predictDistribution(const GVec& in, GPrediction* pOut);
-
-	/// See the comment for GSupervisedLearner::canImplicitlyHandleNominalFeatures
-	virtual bool canImplicitlyHandleNominalFeatures() { return false; }
-
-	/// See the comment for GSupervisedLearner::canImplicitlyHandleNominalLabels
-	virtual bool canImplicitlyHandleNominalLabels() { return false; }
-};
-
-
-
 /// When Train is called, this performs cross-validation on the training
 /// set to determine which learner is the best. It then trains that learner
 /// with the entire training set.
