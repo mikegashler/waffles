@@ -586,6 +586,22 @@ public:
 };
 
 
+/// A tensor class.
+class GTensor : public GVecWrapper
+{
+public:
+	GIndexVec dims;
+
+	GTensor(GVec& vals, size_t width, size_t height);
+
+	/// out is assumed to already be the correct size to receive the results of convolution.
+	/// kernel is an already-flipped kernel to convolve with in.
+	static void convolve(const GTensor& in, const GTensor& kernel, GTensor& out, GIndexVec& padding, GIndexVec& stride);
+
+	static void test();
+};
+
+
 } // namespace GClasses
 
 #endif // __GVEC_H__

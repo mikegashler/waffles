@@ -20,7 +20,6 @@
 #include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
-#include "../GClasses/GActivation.h"
 #include "../GClasses/GApp.h"
 #include "../GClasses/GBits.h"
 #include "../GClasses/GCluster.h"

@@ -30,7 +30,6 @@
 #ifdef WINDOWS
 #	include <direct.h>
 #endif
-#include "../GClasses/GActivation.h"
 #include "../GClasses/GApp.h"
 #include "../GClasses/GAssignment.h"
 #include "../GClasses/GBayesianNetwork.h"
@@ -964,6 +963,7 @@ public:
 		runTest("GSubImageFinder", GSubImageFinder::test);
 		runTest("GSubImageFinder2", GSubImageFinder2::test);
 		runTest("GSupervisedLearner", GSupervisedLearner::test);
+		runTest("GTensor", GTensor::test);
 		runTest("GVec", GVec::test);
 
 		// Test whether we can find and execute the command-line tools
