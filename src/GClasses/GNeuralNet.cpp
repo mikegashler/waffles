@@ -135,7 +135,7 @@ GBlockActivation::GBlockActivation(size_t size)
 }
 
 GBlockActivation::GBlockActivation(GDomNode* pNode)
-: GBlockWeightless(pNode), m_units(pNode->field("units")->asInt())
+: GBlockWeightless(pNode)
 {}
 
 void GBlockActivation::forwardProp(const GVec& weights)
@@ -155,6 +155,96 @@ void GBlockActivation::inverseProp(const GVec& output, GVec& input)
 	for(size_t i = 0; i < outputCount; i++)
 		input[i] = inverse(output[i]);
 }
+
+
+
+
+
+
+
+
+void GBlockSoftMax::forwardProp(const GVec& weights)
+{
+	// Activate with logistic function
+	double sum = 0.0;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		output[i] = std::exp(input[i]);
+		sum += output[i];
+	}
+
+	// Normalize
+	double scalar = 1.0 / sum;
+	for(size_t i = 0; i < outputCount; i++)
+		output[i] *= scalar;
+}
+
+void GBlockSoftMax::computeBlame(const GVec& target)
+{
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		GAssert(target[i] >= 0.0 && target[i] <= 1.0);
+		outBlame[i] = target[i] - output[i];
+	}
+}
+
+void GBlockSoftMax::backProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+		inBlame[i] = outBlame[i];
+}
+
+
+
+
+
+
+
+
+GBlockSpectral::GBlockSpectral(double min_wavelength, double max_wavelength, size_t units)
+: GBlockWeightless(1, units)
+{
+	m_min_wavelength = min_wavelength;
+	m_adjacent_wavelength_ratio = pow(max_wavelength / min_wavelength, 1.0 / (units - 1));
+}
+
+GBlockSpectral::GBlockSpectral(GDomNode* pNode)
+: GBlockWeightless(pNode),
+m_min_wavelength(pNode->field("mwl")->asDouble()),
+m_adjacent_wavelength_ratio(pNode->field("awr")->asDouble())
+{
+}
+
+GDomNode* GBlockSpectral::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "mwl", pDoc->newDouble(m_min_wavelength));
+	pNode->addField(pDoc, "awr", pDoc->newDouble(m_adjacent_wavelength_ratio));
+	return pNode;
+}
+
+void GBlockSpectral::forwardProp(const GVec& weights)
+{
+	double wave_length = m_min_wavelength;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		output[i] = std::sin(2.0 * M_PI * input[0] / wave_length);
+		wave_length *= m_adjacent_wavelength_ratio;
+	}
+}
+
+void GBlockSpectral::backProp(const GVec& weights)
+{
+	double wave_length = m_min_wavelength;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		inBlame[0] += outBlame[i] * std::cos(2.0 * M_PI * input[i] / wave_length);
+		wave_length *= m_adjacent_wavelength_ratio;
+	}
+}
+
+
+
 
 
 

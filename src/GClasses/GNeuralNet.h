@@ -72,6 +72,7 @@ public:
 		block_leakyrectifier,
 		block_softplus,
 		block_softroot,
+		block_softmax,
 
 		// weights transfer
 		block_linear,
@@ -84,12 +85,12 @@ public:
 		block_scalarsum,
 		block_scalarproduct,
 		block_switch,
+		block_spectral,
 
 		// recurrent
 		block_lstm,
 
 		// still needed
-		// block_softmax,
 		// block_maxout,
 		// block_batch_normalization,
 		// block_drop_out,
@@ -111,9 +112,6 @@ public:
 
 	/// Returns a string representation of this block
 	virtual std::string to_str() const;
-
-	/// Returns true iff this block operates only on individual elements
-	virtual bool elementWise() const { return false; }
 
 	/// Returns true iff this block is recurrent
 	virtual bool isRecurrent() const { return false; }
@@ -194,17 +192,11 @@ public:
 /// The base class of blocks that apply an activation function, such as tanh, in an element-wise manner.
 class GBlockActivation : public GBlockWeightless
 {
-protected:
-	size_t m_units;
-
 public:
 	GBlockActivation(size_t size);
 	GBlockActivation(const GBlockActivation& that) : GBlockWeightless(that) {}
 	GBlockActivation(GDomNode* pNode);
 	virtual ~GBlockActivation() {}
-
-	/// Returns true iff this block operates only on individual elements
-	virtual bool elementWise() const override { return true; }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
@@ -347,7 +339,6 @@ public:
 		else if(x < -700.0) // Don't trigger a floating point exception
 			return 0.0;
 		else return 1.0 / (std::exp(-x) + 1.0);
-
 	}
 	virtual double derivative(double x, double f_x) const override { return f_x * (1.0 - f_x); }
 	virtual double inverse(double y) const { return std::log(y / (1.0 - y)); }
@@ -541,6 +532,62 @@ public:
 	virtual double inverse(double y) const { return 0.5 * y * std::sqrt(y * y + 4.0); }
 };
 
+
+
+
+/// A softmax block.
+class GBlockSoftMax : public GBlockWeightless
+{
+public:
+	GBlockSoftMax(size_t size) : GBlockWeightless(size, size) {}
+	GBlockSoftMax(const GBlockSoftMax& that) : GBlockWeightless(that) {}
+	GBlockSoftMax(GDomNode* pNode) : GBlockWeightless(pNode) {}
+	virtual ~GBlockSoftMax() {}
+	virtual BlockType type() const override { return block_softmax; }
+	virtual std::string name() const override { return "GBlockSoftMax"; }
+	virtual GBlockSoftMax* clone() const { return new GBlockSoftMax(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Computes the blame with cross-entropy
+	virtual void computeBlame(const GVec& target) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+};
+
+
+
+
+
+/// A block of sinusoid units arranged with exponentially growing wavelengths
+class GBlockSpectral : public GBlockWeightless
+{
+protected:
+	double m_min_wavelength;
+	double m_adjacent_wavelength_ratio;
+
+public:
+	GBlockSpectral(double min_wavelength, double max_wavelength, size_t units);
+	GBlockSpectral(const GBlockSpectral& that) : GBlockWeightless(that) {}
+	GBlockSpectral(GDomNode* pNode);
+	virtual ~GBlockSpectral() {}
+	virtual BlockType type() const override { return block_spectral; }
+	virtual std::string name() const override { return "GBlockSpectral"; }
+	virtual GBlockSpectral* clone() const { return new GBlockSpectral(*this); }
+
+	/// Marshall this block into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const override;
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+};
 
 
 
@@ -789,9 +836,6 @@ public:
 	/// Returns the name of this block
 	virtual std::string name() const override { return "GBlockHinge"; }
 
-	/// Returns true iff this block operates only on individual elements
-	virtual bool elementWise() const { return true; }
-
 	/// Returns a copy of this block
 	virtual GBlockHinge* clone() const { return new GBlockHinge(*this); }
 
@@ -842,9 +886,6 @@ public:
 
 	/// Returns the name of this block
 	virtual std::string name() const override { return "GBlockSoftExp"; }
-
-	/// Returns true iff this block operates only on individual elements
-	virtual bool elementWise() const { return true; }
 
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
