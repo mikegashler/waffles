@@ -201,45 +201,65 @@ void GBlockSoftMax::backProp(const GVec& weights)
 
 
 
-GBlockSpectral::GBlockSpectral(double min_wavelength, double max_wavelength, size_t units)
+GBlockSpectral::GBlockSpectral(double min_wavelength, double max_wavelength, size_t units, bool linear_spacing)
 : GBlockWeightless(1, units)
 {
-	m_min_wavelength = min_wavelength;
-	m_adjacent_wavelength_ratio = pow(max_wavelength / min_wavelength, 1.0 / (units - 1));
+	size_t pairs = units / 2;
+	if(pairs * 2 != units)
+		throw Ex("Expected an even number of units");
+	m_freq_start = 1.0 / max_wavelength;
+	double freq_end = 1.0 / min_wavelength;
+
+	if(linear_spacing)
+	{
+		m_freq_scale = 1.0;
+		m_freq_shift = (freq_end - m_freq_start) / (pairs - 1);
+	}
+	else
+	{
+		m_freq_scale = pow(freq_end / m_freq_start, 1.0 / (pairs - 1));
+		m_freq_shift = 0.0;
+	}
 }
 
 GBlockSpectral::GBlockSpectral(GDomNode* pNode)
 : GBlockWeightless(pNode),
-m_min_wavelength(pNode->field("mwl")->asDouble()),
-m_adjacent_wavelength_ratio(pNode->field("awr")->asDouble())
+m_freq_start(pNode->field("start")->asDouble()),
+m_freq_scale(pNode->field("scale")->asDouble()),
+m_freq_shift(pNode->field("shift")->asDouble())
 {
 }
 
 GDomNode* GBlockSpectral::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc);
-	pNode->addField(pDoc, "mwl", pDoc->newDouble(m_min_wavelength));
-	pNode->addField(pDoc, "awr", pDoc->newDouble(m_adjacent_wavelength_ratio));
+	pNode->addField(pDoc, "start", pDoc->newDouble(m_freq_start));
+	pNode->addField(pDoc, "scale", pDoc->newDouble(m_freq_scale));
+	pNode->addField(pDoc, "shift", pDoc->newDouble(m_freq_shift));
 	return pNode;
 }
 
 void GBlockSpectral::forwardProp(const GVec& weights)
 {
-	double wave_length = m_min_wavelength;
-	for(size_t i = 0; i < outputCount; i++)
+	double freq = 2.0 * M_PI * m_freq_start;
+	size_t pairs = outputCount / 2;
+	for(size_t i = 0; i < pairs; i++)
 	{
-		output[i] = std::sin(2.0 * M_PI * input[0] / wave_length);
-		wave_length *= m_adjacent_wavelength_ratio;
+		output[2 * i] = std::sin(freq * input[0]);
+		output[2 * i + 1] = std::cos(freq * input[0]);
+		freq *= m_freq_scale;
+		freq += m_freq_shift;
 	}
 }
 
 void GBlockSpectral::backProp(const GVec& weights)
 {
-	double wave_length = m_min_wavelength;
-	for(size_t i = 0; i < outputCount; i++)
+	double freq = 2.0 * M_PI * m_freq_start;
+	size_t pairs = outputCount / 2;
+	for(size_t i = 0; i < pairs; i++)
 	{
-		inBlame[0] += outBlame[i] * std::cos(2.0 * M_PI * input[i] / wave_length);
-		wave_length *= m_adjacent_wavelength_ratio;
+		inBlame[0] += outBlame[2 * i] * std::cos(freq * input[0]);
+		inBlame[0] -= outBlame[2 * i + 1] * std::sin(freq * input[0]);
 	}
 }
 
@@ -309,7 +329,7 @@ size_t GBlockLinear::weightCount() const
 void GBlockLinear::initWeights(GRand& rand, GVec& weights)
 {
 	size_t wc = weightCount();
-	double mag = std::max(0.03, 1.0 / inputCount);
+	double mag = std::max(0.03, 1.0 / std::max(1ul, inputCount));
 	for(size_t i = 0; i < wc; i++)
 		weights[i] = rand.normal() * mag;
 }
@@ -801,17 +821,48 @@ void GBlockPAL::initWeights(GRand& rand, GVec& weights)
 
 
 GBlockLSTM::GBlockLSTM(size_t inputs, size_t outputs)
-: GBlock(inputs, outputs), n(inputs + 2), f(outputs), t(outputs), o(outputs), c(outputs), h(outputs), blame_h(outputs), blame_c(outputs), pPrevInstance(this), pNextInstance(this)
+: GBlock(inputs, outputs), n(inputs + 2),
+f(outputs),
+t(outputs),
+o(outputs),
+c(outputs),
+h(outputs),
+blame_h(outputs),
+blame_c(outputs),
+pPrevInstance(this),
+pNextInstance(this),
+pSpare(nullptr)
 {
 }
 
 GBlockLSTM::GBlockLSTM(const GBlockLSTM& that)
-: GBlock(that), n(that.inputCount + 2), f(that.outputCount), t(that.outputCount), o(that.outputCount), c(that.outputCount), h(that.outputCount), blame_h(that.outputCount), blame_c(that.outputCount), pPrevInstance(this), pNextInstance(this)
+: GBlock(that),
+n(that.inputCount + 2),
+f(that.outputCount),
+t(that.outputCount),
+o(that.outputCount),
+c(that.outputCount),
+h(that.outputCount),
+blame_h(that.outputCount),
+blame_c(that.outputCount),
+pPrevInstance(this),
+pNextInstance(this),
+pSpare(nullptr)
 {
 }
 
 GBlockLSTM::GBlockLSTM(GDomNode* pNode)
-: GBlock(pNode), n(inputCount + 2), f(outputCount), t(outputCount), o(outputCount), c(outputCount), h(outputCount), blame_h(outputCount), blame_c(outputCount), pPrevInstance(this), pNextInstance(this)
+: GBlock(pNode), n(inputCount + 2),
+f(outputCount),
+t(outputCount),
+o(outputCount),
+c(outputCount),
+h(outputCount),
+blame_h(outputCount),
+blame_c(outputCount),
+pPrevInstance(this),
+pNextInstance(this),
+pSpare(nullptr)
 {
 }
 
@@ -1224,8 +1275,6 @@ void GLayer::recount()
 	{
 		size_t inPos = m_blocks[i]->inPos();
 		size_t inSize = m_blocks[i]->inputs();
-		if(inSize == 0)
-			throw Ex("The number of inputs for this block was not specified, and could not be determined");
 		size_t outSize = m_blocks[i]->outputs();
 		if(outSize == 0)
 			throw Ex("Empty block");
@@ -1477,7 +1526,8 @@ void GNeuralNet::concat(GBlock* pBlock, size_t inPos)
 
 void GNeuralNet::forwardProp(const GVec& weights)
 {
-	GAssert(input.size() == m_layers[0]->inputs());
+	if(input.size() != m_layers[0]->inputs())
+		throw Ex("Expected ", GClasses::to_str(m_layers[0]->inputs()), " input values. Got ", GClasses::to_str(input.size()));
 	m_layers[0]->setInput(input);
 	output.setData(outputLayer().output);
 	size_t pos = 0;

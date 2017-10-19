@@ -1282,7 +1282,7 @@ void GTensor::test()
 	in[3] = 4; in[4] = 5; in[5] = 6;
 	in[6] = 7; in[7] = 8; in[8] = 9;
 	GTensor tin(in, 3, 3);
-	
+
 	GVec k(9);
 	k[0] = 1; k[1] = 2; k[2] = 1;
 	k[3] = 0; k[4] = 0; k[5] = 0;

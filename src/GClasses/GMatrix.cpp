@@ -5488,6 +5488,7 @@ GDataRowSplitter::~GDataRowSplitter()
 
 
 GRaggedMatrix::GRaggedMatrix()
+: m_minCols(0), m_maxCols(0)
 {
 }
 
@@ -5512,6 +5513,8 @@ GVec& GRaggedMatrix::newRow(size_t size)
 
 void GRaggedMatrix::parseCSV(GTokenizer& tok)
 {
+	m_minCols = (size_t)-1;
+	m_maxCols = 0;
 	GCharSet c_whitespace("\t\n\r ");
 	GCharSet c_newline("\n");
 	GCharSet c_commaNewlineTab(",\n\t");
@@ -5556,6 +5559,8 @@ void GRaggedMatrix::parseCSV(GTokenizer& tok)
 				}
 			}
 			GVec& r = newRow(vals.size());
+			m_minCols = std::min(m_minCols, vals.size());
+			m_maxCols = std::max(m_maxCols, vals.size());
 			for(size_t i = 0; i < vals.size(); i++)
 				r[i] = vals[i];
 		}

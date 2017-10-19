@@ -1414,6 +1414,8 @@ class GRaggedMatrix
 {
 protected:
 	std::vector<GVec*> m_rows;
+	size_t m_minCols;
+	size_t m_maxCols;
 
 public:
 	GRaggedMatrix();
@@ -1424,7 +1426,13 @@ public:
 	
 	/// \brief Returns the number of rows in this matrix.
 	size_t rows() const { return m_rows.size(); }
-	
+
+	/// \brief Returns the number of columns in the shortest row
+	size_t minCols() const { return m_minCols; }
+
+	/// \brief Returns the number of columns in the longest row
+	size_t maxCols() const { return m_maxCols; }
+
 	/// \brief Returns a reference to the specified row
 	inline GVec& operator [](size_t index) { return *m_rows[index]; }
 

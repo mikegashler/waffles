@@ -566,11 +566,12 @@ public:
 class GBlockSpectral : public GBlockWeightless
 {
 protected:
-	double m_min_wavelength;
-	double m_adjacent_wavelength_ratio;
+	double m_freq_start;
+	double m_freq_scale;
+	double m_freq_shift;
 
 public:
-	GBlockSpectral(double min_wavelength, double max_wavelength, size_t units);
+	GBlockSpectral(double min_wavelength, double max_wavelength, size_t units, bool linear_spacing = false);
 	GBlockSpectral(const GBlockSpectral& that) : GBlockWeightless(that) {}
 	GBlockSpectral(GDomNode* pNode);
 	virtual ~GBlockSpectral() {}
