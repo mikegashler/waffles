@@ -901,6 +901,7 @@ public:
 		runTest("GBezier", GBezier::test);
 		runTest("GBits", GBits::test);
 		runTest("GBitTable", GBitTable::test);
+		runTest("GBlockConv", GBlockConv::test);
 		runTest("GBouncyBalls", GBouncyBalls::test);
 		runTest("GReverseBits", reverseBitsTest);
 		runTest("GBrandesBetweenness", GBrandesBetweennessCentrality::test);

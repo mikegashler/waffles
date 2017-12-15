@@ -763,14 +763,44 @@ GIndexVec::GIndexVec(size_t n)
 : m_size(n)
 {
 	if(n == 0)
-		m_data = NULL;
+		m_data = nullptr;
 	else
 		m_data = new size_t[n];
+}
+
+GIndexVec::GIndexVec(const GIndexVec& copyMe)
+{
+	if(copyMe.size() == 0)
+		m_data = nullptr;
+	else
+		m_data = new size_t[copyMe.m_size];
+	m_size = copyMe.m_size;
+	memcpy(m_data, copyMe.m_data, sizeof(size_t) * m_size);
+}
+
+GIndexVec::GIndexVec(GDomNode* pNode)
+: m_data(nullptr), m_size(0)
+{
+	GDomListIterator it(pNode);
+	resize(it.remaining());
+	for(size_t i = 0; it.current(); i++)
+	{
+		(*this)[i] = it.current()->asInt();
+		it.advance();
+	}	
 }
 
 GIndexVec::~GIndexVec()
 {
 	delete[] m_data;
+}
+
+GDomNode* GIndexVec::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = pDoc->newList();
+	for(size_t i = 0; i < m_size; i++)
+		pNode->addItem(pDoc, pDoc->newInt((*this)[i]));
+	return pNode;
 }
 
 void GIndexVec::resize(size_t n)
@@ -1173,6 +1203,20 @@ void GCoordVectorIterator::test()
 
 
 
+size_t countTensorSize(const GIndexVec& dims)
+{
+	size_t n = 1;
+	for(size_t i = 0; i < dims.size(); i++)
+		n *= dims[i];
+	return n;
+}
+
+GTensor::GTensor(GVec& vals)
+: GVecWrapper(vals), dims(1)
+{
+	dims[0] = vals.size();
+}
+
 GTensor::GTensor(GVec& vals, size_t width, size_t height)
 : GVecWrapper(vals), dims(2)
 {
@@ -1182,44 +1226,81 @@ GTensor::GTensor(GVec& vals, size_t width, size_t height)
 	dims[1] = height;
 }
 
-void GTensor::convolve(const GTensor& in, const GTensor& kernel, GTensor& out, GIndexVec& padding, GIndexVec& stride)
+GTensor::GTensor(GVec& vals, size_t a, size_t b, size_t c)
+: GVecWrapper(vals), dims(3)
+{
+	if(a * b * c != vals.size())
+		throw Ex("Mismatching sizes");
+	dims[0] = a;
+	dims[1] = b;
+	dims[2] = c;
+}
+
+GTensor::GTensor(GVec& vals, size_t a, size_t b, size_t c, size_t d)
+: GVecWrapper(vals), dims(4)
+{
+	if(a * b * c * d != vals.size())
+		throw Ex("Mismatching sizes");
+	dims[0] = a;
+	dims[1] = b;
+	dims[2] = c;
+	dims[3] = d;
+}
+
+GTensor::GTensor(const GTensor& copyMe)
+: GVecWrapper(copyMe.m_data, copyMe.m_size),
+dims(copyMe.dims)
+{
+}
+
+GTensor::GTensor(double* buf, const GIndexVec& _dims)
+: GVecWrapper(buf, buf ? countTensorSize(_dims) : 0),
+dims(_dims)
+{
+}
+
+GTensor::GTensor(GDomNode* pNode)
+: GVecWrapper(nullptr, 0),
+dims(pNode)
+{
+}
+
+void GTensor::convolve(const GTensor& in, const GTensor& filter, GTensor& out, bool flipFilter, size_t stride)
 {
 	// Precompute some values
 	size_t dc = in.dims.size();
-#ifdef _DEBUG
-	GAssert(dc == kernel.dims.size());
+	GAssert(dc == filter.dims.size());
 	GAssert(dc == out.dims.size());
-	for(size_t i = 0; i < dc; i++)
-		GAssert(out.dims[i] = (in.dims[i] + 2 * padding[i] - kernel.dims[i]) / stride[i] + 1);
-#endif
 	size_t* kinner = (size_t*)alloca(sizeof(size_t) * 5 * dc);
 	size_t* kouter = kinner + dc;
 	size_t* stepInner = kouter + dc;
-	size_t* stepKernel = stepInner + dc;
-	size_t* stepOuter = stepKernel + dc;
+	size_t* stepFilter = stepInner + dc;
+	size_t* stepOuter = stepFilter + dc;
 
 	// Compute step sizes
 	stepInner[0] = 1;
-	stepKernel[0] = 1;
+	stepFilter[0] = 1;
 	stepOuter[0] = 1;
 	for(size_t i = 1; i < dc; i++)
 	{
 		stepInner[i] = stepInner[i - 1] * in.dims[i - 1];
-		stepKernel[i] = stepKernel[i - 1] * kernel.dims[i - 1];
+		stepFilter[i] = stepFilter[i - 1] * filter.dims[i - 1];
 		stepOuter[i] = stepOuter[i - 1] * out.dims[i - 1];
 	}
+	size_t filterTail = stepFilter[dc - 1] * filter.dims[dc - 1] - 1;
 
 	// Do convolution
 	size_t op = 0;
 	size_t ip = 0;
-	size_t kp = 0;
+	size_t fp = 0;
 	for(size_t i = 0; i < dc; i++)
 	{
 		kouter[i] = 0;
 		kinner[i] = 0;
-		ssize_t adj = (padding[i] - std::min(padding[i], kouter[i])) - kinner[i];
+		ssize_t padding = (stride * (out.dims[i] - 1) + filter.dims[i] - in.dims[i]) / 2;
+		ssize_t adj = (padding - std::min(padding, (ssize_t)kouter[i])) - kinner[i];
 		kinner[i] += adj;
-		kp += adj * stepKernel[i];
+		fp += adj * stepFilter[i];
 	}
 	while(true) // kouter
 	{
@@ -1228,14 +1309,15 @@ void GTensor::convolve(const GTensor& in, const GTensor& kernel, GTensor& out, G
 		// Fix up the initial kinner positions
 		for(size_t i = 0; i < dc; i++)
 		{
-			ssize_t adj = (padding[i] - std::min(padding[i], kouter[i])) - kinner[i];
+			ssize_t padding = (stride * (out.dims[i] - 1) + filter.dims[i] - in.dims[i]) / 2;
+			ssize_t adj = (padding - std::min(padding, (ssize_t)kouter[i])) - kinner[i];
 			kinner[i] += adj;
-			kp += adj * stepKernel[i];
+			fp += adj * stepFilter[i];
 			ip += adj * stepInner[i];
 		}
 		while(true) // kinner
 		{
-			val += (in[ip] * kernel[kp]);
+			val += (in[ip] * filter[flipFilter ? filterTail - fp : fp]);
 
 			// increment the kinner position
 			size_t i;
@@ -1243,18 +1325,19 @@ void GTensor::convolve(const GTensor& in, const GTensor& kernel, GTensor& out, G
 			{
 				kinner[i]++;
 				ip += stepInner[i];
-				kp += stepKernel[i];
-				if(kinner[i] < kernel.dims[i] && kouter[i] + kinner[i] - padding[i] < in.dims[i])
+				fp += stepFilter[i];
+				ssize_t padding = (stride * (out.dims[i] - 1) + filter.dims[i] - in.dims[i]) / 2;
+				if(kinner[i] < filter.dims[i] && kouter[i] + kinner[i] - padding < in.dims[i])
 					break;
-				ssize_t adj = (padding[i] - std::min(padding[i], kouter[i])) - kinner[i];
+				ssize_t adj = (padding - std::min(padding, (ssize_t)kouter[i])) - kinner[i];
 				kinner[i] += adj;
-				kp += adj * stepKernel[i];
+				fp += adj * stepFilter[i];
 				ip += adj * stepInner[i];
 			}
 			if(i >= dc)
 				break;
 		}
-		out[op] = val;
+		out[op] += val;
 
 		// increment the kouter position
 		size_t i;
@@ -1262,11 +1345,11 @@ void GTensor::convolve(const GTensor& in, const GTensor& kernel, GTensor& out, G
 		{
 			kouter[i]++;
 			op += stepOuter[i];
-			ip += stride[i] * stepInner[i];
+			ip += stride * stepInner[i];
 			if(kouter[i] < out.dims[i])
 				break;
 			op -= kouter[i] * stepOuter[i];
-			ip -= kouter[i] * stride[i] * stepInner[i];
+			ip -= kouter[i] * stride * stepInner[i];
 			kouter[i] = 0;
 		}
 		if(i >= dc)
@@ -1277,38 +1360,67 @@ void GTensor::convolve(const GTensor& in, const GTensor& kernel, GTensor& out, G
 // static
 void GTensor::test()
 {
-	GVec in(9);
-	in[0] = 1; in[1] = 2; in[2] = 3;
-	in[3] = 4; in[4] = 5; in[5] = 6;
-	in[6] = 7; in[7] = 8; in[8] = 9;
-	GTensor tin(in, 3, 3);
+	{
+		// 1D test
+		GVec in(5);
+		in[0] = 2;
+		in[1] = 3;
+		in[2] = 1;
+		in[3] = 0;
+		in[4] = 1;
+		GTensor tin(in);
 
-	GVec k(9);
-	k[0] = 1; k[1] = 2; k[2] = 1;
-	k[3] = 0; k[4] = 0; k[5] = 0;
-	k[6] = -1; k[7] = -2; k[8] = -1;
-	GTensor tk(k, 3, 3);
+		GVec k(3);
+		k[0] = 1;
+		k[1] = 0;
+		k[2] = 2;
+		GTensor tk(k);
 
-	GVec out(9);
-	GTensor tout(out, 3, 3);
+		GVec out(7);
+		GTensor tout(out);
 
-	GIndexVec padding(2);
-	padding[0] = 1;
-	padding[1] = 1;
-	GIndexVec stride(2);
-	stride[0] = 1;
-	stride[1] = 1;
-	GTensor::convolve(tin, tk, tout, padding, stride);
+		GTensor::convolve(tin, tk, tout, true, 1);
 
-	if(std::abs(-13 - out[0]) > 1e-10) throw Ex("wrong");
-	if(std::abs(-20 - out[1]) > 1e-10) throw Ex("wrong");
-	if(std::abs(-17 - out[2]) > 1e-10) throw Ex("wrong");
-	if(std::abs(-18 - out[3]) > 1e-10) throw Ex("wrong");
-	if(std::abs(-24 - out[4]) > 1e-10) throw Ex("wrong");
-	if(std::abs(-18 - out[5]) > 1e-10) throw Ex("wrong");
-	if(std::abs(13 - out[6]) > 1e-10) throw Ex("wrong");
-	if(std::abs(20 - out[7]) > 1e-10) throw Ex("wrong");
-	if(std::abs(17 - out[8]) > 1e-10) throw Ex("wrong");
+		//     2 3 1 0 1
+		// 2 0 1 --->
+		if(std::abs(2 - out[0]) > 1e-10) throw Ex("wrong");
+		if(std::abs(3 - out[1]) > 1e-10) throw Ex("wrong");
+		if(std::abs(5 - out[2]) > 1e-10) throw Ex("wrong");
+		if(std::abs(6 - out[3]) > 1e-10) throw Ex("wrong");
+		if(std::abs(3 - out[4]) > 1e-10) throw Ex("wrong");
+		if(std::abs(0 - out[5]) > 1e-10) throw Ex("wrong");
+		if(std::abs(2 - out[6]) > 1e-10) throw Ex("wrong");
+	}
+
+	{
+		// 2D test
+		GVec in(9);
+		in[0] = 1; in[1] = 2; in[2] = 3;
+		in[3] = 4; in[4] = 5; in[5] = 6;
+		in[6] = 7; in[7] = 8; in[8] = 9;
+		GTensor tin(in, 3, 3);
+
+		GVec k(9);
+		k[0] = 1; k[1] = 2; k[2] = 1;
+		k[3] = 0; k[4] = 0; k[5] = 0;
+		k[6] = -1; k[7] = -2; k[8] = -1;
+		GTensor tk(k, 3, 3);
+
+		GVec out(9);
+		GTensor tout(out, 3, 3);
+
+		GTensor::convolve(tin, tk, tout, false, 1);
+
+		if(std::abs(-13 - out[0]) > 1e-10) throw Ex("wrong");
+		if(std::abs(-20 - out[1]) > 1e-10) throw Ex("wrong");
+		if(std::abs(-17 - out[2]) > 1e-10) throw Ex("wrong");
+		if(std::abs(-18 - out[3]) > 1e-10) throw Ex("wrong");
+		if(std::abs(-24 - out[4]) > 1e-10) throw Ex("wrong");
+		if(std::abs(-18 - out[5]) > 1e-10) throw Ex("wrong");
+		if(std::abs(13 - out[6]) > 1e-10) throw Ex("wrong");
+		if(std::abs(20 - out[7]) > 1e-10) throw Ex("wrong");
+		if(std::abs(17 - out[8]) > 1e-10) throw Ex("wrong");
+	}
 }
 
 

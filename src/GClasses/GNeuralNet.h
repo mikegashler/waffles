@@ -694,6 +694,109 @@ public:
 
 
 
+/// A convolutional layer.
+class GBlockConv : public GBlock
+{
+protected:
+	size_t filterCount;
+	size_t filterSize;
+	size_t outputsPerFilter;
+	GTensor tensorInput; // BUG: this member variable makes this block non-thread-safe.
+	GTensor tensorFilter; // BUG: this member variable makes this block non-thread-safe.
+	GTensor tensorOutput; // BUG: this member variable makes this block non-thread-safe.
+
+public:
+	/// General-purpose constructor
+	GBlockConv(const GIndexVec& inputDims, const GIndexVec& filterDims, size_t filterCount);
+
+	/// Copy constructor
+	GBlockConv(const GBlockConv& that);
+
+	/// Unmarshalling constructor
+	GBlockConv(GDomNode* pNode);
+
+	/// Destructor
+	virtual ~GBlockConv() {}
+
+	/// Marshall this block into a DOM.
+	virtual GDomNode* serialize(GDom* pDoc) const override;
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_linear; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockConv"; }
+
+	/// Returns a copy of this block
+	virtual GBlockConv* clone() const { return new GBlockConv(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand, GVec& weights) override;
+
+#ifndef NO_TEST_CODE
+	static void test();
+#endif // NO_TEST_CODE
+};
+
+
+
+
+
+/// Treats the input as two concatenated vectors.
+/// Adds each corresponding pair of values together to produce the output.
+class GBlockMaxPooling2D : public GBlockWeightless
+{
+protected:
+	size_t width, height, channels;
+
+public:
+	/// General-purpose constructor.
+	GBlockMaxPooling2D(size_t width, size_t height, size_t channels);
+
+	/// Copy constructor
+	GBlockMaxPooling2D(const GBlockMaxPooling2D& that) : GBlockWeightless(that) {}
+
+	/// Deserializing constructor
+	GBlockMaxPooling2D(GDomNode* pNode);
+
+	/// Destructor
+	~GBlockMaxPooling2D();
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_scalarsum; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockMaxPooling2D"; }
+
+	/// Returns a copy of this block
+	virtual GBlockMaxPooling2D* clone() const { return new GBlockMaxPooling2D(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+};
+
+
+
+
+
 /// Treats the input as two concatenated vectors.
 /// Adds each corresponding pair of values together to produce the output.
 class GBlockScalarSum : public GBlockWeightless
@@ -1150,7 +1253,6 @@ friend class GNeuralNetOptimizer;
 protected:
 	size_t m_weightCount;
 	std::vector<GLayer*> m_layers;
-	bool m_fullBackProp;
 
 public:
 	/// General-purpose constructor
@@ -1262,6 +1364,9 @@ protected:
 
 	/// Internal method to backpropate error. Assumes inBlame and outBlame have already been hooked up.
 	virtual void backProp(const GVec& weights) override;
+
+	/// Like backProp, but it doesn't compute blame on the inputs.
+	void backPropFast(const GVec& weights);
 };
 
 

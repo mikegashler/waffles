@@ -399,7 +399,17 @@ public:
 	size_t m_size;
 
 	GIndexVec(size_t n = 0);
+
+	// Copy constructor
+	GIndexVec(const GIndexVec& copyMe);
+
+	/// Unmarshaling constructor
+	GIndexVec(GDomNode* pNode);
+
 	~GIndexVec();
+
+	/// Marshals this index vector into a DOM node.
+	GDomNode* serialize(GDom* pDoc) const;
 
 	/// Returns the size of this vector.
 	size_t size() const { return m_size; }
@@ -592,11 +602,32 @@ class GTensor : public GVecWrapper
 public:
 	GIndexVec dims;
 
+	/// 1-dimensional (vector) constructor
+	GTensor(GVec& vals);
+
+	/// 2-dimensional (matrix) constructor
 	GTensor(GVec& vals, size_t width, size_t height);
 
-	/// out is assumed to already be the correct size to receive the results of convolution.
-	/// kernel is an already-flipped kernel to convolve with in.
-	static void convolve(const GTensor& in, const GTensor& kernel, GTensor& out, GIndexVec& padding, GIndexVec& stride);
+	/// 3-dimensional constructor
+	GTensor(GVec& vals, size_t a, size_t b, size_t c);
+
+	/// 4-dimensional constructor
+	GTensor(GVec& vals, size_t a, size_t b, size_t c, size_t d);
+
+	/// Copy constructor. Copies the dimensions. Wraps the same vector.
+	GTensor(const GTensor& copyMe);
+
+	/// Constructor for an arbitrary number of dimensions
+	GTensor(double* buf, const GIndexVec& dims);
+
+	/// Special constructor for initializing the dimensions from a Json node
+	GTensor(GDomNode* pNode);
+
+	/// The result is added to the existing contents of out. It does not replace the existing contents of out.
+	/// Padding is computed as necessary to fill the the out tensor.
+	/// filter is the filter to convolve with in.
+	/// If flipFilter is true, then the filter is flipped in all dimensions.
+	static void convolve(const GTensor& in, const GTensor& filter, GTensor& out, bool flipFilter = false, size_t stride = 1);
 
 	static void test();
 };

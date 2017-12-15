@@ -213,7 +213,7 @@ GBlockSpectral::GBlockSpectral(double min_wavelength, double max_wavelength, siz
 	if(linear_spacing)
 	{
 		m_freq_scale = 1.0;
-		m_freq_shift = (freq_end - m_freq_start) / (pairs - 1);
+		m_freq_shift = std::min(1.0, (freq_end - m_freq_start) / (pairs - 1));
 	}
 	else
 	{
@@ -328,10 +328,7 @@ size_t GBlockLinear::weightCount() const
 
 void GBlockLinear::initWeights(GRand& rand, GVec& weights)
 {
-	size_t wc = weightCount();
-	double mag = std::max(0.03, 1.0 / std::max(1ul, inputCount));
-	for(size_t i = 0; i < wc; i++)
-		weights[i] = rand.normal() * mag;
+	weights.fillNormal(rand, std::max(0.03, 1.0 / std::max(1ul, inputCount)));
 }
 
 
@@ -424,11 +421,271 @@ size_t GBlockTemperedLinear::weightCount() const
 
 void GBlockTemperedLinear::initWeights(GRand& rand, GVec& weights)
 {
-	size_t wc = weightCount();
-	double mag = std::max(0.03, 1.0 / inputCount);
-	for(size_t i = 0; i < wc; i++)
-		weights[i] = rand.normal() * mag;
+	weights.fillNormal(rand, std::max(0.03, 1.0 / std::max(1ul, inputCount)));
 }
+
+
+
+
+
+
+
+size_t GBlockConv_countTensorSize(const GIndexVec& dims)
+{
+	size_t n = 1;
+	for(size_t i = 0; i < dims.size(); i++)
+		n *= dims[i];
+	return n;
+}
+
+size_t GBlockConv_countTensorOutputSize(const GIndexVec& inDims, const GIndexVec& filterDims)
+{
+	size_t n = 1;
+	for(size_t i = 0; i < inDims.size(); i++)
+	{
+		size_t d = inDims[i];
+		if(d == filterDims[i])
+			d = 1;
+		n *= d;
+	}
+	return n;
+}
+
+GBlockConv::GBlockConv(const GIndexVec& inputDims, const GIndexVec& filterDims, size_t _filterCount)
+: GBlock(GBlockConv_countTensorSize(inputDims), GBlockConv_countTensorOutputSize(inputDims, filterDims) * _filterCount),
+filterCount(_filterCount),
+filterSize(GBlockConv_countTensorSize(filterDims)),
+outputsPerFilter(outputCount / filterCount),
+tensorInput(nullptr, inputDims),
+tensorFilter(nullptr, filterDims),
+tensorOutput(nullptr, inputDims)
+{
+	for(size_t i = 0; i < inputDims.size(); i++)
+	{
+		if(tensorInput.dims[i] == tensorFilter.dims[i])
+			tensorOutput.dims[i] = 1;
+	}
+}
+
+GBlockConv::GBlockConv(const GBlockConv& that)
+: GBlock(that),
+filterCount(that.filterCount),
+filterSize(that.filterSize),
+outputsPerFilter(that.outputsPerFilter),
+tensorInput(that.tensorInput),
+tensorFilter(that.tensorFilter),
+tensorOutput(that.tensorOutput)
+{
+}
+
+GBlockConv::GBlockConv(GDomNode* pNode)
+: GBlock(pNode),
+filterCount(pNode->field("filterCount")->asInt()),
+outputsPerFilter(outputCount / filterCount),
+tensorInput(pNode->field("inputDims")),
+tensorFilter(pNode->field("filterDims")),
+tensorOutput(nullptr, tensorInput.dims)
+{
+	filterSize = GBlockConv_countTensorSize(tensorFilter.dims);
+}
+
+GDomNode* GBlockConv::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc);
+	pNode->addField(pDoc, "filterCount", pDoc->newInt(filterCount));
+	pNode->addField(pDoc, "inputDims", tensorInput.dims.serialize(pDoc));
+	pNode->addField(pDoc, "filterDims", tensorFilter.dims.serialize(pDoc));
+	return pNode;
+}
+
+void GBlockConv::forwardProp(const GVec& weights)
+{
+	tensorInput.setData(input);
+	size_t weightsPos = 0;
+	size_t outPos = 0;
+	for(size_t i = 0; i < filterCount; i++)
+	{
+		tensorOutput.setData(output, outPos, outputsPerFilter);
+		tensorOutput.fill(weights[weightsPos++]); // initialize with the bias value
+		tensorFilter.setData(*(GVec*)&weights, weightsPos, filterSize);
+		GTensor::convolve(tensorInput, tensorFilter, tensorOutput, false, 1);
+		weightsPos += filterSize;
+		outPos += outputsPerFilter;
+	}
+	GAssert(weightsPos == weights.size());
+}
+
+void GBlockConv::backProp(const GVec& weights)
+{
+	tensorInput.setData(inBlame);
+	size_t weightsPos = 0;
+	size_t outPos = 0;
+	for(size_t i = 0; i < filterCount; i++)
+	{
+		tensorOutput.setData(outBlame, outPos, outputsPerFilter);
+		weightsPos++; // skip the bias
+		tensorFilter.setData(*(GVec*)&weights, weightsPos, filterSize);
+		GTensor::convolve(tensorFilter, tensorOutput, tensorInput, true, 1);
+		weightsPos += filterSize;
+		outPos += outputsPerFilter;
+	}
+	GAssert(weightsPos == weights.size());
+}
+
+void GBlockConv::updateGradient(GVec& weights, GVec& gradient)
+{
+	tensorInput.setData(input);
+	size_t gradPos = 0;
+	size_t outPos = 0;
+	for(size_t i = 0; i < filterCount; i++)
+	{
+		tensorOutput.setData(outBlame, outPos, outputsPerFilter);
+		gradient[gradPos++] += tensorOutput.sum(); // the bias gradient
+		tensorFilter.setData(gradient, gradPos, filterSize);
+		GTensor::convolve(tensorInput, tensorOutput, tensorFilter, false, 1);
+		gradPos += filterSize;
+		outPos += outputsPerFilter;
+	}
+	GAssert(gradPos == weights.size());
+}
+
+size_t GBlockConv::weightCount() const
+{
+	return filterCount * (filterSize + 1);
+}
+
+void GBlockConv::initWeights(GRand& rand, GVec& weights)
+{
+	weights.fillNormal(rand, std::max(0.03, 1.0 / std::max(1ul, inputCount)));
+}
+
+#ifndef NO_TEST_CODE
+void GBlockConv::test()
+{
+	GNeuralNet nn;
+	GIndexVec inputDims(1);
+	inputDims[0] = 4;
+	GIndexVec filterDims(1);
+	filterDims[0] = 3;
+	nn.add(new GBlockConv(inputDims, filterDims, 1));
+	if(nn.weightCount() != 4)
+		throw Ex("Unexpected number of weights");
+	
+	// Test forwardprop
+	GVec w(4); w[0] = 0; w[1] = 1; w[2] = 2; w[3] = 0;
+	GVec x(4); x[0] = 2; x[1] = 1; x[2] = 0; x[3] = 3;
+	const GVec& pred = nn.forwardProp(w, x);
+	if(std::abs(4.0 - pred[0]) > 1e-8) throw Ex("wrong");
+	if(std::abs(1.0 - pred[1]) > 1e-8) throw Ex("wrong");
+	GVec y(2); y[0] = 5.0; y[1] = 3.0;
+
+	// Test backprop
+	nn.computeBlame(y);
+	GVec inBlame(4); inBlame.fill(0.0);
+	nn.backpropagate(w, &inBlame);
+	if(std::abs(1.0 - inBlame[0]) > 1e-8) throw Ex("wrong");
+	if(std::abs(4.0 - inBlame[1]) > 1e-8) throw Ex("wrong");
+	if(std::abs(4.0 - inBlame[2]) > 1e-8) throw Ex("wrong");
+	if(std::abs(0.0 - inBlame[3]) > 1e-8) throw Ex("wrong");
+
+	// Test update
+	GVec grad(4); grad.fill(0.0);
+	nn.updateGradient(w, grad);
+	if(std::abs(3.0 - grad[0]) > 1e-8) throw Ex("wrong");
+	if(std::abs(4.0 - grad[1]) > 1e-8) throw Ex("wrong");
+	if(std::abs(1.0 - grad[2]) > 1e-8) throw Ex("wrong");
+	if(std::abs(6.0 - grad[3]) > 1e-8) throw Ex("wrong");
+
+}
+#endif // NO_TEST_CODE
+
+
+
+
+
+
+GBlockMaxPooling2D::GBlockMaxPooling2D(size_t _width, size_t _height, size_t _channels)
+: GBlockWeightless(_width * _height * _channels, _width * _height / 4 * _channels),
+width(_width),
+height(_height),
+channels(_channels)
+{
+	if((width % 1) || (height % 1))
+		throw Ex("Expected an even width and height");
+}
+
+GBlockMaxPooling2D::GBlockMaxPooling2D(GDomNode* pNode)
+: GBlockWeightless(pNode)
+{
+}
+
+GBlockMaxPooling2D::~GBlockMaxPooling2D()
+{
+}
+
+// virtual
+void GBlockMaxPooling2D::forwardProp(const GVec& weights)
+{
+	size_t chanSize = width * height;
+	size_t chanStart = 0;
+	size_t pos = 0;
+	for(size_t c = 0; c < channels; c++)
+	{
+		size_t vertStart = chanStart;
+		for(size_t y = 0; y < height; y += 2)
+		{
+			for(size_t x = 0; x < width; x += 2)
+			{
+				output[pos++] = std::max(
+						std::max(input[vertStart + x], input[vertStart + 1 + x]),
+						std::max(input[vertStart + width + x], input[vertStart + width + 1 + x])
+					);
+			}
+			vertStart += width;
+		}
+		chanStart += chanSize;
+	}
+}
+
+void GBlockMaxPooling2D::backProp(const GVec& weights)
+{
+	inBlame.fill(0.0);
+	size_t chanSize = width * height;
+	size_t chanStart = 0;
+	size_t pos = 0;
+	for(size_t c = 0; c < channels; c++)
+	{
+		size_t vertStart = chanStart;
+		for(size_t y = 0; y < height; y += 2)
+		{
+			for(size_t x = 0; x < width; x += 2)
+			{
+				size_t i = vertStart + x;
+				double d = input[i];
+				double cand = input[i + 1];
+				if(cand > d)
+				{
+					d = cand;
+					i++;
+				}
+				cand = input[vertStart + width + x];
+				if(cand > d)
+				{
+					d = cand;
+					i = vertStart + width + x;
+				}
+				cand = input[vertStart + width + 1 + x];
+				if(cand > d)
+					i = vertStart + width + 1 + x;
+				inBlame[i] = outBlame[pos++];
+			}
+			vertStart += width;
+		}
+		chanStart += chanSize;
+	}
+}
+
+
 
 
 
@@ -803,10 +1060,7 @@ size_t GBlockPAL::weightCount() const
 
 void GBlockPAL::initWeights(GRand& rand, GVec& weights)
 {
-	size_t wc = weightCount();
-	double mag = std::max(0.03, 1.0 / inputCount);
-	for(size_t i = 0; i < wc; i++)
-		weights[i] = mag * rand.normal();
+	weights.fillNormal(rand, std::max(0.03, 1.0 / std::max(1ul, inputCount)));
 }
 
 
@@ -1164,10 +1418,7 @@ size_t GBlockLSTM::weightCount() const
 
 void GBlockLSTM::initWeights(GRand& rand, GVec& weights)
 {
-	size_t wc = weightCount();
-	double mag = std::max(0.03, 1.0 / (inputCount + 3));
-	for(size_t i = 0; i < wc; i++)
-		weights[i] = rand.normal() * mag;
+	weights.fillNormal(rand, std::max(0.03, 1.0 / inputCount + 3));
 }
 
 
@@ -1428,12 +1679,12 @@ void GLayer::computeBlame(const GVec& target)
 
 
 GNeuralNet::GNeuralNet()
-: GBlock(0, 0), m_weightCount(0), m_fullBackProp(true)
+: GBlock(0, 0), m_weightCount(0)
 {
 }
 
 GNeuralNet::GNeuralNet(const GNeuralNet& that)
-: GBlock(that), m_weightCount(that.m_weightCount), m_fullBackProp(true)
+: GBlock(that), m_weightCount(that.m_weightCount)
 {
 	for(size_t i = 0; i < that.m_layers.size(); i++)
 	{
@@ -1442,7 +1693,7 @@ GNeuralNet::GNeuralNet(const GNeuralNet& that)
 }
 
 GNeuralNet::GNeuralNet(GDomNode* pNode)
-: GBlock(pNode), m_weightCount(0), m_fullBackProp(true)
+: GBlock(pNode), m_weightCount(0)
 {
 	GDomNode* pLayers = pNode->field("layers");
 	GDomListIterator it(pLayers);
@@ -1557,8 +1808,7 @@ void GNeuralNet::computeBlame(const GVec& target)
 
 void GNeuralNet::backProp(const GVec& weights)
 {
-	if(m_fullBackProp)
-		m_layers[0]->setInBlame(inBlame);
+	m_layers[0]->setInBlame(inBlame);
 	size_t pos = weights.size();
 	GConstVecWrapper vw;
 	for(size_t i = m_layers.size() - 1; i > 0; i--)
@@ -1572,12 +1822,26 @@ void GNeuralNet::backProp(const GVec& weights)
 		lay.backProp(vw);
 	}
 	GAssert(pos == m_layers[0]->weightCount());
-	if(m_fullBackProp)
+	GLayer& lay = *m_layers[0];
+	vw.setData(weights, 0, pos);
+	lay.backProp(vw);
+}
+
+void GNeuralNet::backPropFast(const GVec& weights)
+{
+	size_t pos = weights.size();
+	GConstVecWrapper vw;
+	for(size_t i = m_layers.size() - 1; i > 0; i--)
 	{
-		GLayer& lay = *m_layers[0];
-		vw.setData(weights, 0, pos);
+		GLayer& layPrev = *m_layers[i - 1];
+		layPrev.outBlame.fill(0.0);
+		GLayer& lay = *m_layers[i];
+		size_t wc = lay.weightCount();
+		pos -= wc;
+		vw.setData(weights, pos, wc);
 		lay.backProp(vw);
 	}
+	GAssert(pos == m_layers[0]->weightCount());
 }
 
 void GNeuralNet::backpropagate(const GVec& weights, GVec* inputBlame)
@@ -1587,11 +1851,10 @@ void GNeuralNet::backpropagate(const GVec& weights, GVec* inputBlame)
 		GAssert(inputBlame->size() == m_layers[0]->inputs());
 		inputBlame->fill(0.0);
 		inBlame.setData(*inputBlame);
+		backProp(weights);
 	}
 	else
-		m_fullBackProp = false;
-	backProp(weights);
-	m_fullBackProp = true;
+		backPropFast(weights);
 }
 
 void GNeuralNet::updateGradient(GVec& weights, GVec& gradient)
@@ -1654,6 +1917,15 @@ void GNeuralNet::initWeights(GRand& rand, GVec& weights)
 		lay.initWeights(rand, vw);
 	}
 	GAssert(pos == weights.size());
+
+	// Check that the layers all line up
+	for(size_t i = 1; i < m_layers.size(); i++)
+	{
+		GLayer& a = *m_layers[i - 1];
+		GLayer& b = *m_layers[i];
+		if(a.outputs() != b.inputs())
+			throw Ex("Layer ", GClasses::to_str(i - 1), " outputs ", GClasses::to_str(a.outputs()), " values, but layer ", GClasses::to_str(i), " expects ", GClasses::to_str(b.inputs()), " inputs");
+	}
 }
 
 double GNeuralNet::measureLoss(const GVec& weights, const GMatrix& features, const GMatrix& labels, double* pOutSAE)
