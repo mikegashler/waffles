@@ -44,14 +44,14 @@ GBigInt::GBigInt(GDomNode* pNode)
 	GDomListIterator it(pNode);
 	m_nUInts = (unsigned int)it.remaining();
 	m_pBits = new unsigned int[m_nUInts - 1];
-	if(it.current()->asInt() >= 0)
+	if(it.currentInt() >= 0)
 		m_bSign = true;
 	else
 		m_bSign = false;
 	it.advance();
 	for(unsigned int i = 0; i < m_nUInts; i++)
 	{
-		m_pBits[i] = (unsigned int)it.current()->asInt();
+		m_pBits[i] = (unsigned int)it.currentInt();
 		it.advance();
 	}
 }
@@ -64,9 +64,9 @@ GBigInt::~GBigInt()
 GDomNode* GBigInt::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newList();
-	pNode->addItem(pDoc, pDoc->newInt(m_bSign ? 1 : -1));
+	pNode->add(pDoc, m_bSign ? 1ll : -1ll);
 	for(unsigned int i = 0; i < m_nUInts; i++)
-		pNode->addItem(pDoc, pDoc->newInt((int)m_pBits[i]));
+		pNode->add(pDoc, (long long)m_pBits[i]);
 	return pNode;
 }
 

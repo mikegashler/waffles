@@ -75,8 +75,8 @@ GPolicyLearner::GPolicyLearner(const GRelation& relation, int actionDims)
 
 GPolicyLearner::GPolicyLearner(GDomNode* pAgent)
 {
-	m_pRelation = GRelation::deserialize(pAgent->field("relation"));
-	m_actionDims = (int)pAgent->field("actionDims")->asInt();
+	m_pRelation = GRelation::deserialize(pAgent->get("relation"));
+	m_actionDims = (int)pAgent->getInt("actionDims");
 	m_senseDims = (int)m_pRelation->size() - m_actionDims;
 	m_teleported = true;
 }
@@ -91,8 +91,8 @@ GPolicyLearner::~GPolicyLearner()
 GDomNode* GPolicyLearner::baseDomNode(GDom* pDoc)
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "actionDims", pDoc->newInt(m_actionDims));
-	pNode->addField(pDoc, "relation", m_pRelation->serialize(pDoc));
+	pNode->add(pDoc, "actionDims", (long long)m_actionDims);
+	pNode->add(pDoc, "relation", m_pRelation->serialize(pDoc));
 	return pNode;
 }
 

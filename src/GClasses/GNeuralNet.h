@@ -76,6 +76,7 @@ public:
 
 		// weights transfer
 		block_linear,
+		block_conv,
 		block_temperedlinear,
 		block_pal,
 		block_hinge,
@@ -120,7 +121,7 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
 	/// Unmarshalls the specified DOM node into a block object.
-	static GBlock* deserialize(GDomNode* pNode);
+	static GBlock* deserialize(GDomNode* pNode, GRand& rand);
 
 	/// Returns a copy of this block
 	virtual GBlock* clone() const = 0;
@@ -707,7 +708,7 @@ protected:
 
 public:
 	/// General-purpose constructor
-	GBlockConv(const GIndexVec& inputDims, const GIndexVec& filterDims, size_t filterCount);
+	GBlockConv(const GIndexVec& inputDims, const GIndexVec& filterDims, size_t filterCount, const GIndexVec* pOutputDims = nullptr);
 
 	/// Copy constructor
 	GBlockConv(const GBlockConv& that);
@@ -722,7 +723,7 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const override;
 
 	/// Returns the type of this block
-	virtual BlockType type() const override { return block_linear; }
+	virtual BlockType type() const override { return block_conv; }
 
 	/// Returns the name of this block
 	virtual std::string name() const override { return "GBlockConv"; }
@@ -765,6 +766,7 @@ protected:
 
 public:
 	/// General-purpose constructor.
+	/// width is the width of the input. height is the height of the input. channels is the number of channels in the input.
 	GBlockMaxPooling2D(size_t width, size_t height, size_t channels);
 
 	/// Copy constructor
@@ -1178,7 +1180,7 @@ public:
 
 	GLayer();
 	GLayer(const GLayer& that, GLayer* pPrevLayer);
-	GLayer(GDomNode* pNode);
+	GLayer(GDomNode* pNode, GRand& rand);
 	virtual ~GLayer();
 
 	/// Marshal this object into a dom node.
@@ -1262,7 +1264,7 @@ public:
 	GNeuralNet(const GNeuralNet& that);
 
 	/// Deserializing constructor
-	GNeuralNet(GDomNode* pNode);
+	GNeuralNet(GDomNode* pNode, GRand& rand);
 
 	/// Destructor
 	virtual ~GNeuralNet();
@@ -1327,7 +1329,7 @@ public:
 	virtual size_t weightCount() const override;
 
 	/// Makes this object into a deep copy of pOther, including layers, nodes, settings and weights.
-	void copyStructure(const GNeuralNet* pOther);
+	void copyStructure(const GNeuralNet* pOther, GRand& rand);
 
 	/// Initialize the weights, usually with small random values.
 	virtual void initWeights(GRand& rand, GVec& weights) override;
@@ -1356,6 +1358,14 @@ public:
 
 	/// Updates the gradient vector
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Returns a mathematical expression of this neural network.
+	/// (Currently only supports linear, tanh, and scalarProduct blocks in one-block layers.)
+	std::string toEquation(const GVec& weights);
+
+#ifndef MIN_PREDICT
+	static void test();
+#endif
 
 protected:
 

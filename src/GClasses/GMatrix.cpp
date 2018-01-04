@@ -58,9 +58,9 @@ GUniformRelation g_emptyRelation(0, 0);
 // static
 GRelation* GRelation::deserialize(const GDomNode* pNode)
 {
-	if(pNode->fieldIfExists("name"))
+	if(pNode->getIfExists("name"))
 		return new GArffRelation(pNode);
-	else if(pNode->fieldIfExists("attrs"))
+	else if(pNode->getIfExists("attrs"))
 		return new GUniformRelation(pNode);
 	else
 		return new GMixedRelation(pNode);
@@ -231,16 +231,16 @@ void GRelation::test()
 
 GUniformRelation::GUniformRelation(const GDomNode* pNode)
 {
-	m_attrCount = (size_t)pNode->field("attrs")->asInt();
-	m_valueCount = (size_t)pNode->field("vals")->asInt();
+	m_attrCount = (size_t)pNode->getInt("attrs");
+	m_valueCount = (size_t)pNode->getInt("vals");
 }
 
 // virtual
 GDomNode* GUniformRelation::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "attrs", pDoc->newInt(m_attrCount));
-	pNode->addField(pDoc, "vals", pDoc->newInt(m_valueCount));
+	pNode->add(pDoc, "attrs", m_attrCount);
+	pNode->add(pDoc, "vals", m_valueCount);
 	return pNode;
 }
 
@@ -283,11 +283,11 @@ GMixedRelation::GMixedRelation(vector<size_t>& attrValues)
 GMixedRelation::GMixedRelation(const GDomNode* pNode)
 {
 	m_valueCounts.clear();
-	GDomNode* pValueCounts = pNode->field("vals");
+	GDomNode* pValueCounts = pNode->get("vals");
 	GDomListIterator it(pValueCounts);
 	m_valueCounts.reserve(it.remaining());
 	for( ; it.current(); it.advance())
-		m_valueCounts.push_back((size_t)it.current()->asInt());
+		m_valueCounts.push_back((size_t)it.currentInt());
 }
 
 GMixedRelation::GMixedRelation(const GRelation* pCopyMe)
@@ -309,9 +309,9 @@ GMixedRelation::~GMixedRelation()
 GDomNode* GMixedRelation::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	GDomNode* pValueCounts = pNode->addField(pDoc, "vals", pDoc->newList());
+	GDomNode* pValueCounts = pNode->add(pDoc, "vals", pDoc->newList());
 	for(size_t i = 0; i < m_valueCounts.size(); i++)
-		pValueCounts->addItem(pDoc, pDoc->newInt(m_valueCounts[i]));
+		pValueCounts->add(pDoc, m_valueCounts[i]);
 	return pNode;
 }
 
@@ -452,15 +452,15 @@ void GMixedRelation::setAttrValueCount(size_t nAttr, size_t nValues)
 GDomNode* GArffAttribute::serialize(GDom* pDoc, size_t valCount) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "name", pDoc->newString(m_name.c_str()));
+	pNode->add(pDoc, "name", m_name.c_str());
 	if(valCount > 0 && m_values.size() >= valCount)
 	{
-		GDomNode* pVals = pNode->addField(pDoc, "vals", pDoc->newList());
+		GDomNode* pVals = pNode->add(pDoc, "vals", pDoc->newList());
 		for(size_t i = 0; i < valCount; i++)
-			pVals->addItem(pDoc, pDoc->newString(m_values[i].c_str()));
+			pVals->add(pDoc, m_values[i].c_str());
 	}
 	else
-		pNode->addField(pDoc, "vc", pDoc->newInt(valCount));
+		pNode->add(pDoc, "vc", valCount);
 	return pNode;
 }
 
@@ -483,25 +483,25 @@ GArffRelation::GArffRelation()
 
 GArffRelation::GArffRelation(const GDomNode* pNode)
 {
-	m_name = pNode->field("name")->asString();
-	GDomListIterator it(pNode->field("attrs"));
+	m_name = pNode->getString("name");
+	GDomListIterator it(pNode->get("attrs"));
 	while(it.current())
 	{
-		GDomNode* pVals = it.current()->fieldIfExists("vals");
-		const char* valName = it.current()->field("name")->asString();
+		GDomNode* pVals = it.current()->getIfExists("vals");
+		const char* valName = it.current()->getString("name");
 		if(pVals)
 		{
 			vector<const char*> valNames;
 			GDomListIterator it2(pVals);
 			while(it2.current())
 			{
-				valNames.push_back(it2.current()->asString());
+				valNames.push_back(it2.currentString());
 				it2.advance();
 			}
 			addAttribute(valName, valNames.size(), &valNames);
 		}
 		else
-			addAttribute(valName, (size_t)it.current()->field("vc")->asInt(), NULL);
+			addAttribute(valName, (size_t)it.current()->getInt("vc"), NULL);
 		it.advance();
 	}
 }
@@ -514,10 +514,10 @@ GArffRelation::~GArffRelation()
 GDomNode* GArffRelation::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "name", pDoc->newString(m_name.c_str()));
-	GDomNode* pAttrs = pNode->addField(pDoc, "attrs", pDoc->newList());
+	pNode->add(pDoc, "name", m_name.c_str());
+	GDomNode* pAttrs = pNode->add(pDoc, "attrs", pDoc->newList());
 	for(size_t i = 0; i < m_attrs.size(); i++)
-		pAttrs->addItem(pDoc, m_attrs[i].serialize(pDoc, m_valueCounts[i]));
+		pAttrs->add(pDoc, m_attrs[i].serialize(pDoc, m_valueCounts[i]));
 	return pNode;
 }
 
@@ -956,8 +956,8 @@ GMatrix& GMatrix::operator=(const GMatrix& orig)
 
 GMatrix::GMatrix(const GDomNode* pNode)
 {
-	m_pRelation = GRelation::deserialize(pNode->field("rel"));
-	GDomNode* pRows = pNode->field("vals");
+	m_pRelation = GRelation::deserialize(pNode->get("rel"));
+	GDomNode* pRows = pNode->get("vals");
 	GDomListIterator it(pRows);
 	reserve(it.remaining());
 	size_t dims = (size_t)m_pRelation->size();
@@ -969,7 +969,7 @@ GMatrix::GMatrix(const GDomNode* pNode)
 			throw Ex("Row ", to_str(i), " has an unexpected number of values");
 		GVec& pat = newRow();
 		for(size_t j = 0 ; it2.current(); it2.advance())
-			pat[j++] = it2.current()->asDouble();
+			pat[j++] = it2.currentDouble();
 		i++;
 	}
 }
@@ -1306,15 +1306,15 @@ GDomNode* GMatrix::serialize(GDom* pDoc) const
 {
 	GDomNode* pData = pDoc->newObj();
 	size_t attrCount = m_pRelation->size();
-	pData->addField(pDoc, "rel", m_pRelation->serialize(pDoc));
-	GDomNode* pPats = pData->addField(pDoc, "vals", pDoc->newList());
+	pData->add(pDoc, "rel", m_pRelation->serialize(pDoc));
+	GDomNode* pPats = pData->add(pDoc, "vals", pDoc->newList());
 	GDomNode* pRow;
 	for(size_t i = 0; i < rows(); i++)
 	{
 		const GVec& pat = row(i);
-		pRow = pPats->addItem(pDoc, pDoc->newList());
+		pRow = pPats->add(pDoc, pDoc->newList());
 		for(size_t j = 0; j < attrCount; j++)
-			pRow->addItem(pDoc, pDoc->newDouble(pat[j]));
+			pRow->add(pDoc, pat[j]);
 	}
 	return pData;
 }

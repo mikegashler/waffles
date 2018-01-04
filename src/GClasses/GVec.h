@@ -51,6 +51,10 @@ public:
 	/// General-purpose constructor. n specifies the initial size of the vector.
 	GVec(int n);
 
+	/// Initializer constructor. Example usage:
+	///   GVec v({2.1, 3.2, 4.0, 5.7});
+	GVec(std::initializer_list<double> list);
+
 	/// Unmarshaling constructor
 	GVec(GDomNode* pNode);
 
@@ -398,7 +402,12 @@ public:
 	size_t* m_data;
 	size_t m_size;
 
+	/// General-purpose constructor. n specifies the initial size of the vector. (Its contents will not be initialized.)
 	GIndexVec(size_t n = 0);
+
+	/// Initializer constructor. Example usage:
+	///   GIndexVec v({2, 3, 4, 5});
+	GIndexVec(std::initializer_list<size_t> list);
 
 	// Copy constructor
 	GIndexVec(const GIndexVec& copyMe);

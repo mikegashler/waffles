@@ -32,17 +32,17 @@ namespace GClasses {
 GDomNode* G3DVector::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "x", pDoc->newDouble(m_vals[0]));
-	pNode->addField(pDoc, "y", pDoc->newDouble(m_vals[1]));
-	pNode->addField(pDoc, "z", pDoc->newDouble(m_vals[2]));
+	pNode->add(pDoc, "x", m_vals[0]);
+	pNode->add(pDoc, "y", m_vals[1]);
+	pNode->add(pDoc, "z", m_vals[2]);
 	return pNode;
 }
 
 void G3DVector::deserialize(GDomNode* pNode)
 {
-	m_vals[0] = pNode->field("x")->asDouble();
-	m_vals[1] = pNode->field("y")->asDouble();
-	m_vals[2] = pNode->field("z")->asDouble();
+	m_vals[0] = pNode->getDouble("x");
+	m_vals[1] = pNode->getDouble("y");
+	m_vals[2] = pNode->getDouble("z");
 }
 
 void G3DVector::reflectionVector(G3DVector* pRay, G3DVector* pNormal)
@@ -82,7 +82,7 @@ GDomNode* G3DMatrix::serialize(GDom* pDoc) const
 	GDomNode* pNode = pDoc->newList();
 	for(int r = 0; r < 3; r++)
 		for(int c = 0; c < 3; c++)
-			pNode->addItem(pDoc, pDoc->newDouble(m_rows[r].m_vals[c]));
+			pNode->add(pDoc, m_rows[r].m_vals[c]);
 	return pNode;
 }
 
@@ -93,7 +93,7 @@ void G3DMatrix::deserialize(GDomNode* pNode)
 	{
 		for(int c = 0; c < 3; c++)
 		{
-			m_rows[r].m_vals[c] = it.current()->asDouble();
+			m_rows[r].m_vals[c] = it.currentDouble();
 			it.advance();
 		}
 	}
@@ -137,25 +137,25 @@ void G3DMatrix::makeAxisRotationMatrix(int axis, double radians)
 
 GCamera::GCamera(GDomNode* pNode)
 {
-	m_lookFromPoint.deserialize(pNode->field("from"));
-	m_lookDirection.deserialize(pNode->field("dir"));
-	m_viewUpVector.deserialize(pNode->field("up"));
+	m_lookFromPoint.deserialize(pNode->get("from"));
+	m_lookDirection.deserialize(pNode->get("dir"));
+	m_viewUpVector.deserialize(pNode->get("up"));
 	setDirection(&m_lookDirection, &m_viewUpVector);
-	m_halfViewHeight = pNode->field("hvh")->asDouble();
-	m_nWidth = (int)pNode->field("width")->asInt();
-	m_nHeight = (int)pNode->field("height")->asInt();
+	m_halfViewHeight = pNode->getDouble("hvh");
+	m_nWidth = (int)pNode->getInt("width");
+	m_nHeight = (int)pNode->getInt("height");
 }
 
 // virtual
 GDomNode* GCamera::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "from", m_lookFromPoint.serialize(pDoc));
-	pNode->addField(pDoc, "dir", m_lookDirection.serialize(pDoc));
-	pNode->addField(pDoc, "up", m_viewUpVector.serialize(pDoc));
-	pNode->addField(pDoc, "hvh", pDoc->newDouble(m_halfViewHeight));
-	pNode->addField(pDoc, "width", pDoc->newInt(m_nWidth));
-	pNode->addField(pDoc, "height", pDoc->newInt(m_nHeight));
+	pNode->add(pDoc, "from", m_lookFromPoint.serialize(pDoc));
+	pNode->add(pDoc, "dir", m_lookDirection.serialize(pDoc));
+	pNode->add(pDoc, "up", m_viewUpVector.serialize(pDoc));
+	pNode->add(pDoc, "hvh", m_halfViewHeight);
+	pNode->add(pDoc, "width", (long long)m_nWidth);
+	pNode->add(pDoc, "height", (long long)m_nHeight);
 	return pNode;
 }
 

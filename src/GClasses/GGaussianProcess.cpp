@@ -116,13 +116,13 @@ GGaussianProcess::GGaussianProcess()
 GGaussianProcess::GGaussianProcess(const GDomNode* pNode)
 : GSupervisedLearner(pNode), m_pBuf(NULL)
 {
-	m_weightsPriorVar = pNode->field("wv")->asDouble();
-	m_noiseVar = pNode->field("nv")->asDouble();
-	m_maxSamples = (size_t)pNode->field("ms")->asInt();
-	m_pLInv = new GMatrix(pNode->field("l"));
-	m_pAlpha = new GMatrix(pNode->field("a"));
-	m_pStoredFeatures = new GMatrix(pNode->field("feat"));
-	m_pKernel = GKernel::deserialize(pNode->field("kernel"));
+	m_weightsPriorVar = pNode->getDouble("wv");
+	m_noiseVar = pNode->getDouble("nv");
+	m_maxSamples = (size_t)pNode->getInt("ms");
+	m_pLInv = new GMatrix(pNode->get("l"));
+	m_pAlpha = new GMatrix(pNode->get("a"));
+	m_pStoredFeatures = new GMatrix(pNode->get("feat"));
+	m_pKernel = GKernel::deserialize(pNode->get("kernel"));
 }
 
 // virtual
@@ -150,13 +150,13 @@ void GGaussianProcess::test()
 GDomNode* GGaussianProcess::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GGaussianProcess");
-	pNode->addField(pDoc, "wv", pDoc->newDouble(m_weightsPriorVar));
-	pNode->addField(pDoc, "nv", pDoc->newDouble(m_noiseVar));
-	pNode->addField(pDoc, "ms", pDoc->newInt(m_maxSamples));
-	pNode->addField(pDoc, "l", m_pLInv->serialize(pDoc));
-	pNode->addField(pDoc, "a", m_pAlpha->serialize(pDoc));
-	pNode->addField(pDoc, "feat", m_pStoredFeatures->serialize(pDoc));
-	pNode->addField(pDoc, "kernel", m_pKernel->serialize(pDoc));
+	pNode->add(pDoc, "wv", m_weightsPriorVar);
+	pNode->add(pDoc, "nv", m_noiseVar);
+	pNode->add(pDoc, "ms", m_maxSamples);
+	pNode->add(pDoc, "l", m_pLInv->serialize(pDoc));
+	pNode->add(pDoc, "a", m_pAlpha->serialize(pDoc));
+	pNode->add(pDoc, "feat", m_pStoredFeatures->serialize(pDoc));
+	pNode->add(pDoc, "kernel", m_pKernel->serialize(pDoc));
 	return pNode;
 }
 

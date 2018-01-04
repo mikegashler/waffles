@@ -921,7 +921,7 @@ GIsomap::GIsomap(size_t neighborCount, size_t targetDims, GRand* pRand) : m_neig
 GIsomap::GIsomap(GDomNode* pNode)
 : GTransform(pNode)
 {
-	m_targetDims = (size_t)pNode->field("targetDims")->asInt();
+	m_targetDims = (size_t)pNode->getInt("targetDims");
 }
 
 // virtual
@@ -932,7 +932,7 @@ GIsomap::~GIsomap()
 GDomNode* GIsomap::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GIsomap");
-	pNode->addField(pDoc, "targetDims", pDoc->newInt(m_targetDims));
+	pNode->add(pDoc, "targetDims", m_targetDims);
 	return pNode;
 }
 
@@ -1229,7 +1229,7 @@ GLLE::GLLE(size_t neighborCount, size_t targetDims, GRand* pRand) : m_neighborCo
 GLLE::GLLE(GDomNode* pNode)
 : GTransform(pNode)
 {
-	m_targetDims = (size_t)pNode->field("targetDims")->asInt();
+	m_targetDims = (size_t)pNode->getInt("targetDims");
 }
 
 // virtual
@@ -1240,7 +1240,7 @@ GLLE::~GLLE()
 GDomNode* GLLE::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GLLE");
-	pNode->addField(pDoc, "targetDims", pDoc->newInt(m_targetDims));
+	pNode->add(pDoc, "targetDims", m_targetDims);
 	return pNode;
 }
 
@@ -1280,7 +1280,7 @@ GBreadthFirstUnfolding::GBreadthFirstUnfolding(size_t reps, size_t neighborCount
 }
 
 GBreadthFirstUnfolding::GBreadthFirstUnfolding(GDomNode* pNode)
-: m_reps((size_t)pNode->field("reps")->asInt()), m_neighborCount((size_t)pNode->field("neighbors")->asInt()), m_targetDims((size_t)pNode->field("targetDims")->asInt()), m_pNF(NULL), m_useMds(pNode->field("useMds")->asBool()), m_rand(0)
+: m_reps((size_t)pNode->getInt("reps")), m_neighborCount((size_t)pNode->getInt("neighbors")), m_targetDims((size_t)pNode->getInt("targetDims")), m_pNF(NULL), m_useMds(pNode->getBool("useMds")), m_rand(0)
 {
 }
 
@@ -1292,10 +1292,10 @@ GBreadthFirstUnfolding::~GBreadthFirstUnfolding()
 GDomNode* GBreadthFirstUnfolding::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "reps", pDoc->newInt(m_reps));
-	pNode->addField(pDoc, "neighbors", pDoc->newInt(m_neighborCount));
-	pNode->addField(pDoc, "targetDims", pDoc->newInt(m_targetDims));
-	pNode->addField(pDoc, "useMds", pDoc->newBool(m_useMds));
+	pNode->add(pDoc, "reps", m_reps);
+	pNode->add(pDoc, "neighbors", m_neighborCount);
+	pNode->add(pDoc, "targetDims", m_targetDims);
+	pNode->add(pDoc, "useMds", m_useMds);
 	if(m_pNF)
 		throw Ex("sorry, serializing a neighbor finder is not yet implemented");
 	return pNode;

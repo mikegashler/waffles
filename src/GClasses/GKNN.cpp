@@ -119,27 +119,27 @@ GKNN::GKNN(const GDomNode* pNode)
 	m_pScaleFactorOptimizer = NULL;
 	m_pLearner = NULL;
 	m_bOwnLearner = false;
-	m_nNeighbors = (size_t)pNode->field("neighbors")->asInt();
-	m_eInterpolationMethod = (InterpolationMethod)pNode->field("interpMethod")->asInt();
-	m_eTrainMethod = (TrainMethod)pNode->field("trainMethod")->asInt();
-	m_trainParam = pNode->field("trainParam")->asDouble();
-	m_normalizeScaleFactors = pNode->field("normalize")->asBool();
-	m_optimizeScaleFactors = pNode->field("optimize")->asBool();
+	m_nNeighbors = (size_t)pNode->getInt("neighbors");
+	m_eInterpolationMethod = (InterpolationMethod)pNode->getInt("interpMethod");
+	m_eTrainMethod = (TrainMethod)pNode->getInt("trainMethod");
+	m_trainParam = pNode->getDouble("trainParam");
+	m_normalizeScaleFactors = pNode->getBool("normalize");
+	m_optimizeScaleFactors = pNode->getBool("optimize");
 	GMatrix* pFeatures = NULL;
 	GSparseMatrix* pSparseFeatures = NULL;
-	GDomNode* pFeaturesNode = pNode->fieldIfExists("features");
+	GDomNode* pFeaturesNode = pNode->getIfExists("features");
 	if(pFeaturesNode)
 		pFeatures = new GMatrix(pFeaturesNode);
 	else
-		pSparseFeatures = new GSparseMatrix(pNode->field("sparseFeatures"));
-	GMatrix* pLabels = new GMatrix(pNode->field("labels"));
-	GDomNode* pMetricNode = pNode->fieldIfExists("metric");
+		pSparseFeatures = new GSparseMatrix(pNode->get("sparseFeatures"));
+	GMatrix* pLabels = new GMatrix(pNode->get("labels"));
+	GDomNode* pMetricNode = pNode->getIfExists("metric");
 	m_pDistanceMetric = NULL;
 	m_pSparseMetric = NULL;
 	if(pMetricNode)
-		m_pDistanceMetric = GDistanceMetric::deserialize(pNode->field("metric"));
+		m_pDistanceMetric = GDistanceMetric::deserialize(pNode->get("metric"));
 	else
-		m_pSparseMetric = GSparseSimilarity::deserialize(pNode->field("sparseMetric"));
+		m_pSparseMetric = GSparseSimilarity::deserialize(pNode->get("sparseMetric"));
 	m_ownMetric = true;
 	m_pFeatures = NULL;
 	m_pSparseFeatures = NULL;
@@ -178,23 +178,23 @@ GKNN::~GKNN()
 GDomNode* GKNN::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GKNN");
-	pNode->addField(pDoc, "neighbors", pDoc->newInt(m_nNeighbors));
+	pNode->add(pDoc, "neighbors", m_nNeighbors);
 	if(m_eInterpolationMethod == Learner)
 		throw Ex("Sorry, serialize is not supported for the \"Learner\" interpolation method");
-	pNode->addField(pDoc, "interpMethod", pDoc->newInt(m_eInterpolationMethod));
-	pNode->addField(pDoc, "trainMethod", pDoc->newInt(m_eTrainMethod));
-	pNode->addField(pDoc, "trainParam", pDoc->newDouble(m_trainParam));
-	pNode->addField(pDoc, "normalize", pDoc->newBool(m_normalizeScaleFactors));
-	pNode->addField(pDoc, "optimize", pDoc->newBool(m_optimizeScaleFactors));
+	pNode->add(pDoc, "interpMethod", (long long)m_eInterpolationMethod);
+	pNode->add(pDoc, "trainMethod", (long long)m_eTrainMethod);
+	pNode->add(pDoc, "trainParam", m_trainParam);
+	pNode->add(pDoc, "normalize", m_normalizeScaleFactors);
+	pNode->add(pDoc, "optimize", m_optimizeScaleFactors);
 	if(m_pFeatures)
-		pNode->addField(pDoc, "features", m_pFeatures->serialize(pDoc));
+		pNode->add(pDoc, "features", m_pFeatures->serialize(pDoc));
 	else
-		pNode->addField(pDoc, "sparseFeatures", m_pSparseFeatures->serialize(pDoc));
-	pNode->addField(pDoc, "labels", m_pLabels->serialize(pDoc));
+		pNode->add(pDoc, "sparseFeatures", m_pSparseFeatures->serialize(pDoc));
+	pNode->add(pDoc, "labels", m_pLabels->serialize(pDoc));
 	if(m_pDistanceMetric)
-		pNode->addField(pDoc, "metric", m_pDistanceMetric->serialize(pDoc));
+		pNode->add(pDoc, "metric", m_pDistanceMetric->serialize(pDoc));
 	else
-		pNode->addField(pDoc, "sparseMetric", m_pSparseMetric->serialize(pDoc));
+		pNode->add(pDoc, "sparseMetric", m_pSparseMetric->serialize(pDoc));
 	return pNode;
 }
 
@@ -910,10 +910,10 @@ GSparseInstance::GSparseInstance()
 GSparseInstance::GSparseInstance(const GDomNode* pNode)
 : GSupervisedLearner(pNode)
 {
-	m_neighborCount = (size_t)pNode->field("neighbors")->asInt();
-	m_pInstanceFeatures = new GSparseMatrix(pNode->field("if"));
-	m_pInstanceLabels = new GMatrix(pNode->field("il"));
-	m_pMetric = GSparseSimilarity::deserialize(pNode->field("metric"));
+	m_neighborCount = (size_t)pNode->getInt("neighbors");
+	m_pInstanceFeatures = new GSparseMatrix(pNode->get("if"));
+	m_pInstanceLabels = new GMatrix(pNode->get("il"));
+	m_pMetric = GSparseSimilarity::deserialize(pNode->get("metric"));
 }
 
 GSparseInstance::~GSparseInstance()
@@ -925,10 +925,10 @@ GSparseInstance::~GSparseInstance()
 GDomNode* GSparseInstance::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GSparseInstance");
-	pNode->addField(pDoc, "neighbors", pDoc->newInt(m_neighborCount));
-	pNode->addField(pDoc, "if", m_pInstanceFeatures->serialize(pDoc));
-	pNode->addField(pDoc, "il", m_pInstanceLabels->serialize(pDoc));
-	pNode->addField(pDoc, "metric", m_pMetric->serialize(pDoc));
+	pNode->add(pDoc, "neighbors", m_neighborCount);
+	pNode->add(pDoc, "if", m_pInstanceFeatures->serialize(pDoc));
+	pNode->add(pDoc, "il", m_pInstanceLabels->serialize(pDoc));
+	pNode->add(pDoc, "metric", m_pMetric->serialize(pDoc));
 	return pNode;
 }
 

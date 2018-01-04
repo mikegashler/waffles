@@ -26,14 +26,14 @@ using namespace GClasses;
 GDomNode* GKernel::makeBaseNode(GDom* pDoc) const
 {
 	GDomNode* pObj = pDoc->newObj();
-	pObj->addField(pDoc, "name", pDoc->newString(name()));
+	pObj->add(pDoc, "name", name());
 	return pObj;
 }
 
 // static
 GKernel* GKernel::deserialize(GDomNode* pNode)
 {
-	const char* szName = pNode->field("name")->asString();
+	const char* szName = pNode->getString("name");
 	if(strcmp(szName, "identity") == 0)
 		return new GKernelIdentity(pNode);
 	else if(strcmp(szName, "chisquared") == 0)

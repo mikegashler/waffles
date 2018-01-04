@@ -33,13 +33,13 @@ Here is some code that will marshall this object into a DOM:
 	GDomNode* MyClass::serialize(GDom* pDoc)
 	{
 		GDomNode* pNode = pDoc->newObj();
-		pNode->addField(pDoc, "name", pDoc->newString(m_name.c_str()));
-		pNode->addField(pDoc, "age", pDoc->newInt(m_age));
-		pNode->addField(pDoc, "height", pDoc->newDouble(m_height));
-		pNode->addField(pDoc, "admin", pDoc->newBool(m_admin));
-		GDomNode* pFriends = pNode->addField(pDoc, "friends", pDoc->newList());
+		pNode->add(pDoc, "name", m_name.c_str());
+		pNode->add(pDoc, "age", m_age);
+		pNode->add(pDoc, "height", (long long)m_height);
+		pNode->add(pDoc, "admin", m_admin);
+		GDomNode* pFriends = pNode->add(pDoc, "friends", pDoc->newList());
 		for(size_t i = 0; i &lt; m_friends.size(); i++)
-			pFriends->addItem(pDoc, pDoc->newString(m_friends[i].c_str()));
+			pFriends->add(pDoc, m_friends[i].c_str());
 		return pNode;
 	}
 </pre>
@@ -66,12 +66,12 @@ Here is a <a href="http://json.org">JSON</a> encoding of this DOM:
 <pre>
 	void MyClass::MyClass(GDomNode* pNode)
 	{
-		m_name = pNode->field("name")->asString();
-		m_age = pNode->field("age")->asInt();
-		m_height = pNode->field("height")->asDouble();
-		m_admin = pNode->field("admin")->asBool();
+		m_name = pNode->getString("name");
+		m_age = pNode->getInt("age");
+		m_height = pNode->getDouble("height");
+		m_admin = pNode->getBool("admin");
 		for(GDomListIterator li(pNode->field("friends")); li.current(); li.advance())
-			m_friends.push_back(li.current()->asString());
+			m_friends.push_back(li.currentString());
 	}
 </pre>
 

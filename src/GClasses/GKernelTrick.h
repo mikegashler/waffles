@@ -127,15 +127,15 @@ protected:
 
 public:
 	GKernelPolynomial(double offset, unsigned int order) : GKernel(), m_offset(std::abs(offset)), m_order(order) {}
-	GKernelPolynomial(GDomNode* pNode) : GKernel(), m_offset(pNode->field("offset")->asDouble()), m_order((unsigned int)pNode->field("order")->asInt()) {}
+	GKernelPolynomial(GDomNode* pNode) : GKernel(), m_offset(pNode->getDouble("offset")), m_order((unsigned int)pNode->getInt("order")) {}
 	virtual ~GKernelPolynomial() {}
 
 	/// Marshalls this object into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc)
 	{
 		GDomNode* pObj = makeBaseNode(pDoc);
-		pObj->addField(pDoc, "offset", pDoc->newDouble(m_offset));
-		pObj->addField(pDoc, "order", pDoc->newInt(m_order));
+		pObj->add(pDoc, "offset", m_offset);
+		pObj->add(pDoc, "order", (long long)m_order);
 		return pObj;
 	}
 
@@ -157,14 +157,14 @@ protected:
 
 public:
 	GKernelGaussianRBF(double variance) : GKernel(), m_variance(std::abs(variance)) {}
-	GKernelGaussianRBF(GDomNode* pNode) : GKernel(), m_variance(pNode->field("var")->asDouble()) {}
+	GKernelGaussianRBF(GDomNode* pNode) : GKernel(), m_variance(pNode->getDouble("var")) {}
 	virtual ~GKernelGaussianRBF() {}
 
 	/// Marshalls this object into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc)
 	{
 		GDomNode* pObj = makeBaseNode(pDoc);
-		pObj->addField(pDoc, "var", pDoc->newDouble(m_variance));
+		pObj->add(pDoc, "var", m_variance);
 		return pObj;
 	}
 
@@ -188,15 +188,15 @@ protected:
 public:
 	/// Takes ownership of pK
 	GKernelTranslate(GKernel* pK, double value) : GKernel(), m_pK(pK), m_value(std::abs(value)) {}
-	GKernelTranslate(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->field("k"))), m_value(pNode->field("v")->asDouble()) {}
+	GKernelTranslate(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->get("k"))), m_value(pNode->getDouble("v")) {}
 	virtual ~GKernelTranslate() { delete(m_pK); }
 
 	/// Marshalls this object into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc)
 	{
 		GDomNode* pObj = makeBaseNode(pDoc);
-		pObj->addField(pDoc, "k", m_pK->serialize(pDoc));
-		pObj->addField(pDoc, "v", pDoc->newDouble(m_value));
+		pObj->add(pDoc, "k", m_pK->serialize(pDoc));
+		pObj->add(pDoc, "v", m_value);
 		return pObj;
 	}
 
@@ -220,15 +220,15 @@ protected:
 public:
 	/// Takes ownership of pK
 	GKernelScale(GKernel* pK, double value) : GKernel(), m_pK(pK), m_value(std::abs(value)) {}
-	GKernelScale(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->field("k"))), m_value(pNode->field("v")->asDouble()) {}
+	GKernelScale(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->get("k"))), m_value(pNode->getDouble("v")) {}
 	virtual ~GKernelScale() { delete(m_pK); }
 
 	/// Marshalls this object into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc)
 	{
 		GDomNode* pObj = makeBaseNode(pDoc);
-		pObj->addField(pDoc, "k", m_pK->serialize(pDoc));
-		pObj->addField(pDoc, "v", pDoc->newDouble(m_value));
+		pObj->add(pDoc, "k", m_pK->serialize(pDoc));
+		pObj->add(pDoc, "v", m_value);
 		return pObj;
 	}
 
@@ -252,15 +252,15 @@ protected:
 public:
 	/// Takes ownership of pK1 and pK2
 	GKernelAdd(GKernel* pK1, GKernel* pK2) : GKernel(), m_pK1(pK1), m_pK2(pK2) {}
-	GKernelAdd(GDomNode* pNode) : GKernel(), m_pK1(GKernel::deserialize(pNode->field("k1"))), m_pK2(GKernel::deserialize(pNode->field("k2"))) {}
+	GKernelAdd(GDomNode* pNode) : GKernel(), m_pK1(GKernel::deserialize(pNode->get("k1"))), m_pK2(GKernel::deserialize(pNode->get("k2"))) {}
 	virtual ~GKernelAdd() { delete(m_pK1); delete(m_pK2); }
 
 	/// Marshalls this object into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc)
 	{
 		GDomNode* pObj = makeBaseNode(pDoc);
-		pObj->addField(pDoc, "k1", m_pK1->serialize(pDoc));
-		pObj->addField(pDoc, "k2", m_pK2->serialize(pDoc));
+		pObj->add(pDoc, "k1", m_pK1->serialize(pDoc));
+		pObj->add(pDoc, "k2", m_pK2->serialize(pDoc));
 		return pObj;
 	}
 
@@ -284,15 +284,15 @@ protected:
 public:
 	/// Takes ownership of pK1 and pK2
 	GKernelMultiply(GKernel* pK1, GKernel* pK2) : GKernel(), m_pK1(pK1), m_pK2(pK2) {}
-	GKernelMultiply(GDomNode* pNode) : GKernel(), m_pK1(GKernel::deserialize(pNode->field("k1"))), m_pK2(GKernel::deserialize(pNode->field("k2"))) {}
+	GKernelMultiply(GDomNode* pNode) : GKernel(), m_pK1(GKernel::deserialize(pNode->get("k1"))), m_pK2(GKernel::deserialize(pNode->get("k2"))) {}
 	virtual ~GKernelMultiply() { delete(m_pK1); delete(m_pK2); }
 
 	/// Marshalls this object into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc)
 	{
 		GDomNode* pObj = makeBaseNode(pDoc);
-		pObj->addField(pDoc, "k1", m_pK1->serialize(pDoc));
-		pObj->addField(pDoc, "k2", m_pK2->serialize(pDoc));
+		pObj->add(pDoc, "k1", m_pK1->serialize(pDoc));
+		pObj->add(pDoc, "k2", m_pK2->serialize(pDoc));
 		return pObj;
 	}
 
@@ -316,15 +316,15 @@ protected:
 public:
 	/// Takes ownership of pK
 	GKernelPow(GKernel* pK, unsigned int value) : GKernel(), m_pK(pK), m_value(value) {}
-	GKernelPow(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->field("k"))), m_value(pNode->field("v")->asDouble()) {}
+	GKernelPow(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->get("k"))), m_value(pNode->getDouble("v")) {}
 	virtual ~GKernelPow() { delete(m_pK); }
 
 	/// Marshalls this object into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc)
 	{
 		GDomNode* pObj = makeBaseNode(pDoc);
-		pObj->addField(pDoc, "k", m_pK->serialize(pDoc));
-		pObj->addField(pDoc, "v", pDoc->newDouble(m_value));
+		pObj->add(pDoc, "k", m_pK->serialize(pDoc));
+		pObj->add(pDoc, "v", m_value);
 		return pObj;
 	}
 
@@ -347,14 +347,14 @@ protected:
 public:
 	/// Takes ownership of pK
 	GKernelExp(GKernel* pK) : GKernel(), m_pK(pK) {}
-	GKernelExp(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->field("k"))) {}
+	GKernelExp(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->get("k"))) {}
 	virtual ~GKernelExp() { delete(m_pK); }
 
 	/// Marshalls this object into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc)
 	{
 		GDomNode* pObj = makeBaseNode(pDoc);
-		pObj->addField(pDoc, "k", m_pK->serialize(pDoc));
+		pObj->add(pDoc, "k", m_pK->serialize(pDoc));
 		return pObj;
 	}
 
@@ -377,14 +377,14 @@ protected:
 public:
 	/// Takes ownership of pK
 	GKernelNormalize(GKernel* pK) : GKernel(), m_pK(pK) {}
-	GKernelNormalize(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->field("k"))) {}
+	GKernelNormalize(GDomNode* pNode) : GKernel(), m_pK(GKernel::deserialize(pNode->get("k"))) {}
 	virtual ~GKernelNormalize() { delete(m_pK); }
 
 	/// Marshalls this object into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc)
 	{
 		GDomNode* pObj = makeBaseNode(pDoc);
-		pObj->addField(pDoc, "k", m_pK->serialize(pDoc));
+		pObj->add(pDoc, "k", m_pK->serialize(pDoc));
 		return pObj;
 	}
 

@@ -77,6 +77,26 @@ GDomNode* GDomListIterator::current()
 	return m_pCurrent ? m_pCurrent->m_pValue : NULL;
 }
 
+bool GDomListIterator::currentBool()
+{
+	return current()->asBool();
+}
+
+long long GDomListIterator::currentInt()
+{
+	return current()->asInt();
+}
+
+double GDomListIterator::currentDouble()
+{
+	return current()->asDouble();
+}
+
+const char* GDomListIterator::currentString()
+{
+	return current()->asString();
+}
+
 void GDomListIterator::advance()
 {
 	m_pCurrent = m_pCurrent->m_pPrev;
@@ -89,7 +109,7 @@ size_t GDomListIterator::remaining()
 }
 
 
-GDomNode* GDomNode::fieldIfExists(const char* szName) const
+GDomNode* GDomNode::getIfExists(const char* szName) const
 {
 	if(m_type != type_obj)
 		throw Ex("\"", to_str(this), "\" is not an obj");
@@ -136,7 +156,7 @@ size_t GDomNode::reverseItemOrder() const
 	return count;
 }
 
-GDomNode* GDomNode::addField(GDom* pDoc, const char* szName, GDomNode* pNode)
+GDomNode* GDomNode::add(GDom* pDoc, const char* szName, GDomNode* pNode)
 {
 	if(m_type != type_obj)
 		throw Ex("\"", to_str(this), "\" is not an obj");
@@ -149,7 +169,32 @@ GDomNode* GDomNode::addField(GDom* pDoc, const char* szName, GDomNode* pNode)
 	return pNode;
 }
 
-GDomNode* GDomNode::addItem(GDom* pDoc, GDomNode* pNode)
+GDomNode* GDomNode::add(GDom* pDoc, const char* szName, bool b)
+{
+	return add(pDoc, szName, pDoc->newBool(b));
+}
+
+GDomNode* GDomNode::add(GDom* pDoc, const char* szName, long long n)
+{
+	return add(pDoc, szName, pDoc->newInt(n));
+}
+
+GDomNode* GDomNode::add(GDom* pDoc, const char* szName, size_t n)
+{
+	return add(pDoc, szName, pDoc->newInt((long long)n));
+}
+
+GDomNode* GDomNode::add(GDom* pDoc, const char* szName, double d)
+{
+	return add(pDoc, szName, pDoc->newDouble(d));
+}
+
+GDomNode* GDomNode::add(GDom* pDoc, const char* szName, const char* str)
+{
+	return add(pDoc, szName, pDoc->newString(str));
+}
+
+GDomNode* GDomNode::add(GDom* pDoc, GDomNode* pNode)
 {
 	if(m_type != type_list)
 		throw Ex("\"", to_str(this), "\" is not a list");
@@ -158,6 +203,31 @@ GDomNode* GDomNode::addItem(GDom* pDoc, GDomNode* pNode)
 	m_value.m_pLastItem = pItem;
 	pItem->m_pValue = pNode;
 	return pNode;
+}
+
+GDomNode* GDomNode::add(GDom* pDoc, bool b)
+{
+	return add(pDoc, pDoc->newBool(b));
+}
+
+GDomNode* GDomNode::add(GDom* pDoc, long long n)
+{
+	return add(pDoc, pDoc->newInt(n));
+}
+
+GDomNode* GDomNode::add(GDom* pDoc, size_t n)
+{
+	return add(pDoc, pDoc->newInt((long long)n));
+}
+
+GDomNode* GDomNode::add(GDom* pDoc, double d)
+{
+	return add(pDoc, pDoc->newDouble(d));
+}
+
+GDomNode* GDomNode::add(GDom* pDoc, const char* str)
+{
+	return add(pDoc, pDoc->newString(str));
 }
 
 void writeJSONString(std::ostream& stream, const char* szString)

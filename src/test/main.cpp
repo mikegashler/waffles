@@ -942,6 +942,7 @@ public:
 		runTest("GMomentumGreedySearch", GMomentumGreedySearch::test);
 		runTest("GNaiveBayes", GNaiveBayes::test);
 		runTest("GNaiveInstance", GNaiveInstance::test);
+		runTest("GNeuralNet", GNeuralNet::test);
 		runTest("GNeuralNetLearner", GNeuralNetLearner::test);
 		runTest("GPackageServer", GPackageServer::test);
 		runTest("GPolynomial", GPolynomial::test);

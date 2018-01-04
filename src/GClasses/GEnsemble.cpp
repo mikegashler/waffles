@@ -33,8 +33,8 @@ using std::vector;
 
 GWeightedModel::GWeightedModel(GDomNode* pNode, GLearnerLoader& ll)
 {
-	m_weight = pNode->field("w")->asDouble();
-	m_pModel = ll.loadLearner(pNode->field("m"));
+	m_weight = pNode->getDouble("w");
+	m_pModel = ll.loadLearner(pNode->get("m"));
 }
 
 GWeightedModel::~GWeightedModel()
@@ -45,8 +45,8 @@ GWeightedModel::~GWeightedModel()
 GDomNode* GWeightedModel::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "w", pDoc->newDouble(m_weight));
-	pNode->addField(pDoc, "m", m_pModel->serialize(pDoc));
+	pNode->add(pDoc, "w", m_weight);
+	pNode->add(pDoc, "m", m_pModel->serialize(pDoc));
 	return pNode;
 }
 
@@ -62,11 +62,11 @@ GEnsemble::GEnsemble()
 GEnsemble::GEnsemble(const GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode), m_pPredictMaster(NULL)
 {
-	m_pLabelRel = GRelation::deserialize(pNode->field("labelrel"));
-	size_t accumulatorDims = (size_t)pNode->field("accum")->asInt();
+	m_pLabelRel = GRelation::deserialize(pNode->get("labelrel"));
+	size_t accumulatorDims = (size_t)pNode->getInt("accum");
 	m_accumulator.resize(accumulatorDims);
-	m_workerThreads = (size_t)pNode->field("threads")->asInt();
-	GDomNode* pModels = pNode->field("models");
+	m_workerThreads = (size_t)pNode->getInt("threads");
+	GDomNode* pModels = pNode->get("models");
 	GDomListIterator it(pModels);
 	size_t modelCount = it.remaining();
 	for(size_t i = 0; i < modelCount; i++)
@@ -88,12 +88,12 @@ GEnsemble::~GEnsemble()
 // virtual
 void GEnsemble::serializeBase(GDom* pDoc, GDomNode* pNode) const
 {
-	pNode->addField(pDoc, "labelrel", m_pLabelRel->serialize(pDoc));
-	pNode->addField(pDoc, "accum", pDoc->newInt(m_accumulator.size()));
-	pNode->addField(pDoc, "threads", pDoc->newInt(m_workerThreads));
-	GDomNode* pModels = pNode->addField(pDoc, "models", pDoc->newList());
+	pNode->add(pDoc, "labelrel", m_pLabelRel->serialize(pDoc));
+	pNode->add(pDoc, "accum", m_accumulator.size());
+	pNode->add(pDoc, "threads", m_workerThreads);
+	GDomNode* pModels = pNode->add(pDoc, "models", pDoc->newList());
 	for(size_t i = 0; i < m_models.size(); i++)
-		pModels->addItem(pDoc, m_models[i]->serialize(pDoc));
+		pModels->add(pDoc, m_models[i]->serialize(pDoc));
 }
 
 void GEnsemble::clearBase()
@@ -278,7 +278,7 @@ GBag::GBag()
 GBag::GBag(const GDomNode* pNode, GLearnerLoader& ll)
 : GEnsemble(pNode, ll), m_pCB(NULL), m_pThis(NULL)
 {
-	m_trainSize = pNode->field("ts")->asDouble();
+	m_trainSize = pNode->getDouble("ts");
 }
 
 GBag::~GBag()
@@ -290,7 +290,7 @@ GDomNode* GBag::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBag");
 	serializeBase(pDoc, pNode);
-	pNode->addField(pDoc, "ts", pDoc->newDouble(m_trainSize));
+	pNode->add(pDoc, "ts", m_trainSize);
 	return pNode;
 }
 
@@ -440,7 +440,7 @@ void GBag::test()
 GBomb::GBomb(const GDomNode* pNode, GLearnerLoader& ll)
 : GBag(pNode, ll)
 {
-	m_samples = (size_t)pNode->field("samps")->asInt();
+	m_samples = (size_t)pNode->getInt("samps");
 }
 
 // virtual
@@ -488,8 +488,8 @@ GDomNode* GBomb::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBomb");
 	serializeBase(pDoc, pNode);
-	pNode->addField(pDoc, "ts", pDoc->newDouble(m_trainSize));
-	pNode->addField(pDoc, "samps", pDoc->newInt(m_samples));
+	pNode->add(pDoc, "ts", m_trainSize);
+	pNode->add(pDoc, "samps", m_samples);
 	return pNode;
 }
 
@@ -543,7 +543,7 @@ GDomNode* GBayesianModelAveraging::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBayesianModelAveraging");
 	serializeBase(pDoc, pNode);
-	pNode->addField(pDoc, "ts", pDoc->newDouble(m_trainSize));
+	pNode->add(pDoc, "ts", m_trainSize);
 	return pNode;
 }
 
@@ -571,7 +571,7 @@ void GBayesianModelAveraging::test()
 GBayesianModelCombination::GBayesianModelCombination(const GDomNode* pNode, GLearnerLoader& ll)
 : GBag(pNode, ll)
 {
-	m_samples = (size_t)pNode->field("samps")->asInt();
+	m_samples = (size_t)pNode->getInt("samps");
 }
 
 // virtual
@@ -621,8 +621,8 @@ GDomNode* GBayesianModelCombination::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBayesianModelCombination");
 	serializeBase(pDoc, pNode);
-	pNode->addField(pDoc, "ts", pDoc->newDouble(m_trainSize));
-	pNode->addField(pDoc, "samps", pDoc->newInt(m_samples));
+	pNode->add(pDoc, "ts", m_trainSize);
+	pNode->add(pDoc, "samps", m_samples);
 	return pNode;
 }
 
@@ -653,8 +653,8 @@ GResamplingAdaBoost::GResamplingAdaBoost(GSupervisedLearner* pLearner, bool ownL
 GResamplingAdaBoost::GResamplingAdaBoost(const GDomNode* pNode, GLearnerLoader& ll)
 : GEnsemble(pNode, ll), m_pLearner(NULL), m_ownLearner(false), m_pLoader(NULL)
 {
-	m_trainSize = pNode->field("ts")->asDouble();
-	m_ensembleSize = (size_t)pNode->field("es")->asInt();
+	m_trainSize = pNode->getDouble("ts");
+	m_ensembleSize = (size_t)pNode->getInt("es");
 }
 
 // virtual
@@ -671,8 +671,8 @@ GDomNode* GResamplingAdaBoost::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GResamplingAdaBoost");
 	serializeBase(pDoc, pNode);
-	pNode->addField(pDoc, "es", pDoc->newInt(m_ensembleSize));
-	pNode->addField(pDoc, "ts", pDoc->newDouble(m_trainSize));
+	pNode->add(pDoc, "es", m_ensembleSize);
+	pNode->add(pDoc, "ts", m_trainSize);
 	return pNode;
 }
 
@@ -796,7 +796,7 @@ GBucket::GBucket()
 GBucket::GBucket(const GDomNode* pNode, GLearnerLoader& ll)
 : GSupervisedLearner(pNode)
 {
-	GDomNode* pModels = pNode->field("models");
+	GDomNode* pModels = pNode->get("models");
 	GDomListIterator it(pModels);
 	size_t modelCount = it.remaining();
 	for(size_t i = 0; i < modelCount; i++)
@@ -804,7 +804,7 @@ GBucket::GBucket(const GDomNode* pNode, GLearnerLoader& ll)
 		m_models.push_back(ll.loadLearner(it.current()));
 		it.advance();
 	}
-	m_nBestLearner = (size_t)pNode->field("best")->asInt();
+	m_nBestLearner = (size_t)pNode->getInt("best");
 }
 
 GBucket::~GBucket()
@@ -817,9 +817,9 @@ GBucket::~GBucket()
 GDomNode* GBucket::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBucket");
-	GDomNode* pModels = pNode->addField(pDoc, "models", pDoc->newList());
-	pModels->addItem(pDoc, m_models[m_nBestLearner]->serialize(pDoc));
-	pNode->addField(pDoc, "best", pDoc->newInt(0));
+	GDomNode* pModels = pNode->add(pDoc, "models", pDoc->newList());
+	pModels->add(pDoc, m_models[m_nBestLearner]->serialize(pDoc));
+	pNode->add(pDoc, "best", 0ll);
 	return pNode;
 }
 

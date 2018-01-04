@@ -43,9 +43,9 @@ GSparseMatrix::GSparseMatrix(size_t rowCount, size_t colCount, double def_Value)
 
 GSparseMatrix::GSparseMatrix(const GDomNode* pNode)
 {
-	m_defaultValue = pNode->field("def")->asDouble();
-	m_cols = (size_t)pNode->field("cols")->asInt();
-	GDomNode* pRows = pNode->field("rows");
+	m_defaultValue = pNode->getDouble("def");
+	m_cols = (size_t)pNode->getInt("cols");
+	GDomNode* pRows = pNode->get("rows");
 	GDomListIterator it1(pRows);
 	size_t rowCount = it1.remaining();
 	m_rows.resize(rowCount);
@@ -54,11 +54,11 @@ GSparseMatrix::GSparseMatrix(const GDomNode* pNode)
 		GDomNode* pElements = it1.current();
 		for(GDomListIterator it2(pElements); it2.current(); it2.advance())
 		{
-			size_t col = (size_t)it2.current()->asInt();
+			size_t col = (size_t)it2.currentInt();
 			it2.advance();
 			if(!it2.current())
 				throw Ex("Expected an even number of items in the list");
-			double val = it2.current()->asDouble();
+			double val = it2.currentDouble();
 			set(i, col, val);
 		}
 		it1.advance();
@@ -72,16 +72,16 @@ GSparseMatrix::~GSparseMatrix()
 GDomNode* GSparseMatrix::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "def", pDoc->newDouble(m_defaultValue));
-	pNode->addField(pDoc, "cols", pDoc->newInt(m_cols));
-	GDomNode* pRows = pNode->addField(pDoc, "rows", pDoc->newList());
+	pNode->add(pDoc, "def", m_defaultValue);
+	pNode->add(pDoc, "cols", m_cols);
+	GDomNode* pRows = pNode->add(pDoc, "rows", pDoc->newList());
 	for(size_t i = 0; i < m_rows.size(); i++)
 	{
-		GDomNode* pElements = pRows->addItem(pDoc, pDoc->newList());
+		GDomNode* pElements = pRows->add(pDoc, pDoc->newList());
 		for(Iter it = rowBegin(i); it != rowEnd(i); it++)
 		{
-			pElements->addItem(pDoc, pDoc->newInt(it->first));
-			pElements->addItem(pDoc, pDoc->newDouble(it->second));
+			pElements->add(pDoc, it->first);
+			pElements->add(pDoc, it->second);
 		}
 	}
 	return pNode;

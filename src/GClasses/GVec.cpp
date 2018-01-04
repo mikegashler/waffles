@@ -57,6 +57,20 @@ GVec::GVec(int n)
 		m_data = new double[n];
 }
 
+GVec::GVec(std::initializer_list<double> list)
+: m_size(list.size())
+{
+	if(list.size() == 0)
+		m_data = nullptr;
+	else
+		m_data = new double[list.size()];
+	size_t i = 0;
+	for(const double* it = begin(list); it != end(list); ++it)
+	{
+		m_data[i++] = *it;
+	}
+}
+
 GVec::GVec(double d)
 {
 	throw Ex("Calling this method is an error");
@@ -410,7 +424,7 @@ GDomNode* GVec::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newList();
 	for(size_t i = 0; i < m_size; i++)
-		pNode->addItem(pDoc, pDoc->newDouble((*this)[i]));
+		pNode->add(pDoc, (*this)[i]);
 	return pNode;
 }
 
@@ -420,7 +434,7 @@ void GVec::deserialize(const GDomNode* pNode)
 	resize(it.remaining());
 	for(size_t i = 0; it.current(); i++)
 	{
-		(*this)[i] = it.current()->asDouble();
+		(*this)[i] = it.currentDouble();
 		it.advance();
 	}
 }
@@ -768,6 +782,20 @@ GIndexVec::GIndexVec(size_t n)
 		m_data = new size_t[n];
 }
 
+GIndexVec::GIndexVec(std::initializer_list<size_t> list)
+: m_size(list.size())
+{
+	if(list.size() == 0)
+		m_data = nullptr;
+	else
+		m_data = new size_t[list.size()];
+	size_t i = 0;
+	for(const size_t* it = begin(list); it != end(list); ++it)
+	{
+		m_data[i++] = *it;
+	}
+}
+
 GIndexVec::GIndexVec(const GIndexVec& copyMe)
 {
 	if(copyMe.size() == 0)
@@ -785,7 +813,7 @@ GIndexVec::GIndexVec(GDomNode* pNode)
 	resize(it.remaining());
 	for(size_t i = 0; it.current(); i++)
 	{
-		(*this)[i] = it.current()->asInt();
+		(*this)[i] = it.currentInt();
 		it.advance();
 	}	
 }
@@ -799,7 +827,7 @@ GDomNode* GIndexVec::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newList();
 	for(size_t i = 0; i < m_size; i++)
-		pNode->addItem(pDoc, pDoc->newInt((*this)[i]));
+		pNode->add(pDoc, (*this)[i]);
 	return pNode;
 }
 
@@ -911,7 +939,7 @@ GDomNode* GIndexVec::serialize(GDom* pDoc, const size_t* pVec, size_t dims)
 {
 	GDomNode* pNode = pDoc->newList();
 	for(size_t i = 0; i < dims; i++)
-		pNode->addItem(pDoc, pDoc->newInt(*(pVec++)));
+		pNode->add(pDoc, *(pVec++));
 	return pNode;
 }
 
@@ -920,7 +948,7 @@ void GIndexVec::deserialize(size_t* pVec, GDomListIterator& it)
 {
 	while(it.current())
 	{
-		*(pVec++) = size_t(it.current()->asInt());
+		*(pVec++) = size_t(it.currentInt());
 		it.advance();
 	}
 }

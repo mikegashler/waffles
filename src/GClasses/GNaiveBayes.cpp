@@ -52,7 +52,7 @@ struct GNaiveBayesInputAttr
 		m_pValueCounts = new size_t[m_nValues];
 		for(size_t i = 0; i < m_nValues; i++)
 		{
-			m_pValueCounts[i] = (size_t)it.current()->asInt();
+			m_pValueCounts[i] = (size_t)it.currentInt();
 			it.advance();
 		}
 	}
@@ -66,7 +66,7 @@ struct GNaiveBayesInputAttr
 	{
 		GDomNode* pNode = pDoc->newList();
 		for(size_t i = 0; i < m_nValues; i++)
-			pNode->addItem(pDoc, pDoc->newInt(m_pValueCounts[i]));
+			pNode->add(pDoc, m_pValueCounts[i]);
 		return pNode;
 	}
 
@@ -109,7 +109,7 @@ struct GNaiveBayesOutputValue
 		GDomListIterator it(pNode);
 		if(it.remaining() != nInputCount + 1)
 			throw Ex("Unexpected number of inputs");
-		m_nCount = (size_t)it.current()->asInt();
+		m_nCount = (size_t)it.currentInt();
 		it.advance();
 		m_featureDims = nInputCount;
 		m_pInputs = new struct GNaiveBayesInputAttr*[m_featureDims];
@@ -130,9 +130,9 @@ struct GNaiveBayesOutputValue
 	GDomNode* serialize(GDom* pDoc)
 	{
 		GDomNode* pNode = pDoc->newList();
-		pNode->addItem(pDoc, pDoc->newInt(m_nCount));
+		pNode->add(pDoc, m_nCount);
 		for(size_t i = 0; i < m_featureDims; i++)
-			pNode->addItem(pDoc, m_pInputs[i]->serialize(pDoc));
+			pNode->add(pDoc, m_pInputs[i]->serialize(pDoc));
 		return pNode;
 	}
 
@@ -203,7 +203,7 @@ struct GNaiveBayesOutputAttr
 	{
 		GDomNode* pNode = pDoc->newList();
 		for(size_t i = 0; i < m_nValueCount; i++)
-			pNode->addItem(pDoc, m_pValues[i]->serialize(pDoc));
+			pNode->add(pDoc, m_pValues[i]->serialize(pDoc));
 		return pNode;
 	}
 
@@ -244,9 +244,9 @@ GNaiveBayes::GNaiveBayes()
 GNaiveBayes::GNaiveBayes(const GDomNode* pNode)
 : GIncrementalLearner(pNode)
 {
-	m_nSampleCount = (size_t)pNode->field("sampleCount")->asInt();
-	m_equivalentSampleSize = pNode->field("ess")->asDouble();
-	GDomNode* pOutputs = pNode->field("outputs");
+	m_nSampleCount = (size_t)pNode->getInt("sampleCount");
+	m_equivalentSampleSize = pNode->getDouble("ess");
+	GDomNode* pOutputs = pNode->get("outputs");
 	GDomListIterator it(pOutputs);
 	if(it.remaining() != m_pRelLabels->size())
 		throw Ex("Wrong number of outputs");
@@ -267,11 +267,11 @@ GNaiveBayes::~GNaiveBayes()
 GDomNode* GNaiveBayes::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GNaiveBayes");
-	pNode->addField(pDoc, "sampleCount", pDoc->newInt(m_nSampleCount));
-	pNode->addField(pDoc, "ess", pDoc->newDouble(m_equivalentSampleSize));
-	GDomNode* pOutputs = pNode->addField(pDoc, "outputs", pDoc->newList());
+	pNode->add(pDoc, "sampleCount", m_nSampleCount);
+	pNode->add(pDoc, "ess", m_equivalentSampleSize);
+	GDomNode* pOutputs = pNode->add(pDoc, "outputs", pDoc->newList());
 	for(size_t i = 0; i < m_pRelLabels->size(); i++)
-		pOutputs->addItem(pDoc, m_pOutputs[i]->serialize(pDoc));
+		pOutputs->add(pDoc, m_pOutputs[i]->serialize(pDoc));
 	return pNode;
 }
 

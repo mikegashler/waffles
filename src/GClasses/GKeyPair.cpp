@@ -35,9 +35,9 @@ GKeyPair::GKeyPair()
 
 GKeyPair::GKeyPair(GDomNode* pNode)
 {
-	m_pN = new GBigInt(pNode->field("n"));
-	m_pPublicKey = new GBigInt(pNode->field("public"));
-	GDomNode* pPrivate = pNode->fieldIfExists("private");
+	m_pN = new GBigInt(pNode->get("n"));
+	m_pPublicKey = new GBigInt(pNode->get("public"));
+	GDomNode* pPrivate = pNode->getIfExists("private");
 	if(pPrivate)
 		m_pPrivateKey = new GBigInt(pPrivate);
 	else
@@ -169,10 +169,10 @@ GDomNode* GKeyPair::serialize(GDom* pDoc, bool bIncludePrivateKey)
 		throw Ex("No key has been made yet");
 	if(bIncludePrivateKey && !privateKey())
 		throw Ex("This key-pair doesn't include the private key");
-	pNode->addField(pDoc, "n", n()->serialize(pDoc));
-	pNode->addField(pDoc, "public", publicKey()->serialize(pDoc));
+	pNode->add(pDoc, "n", n()->serialize(pDoc));
+	pNode->add(pDoc, "public", publicKey()->serialize(pDoc));
 	if(bIncludePrivateKey)
-		pNode->addField(pDoc, "private", privateKey()->serialize(pDoc));
+		pNode->add(pDoc, "private", privateKey()->serialize(pDoc));
 	return pNode;
 }
 

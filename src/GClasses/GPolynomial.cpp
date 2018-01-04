@@ -184,11 +184,11 @@ GPolynomialSingleLabel::GPolynomialSingleLabel(size_t controlPoints)
 }
 
 GPolynomialSingleLabel::GPolynomialSingleLabel(const GDomNode* pNode)
-: m_pCoefficients(pNode->field("coefficients"))
+: m_pCoefficients(pNode->get("coefficients"))
 {
-	m_nControlPoints = (int)pNode->field("controlPoints")->asInt();
+	m_nControlPoints = (int)pNode->getInt("controlPoints");
 	m_nCoefficients = 1;
-	m_featureDims = (int)pNode->field("featureDims")->asInt();
+	m_featureDims = (int)pNode->getInt("featureDims");
 	size_t i = m_featureDims;
 	while(i > 0)
 	{
@@ -208,9 +208,9 @@ GDomNode* GPolynomialSingleLabel::serialize(GDom* pDoc) const
 	if(m_featureDims == 0)
 		throw Ex("train has not been called");
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "featureDims", pDoc->newInt(m_featureDims));
-	pNode->addField(pDoc, "controlPoints", pDoc->newInt(m_nControlPoints));
-	pNode->addField(pDoc, "coefficients", m_pCoefficients.serialize(pDoc));
+	pNode->add(pDoc, "featureDims", m_featureDims);
+	pNode->add(pDoc, "controlPoints", m_nControlPoints);
+	pNode->add(pDoc, "coefficients", m_pCoefficients.serialize(pDoc));
 	return pNode;
 }
 
@@ -605,8 +605,8 @@ GPolynomial::GPolynomial()
 GPolynomial::GPolynomial(const GDomNode* pNode)
 : GSupervisedLearner(pNode)
 {
-	m_controlPoints = (size_t)pNode->field("controlPoints")->asInt();
-	GDomNode* pPolys = pNode->field("polys");
+	m_controlPoints = (size_t)pNode->getInt("controlPoints");
+	GDomNode* pPolys = pNode->get("polys");
 	for(GDomListIterator it(pPolys); it.current(); it.advance())
 		m_polys.push_back(new GPolynomialSingleLabel(it.current()));
 }
@@ -621,10 +621,10 @@ GPolynomial::~GPolynomial()
 GDomNode* GPolynomial::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GPolynomial");
-	pNode->addField(pDoc, "controlPoints", pDoc->newInt(m_controlPoints));
-	GDomNode* pPolys = pNode->addField(pDoc, "polys", pDoc->newList());
+	pNode->add(pDoc, "controlPoints", m_controlPoints);
+	GDomNode* pPolys = pNode->add(pDoc, "polys", pDoc->newList());
 	for(size_t i = 0; i < m_polys.size(); i++)
-		pPolys->addItem(pDoc, m_polys[i]->serialize(pDoc));
+		pPolys->add(pDoc, m_polys[i]->serialize(pDoc));
 	return pNode;
 }
 

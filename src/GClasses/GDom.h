@@ -47,6 +47,7 @@ std::string to_str(const GDom& doc);
 /// This class iterates over the items in a list node
 class GDomListIterator
 {
+friend class GDomNode;
 protected:
 	const GDomNode* m_pList;
 	GDomListItem* m_pCurrent;
@@ -58,6 +59,18 @@ public:
 
 	/// Returns the current item in the list
 	GDomNode* current();
+
+	/// Returns the current bool in the list
+	bool currentBool();
+
+	/// Returns the current int in the list
+	long long currentInt();
+
+	/// Returns the current double in the list
+	double currentDouble();
+
+	/// Returns the current string in the list
+	const char* currentString();
 
 	/// Advances to the next item in the list
 	void advance();
@@ -107,7 +120,7 @@ public:
 	{
 		return (nodetype)m_type;
 	}
-
+protected:
 	/// Returns the boolean value stored by this node. Throws if this is not a bool type
 	bool asBool() const
 	{
@@ -144,27 +157,78 @@ public:
 		return m_value.m_string;
 	}
 
+public:
 	/// Returns the node with the specified field name. Throws if this is not an object type. Returns
 	/// NULL if this is an object type, but there is no field with the specified name
-	GDomNode* fieldIfExists(const char* szName) const;
+	GDomNode* getIfExists(const char* szName) const;
 
 	/// Returns the node with the specified field name. Throws if this is not an object type. Throws
 	/// if there is no field with the name specified by szName
-	GDomNode* field(const char* szName) const
+	GDomNode* get(const char* szName) const
 	{
-		GDomNode* pNode = fieldIfExists(szName);
+		GDomNode* pNode = getIfExists(szName);
 		if(!pNode)
 			throw Ex("There is no field named ", szName);
 		return pNode;
 	}
 
+	bool getBool(const char* szName) const
+	{
+		return get(szName)->asBool();
+	}
+
+	long long getInt(const char* szName) const
+	{
+		return get(szName)->asInt();
+	}
+
+	double getDouble(const char* szName) const
+	{
+		return get(szName)->asDouble();
+	}
+
+	const char* getString(const char* szName) const
+	{
+		return get(szName)->asString();
+	}
+
 	/// Adds a field with the specified name to this object. Throws if this is not an object type
 	/// Returns pNode. (Yes, it returns the same node that you pass in. This is useful for
 	/// writing compact marshalling code.)
-	GDomNode* addField(GDom* pDoc, const char* szName, GDomNode* pNode);
+	GDomNode* add(GDom* pDoc, const char* szName, GDomNode* pNode);
+
+	/// Adds a boolean field
+	GDomNode* add(GDom* pDoc, const char* szName, bool b);
+
+	/// Adds an int field
+	GDomNode* add(GDom* pDoc, const char* szName, long long n);
+
+	/// Adds an int field
+	GDomNode* add(GDom* pDoc, const char* szName, size_t n);
+
+	/// Adds a double field
+	GDomNode* add(GDom* pDoc, const char* szName, double d);
+
+	/// Adds a string field
+	GDomNode* add(GDom* pDoc, const char* szName, const char* str);
 
 	/// Adds an item to a list node. Returns a pointer to the item passed in (pNode).
-	GDomNode* addItem(GDom* pDoc, GDomNode* pNode);
+	GDomNode* add(GDom* pDoc, GDomNode* pNode);
+
+	/// Adds a boolean list item
+	GDomNode* add(GDom* pDoc, bool b);
+
+	/// Adds an int list item
+	GDomNode* add(GDom* pDoc, long long n);
+
+	/// Adds an int list item
+	GDomNode* add(GDom* pDoc, size_t n);
+
+	/// Adds a double list item
+	GDomNode* add(GDom* pDoc, double d);
+
+	/// Adds a string list item
+	GDomNode* add(GDom* pDoc, const char* str);
 
 	/// Writes this node to a JSON file
 	void saveJson(const char* filename) const;
@@ -275,7 +339,7 @@ public:
 
 	/// Makes a new node to represent a null value
 	GDomNode* newNull();
-
+protected:
 	/// Makes a new boolean node
 	GDomNode* newBool(bool b);
 
@@ -289,7 +353,7 @@ public:
 	/// to parse a JSON string, call parseJson instead. This method just wraps
 	/// the string in a node.)
 	GDomNode* newString(const char* szString);
-
+public:
 	/// Makes a new string node from the specified string segment
 	GDomNode* newString(const char* pString, size_t len);
 

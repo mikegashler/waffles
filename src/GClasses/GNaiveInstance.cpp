@@ -44,13 +44,13 @@ public:
 			throw Ex("invalid list size");
 		for(size_t i = 0; i < count; i++)
 		{
-			double d = it.current()->asDouble();
+			double d = it.currentDouble();
 			it.advance();
 			double* pLabel = (double*)pHeap->allocAligned(sizeof(double) * labelDims);
 			m_instances.insert(make_pair(d, pLabel));
 			for(size_t j = 0; j < labelDims; j++)
 			{
-				*(pLabel++) = it.current()->asDouble();
+				*(pLabel++) = it.currentDouble();
 				it.advance();
 			}
 		}
@@ -67,9 +67,9 @@ public:
 		GDomNode* pList = pDoc->newList();
 		for(multimap<double,const double*>::iterator it = m_instances.begin(); it != m_instances.end(); it++)
 		{
-			pList->addItem(pDoc, pDoc->newDouble(it->first));
+			pList->add(pDoc, it->first);
 			for(size_t i = 0; i < labelDims; i++)
-				pList->addItem(pDoc, pDoc->newDouble(it->second[i]));
+				pList->add(pDoc, it->second[i]);
 		}
 		return pList;
 	}
@@ -93,9 +93,9 @@ GNaiveInstance::GNaiveInstance(const GDomNode* pNode)
 : GIncrementalLearner(pNode), m_pHeap(NULL)
 {
 	m_pAttrs = NULL;
-	m_nNeighbors = (size_t)pNode->field("neighbors")->asInt();
+	m_nNeighbors = (size_t)pNode->getInt("neighbors");
 	beginIncrementalLearningInner(*m_pRelFeatures, *m_pRelLabels);
-	GDomNode* pAttrs = pNode->field("attrs");
+	GDomNode* pAttrs = pNode->get("attrs");
 	GDomListIterator it(pAttrs);
 	if(it.remaining() != m_pRelFeatures->size())
 		throw Ex("Expected ", to_str(m_pRelFeatures->size()), " attrs, got ", to_str(it.remaining()), " attrs");
@@ -132,10 +132,10 @@ void GNaiveInstance::clear()
 GDomNode* GNaiveInstance::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GNaiveInstance");
-	pNode->addField(pDoc, "neighbors", pDoc->newInt(m_nNeighbors));
-	GDomNode* pAttrs = pNode->addField(pDoc, "attrs", pDoc->newList());
+	pNode->add(pDoc, "neighbors", m_nNeighbors);
+	GDomNode* pAttrs = pNode->add(pDoc, "attrs", pDoc->newList());
 	for(size_t i = 0; i < m_pRelFeatures->size(); i++)
-		pAttrs->addItem(pDoc, m_pAttrs[i]->serialize(pDoc, m_pRelLabels->size()));
+		pAttrs->add(pDoc, m_pAttrs[i]->serialize(pDoc, m_pRelLabels->size()));
 	return pNode;
 }
 

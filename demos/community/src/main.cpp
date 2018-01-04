@@ -98,16 +98,16 @@ public:
 
 	Item(GDomNode* pNode, GRand* pRand)
 	{
-		m_title = pNode->field("title")->asString();
-		m_submitter = pNode->field("subm")->asString();
-		m_date = (time_t)pNode->field("date")->asInt();
+		m_title = pNode->getString("title");
+		m_submitter = pNode->getString("subm");
+		m_date = (time_t)pNode->getInt("date");
 		m_weights.resize(PERSONALITY_DIMS);
-		GDomNode* pWeights = pNode->field("weights");
+		GDomNode* pWeights = pNode->get("weights");
 		GDomListIterator it(pWeights);
 		size_t i;
 		for(i = 0; i < (size_t)PERSONALITY_DIMS && it.current(); i++)
 		{
-			m_weights[i] = it.current()->asDouble();
+			m_weights[i] = it.currentDouble();
 			it.advance();
 		}
 		for( ; i < PERSONALITY_DIMS; i++)
@@ -120,12 +120,12 @@ public:
 	GDomNode* toDom(GDom* pDoc)
 	{
 		GDomNode* pNode = pDoc->newObj();
-		pNode->addField(pDoc, "title", pDoc->newString(m_title.c_str()));
-		pNode->addField(pDoc, "subm", pDoc->newString(m_submitter.c_str()));
-		pNode->addField(pDoc, "date", pDoc->newInt(m_date));
-		GDomNode* pWeights = pNode->addField(pDoc, "weights", pDoc->newList());
+		pNode->add(pDoc, "title", m_title.c_str());
+		pNode->add(pDoc, "subm", m_submitter.c_str());
+		pNode->add(pDoc, "date", (long long)m_date);
+		GDomNode* pWeights = pNode->add(pDoc, "weights", pDoc->newList());
 		for(size_t i = 0; i < PERSONALITY_DIMS; i++)
-			pWeights->addItem(pDoc, pDoc->newDouble(m_weights[i]));
+			pWeights->add(pDoc, m_weights[i]);
 		return pNode;
 	}
 
@@ -240,17 +240,17 @@ public:
 	GDomNode* toDom(GDom* pDoc)
 	{
 		GDomNode* pNode = pDoc->newObj();
-		pNode->addField(pDoc, "descr", pDoc->newString(m_descr.c_str()));
-		GDomNode* pItems = pNode->addField(pDoc, "items", pDoc->newList());
+		pNode->add(pDoc, "descr", m_descr.c_str());
+		GDomNode* pItems = pNode->add(pDoc, "items", pDoc->newList());
 		for(size_t i = 0; i < m_items.size(); i++)
-			pItems->addItem(pDoc, m_items[i]->toDom(pDoc));
+			pItems->add(pDoc, m_items[i]->toDom(pDoc));
 		return pNode;
 	}
 
 	void fromDom(GDomNode* pNode, GRand* pRand)
 	{
-		m_descr = pNode->field("descr")->asString();
-		GDomNode* pItems = pNode->field("items");
+		m_descr = pNode->getString("descr");
+		GDomNode* pItems = pNode->get("items");
 		GAssert(m_items.size() == 0);
 		GDomListIterator it(pItems);
 		m_items.reserve(it.remaining());
@@ -440,17 +440,17 @@ public:
 	static Account* fromDom(GDomNode* pNode, GRand& rand)
 	{
 		Account* pAccount = new Account();
-		pAccount->m_username = pNode->field("username")->asString();
-		pAccount->m_passwordHash = pNode->field("password")->asString();
+		pAccount->m_username = pNode->getString("username");
+		pAccount->m_passwordHash = pNode->getString("password");
 
 		// Deserialize the personality vector
-		GDomNode* pPersonality = pNode->field("pers");
+		GDomNode* pPersonality = pNode->get("pers");
 		{
 			GDomListIterator it(pPersonality);
 			size_t i;
 			for(i = 0; i < (size_t)PERSONALITY_DIMS && it.current(); i++)
 			{
-				pAccount->m_personality[i] = std::max(-1.0, std::min(1.0, it.current()->asDouble()));
+				pAccount->m_personality[i] = std::max(-1.0, std::min(1.0, it.currentDouble()));
 				it.advance();
 			}
 			for( ; i < PERSONALITY_DIMS; i++)
@@ -458,18 +458,18 @@ public:
 		}
 
 		// Deserialize the ratings
-		GDomNode* pRatings = pNode->field("ratings");
+		GDomNode* pRatings = pNode->get("ratings");
 		size_t topic = 0;
 		for(GDomListIterator it(pRatings); it.current(); it.advance())
 		{
-			ptrdiff_t j = (ptrdiff_t)it.current()->asInt();
+			ptrdiff_t j = (ptrdiff_t)it.currentInt();
 			if(j < 0)
 				topic = (size_t)(-j - 1);
 			else
 			{
 				it.advance();
 				if(it.current())
-					pAccount->addRating(topic, (size_t)j, (float)it.current()->asDouble());
+					pAccount->addRating(topic, (size_t)j, (float)it.currentDouble());
 			}
 		}
 		return pAccount;
@@ -478,13 +478,13 @@ public:
 	GDomNode* toDom(GDom* pDoc)
 	{
 		GDomNode* pAccount = pDoc->newObj();
-		pAccount->addField(pDoc, "username", pDoc->newString(m_username.c_str()));
-		pAccount->addField(pDoc, "password", pDoc->newString(m_passwordHash.c_str()));
+		pAccount->add(pDoc, "username", m_username.c_str());
+		pAccount->add(pDoc, "password", m_passwordHash.c_str());
 
 		// Serialize the personality vector
-		GDomNode* pPersonality = pAccount->addField(pDoc, "pers", pDoc->newList());
+		GDomNode* pPersonality = pAccount->add(pDoc, "pers", pDoc->newList());
 		for(size_t i = 0; i < PERSONALITY_DIMS; i++)
-			pPersonality->addItem(pDoc, pDoc->newDouble(m_personality[i]));
+			pPersonality->add(pDoc, m_personality[i]);
 
 		// Serialize the ratings
 		size_t count = 0;
@@ -494,7 +494,7 @@ public:
 			if(map.size() > 0)
 				count += (1 + 2 * map.size());
 		}
-		GDomNode* pRatings = pAccount->addField(pDoc, "ratings", pDoc->newList());
+		GDomNode* pRatings = pAccount->add(pDoc, "ratings", pDoc->newList());
 		size_t j = 0;
 		for(vector<Ratings>::iterator i = m_ratings.begin(); i != m_ratings.end(); i++)
 		{
@@ -504,12 +504,12 @@ public:
 				ptrdiff_t r = -1;
 				r -= (j++);
 				GAssert(r < 0);
-				pRatings->addItem(pDoc, pDoc->newInt(r));
+				pRatings->add(pDoc, (long long)r);
 				for(map<size_t,float>::iterator it = m.begin(); it != m.end(); it++)
 				{
-					pRatings->addItem(pDoc, pDoc->newInt(it->first));
+					pRatings->add(pDoc, it->first);
 					double clipped = 0.001 * (double)floor(it->second * 1000 + 0.5f);
-					pRatings->addItem(pDoc, pDoc->newDouble(clipped));
+					pRatings->add(pDoc, clipped);
 				}
 			}
 		}
@@ -2149,20 +2149,20 @@ GDomNode* Server::serializeState(GDom* pDoc)
 	GDomNode* pNode = pDoc->newObj();
 
 	// Captcha salt
-	pNode->addField(pDoc, "daemonSalt", pDoc->newString(daemonSalt()));
+	pNode->add(pDoc, "daemonSalt", daemonSalt());
 
 	// Save the topcs
-	GDomNode* pTopics = pNode->addField(pDoc, "topics", pDoc->newList());
+	GDomNode* pTopics = pNode->add(pDoc, "topics", pDoc->newList());
 	for(size_t i = 0; i < m_topics.size(); i++)
-		pTopics->addItem(pDoc, m_topics[i]->toDom(pDoc));
+		pTopics->add(pDoc, m_topics[i]->toDom(pDoc));
 
 	// Save the accounts
-	GDomNode* pAccounts = pNode->addField(pDoc, "accounts", pDoc->newList());
+	GDomNode* pAccounts = pNode->add(pDoc, "accounts", pDoc->newList());
 	for(map<string,Account*>::iterator it = m_accountsMap.begin(); it != m_accountsMap.end(); it++)
 	{
 		Account* pAccount = it->second;
 		if(pAccount->username()[0] != '_') // Don't bother persisting anonymous accounts
-			pAccounts->addItem(pDoc, pAccount->toDom(pDoc));
+			pAccounts->add(pDoc, pAccount->toDom(pDoc));
 	}
 
 	return pNode;
@@ -2171,13 +2171,12 @@ GDomNode* Server::serializeState(GDom* pDoc)
 void Server::deserializeState(const GDomNode* pNode)
 {
 	// Captcha salt
-	const char* daemon_Salt = pNode->fieldIfExists("daemonSalt")->asString();
-	if(daemon_Salt)
-		setDaemonSalt(daemon_Salt);
+	const char* daemon_Salt = pNode->getString("daemonSalt");
+	setDaemonSalt(daemon_Salt);
 
 	// Load the topics
 	GAssert(m_topics.size() == 0);
-	GDomNode* pTopics = pNode->field("topics");
+	GDomNode* pTopics = pNode->get("topics");
 	for(GDomListIterator it(pTopics); it.current(); it.advance())
 	{
 		Topic* pTopic = new Topic("");
@@ -2187,7 +2186,7 @@ void Server::deserializeState(const GDomNode* pNode)
 
 	// Load the accounts
 	GAssert(m_accountsVec.size() == 0 && m_accountsMap.size() == 0);
-	GDomNode* pAccounts = pNode->field("accounts");
+	GDomNode* pAccounts = pNode->get("accounts");
 	for(GDomListIterator it(pAccounts); it.current(); it.advance())
 	{
 		Account* pAccount = Account::fromDom(it.current(), *m_pRand);

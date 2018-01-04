@@ -64,18 +64,18 @@ GBlock::GBlock(const GBlock& that)
 
 GBlock::GBlock(GDomNode* pNode)
 {
-	m_inPos = pNode->field("inpos")->asInt();
-	inputCount = pNode->field("in")->asInt();
-	outputCount = pNode->field("out")->asInt();
+	m_inPos = pNode->getInt("inpos");
+	inputCount = pNode->getInt("in");
+	outputCount = pNode->getInt("out");
 }
 
 GDomNode* GBlock::baseDomNode(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "type", pDoc->newInt(type()));
-	pNode->addField(pDoc, "inpos", pDoc->newInt(m_inPos));
-	pNode->addField(pDoc, "in", pDoc->newInt(inputCount));
-	pNode->addField(pDoc, "out", pDoc->newInt(outputCount));
+	pNode->add(pDoc, "type", name().c_str());
+	pNode->add(pDoc, "inpos", m_inPos);
+	pNode->add(pDoc, "in", inputCount);
+	pNode->add(pDoc, "out", outputCount);
 	return pNode;
 }
 
@@ -84,15 +84,35 @@ GDomNode* GBlock::serialize(GDom* pDoc) const
 	return baseDomNode(pDoc);
 }
 
-GBlock* GBlock::deserialize(GDomNode* pNode)
+GBlock* GBlock::deserialize(GDomNode* pNode, GRand& rand)
 {
-	BlockType e = (BlockType)pNode->field("type")->asInt();
-	switch(e)
-	{
-		case block_tanh: return new GBlockTanh(pNode);
-		case block_linear: return new GBlockLinear(pNode);
-		default: throw Ex("Unrecognized neural network layer type: ", GClasses::to_str((int)e));
-	}
+	const char* type = pNode->getString("type");
+	if(strcmp(type, "GBlockLinear") == 0) return new GBlockLinear(pNode);
+	else if(strcmp(type, "GBlockConv") == 0) return new GBlockConv(pNode);
+	else if(strcmp(type, "GBlockTanh") == 0) return new GBlockTanh(pNode);
+	else if(strcmp(type, "GBlockLogistic") == 0) return new GBlockLogistic(pNode);
+	else if(strcmp(type, "GBlockLeakyRectifier") == 0) return new GBlockLeakyRectifier(pNode);
+	else if(strcmp(type, "GBlockRectifier") == 0) return new GBlockRectifier(pNode);
+	else if(strcmp(type, "GBlockIdentity") == 0) return new GBlockIdentity(pNode);
+	else if(strcmp(type, "GBlockScaledTanh") == 0) return new GBlockScaledTanh(pNode);
+	else if(strcmp(type, "GBlockBentIdentity") == 0) return new GBlockBentIdentity(pNode);	
+	else if(strcmp(type, "GBlockSigExp") == 0) return new GBlockSigExp(pNode);
+	else if(strcmp(type, "GBlockGaussian") == 0) return new GBlockGaussian(pNode);
+	else if(strcmp(type, "GBlockSine") == 0) return new GBlockSine(pNode);
+	else if(strcmp(type, "GBlockSoftPlus") == 0) return new GBlockSoftPlus(pNode);
+	else if(strcmp(type, "GBlockSoftRoot") == 0) return new GBlockSoftRoot(pNode);
+	else if(strcmp(type, "GBlockSoftMax") == 0) return new GBlockSoftMax(pNode);
+	else if(strcmp(type, "GBlockSpectral") == 0) return new GBlockSpectral(pNode);
+	else if(strcmp(type, "GBlockTemperedLinear") == 0) return new GBlockTemperedLinear(pNode);
+	else if(strcmp(type, "GBlockMaxPooling2D") == 0) return new GBlockMaxPooling2D(pNode);
+	else if(strcmp(type, "GBlockScalarSum") == 0) return new GBlockScalarSum(pNode);
+	else if(strcmp(type, "GBlockScalarProduct") == 0) return new GBlockScalarProduct(pNode);
+	else if(strcmp(type, "GBlockSwitch") == 0) return new GBlockSwitch(pNode);
+	else if(strcmp(type, "GBlockHinge") == 0) return new GBlockHinge(pNode);
+	else if(strcmp(type, "GBlockSoftExp") == 0) return new GBlockSoftExp(pNode);
+	else if(strcmp(type, "GBlockPAL") == 0) return new GBlockPAL(pNode, rand);
+	else if(strcmp(type, "GBlockLSTM") == 0) return new GBlockLSTM(pNode);
+	else throw Ex("Unrecognized neural network block type: ", type);
 }
 
 void GBlock::setInPos(size_t n, GLayer* pPrevLayer)
@@ -224,18 +244,18 @@ GBlockSpectral::GBlockSpectral(double min_wavelength, double max_wavelength, siz
 
 GBlockSpectral::GBlockSpectral(GDomNode* pNode)
 : GBlockWeightless(pNode),
-m_freq_start(pNode->field("start")->asDouble()),
-m_freq_scale(pNode->field("scale")->asDouble()),
-m_freq_shift(pNode->field("shift")->asDouble())
+m_freq_start(pNode->getDouble("start")),
+m_freq_scale(pNode->getDouble("scale")),
+m_freq_shift(pNode->getDouble("shift"))
 {
 }
 
 GDomNode* GBlockSpectral::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc);
-	pNode->addField(pDoc, "start", pDoc->newDouble(m_freq_start));
-	pNode->addField(pDoc, "scale", pDoc->newDouble(m_freq_scale));
-	pNode->addField(pDoc, "shift", pDoc->newDouble(m_freq_shift));
+	pNode->add(pDoc, "start", m_freq_start);
+	pNode->add(pDoc, "scale", m_freq_scale);
+	pNode->add(pDoc, "shift", m_freq_shift);
 	return pNode;
 }
 
@@ -352,8 +372,8 @@ GBlockTemperedLinear::GBlockTemperedLinear(const GBlockTemperedLinear& that)
 }
 
 GBlockTemperedLinear::GBlockTemperedLinear(GDomNode* pNode)
-: GBlock(pNode), deviationCap(pNode->field("dc")->asDouble()), forgetRate(pNode->field("fr")->asDouble()),
-moment1(pNode->field("mom1")), moment2(pNode->field("mom2"))
+: GBlock(pNode), deviationCap(pNode->getDouble("dc")), forgetRate(pNode->getDouble("fr")),
+moment1(pNode->get("mom1")), moment2(pNode->get("mom2"))
 {
 }
 
@@ -451,19 +471,22 @@ size_t GBlockConv_countTensorOutputSize(const GIndexVec& inDims, const GIndexVec
 	return n;
 }
 
-GBlockConv::GBlockConv(const GIndexVec& inputDims, const GIndexVec& filterDims, size_t _filterCount)
-: GBlock(GBlockConv_countTensorSize(inputDims), GBlockConv_countTensorOutputSize(inputDims, filterDims) * _filterCount),
+GBlockConv::GBlockConv(const GIndexVec& inputDims, const GIndexVec& filterDims, size_t _filterCount, const GIndexVec* pOutputDims)
+: GBlock(GBlockConv_countTensorSize(inputDims), (pOutputDims ? GBlockConv_countTensorSize(*pOutputDims) : GBlockConv_countTensorOutputSize(inputDims, filterDims)) * _filterCount),
 filterCount(_filterCount),
 filterSize(GBlockConv_countTensorSize(filterDims)),
 outputsPerFilter(outputCount / filterCount),
 tensorInput(nullptr, inputDims),
 tensorFilter(nullptr, filterDims),
-tensorOutput(nullptr, inputDims)
+tensorOutput(nullptr, pOutputDims ? *pOutputDims : inputDims)
 {
-	for(size_t i = 0; i < inputDims.size(); i++)
+	if(!pOutputDims)
 	{
-		if(tensorInput.dims[i] == tensorFilter.dims[i])
-			tensorOutput.dims[i] = 1;
+		for(size_t i = 0; i < inputDims.size(); i++)
+		{
+			if(tensorInput.dims[i] == tensorFilter.dims[i])
+				tensorOutput.dims[i] = 1;
+		}
 	}
 }
 
@@ -480,10 +503,10 @@ tensorOutput(that.tensorOutput)
 
 GBlockConv::GBlockConv(GDomNode* pNode)
 : GBlock(pNode),
-filterCount(pNode->field("filterCount")->asInt()),
+filterCount(pNode->getInt("filterCount")),
 outputsPerFilter(outputCount / filterCount),
-tensorInput(pNode->field("inputDims")),
-tensorFilter(pNode->field("filterDims")),
+tensorInput(pNode->get("inputDims")),
+tensorFilter(pNode->get("filterDims")),
 tensorOutput(nullptr, tensorInput.dims)
 {
 	filterSize = GBlockConv_countTensorSize(tensorFilter.dims);
@@ -492,9 +515,9 @@ tensorOutput(nullptr, tensorInput.dims)
 GDomNode* GBlockConv::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc);
-	pNode->addField(pDoc, "filterCount", pDoc->newInt(filterCount));
-	pNode->addField(pDoc, "inputDims", tensorInput.dims.serialize(pDoc));
-	pNode->addField(pDoc, "filterDims", tensorFilter.dims.serialize(pDoc));
+	pNode->add(pDoc, "filterCount", filterCount);
+	pNode->add(pDoc, "inputDims", tensorInput.dims.serialize(pDoc));
+	pNode->add(pDoc, "filterDims", tensorFilter.dims.serialize(pDoc));
 	return pNode;
 }
 
@@ -512,7 +535,8 @@ void GBlockConv::forwardProp(const GVec& weights)
 		weightsPos += filterSize;
 		outPos += outputsPerFilter;
 	}
-	GAssert(weightsPos == weights.size());
+	if(weightsPos != weights.size())
+		throw Ex("Expected ", GClasses::to_str(weightsPos), " weights. Got ", GClasses::to_str(weights.size()));
 }
 
 void GBlockConv::backProp(const GVec& weights)
@@ -556,30 +580,29 @@ size_t GBlockConv::weightCount() const
 
 void GBlockConv::initWeights(GRand& rand, GVec& weights)
 {
-	weights.fillNormal(rand, std::max(0.03, 1.0 / std::max(1ul, inputCount)));
+	weights.fillNormal(rand, 1.0 / filterSize);
 }
 
 #ifndef NO_TEST_CODE
 void GBlockConv::test()
 {
 	GNeuralNet nn;
-	GIndexVec inputDims(1);
-	inputDims[0] = 4;
-	GIndexVec filterDims(1);
-	filterDims[0] = 3;
+	GIndexVec inputDims({4});
+	GIndexVec filterDims({3});
 	nn.add(new GBlockConv(inputDims, filterDims, 1));
 	if(nn.weightCount() != 4)
 		throw Ex("Unexpected number of weights");
-	
-	// Test forwardprop
-	GVec w(4); w[0] = 0; w[1] = 1; w[2] = 2; w[3] = 0;
-	GVec x(4); x[0] = 2; x[1] = 1; x[2] = 0; x[3] = 3;
-	const GVec& pred = nn.forwardProp(w, x);
-	if(std::abs(4.0 - pred[0]) > 1e-8) throw Ex("wrong");
-	if(std::abs(1.0 - pred[1]) > 1e-8) throw Ex("wrong");
-	GVec y(2); y[0] = 5.0; y[1] = 3.0;
 
+	// Test forwardprop
+	GVec w({0, 1, 2, 0}); // bias=0, filter={1,2,0}
+	GVec x({2, 1, 0, 3});
+	const GVec& pred = nn.forwardProp(w, x);
+	GVec expected({4, 4, 1, 6});
+	if(std::sqrt(pred.squaredDistance(expected)) > 1e-10)
+		throw Ex("wrong");
+/*
 	// Test backprop
+	GVec y({4, 5, 3, 3});
 	nn.computeBlame(y);
 	GVec inBlame(4); inBlame.fill(0.0);
 	nn.backpropagate(w, &inBlame);
@@ -595,7 +618,7 @@ void GBlockConv::test()
 	if(std::abs(4.0 - grad[1]) > 1e-8) throw Ex("wrong");
 	if(std::abs(1.0 - grad[2]) > 1e-8) throw Ex("wrong");
 	if(std::abs(6.0 - grad[3]) > 1e-8) throw Ex("wrong");
-
+*/
 }
 #endif // NO_TEST_CODE
 
@@ -641,7 +664,7 @@ void GBlockMaxPooling2D::forwardProp(const GVec& weights)
 						std::max(input[vertStart + width + x], input[vertStart + width + 1 + x])
 					);
 			}
-			vertStart += width;
+			vertStart += (width + width);
 		}
 		chanStart += chanSize;
 	}
@@ -679,7 +702,7 @@ void GBlockMaxPooling2D::backProp(const GVec& weights)
 					i = vertStart + width + 1 + x;
 				inBlame[i] = outBlame[pos++];
 			}
-			vertStart += width;
+			vertStart += (width + width);
 		}
 		chanStart += chanSize;
 	}
@@ -882,13 +905,13 @@ GBlockSoftExp::GBlockSoftExp(size_t size, double beta)
 }
 
 GBlockSoftExp::GBlockSoftExp(GDomNode* pNode)
-: GBlock(pNode), m_beta(pNode->field("beta")->asDouble())
+: GBlock(pNode), m_beta(pNode->getDouble("beta"))
 {}
 
 GDomNode* GBlockSoftExp::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc);
-	pNode->addField(pDoc, "beta", pDoc->newDouble(m_beta));
+	pNode->add(pDoc, "beta", m_beta);
 	return pNode;
 }
 
@@ -1457,16 +1480,16 @@ GLayer::GLayer(const GLayer& that, GLayer* pPrevLayer)
 	}
 }
 
-GLayer::GLayer(GDomNode* pNode)
-: input_count(pNode->field("inputs")->asInt()),
-output_count(pNode->field("outputs")->asInt()),
+GLayer::GLayer(GDomNode* pNode, GRand& rand)
+: input_count(pNode->getInt("inputs")),
+output_count(pNode->getInt("outputs")),
 weight_count(0)
 {
-	GDomNode* pBlocks = pNode->field("blocks");
+	GDomNode* pBlocks = pNode->get("blocks");
 	GDomListIterator it(pBlocks);
 	while(it.remaining() > 0)
 	{
-		m_blocks.push_back(GBlock::deserialize(it.current()));
+		m_blocks.push_back(GBlock::deserialize(it.current(), rand));
 		it.advance();
 	}
 }
@@ -1481,11 +1504,11 @@ GLayer::~GLayer()
 GDomNode* GLayer::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "inputs", pDoc->newInt(input_count));
-	pNode->addField(pDoc, "outputs", pDoc->newInt(output_count));
-	GDomNode* pBlocks = pNode->addField(pDoc, "blocks", pDoc->newList());
+	pNode->add(pDoc, "inputs", input_count);
+	pNode->add(pDoc, "outputs", output_count);
+	GDomNode* pBlocks = pNode->add(pDoc, "blocks", pDoc->newList());
 	for(size_t i = 0; i < m_blocks.size(); i++)
-		pBlocks->addItem(pDoc, m_blocks[i]->serialize(pDoc));
+		pBlocks->add(pDoc, m_blocks[i]->serialize(pDoc));
 	return pNode;
 }
 
@@ -1692,14 +1715,14 @@ GNeuralNet::GNeuralNet(const GNeuralNet& that)
 	}
 }
 
-GNeuralNet::GNeuralNet(GDomNode* pNode)
+GNeuralNet::GNeuralNet(GDomNode* pNode, GRand& rand)
 : GBlock(pNode), m_weightCount(0)
 {
-	GDomNode* pLayers = pNode->field("layers");
+	GDomNode* pLayers = pNode->get("layers");
 	GDomListIterator it(pLayers);
 	while(it.remaining() > 0)
 	{
-		m_layers.push_back(new GLayer(it.current()));
+		m_layers.push_back(new GLayer(it.current(), rand));
 		it.advance();
 	}
 }
@@ -1714,9 +1737,9 @@ GNeuralNet::~GNeuralNet()
 GDomNode* GNeuralNet::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc);
-	GDomNode* pLayers = pNode->addField(pDoc, "layers", pDoc->newList());
+	GDomNode* pLayers = pNode->add(pDoc, "layers", pDoc->newList());
 	for(size_t i = 0; i < m_layers.size(); i++)
-		pLayers->addItem(pDoc, m_layers[i]->serialize(pDoc));
+		pLayers->add(pDoc, m_layers[i]->serialize(pDoc));
 	return pNode;
 }
 
@@ -1846,6 +1869,7 @@ void GNeuralNet::backPropFast(const GVec& weights)
 
 void GNeuralNet::backpropagate(const GVec& weights, GVec* inputBlame)
 {
+	GAssert(weights.size() == weightCount());
 	if(inputBlame)
 	{
 		GAssert(inputBlame->size() == m_layers[0]->inputs());
@@ -1889,7 +1913,7 @@ size_t GNeuralNet::weightCount() const
 	return m_weightCount;
 }
 
-void GNeuralNet::copyStructure(const GNeuralNet* pOther)
+void GNeuralNet::copyStructure(const GNeuralNet* pOther, GRand& rand)
 {
 	m_weightCount = pOther->weightCount();
 	for(size_t i = 0; i < m_layers.size(); i++)
@@ -1900,7 +1924,7 @@ void GNeuralNet::copyStructure(const GNeuralNet* pOther)
 		// todo: this is not a very efficient way to copy a layer
 		GDom doc;
 		GDomNode* pNode = pOther->m_layers[i]->serialize(&doc);
-		m_layers.push_back(new GLayer(pNode));
+		m_layers.push_back(new GLayer(pNode, rand));
 	}
 }
 
@@ -1997,6 +2021,221 @@ GBlock* GNeuralNet::advanceState(size_t unfoldedInstances)
 	return this;
 }
 
+std::string GNeuralNet::toEquation(const GVec& weights)
+{
+	std::ostringstream os;
+	size_t prev = 1;
+	size_t cur = prev + inputs();
+	size_t wp = 0;
+	for(size_t i = 0; i < m_layers.size(); i++)
+	{
+		if(m_layers[i]->blockCount() > 1)
+			throw Ex("Multiple blocks not yet supported");
+		GBlock* b = &m_layers[i]->block(0);
+		for(size_t j = 0; j < b->outputs(); j++)
+		{
+			if(i < m_layers.size() - 1)
+				os << "h" << GClasses::to_str(cur + j) << " = ";
+			else
+				os << "y" << GClasses::to_str(1 + j) << " = ";
+			if(b->type() == GBlock::block_linear)
+			{
+				size_t biasStart = wp;
+				wp += b->outputs();
+				size_t weightStart = wp;
+				wp += b->inputs() * b->outputs();
+				for(size_t k = 0; k < b->outputs(); k++)
+				{
+					os << GClasses::to_str(weights[biasStart + k]);
+					for(size_t l = 0; l < b->inputs(); l++)
+					{
+						if(weights[weightStart + b->outputs() * l + k] != 0.0)
+							os << " + " << GClasses::to_str(weights[weightStart + b->outputs() * l + k]) << (i == 0 ? " * x" : " * h") << GClasses::to_str(prev + l);
+					}
+				}
+			}
+			else if(b->type() == GBlock::block_tanh)
+			{
+				os << "tanh( " << (i == 0 ? " * x" : " * h") << GClasses::to_str(prev + j);
+			}
+			else if(b->type() == GBlock::block_scalarproduct)
+			{
+				os << (i == 0 ? " * x" : " * h") << GClasses::to_str(prev + j) << " * " << (i == 0 ? " * x" : " * h") << GClasses::to_str(prev + b->outputs() + j);
+			}
+		}
+		os << ";\n";
+		prev = cur;
+		cur += m_layers[i]->outputs();
+	}
+	return os.str();
+}
+/*
+void GNeuralNet::prune(GVec& weights)
+{
+	size_t wp = 0;
+	for(size_t i = 0; i < m_layers.size() - 1; i++)
+	{
+		if(m_layers[i]->blockCount() > 1)
+			throw Ex("Sorry, multiple blocks not yet supported");
+		GBlock& b = m_layers[i]->block(0);
+		if(b.type() == GBlock::block_linear)
+		{
+			wp += b.outputs(); // skip over the bias weights
+			for(size_t j = 0; j < b.inputs(); j++)
+			{
+				// Check if all outbound weights from unit j in layer i-1 are zero
+				size_t wStart = wp;
+				bool allZeros = true;
+				for(size_t k = 0; k < b.outputs(); k++)
+				{
+					if(weights[wp] != 0.0)
+					{
+						wp += (b.outputs() - k);
+						allZeros = false;
+						break;
+					}
+					wp++;
+				}
+
+				// If they are all zeros, Drop unit j of layer i-1
+				if(allZeros && i > 0)
+				{
+					// Remove the outbound weights (in layer i)
+					weights.erase(wStart, 
+					
+				}
+			}
+		}
+		else if(b.type() == GBlock::block_tanh)
+		{
+		}
+		else if(b.type() == GBlock::block_scalarproduct)
+		{
+		}
+		else throw Ex("Sorry, unsupported block type");
+	}
+}
+*/
+#ifndef MIN_PREDICT
+void GNeuralNet_finiteDifferencingTest(GNeuralNet& nn, GVec& weights, GVec& x)
+{
+	size_t outputCount = nn.outputs();
+
+	// Do it with finite differencing
+	double epsilon = 1e-6;
+	GMatrix measured(outputCount, nn.weightCount());
+	GVec predNeg;
+	GVec xx;
+	for(size_t i = 0; i < nn.weightCount(); i++)
+	{
+		weights[i] -= epsilon / 2.0;
+		GVec predNeg(nn.forwardProp(weights, x));
+		weights[i] += epsilon;
+		GVec& predPos = nn.forwardProp(weights, x);
+		weights[i] -= epsilon / 2.0;
+		for(size_t j = 0; j < outputCount; j++)
+			measured[j][i] = (predPos[j] - predNeg[j]) / epsilon;
+	}
+
+	// Do it with back-prop
+	GMatrix computed(outputCount, nn.weightCount());
+	GVec& pred = nn.forwardProp(weights, x);
+	GVec targ;
+	targ.copy(pred);
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		targ[i] += 1.0;
+		nn.computeBlame(targ);
+		nn.backpropagate(weights);
+		targ[i] -= 1.0;
+		computed[i].fill(0.0);
+		nn.updateGradient(weights, computed[i]);
+	}
+
+	//std::cout << "\n\nMeasured:\n" << to_str(measured) << "\n";
+	//std::cout << "Computed:\n" << to_str(computed) << "\n";
+
+	// Check results
+	double sum = 0.0;
+	double sum_of_squares = 0.0;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		for(size_t j = 0; j < nn.weightCount(); j++)
+		{
+			if(std::abs(measured[i][j] - computed[i][j]) > 1e-5)
+				throw Ex("off by too much");
+			sum += computed[i][j];
+			sum_of_squares += (computed[i][j] * computed[i][j]);
+		}
+	}
+	double ex = sum / (outputCount * nn.weightCount());
+	double exx = sum_of_squares / (outputCount * nn.weightCount());
+	if(std::sqrt(exx - ex * ex) < 0.01)
+		throw Ex("Not enough deviation");
+}
+
+void GNeuralNet_testLinearAndTanh()
+{
+	GNeuralNet nn;
+	nn.add(new GBlockLinear(3, 5));
+	nn.add(new GBlockTanh(5));
+	nn.add(new GBlockLinear(5, 2));
+
+	GRand rand(0);
+	GVec weights(nn.weightCount());
+	weights.fillNormal(rand);
+	GVec x(nn.inputs());
+	x.fillNormal(rand);
+
+	GNeuralNet_finiteDifferencingTest(nn, weights, x);
+}
+
+void GNeuralNet_testConvolutional1()
+{
+	GNeuralNet nn;
+	GIndexVec inDims({4, 4});
+	GIndexVec filterDims({3, 3});
+	nn.add(new GBlockConv(inDims, filterDims, 1));
+
+	GRand rand(0);
+	GVec weights(nn.weightCount());
+	weights.fillNormal(rand);
+	GVec x(nn.inputs());
+	x.fillNormal(rand);
+
+	GNeuralNet_finiteDifferencingTest(nn, weights, x);
+}
+
+void GNeuralNet_testConvolutional3()
+{
+	GNeuralNet nn;
+	GIndexVec inDims({4, 4, 1});
+	GIndexVec filterDims({3, 3, 1});
+	nn.add(new GBlockConv(inDims, filterDims, 2));
+	nn.add(new GBlockLeakyRectifier(16 * 2));
+	inDims[2] = 2;
+	filterDims[2] = 2;
+	nn.add(new GBlockConv(inDims, filterDims, 1));
+	nn.add(new GBlockLeakyRectifier(16));
+
+	GRand rand(0);
+	GVec weights(nn.weightCount());
+	weights.fillNormal(rand);
+	GVec x(nn.inputs());
+	x.fillNormal(rand);
+
+	GNeuralNet_finiteDifferencingTest(nn, weights, x);
+}
+
+// static
+void GNeuralNet::test()
+{
+	GNeuralNet_testLinearAndTanh();
+	GNeuralNet_testConvolutional1();
+	GNeuralNet_testConvolutional3();
+}
+
+#endif // MIN_PREDICT
 
 
 
@@ -2659,7 +2898,7 @@ GNeuralNetLearner::GNeuralNetLearner()
 
 GNeuralNetLearner::GNeuralNetLearner(const GDomNode* pNode)
 : GIncrementalLearner(pNode),
-m_nn(pNode->field("nn")),
+m_nn(pNode->get("nn"), m_rand),
 m_pOptimizer(nullptr)
 {
 }
@@ -2681,7 +2920,7 @@ GNeuralNetOptimizer& GNeuralNetLearner::optimizer()
 GDomNode* GNeuralNetLearner::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GNeuralNetLearner");
-	pNode->addField(pDoc, "nn", m_nn.serialize(pDoc));
+	pNode->add(pDoc, "nn", m_nn.serialize(pDoc));
 	return pNode;
 }
 #endif // MIN_PREDICT
@@ -2848,7 +3087,6 @@ void GNeuralNet_testMath()
 // static
 void GNeuralNetLearner::test()
 {
-	GRand prng(0);
 	GNeuralNet_testMath();
 }
 

@@ -30,9 +30,9 @@ using std::map;
 namespace GClasses {
 
 GDistanceMetric::GDistanceMetric(GDomNode* pNode)
-: m_scaleFactors(pNode->field("scalars"))
+: m_scaleFactors(pNode->get("scalars"))
 {
-	m_pRelation = GRelation::deserialize(pNode->field("relation"));
+	m_pRelation = GRelation::deserialize(pNode->get("relation"));
 	if(m_pRelation->size() != m_scaleFactors.size())
 		throw Ex("Mismatching sizes");
 	m_ownRelation = true;
@@ -62,16 +62,16 @@ void GDistanceMetric::setRelation(const GRelation* pRelation, bool own)
 GDomNode* GDistanceMetric::baseDomNode(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "class", pDoc->newString(name()));
-	pNode->addField(pDoc, "relation", m_pRelation->serialize(pDoc));
-	pNode->addField(pDoc, "scalars", m_scaleFactors.serialize(pDoc));
+	pNode->add(pDoc, "class", name());
+	pNode->add(pDoc, "relation", m_pRelation->serialize(pDoc));
+	pNode->add(pDoc, "scalars", m_scaleFactors.serialize(pDoc));
 	return pNode;
 }
 
 // static
 GDistanceMetric* GDistanceMetric::deserialize(GDomNode* pNode)
 {
-	const char* szClass = pNode->field("class")->asString();
+	const char* szClass = pNode->getString("class");
 	if(strcmp(szClass, "GRowDistance") == 0)
 		return new GRowDistance(pNode);
 	if(strcmp(szClass, "GDenseCosineDistance") == 0)
@@ -130,14 +130,14 @@ GRowDistance::GRowDistance()
 GRowDistance::GRowDistance(GDomNode* pNode)
 : GDistanceMetric(pNode)
 {
-	m_diffWithUnknown = pNode->field("dwu")->asDouble();
+	m_diffWithUnknown = pNode->getDouble("dwu");
 }
 
 // virtual
 GDomNode* GRowDistance::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc);
-	pNode->addField(pDoc, "dwu", pDoc->newDouble(m_diffWithUnknown));
+	pNode->add(pDoc, "dwu", m_diffWithUnknown);
 	return pNode;
 }
 
@@ -184,7 +184,7 @@ GLNormDistance::GLNormDistance(double norm)
 }
 
 GLNormDistance::GLNormDistance(GDomNode* pNode)
-: GDistanceMetric(pNode), m_norm(pNode->field("norm")->asDouble()), m_diffWithUnknown(pNode->field("dwu")->asDouble())
+: GDistanceMetric(pNode), m_norm(pNode->getDouble("norm")), m_diffWithUnknown(pNode->getDouble("dwu"))
 {
 }
 
@@ -192,8 +192,8 @@ GLNormDistance::GLNormDistance(GDomNode* pNode)
 GDomNode* GLNormDistance::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc);
-	pNode->addField(pDoc, "norm", pDoc->newDouble(m_norm));
-	pNode->addField(pDoc, "dwu", pDoc->newDouble(m_diffWithUnknown));
+	pNode->add(pDoc, "norm", m_norm);
+	pNode->add(pDoc, "dwu", m_diffWithUnknown);
 	return pNode;
 }
 
@@ -290,7 +290,7 @@ GKernelDistance::GKernelDistance(GKernel* pKernel, bool own)
 GKernelDistance::GKernelDistance(GDomNode* pNode)
 : GDistanceMetric(pNode), m_ownKernel(true)
 {
-	m_pKernel = GKernel::deserialize(pNode->field("kernel"));
+	m_pKernel = GKernel::deserialize(pNode->get("kernel"));
 }
 
 // virtual
@@ -304,7 +304,7 @@ GKernelDistance::~GKernelDistance()
 GDomNode* GKernelDistance::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc);
-	pNode->addField(pDoc, "kernel", m_pKernel->serialize(pDoc));
+	pNode->add(pDoc, "kernel", m_pKernel->serialize(pDoc));
 	return pNode;
 }
 
@@ -325,7 +325,7 @@ double GKernelDistance::squaredDistance(const GVec& a, const GVec& b) const
 // static
 GSparseSimilarity* GSparseSimilarity::deserialize(GDomNode* pNode)
 {
-	const char* szClass = pNode->field("class")->asString();
+	const char* szClass = pNode->getString("class");
 	GSparseSimilarity* pObj = NULL;
 	if(strcmp(szClass, "GCosineSimilarity") == 0)
 		return new GCosineSimilarity(pNode);
@@ -335,15 +335,15 @@ GSparseSimilarity* GSparseSimilarity::deserialize(GDomNode* pNode)
 		return new GPearsonCorrelation(pNode);
 	else
 		throw Ex("Unrecognized class: ", szClass);
-	pObj->m_regularizer = pNode->field("reg")->asDouble();
+	pObj->m_regularizer = pNode->getDouble("reg");
 	return pObj;
 }
 
 GDomNode* GSparseSimilarity::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
-	pNode->addField(pDoc, "reg", pDoc->newDouble(m_regularizer));
+	pNode->add(pDoc, "class", szClassName);
+	pNode->add(pDoc, "reg", m_regularizer);
 	return pNode;
 }
 

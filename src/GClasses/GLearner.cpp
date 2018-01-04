@@ -418,8 +418,8 @@ GSupervisedLearner::GSupervisedLearner()
 GSupervisedLearner::GSupervisedLearner(const GDomNode* pNode)
 : GTransducer()
 {
-	m_pRelFeatures = GRelation::deserialize(pNode->field("_rf"));
-	m_pRelLabels = GRelation::deserialize(pNode->field("_rl"));
+	m_pRelFeatures = GRelation::deserialize(pNode->get("_rf"));
+	m_pRelLabels = GRelation::deserialize(pNode->get("_rl"));
 }
 
 GSupervisedLearner::~GSupervisedLearner()
@@ -448,9 +448,9 @@ GDomNode* GSupervisedLearner::baseDomNode(GDom* pDoc, const char* szClassName) c
 	if(!m_pRelLabels)
 		throw Ex("The model must be trained before it is serialized.");
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
-	pNode->addField(pDoc, "_rf", m_pRelFeatures->serialize(pDoc));
-	pNode->addField(pDoc, "_rl", m_pRelLabels->serialize(pDoc));
+	pNode->add(pDoc, "class", szClassName);
+	pNode->add(pDoc, "_rf", m_pRelFeatures->serialize(pDoc));
+	pNode->add(pDoc, "_rl", m_pRelLabels->serialize(pDoc));
 	return pNode;
 }
 
@@ -935,7 +935,7 @@ void GIncrementalLearner::beginIncrementalLearning(const GMatrix& features, cons
 // virtual
 GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(const GDomNode* pNode)
 {
-	const char* szClass = pNode->field("class")->asString();
+	const char* szClass = pNode->getString("class");
 	if(szClass[0] == 'G')
 	{
 		if(szClass[1] < 'N')
@@ -992,7 +992,7 @@ GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(const GDomNode* 
 GSupervisedLearner* GLearnerLoader::loadLearner(const GDomNode* pNode)
 {
 #ifndef MIN_PREDICT
-	const char* szClass = pNode->field("class")->asString();
+	const char* szClass = pNode->getString("class");
 	if(szClass[0] == 'G')
 	{
 		if(szClass[1] < 'J')
@@ -1072,7 +1072,7 @@ GSupervisedLearner* GLearnerLoader::loadLearner(const GDomNode* pNode)
 // virtual
 GCollaborativeFilter* GLearnerLoader::loadCollaborativeFilter(const GDomNode* pNode)
 {
-	const char* szClass = pNode->field("class")->asString();
+	const char* szClass = pNode->getString("class");
 	if(szClass[0] == 'G')
 	{
 		if(strcmp(szClass, "GBagOfRecommenders") == 0)
@@ -1101,7 +1101,7 @@ GFilter::GFilter(GSupervisedLearner* pLearner, bool ownLearner)
 GFilter::GFilter(const GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalLearner(pNode), m_pIncrementalLearner(NULL), m_ownLearner(true)
 {
-	m_pLearner = ll.loadLearner(pNode->field("learner"));
+	m_pLearner = ll.loadLearner(pNode->get("learner"));
 	if(m_pLearner->canTrainIncrementally())
 		m_pIncrementalLearner = (GIncrementalLearner*)m_pLearner;
 	m_pOriginal = m_pLearner;
@@ -1163,7 +1163,7 @@ void GFilter::discardIntermediateFilters_helper(GSupervisedLearner* pOriginal)
 GDomNode* GFilter::domNode(GDom* pDoc, const char* szClassName) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, szClassName);
-	pNode->addField(pDoc, "learner", m_pLearner->serialize(pDoc));
+	pNode->add(pDoc, "learner", m_pLearner->serialize(pDoc));
 	return pNode;
 }
 
@@ -1209,7 +1209,7 @@ GFeatureFilter::GFeatureFilter(GSupervisedLearner* pLearner, GIncrementalTransfo
 GFeatureFilter::GFeatureFilter(const GDomNode* pNode, GLearnerLoader& ll)
 : GFilter(pNode, ll), m_ownTransform(true)
 {
-	m_pTransform = ll.loadIncrementalTransform(pNode->field("trans"));
+	m_pTransform = ll.loadIncrementalTransform(pNode->get("trans"));
 }
 
 // virtual
@@ -1223,7 +1223,7 @@ GFeatureFilter::~GFeatureFilter()
 GDomNode* GFeatureFilter::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = domNode(pDoc, "GFeatureFilter");
-	pNode->addField(pDoc, "trans", m_pTransform->serialize(pDoc));
+	pNode->add(pDoc, "trans", m_pTransform->serialize(pDoc));
 	return pNode;
 }
 
@@ -1304,7 +1304,7 @@ GLabelFilter::GLabelFilter(GSupervisedLearner* pLearner, GIncrementalTransform* 
 GLabelFilter::GLabelFilter(const GDomNode* pNode, GLearnerLoader& ll)
 : GFilter(pNode, ll), m_ownTransform(true)
 {
-	m_pTransform = ll.loadIncrementalTransform(pNode->field("trans"));
+	m_pTransform = ll.loadIncrementalTransform(pNode->get("trans"));
 }
 
 // virtual
@@ -1318,7 +1318,7 @@ GLabelFilter::~GLabelFilter()
 GDomNode* GLabelFilter::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = domNode(pDoc, "GLabelFilter");
-	pNode->addField(pDoc, "trans", m_pTransform->serialize(pDoc));
+	pNode->add(pDoc, "trans", m_pTransform->serialize(pDoc));
 	return pNode;
 }
 
@@ -1686,12 +1686,12 @@ GBaselineLearner::GBaselineLearner(const GDomNode* pNode)
 : GSupervisedLearner(pNode)
 {
 	m_prediction.clear();
-	GDomNode* pred = pNode->field("pred");
+	GDomNode* pred = pNode->get("pred");
 	GDomListIterator it(pred);
 	m_prediction.reserve(it.remaining());
 	for(size_t i = 0; it.current(); i++)
 	{
-		m_prediction.push_back(it.current()->asDouble());
+		m_prediction.push_back(it.currentDouble());
 		it.advance();
 	}
 }
@@ -1714,9 +1714,9 @@ GDomNode* GBaselineLearner::serialize(GDom* pDoc) const
 	GDomNode* pNode = baseDomNode(pDoc, "GBaselineLearner");
 	if(m_prediction.size() == 0)
 		throw Ex("Attempted to serialize a model that has not been trained");
-	GDomNode* pred = pNode->addField(pDoc, "pred", pDoc->newList());
+	GDomNode* pred = pNode->add(pDoc, "pred", pDoc->newList());
 	for(size_t i = 0; i < m_prediction.size(); i++)
-		pred->addItem(pDoc, pDoc->newDouble(m_prediction[i]));
+		pred->add(pDoc, m_prediction[i]);
 	return pNode;
 }
 
@@ -1768,8 +1768,8 @@ GIdentityFunction::GIdentityFunction()
 GIdentityFunction::GIdentityFunction(const GDomNode* pNode)
 : GSupervisedLearner(pNode)
 {
-	m_labelDims = (size_t)pNode->field("labels")->asInt();
-	m_featureDims = (size_t)pNode->field("features")->asInt();
+	m_labelDims = (size_t)pNode->getInt("labels");
+	m_featureDims = (size_t)pNode->getInt("features");
 }
 
 // virtual
@@ -1788,8 +1788,8 @@ void GIdentityFunction::clear()
 GDomNode* GIdentityFunction::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GIdentityFunction");
-	pNode->addField(pDoc, "labels", pDoc->newInt(m_labelDims));
-	pNode->addField(pDoc, "features", pDoc->newInt(m_featureDims));
+	pNode->add(pDoc, "labels", m_labelDims);
+	pNode->add(pDoc, "features", m_featureDims);
 	return pNode;
 }
 

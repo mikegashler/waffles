@@ -739,7 +739,7 @@ namespace{
     GDomNode* pNode = pDoc->newList();
     std::vector<double>::const_iterator it;
     for(it = v.begin(); it != v.end(); ++it){
-      pNode->addItem(pDoc, pDoc->newDouble(*it));
+      pNode->add(pDoc, *it);
     }
     return pNode;
   }
@@ -749,7 +749,7 @@ namespace{
     std::size_t size = it.remaining();
     std::vector<double> out; out.reserve(size);
     for(; it.current(); it.advance()){
-      out.push_back(it.current()->asDouble());
+      out.push_back(it.currentDouble());
     }
     assert(out.size() == size);
     return out;
@@ -761,7 +761,7 @@ namespace{
     GDomNode* pNode = pDoc->newList();
     typename vectortype::const_iterator it;
     for(it = v.begin(); it != v.end(); ++it){
-      pNode->addItem(pDoc, it->serialize(pDoc));
+      pNode->add(pDoc, it->serialize(pDoc));
     }
     return pNode;
   }
@@ -782,23 +782,22 @@ namespace{
 }
 
 SOM::Node::Node(const GDomNode* pNode)
-  :outputLocation(doubleVectorDeserialize(pNode->field("outputLocation"))),
-   weights(doubleVectorDeserialize(pNode->field("weights"))){}
+  :outputLocation(doubleVectorDeserialize(pNode->get("outputLocation"))),
+   weights(doubleVectorDeserialize(pNode->get("weights"))){}
 
 
 GDomNode* SOM::Node::serialize(GDom*pDoc) const{
   GDomNode* pNode = pDoc->newObj();
-  pNode->addField(pDoc, "outputLocation",
+  pNode->add(pDoc, "outputLocation",
 		  doubleVectorSerialize(pDoc, outputLocation));
-  pNode->addField(pDoc, "weights", doubleVectorSerialize(pDoc, weights));
+  pNode->add(pDoc, "weights", doubleVectorSerialize(pDoc, weights));
   return pNode;
 }
 
 //virtual
 GDomNode* SOM::TrainingAlgorithm::serialize(GDom* pDoc) const{
   GDomNode* pNode = pDoc->newObj();
-  pNode->addField(pDoc, "class",
-		  pDoc->newString("DummyTrainingAlgorithm"));
+  pNode->add(pDoc, "class", "DummyTrainingAlgorithm");
   return pNode;
 }
 
@@ -810,12 +809,12 @@ SOM::TrainingAlgorithm* SOM::TrainingAlgorithm::deserialize(const GDomNode* pNod
 //virtual
 GDomNode* GSelfOrganizingMap::serialize(GDom* pDoc) const{
   GDomNode* pNode = baseDomNode(pDoc, "GSelfOrganizingMap");
-  pNode->addField(pDoc, "inputDims", pDoc->newInt(m_nInputDims));
-  pNode->addField(pDoc, "outputAxes",doubleVectorSerialize(pDoc, m_outputAxes));
-  pNode->addField(pDoc, "trainer",m_pTrainer->serialize(pDoc));
-  pNode->addField(pDoc, "weightDistance",m_pWeightDistance->serialize(pDoc));
-  pNode->addField(pDoc, "nodeDistance", m_pNodeDistance->serialize(pDoc));
-  pNode->addField(pDoc, "nodes", objVectorSerialize(pDoc, m_nodes));
+  pNode->add(pDoc, "inputDims", (long long)m_nInputDims);
+  pNode->add(pDoc, "outputAxes",doubleVectorSerialize(pDoc, m_outputAxes));
+  pNode->add(pDoc, "trainer",m_pTrainer->serialize(pDoc));
+  pNode->add(pDoc, "weightDistance",m_pWeightDistance->serialize(pDoc));
+  pNode->add(pDoc, "nodeDistance", m_pNodeDistance->serialize(pDoc));
+  pNode->add(pDoc, "nodes", objVectorSerialize(pDoc, m_nodes));
 
   //Do not serialize sorted neighbors, just mark as invalid on
   //deserialization
@@ -823,16 +822,16 @@ GDomNode* GSelfOrganizingMap::serialize(GDom* pDoc) const{
 }
 
 GSelfOrganizingMap::GSelfOrganizingMap(const GDomNode* pNode) : GIncrementalTransform(pNode) {
-  m_nInputDims=(unsigned int)pNode->field("inputDims")->asInt();
-  m_outputAxes=doubleVectorDeserialize(pNode->field("outputAxes"));
-  m_pTrainer=SOM::TrainingAlgorithm::deserialize(pNode->field("trainer"));
+  m_nInputDims=(unsigned int)pNode->getInt("inputDims");
+  m_outputAxes=doubleVectorDeserialize(pNode->get("outputAxes"));
+  m_pTrainer=SOM::TrainingAlgorithm::deserialize(pNode->get("trainer"));
   m_pWeightDistance=GDistanceMetric::deserialize
-    (pNode->field("weightDistance"));
+    (pNode->get("weightDistance"));
   m_pNodeDistance=GDistanceMetric::deserialize
-    (pNode->field("nodeDistance"));
+    (pNode->get("nodeDistance"));
 
   typedef std::vector<SOM::Node> nodevec;
-  m_nodes=objVectorDeserialize<nodevec>(pNode->field("nodes"));
+  m_nodes=objVectorDeserialize<nodevec>(pNode->get("nodes"));
   m_sortedNeighborsIsValid = false;
 }
 

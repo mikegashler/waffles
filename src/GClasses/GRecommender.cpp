@@ -125,7 +125,7 @@ void GCollaborativeFilter::trainDenseMatrix(const GMatrix& data, const GMatrix* 
 GDomNode* GCollaborativeFilter::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
+	pNode->add(pDoc, "class", szClassName);
 	return pNode;
 }
 
@@ -375,7 +375,7 @@ GBaselineRecommender::GBaselineRecommender()
 GBaselineRecommender::GBaselineRecommender(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
-	m_ratings.deserialize(pNode->field("ratings"));
+	m_ratings.deserialize(pNode->get("ratings"));
 }
 
 // virtual
@@ -445,7 +445,7 @@ void GBaselineRecommender::impute(GVec& vec, size_t dims)
 GDomNode* GBaselineRecommender::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBaselineRecommender");
-	pNode->addField(pDoc, "ratings", m_ratings.serialize(pDoc));
+	pNode->add(pDoc, "ratings", m_ratings.serialize(pDoc));
 	return pNode;
 }
 
@@ -473,12 +473,12 @@ GInstanceRecommender::GInstanceRecommender(size_t neighbors)
 GInstanceRecommender::GInstanceRecommender(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
-	m_neighbors = (size_t)pNode->field("neighbors")->asInt();
-	m_pMetric = GSparseSimilarity::deserialize(pNode->field("metric"));
+	m_neighbors = (size_t)pNode->getInt("neighbors");
+	m_pMetric = GSparseSimilarity::deserialize(pNode->get("metric"));
 	m_ownMetric = true;
-	m_pData = new GSparseMatrix(pNode->field("data"));
-	m_pBaseline = new GBaselineRecommender(pNode->field("bl"), ll);
-	m_significanceWeight = (size_t)pNode->field("sigWeight")->asInt();
+	m_pData = new GSparseMatrix(pNode->get("data"));
+	m_pBaseline = new GBaselineRecommender(pNode->get("bl"), ll);
+	m_significanceWeight = (size_t)pNode->getInt("sigWeight");
 }
 
 // virtual
@@ -662,11 +662,11 @@ void GInstanceRecommender::impute(GVec& vec, size_t dims)
 GDomNode* GInstanceRecommender::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GInstanceRecommender");
-	pNode->addField(pDoc, "neighbors", pDoc->newInt(m_neighbors));
-	pNode->addField(pDoc, "metric", m_pMetric->serialize(pDoc));
-	pNode->addField(pDoc, "data", m_pData->serialize(pDoc));
-	pNode->addField(pDoc, "bl", m_pBaseline->serialize(pDoc));
-	pNode->addField(pDoc, "sigWeight", pDoc->newInt(m_significanceWeight));
+	pNode->add(pDoc, "neighbors", m_neighbors);
+	pNode->add(pDoc, "metric", m_pMetric->serialize(pDoc));
+	pNode->add(pDoc, "data", m_pData->serialize(pDoc));
+	pNode->add(pDoc, "bl", m_pBaseline->serialize(pDoc));
+	pNode->add(pDoc, "sigWeight", m_significanceWeight);
 	return pNode;
 }
 
@@ -927,27 +927,27 @@ GMatrixFactorization::GMatrixFactorization(size_t intrinsicDims)
 GMatrixFactorization::GMatrixFactorization(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
-	m_regularizer = pNode->field("reg")->asDouble();
-	m_minIters = (size_t)pNode->field("mi")->asInt();
-	m_decayRate = pNode->field("dr")->asDouble();
-	m_pP = new GMatrix(pNode->field("p"));
-	m_pQ = new GMatrix(pNode->field("q"));
-	GDomNode* pPMask = pNode->fieldIfExists("pm");
+	m_regularizer = pNode->getDouble("reg");
+	m_minIters = (size_t)pNode->getInt("mi");
+	m_decayRate = pNode->getDouble("dr");
+	m_pP = new GMatrix(pNode->get("p"));
+	m_pQ = new GMatrix(pNode->get("q"));
+	GDomNode* pPMask = pNode->getIfExists("pm");
 	if(pPMask)
 		m_pPMask = new GMatrix(pPMask);
 	else
 		m_pPMask = NULL;
-	GDomNode* pPWeights = pNode->fieldIfExists("pw");
+	GDomNode* pPWeights = pNode->getIfExists("pw");
 	if(pPWeights)
 		m_pPWeights = new GMatrix(pPWeights);
 	else
 		m_pPWeights = NULL;
-	GDomNode* pQMask = pNode->fieldIfExists("qm");
+	GDomNode* pQMask = pNode->getIfExists("qm");
 	if(pQMask)
 		m_pQMask = new GMatrix(pQMask);
 	else
 		m_pQMask = NULL;
-	GDomNode* pQWeights = pNode->fieldIfExists("qw");
+	GDomNode* pQWeights = pNode->getIfExists("qw");
 	if(pQWeights)
 		m_pQWeights = new GMatrix(pQWeights);
 	else
@@ -972,20 +972,20 @@ GMatrixFactorization::~GMatrixFactorization()
 GDomNode* GMatrixFactorization::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GMatrixFactorization");
-	pNode->addField(pDoc, "reg", pDoc->newDouble(m_regularizer));
-	pNode->addField(pDoc, "mi", pDoc->newInt(m_minIters));
-	pNode->addField(pDoc, "dr", pDoc->newDouble(m_decayRate));
-	pNode->addField(pDoc, "p", m_pP->serialize(pDoc));
-	pNode->addField(pDoc, "q", m_pQ->serialize(pDoc));
+	pNode->add(pDoc, "reg", m_regularizer);
+	pNode->add(pDoc, "mi", m_minIters);
+	pNode->add(pDoc, "dr", m_decayRate);
+	pNode->add(pDoc, "p", m_pP->serialize(pDoc));
+	pNode->add(pDoc, "q", m_pQ->serialize(pDoc));
 	if(m_pPMask)
 	{
-		pNode->addField(pDoc, "pm", m_pPMask->serialize(pDoc));
-		pNode->addField(pDoc, "pw", m_pPWeights->serialize(pDoc));
+		pNode->add(pDoc, "pm", m_pPMask->serialize(pDoc));
+		pNode->add(pDoc, "pw", m_pPWeights->serialize(pDoc));
 	}
 	if(m_pQMask)
 	{
-		pNode->addField(pDoc, "qm", m_pQMask->serialize(pDoc));
-		pNode->addField(pDoc, "qw", m_pQWeights->serialize(pDoc));
+		pNode->add(pDoc, "qm", m_pQMask->serialize(pDoc));
+		pNode->add(pDoc, "qw", m_pQWeights->serialize(pDoc));
 	}
 	return pNode;
 }
@@ -1629,27 +1629,27 @@ GNonlinearPCA::GNonlinearPCA(size_t intrinsicDims)
 GNonlinearPCA::GNonlinearPCA(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
-	m_useInputBias = pNode->field("uib")->asBool();
-	m_pUsers = new GMatrix(pNode->field("users"));
-	m_pModel = new GNeuralNet(pNode->field("model"), ll);
-	GDomNode* pUserMask = pNode->fieldIfExists("usermask");
+	m_useInputBias = pNode->getBool("uib");
+	m_pUsers = new GMatrix(pNode->get("users"));
+	m_pModel = new GNeuralNet(pNode->get("model"), ll);
+	GDomNode* pUserMask = pNode->getIfExists("usermask");
 	if(pUserMask)
 		m_pUserMask = new GMatrix(pUserMask);
 	else
 		m_pUserMask = NULL;
-	GDomNode* pItemMask = pNode->fieldIfExists("itemmask");
+	GDomNode* pItemMask = pNode->getIfExists("itemmask");
 	if(pItemMask)
 		m_pItemMask = new GMatrix(pItemMask);
 	else
 		m_pItemMask = NULL;
 	m_items = m_pModel->outputLayer().outputs();
 	m_pMins = new double[m_items];
-	GDomListIterator it1(pNode->field("mins"));
+	GDomListIterator it1(pNode->get("mins"));
 	if(it1.remaining() != m_items)
 		throw Ex("invalid number of elements");
 	GVec::deserialize(m_pMins, it1);
 	m_pMaxs = new double[m_items];
-	GDomListIterator it2(pNode->field("maxs"));
+	GDomListIterator it2(pNode->get("maxs"));
 	if(it2.remaining() != m_items)
 		throw Ex("invalid number of elements");
 	GVec::deserialize(m_pMaxs, it2);
@@ -1671,16 +1671,16 @@ GNonlinearPCA::~GNonlinearPCA()
 GDomNode* GNonlinearPCA::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GNonlinearPCA");
-	pNode->addField(pDoc, "uib", pDoc->newBool(m_useInputBias));
-	pNode->addField(pDoc, "users", m_pUsers->serialize(pDoc));
-	pNode->addField(pDoc, "model", m_pModel->serialize(pDoc));
+	pNode->add(pDoc, "uib", pDoc->newBool(m_useInputBias));
+	pNode->add(pDoc, "users", m_pUsers->serialize(pDoc));
+	pNode->add(pDoc, "model", m_pModel->serialize(pDoc));
 	if(m_pUserMask)
-		pNode->addField(pDoc, "usermask", m_pUserMask->serialize(pDoc));
+		pNode->add(pDoc, "usermask", m_pUserMask->serialize(pDoc));
 	if(m_pItemMask)
-		pNode->addField(pDoc, "itemmask", m_pItemMask->serialize(pDoc));
+		pNode->add(pDoc, "itemmask", m_pItemMask->serialize(pDoc));
 	size_t itemCount = m_pModel->outputLayer().outputs();
-	pNode->addField(pDoc, "mins", GVec::serialize(pDoc, m_pMins, itemCount));
-	pNode->addField(pDoc, "maxs", GVec::serialize(pDoc, m_pMaxs, itemCount));
+	pNode->add(pDoc, "mins", GVec::serialize(pDoc, m_pMins, itemCount));
+	pNode->add(pDoc, "maxs", GVec::serialize(pDoc, m_pMaxs, itemCount));
 	return pNode;
 }
 
@@ -1961,8 +1961,8 @@ GBagOfRecommenders::GBagOfRecommenders()
 GBagOfRecommenders::GBagOfRecommenders(const GDomNode* pNode, GLearnerLoader& ll)
 : GCollaborativeFilter(pNode, ll)
 {
-	m_itemCount = (size_t)pNode->field("ic")->asInt();
-	for(GDomListIterator it(pNode->field("filters")); it.current(); it.advance())
+	m_itemCount = (size_t)pNode->getInt("ic");
+	for(GDomListIterator it(pNode->get("filters")); it.current(); it.advance())
 		m_filters.push_back(ll.loadCollaborativeFilter(it.current()));
 }
 
@@ -2050,10 +2050,10 @@ void GBagOfRecommenders::impute(GVec& vec, size_t dims)
 GDomNode* GBagOfRecommenders::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GBagOfRecommenders");
-	pNode->addField(pDoc, "ic", pDoc->newInt(m_itemCount));
-	GDomNode* pFilters = pNode->addField(pDoc, "filters", pDoc->newList());
+	pNode->add(pDoc, "ic", m_itemCount);
+	GDomNode* pFilters = pNode->add(pDoc, "filters", pDoc->newList());
 	for(vector<GCollaborativeFilter*>::const_iterator it = m_filters.begin(); it != m_filters.end(); it++)
-		pFilters->addItem(pDoc, (*it)->serialize(pDoc));
+		pFilters->add(pDoc, (*it)->serialize(pDoc));
 	return pNode;
 }
 

@@ -39,8 +39,8 @@ GLinearRegressor::GLinearRegressor()
 GLinearRegressor::GLinearRegressor(const GDomNode* pNode)
 : GSupervisedLearner(pNode)
 {
-	m_pBeta = new GMatrix(pNode->field("beta"));
-	m_epsilon.deserialize(pNode->field("epsilon"));
+	m_pBeta = new GMatrix(pNode->get("beta"));
+	m_epsilon.deserialize(pNode->get("epsilon"));
 }
 
 // virtual
@@ -53,8 +53,8 @@ GLinearRegressor::~GLinearRegressor()
 GDomNode* GLinearRegressor::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GLinearRegressor");
-	pNode->addField(pDoc, "beta", m_pBeta->serialize(pDoc));
-	pNode->addField(pDoc, "epsilon", m_epsilon.serialize(pDoc));
+	pNode->add(pDoc, "beta", m_pBeta->serialize(pDoc));
+	pNode->add(pDoc, "epsilon", m_epsilon.serialize(pDoc));
 	return pNode;
 }
 /*
@@ -272,9 +272,9 @@ GLinearDistribution::GLinearDistribution()
 GLinearDistribution::GLinearDistribution(const GDomNode* pNode)
 : GSupervisedLearner(pNode)
 {
-	m_noiseDev = pNode->field("nd")->asDouble();
-	m_pWBar = new GMatrix(pNode->field("w"));
-	m_pAInv = new GMatrix(pNode->field("a"));
+	m_noiseDev = pNode->getDouble("nd");
+	m_pWBar = new GMatrix(pNode->get("w"));
+	m_pAInv = new GMatrix(pNode->get("a"));
 	m_buf.resize(m_pAInv->rows());
 }
 
@@ -298,9 +298,9 @@ void GLinearDistribution::test()
 GDomNode* GLinearDistribution::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GLinearDistribution");
-	pNode->addField(pDoc, "nd", pDoc->newDouble(m_noiseDev));
-	pNode->addField(pDoc, "w", m_pWBar->serialize(pDoc));
-	pNode->addField(pDoc, "a", m_pAInv->serialize(pDoc));
+	pNode->add(pDoc, "nd", m_noiseDev);
+	pNode->add(pDoc, "w", m_pWBar->serialize(pDoc));
+	pNode->add(pDoc, "a", m_pAInv->serialize(pDoc));
 	return pNode;
 }
 

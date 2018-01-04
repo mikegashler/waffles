@@ -38,7 +38,7 @@ void GCategoricalDistribution::deserialize(GDomNode* pNode)
 	m_nMode = 0;
 	for(size_t i = 0; i < m_nValueCount; i++)
 	{
-		m_pValues[i] = it.current()->asDouble();
+		m_pValues[i] = it.currentDouble();
 		if(m_pValues[i] > m_pValues[m_nMode])
 			m_nMode = i;
 		it.advance();
@@ -49,7 +49,7 @@ GDomNode* GCategoricalDistribution::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newList();
 	for(size_t i = 0; i < m_nValueCount; i++)
-		pNode->addItem(pDoc, pDoc->newDouble(m_pValues[i]));
+		pNode->add(pDoc, m_pValues[i]);
 	return pNode;
 }
 

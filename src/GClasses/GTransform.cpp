@@ -65,7 +65,7 @@ GTransform::~GTransform()
 GDomNode* GTransform::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->addField(pDoc, "class", pDoc->newString(szClassName));
+	pNode->add(pDoc, "class", szClassName);
 	return pNode;
 }
 
@@ -74,8 +74,8 @@ GDomNode* GTransform::baseDomNode(GDom* pDoc, const char* szClassName) const
 GIncrementalTransform::GIncrementalTransform(const GDomNode* pNode)
 : GTransform(pNode)
 {
-	m_pRelationBefore = GRelation::deserialize(pNode->field("before"));
-	m_pRelationAfter = GRelation::deserialize(pNode->field("after"));
+	m_pRelationBefore = GRelation::deserialize(pNode->get("before"));
+	m_pRelationAfter = GRelation::deserialize(pNode->get("after"));
 }
 
 // virtual
@@ -91,8 +91,8 @@ GDomNode* GIncrementalTransform::baseDomNode(GDom* pDoc, const char* szClassName
 	if(!m_pRelationAfter)
 		throw Ex("train must be called before serialize");
 	GDomNode* pNode = GTransform::baseDomNode(pDoc, szClassName);
-	pNode->addField(pDoc, "before", m_pRelationBefore->serialize(pDoc));
-	pNode->addField(pDoc, "after", m_pRelationAfter->serialize(pDoc));
+	pNode->add(pDoc, "before", m_pRelationBefore->serialize(pDoc));
+	pNode->add(pDoc, "after", m_pRelationAfter->serialize(pDoc));
 	return pNode;
 }
 
@@ -368,8 +368,8 @@ GIncrementalTransformChainer::GIncrementalTransformChainer(GIncrementalTransform
 GIncrementalTransformChainer::GIncrementalTransformChainer(const GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalTransform(pNode)
 {
-	m_pFirst = ll.loadIncrementalTransform(pNode->field("first"));
-	m_pSecond = ll.loadIncrementalTransform(pNode->field("second"));
+	m_pFirst = ll.loadIncrementalTransform(pNode->get("first"));
+	m_pSecond = ll.loadIncrementalTransform(pNode->get("second"));
 }
 
 // virtual
@@ -395,8 +395,8 @@ GIncrementalTransform* GIncrementalTransformChainer::chain(GIncrementalTransform
 GDomNode* GIncrementalTransformChainer::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GIncrementalTransformChainer");
-	pNode->addField(pDoc, "first", m_pFirst->serialize(pDoc));
-	pNode->addField(pDoc, "second", m_pSecond->serialize(pDoc));
+	pNode->add(pDoc, "first", m_pFirst->serialize(pDoc));
+	pNode->add(pDoc, "second", m_pSecond->serialize(pDoc));
 	return pNode;
 }
 #endif // MIN_PREDICT
@@ -455,9 +455,9 @@ GPCA::GPCA(size_t target_Dims)
 GPCA::GPCA(const GDomNode* pNode)
 : GIncrementalTransform(pNode), m_rand(0)
 {
-	m_pBasisVectors = new GMatrix(pNode->field("basis"));
+	m_pBasisVectors = new GMatrix(pNode->get("basis"));
 	m_targetDims = m_pBasisVectors->rows();
-	m_aboutOrigin = pNode->field("aboutOrigin")->asBool();
+	m_aboutOrigin = pNode->getBool("aboutOrigin");
 }
 
 // virtual
@@ -471,8 +471,8 @@ GPCA::~GPCA()
 GDomNode* GPCA::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GPCA");
-	pNode->addField(pDoc, "basis", m_pBasisVectors->serialize(pDoc));
-	pNode->addField(pDoc, "aboutOrigin", pDoc->newBool(m_aboutOrigin));
+	pNode->add(pDoc, "basis", m_pBasisVectors->serialize(pDoc));
+	pNode->add(pDoc, "aboutOrigin", m_aboutOrigin);
 	return pNode;
 }
 #endif // MIN_PREDICT
@@ -566,8 +566,8 @@ GNoiseGenerator::GNoiseGenerator()
 GNoiseGenerator::GNoiseGenerator(const GDomNode* pNode)
 : GIncrementalTransform(pNode), m_rand(0)
 {
-	m_mean = pNode->field("mean")->asDouble();
-	m_deviation = pNode->field("dev")->asDouble();
+	m_mean = pNode->getDouble("mean");
+	m_deviation = pNode->getDouble("dev");
 }
 
 GNoiseGenerator::~GNoiseGenerator()
@@ -578,8 +578,8 @@ GNoiseGenerator::~GNoiseGenerator()
 GDomNode* GNoiseGenerator::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GNoiseGenerator");
-	pNode->addField(pDoc, "mean", pDoc->newDouble(m_mean));
-	pNode->addField(pDoc, "dev", pDoc->newDouble(m_deviation));
+	pNode->add(pDoc, "mean", m_mean);
+	pNode->add(pDoc, "dev", m_deviation);
 	return pNode;
 }
 
@@ -619,7 +619,7 @@ GPairProduct::GPairProduct(size_t nMaxDims)
 GPairProduct::GPairProduct(const GDomNode* pNode)
 : GIncrementalTransform(pNode)
 {
-	m_maxDims = (size_t)pNode->field("maxDims")->asInt();
+	m_maxDims = (size_t)pNode->getInt("maxDims");
 }
 
 GPairProduct::~GPairProduct()
@@ -630,7 +630,7 @@ GPairProduct::~GPairProduct()
 GDomNode* GPairProduct::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GPairProduct");
-	pNode->addField(pDoc, "maxDims", pDoc->newInt(m_maxDims));
+	pNode->add(pDoc, "maxDims", m_maxDims);
 	return pNode;
 }
 
@@ -675,7 +675,7 @@ GDataAugmenter::GDataAugmenter(GIncrementalTransform* pTransform)
 GDataAugmenter::GDataAugmenter(const GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalTransform(pNode)
 {
-	m_pTransform = ll.loadIncrementalTransform(pNode->field("trans"));
+	m_pTransform = ll.loadIncrementalTransform(pNode->get("trans"));
 }
 
 // virtual
@@ -689,7 +689,7 @@ GDataAugmenter::~GDataAugmenter()
 GDomNode* GDataAugmenter::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GDataAugmenter");
-	pNode->addField(pDoc, "trans", m_pTransform->serialize(pDoc));
+	pNode->add(pDoc, "trans", m_pTransform->serialize(pDoc));
 	return pNode;
 }
 #endif // MIN_PREDICT
@@ -740,13 +740,13 @@ void GDataAugmenter::untransformToDistribution(const GVec& in, GPrediction* out)
 GAttributeSelector::GAttributeSelector(const GDomNode* pNode)
 : GIncrementalTransform(pNode), m_seed(1234567)
 {
-	m_labelDims = (size_t)pNode->field("labels")->asInt();
-	m_targetFeatures = (size_t)pNode->field("target")->asInt();
-	GDomNode* pRanksNode = pNode->field("ranks");
+	m_labelDims = (size_t)pNode->getInt("labels");
+	m_targetFeatures = (size_t)pNode->getInt("target");
+	GDomNode* pRanksNode = pNode->get("ranks");
 	GDomListIterator it(pRanksNode);
 	m_ranks.reserve(it.remaining());
 	for( ; it.current(); it.advance())
-		m_ranks.push_back((size_t)it.current()->asInt());
+		m_ranks.push_back((size_t)it.currentInt());
 	if(m_ranks.size() + (size_t)m_labelDims != (size_t)before().size())
 		throw Ex("invalid attribute selector");
 	if(m_targetFeatures > m_ranks.size())
@@ -757,11 +757,11 @@ GAttributeSelector::GAttributeSelector(const GDomNode* pNode)
 GDomNode* GAttributeSelector::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GAttributeSelector");
-	pNode->addField(pDoc, "labels", pDoc->newInt(m_labelDims));
-	pNode->addField(pDoc, "target", pDoc->newInt(m_targetFeatures));
-	GDomNode* pRanksNode = pNode->addField(pDoc, "ranks", pDoc->newList());
+	pNode->add(pDoc, "labels", m_labelDims);
+	pNode->add(pDoc, "target", m_targetFeatures);
+	GDomNode* pRanksNode = pNode->add(pDoc, "ranks", pDoc->newList());
 	for(size_t i = 0; i < m_ranks.size(); i++)
-		pRanksNode->addItem(pDoc, pDoc->newInt(m_ranks[i]));
+		pRanksNode->add(pDoc, m_ranks[i]);
 	return pNode;
 }
 
@@ -917,10 +917,10 @@ GNominalToCat::GNominalToCat(size_t nValueCap, double lo, double hi)
 GNominalToCat::GNominalToCat(const GDomNode* pNode)
 : GIncrementalTransform(pNode)
 {
-	m_valueCap = (size_t)pNode->field("valueCap")->asInt();
-	m_preserveUnknowns = pNode->field("pu")->asBool();
-	m_lo = pNode->field("lo")->asDouble();
-	m_hi = pNode->field("hi")->asDouble();
+	m_valueCap = (size_t)pNode->getInt("valueCap");
+	m_preserveUnknowns = pNode->getBool("pu");
+	m_lo = pNode->getDouble("lo");
+	m_hi = pNode->getDouble("hi");
 }
 
 GRelation* GNominalToCat::init()
@@ -963,10 +963,10 @@ GRelation* GNominalToCat::trainInner(const GRelation& relation)
 GDomNode* GNominalToCat::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GNominalToCat");
-	pNode->addField(pDoc, "valueCap", pDoc->newInt(m_valueCap));
-	pNode->addField(pDoc, "pu", pDoc->newBool(m_preserveUnknowns));
-	pNode->addField(pDoc, "lo", pDoc->newDouble(m_lo));
-	pNode->addField(pDoc, "hi", pDoc->newDouble(m_hi));
+	pNode->add(pDoc, "valueCap", m_valueCap);
+	pNode->add(pDoc, "pu", m_preserveUnknowns);
+	pNode->add(pDoc, "lo", m_lo);
+	pNode->add(pDoc, "hi", m_hi);
 	return pNode;
 }
 
@@ -1165,10 +1165,10 @@ GNormalize::GNormalize(double min, double max)
 GNormalize::GNormalize(const GDomNode* pNode)
 : GIncrementalTransform(pNode)
 {
-	m_min = pNode->field("min")->asDouble();
-	m_max = pNode->field("max")->asDouble();
-	m_mins.deserialize(pNode->field("mins"));
-	m_ranges.deserialize(pNode->field("ranges"));
+	m_min = pNode->getDouble("min");
+	m_max = pNode->getDouble("max");
+	m_mins.deserialize(pNode->get("mins"));
+	m_ranges.deserialize(pNode->get("ranges"));
 }
 
 // virtual
@@ -1180,10 +1180,10 @@ GNormalize::~GNormalize()
 GDomNode* GNormalize::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GNormalize");
-	pNode->addField(pDoc, "min", pDoc->newDouble(m_min));
-	pNode->addField(pDoc, "max", pDoc->newDouble(m_max));
-	pNode->addField(pDoc, "mins", m_mins.serialize(pDoc));
-	pNode->addField(pDoc, "ranges", m_ranges.serialize(pDoc));
+	pNode->add(pDoc, "min", m_min);
+	pNode->add(pDoc, "max", m_max);
+	pNode->add(pDoc, "mins", m_mins.serialize(pDoc));
+	pNode->add(pDoc, "ranges", m_ranges.serialize(pDoc));
 	return pNode;
 }
 
@@ -1288,10 +1288,10 @@ GDiscretize::GDiscretize(size_t buckets)
 GDiscretize::GDiscretize(const GDomNode* pNode)
 : GIncrementalTransform(pNode)
 {
-	m_bucketsIn = (size_t)pNode->field("bucketsIn")->asInt();
-	m_bucketsOut = (size_t)pNode->field("bucketsOut")->asInt();
-	m_mins.deserialize(pNode->field("mins"));
-	m_ranges.deserialize(pNode->field("ranges"));
+	m_bucketsIn = (size_t)pNode->getInt("bucketsIn");
+	m_bucketsOut = (size_t)pNode->getInt("bucketsOut");
+	m_mins.deserialize(pNode->get("mins"));
+	m_ranges.deserialize(pNode->get("ranges"));
 }
 
 // virtual
@@ -1303,10 +1303,10 @@ GDiscretize::~GDiscretize()
 GDomNode* GDiscretize::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GDiscretize");
-	pNode->addField(pDoc, "bucketsIn", pDoc->newInt(m_bucketsIn));
-	pNode->addField(pDoc, "bucketsOut", pDoc->newInt(m_bucketsOut));
-	pNode->addField(pDoc, "mins", m_mins.serialize(pDoc));
-	pNode->addField(pDoc, "ranges", m_ranges.serialize(pDoc));
+	pNode->add(pDoc, "bucketsIn", m_bucketsIn);
+	pNode->add(pDoc, "bucketsOut", m_bucketsOut);
+	pNode->add(pDoc, "mins", m_mins.serialize(pDoc));
+	pNode->add(pDoc, "ranges", m_ranges.serialize(pDoc));
 	return pNode;
 }
 
@@ -1417,8 +1417,8 @@ GImputeMissingVals::GImputeMissingVals()
 GImputeMissingVals::GImputeMissingVals(const GDomNode* pNode, GLearnerLoader& ll)
 : GIncrementalTransform(pNode), m_pLabels(NULL), m_pBatch(NULL)
 {
-	m_pCF = ll.loadCollaborativeFilter(pNode->field("cf"));
-	GDomNode* pNTC = pNode->fieldIfExists("ntc");
+	m_pCF = ll.loadCollaborativeFilter(pNode->get("cf"));
+	GDomNode* pNTC = pNode->getIfExists("ntc");
 	if(pNTC)
 		m_pNTC = new GNominalToCat(pNTC);
 	else
@@ -1437,9 +1437,9 @@ GImputeMissingVals::~GImputeMissingVals()
 GDomNode* GImputeMissingVals::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc, "GImputeMissingVals");
-	pNode->addField(pDoc, "cf", m_pCF->serialize(pDoc));
+	pNode->add(pDoc, "cf", m_pCF->serialize(pDoc));
 	if(m_pNTC)
-		pNode->addField(pDoc, "ntc", m_pNTC->serialize(pDoc));
+		pNode->add(pDoc, "ntc", m_pNTC->serialize(pDoc));
 	return pNode;
 }
 
