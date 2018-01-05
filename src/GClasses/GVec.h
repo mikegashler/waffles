@@ -53,7 +53,7 @@ public:
 
 	/// Initializer constructor. Example usage:
 	///   GVec v({2.1, 3.2, 4.0, 5.7});
-	GVec(std::initializer_list<double> list);
+	GVec(const std::initializer_list<double>& list);
 
 	/// Unmarshaling constructor
 	GVec(GDomNode* pNode);
@@ -407,7 +407,7 @@ public:
 
 	/// Initializer constructor. Example usage:
 	///   GIndexVec v({2, 3, 4, 5});
-	GIndexVec(std::initializer_list<size_t> list);
+	GIndexVec(const std::initializer_list<size_t>& list);
 
 	// Copy constructor
 	GIndexVec(const GIndexVec& copyMe);
@@ -443,10 +443,16 @@ public:
 	/// Fills this vector with the values 0, 1, 2, ...
 	void fillIndexes();
 
-	/// Picks a random element from this vector, removes it, and returns it
+	/// Picks a random element from this vector, swaps it with the last element, then removes and returns it.
 	size_t popRandom(GRand& rand);
 
+	/// Erases the specified elements. The remaining elements are shifted over.
+	/// The size of the vector is decreased, but the buffer is not reallocated
+	/// (so this operation wastes some memory to save a little time).
+	void erase(size_t start, size_t count = 1);
 
+	/// Appends the specified number of uninitialized elements to this vector
+	void append(size_t count);
 
 
 
@@ -611,17 +617,9 @@ class GTensor : public GVecWrapper
 public:
 	GIndexVec dims;
 
-	/// 1-dimensional (vector) constructor
-	GTensor(GVec& vals);
-
-	/// 2-dimensional (matrix) constructor
-	GTensor(GVec& vals, size_t width, size_t height);
-
-	/// 3-dimensional constructor
-	GTensor(GVec& vals, size_t a, size_t b, size_t c);
-
-	/// 4-dimensional constructor
-	GTensor(GVec& vals, size_t a, size_t b, size_t c, size_t d);
+	/// General-purpose constructor. Example:
+	/// GTensor t(v, {5, 7, 3});
+	GTensor(GVec& vals, const std::initializer_list<size_t>& list);
 
 	/// Copy constructor. Copies the dimensions. Wraps the same vector.
 	GTensor(const GTensor& copyMe);

@@ -699,16 +699,17 @@ public:
 class GBlockConv : public GBlock
 {
 protected:
-	size_t filterCount;
 	size_t filterSize;
-	size_t outputsPerFilter;
 	GTensor tensorInput; // BUG: this member variable makes this block non-thread-safe.
 	GTensor tensorFilter; // BUG: this member variable makes this block non-thread-safe.
 	GTensor tensorOutput; // BUG: this member variable makes this block non-thread-safe.
+	size_t filterCount;
+	size_t outputsPerFilter;
 
 public:
-	/// General-purpose constructor
-	GBlockConv(const GIndexVec& inputDims, const GIndexVec& filterDims, size_t filterCount, const GIndexVec* pOutputDims = nullptr);
+	/// General-purpose constructor. Example:
+	///  nn.add(new GBlockConv( {28, 28}, {5, 5, 8}, {28, 28, 8} ));
+	GBlockConv(const std::initializer_list<size_t>& inputDims, const std::initializer_list<size_t>& filterDims, const std::initializer_list<size_t>& outputDims);
 
 	/// Copy constructor
 	GBlockConv(const GBlockConv& that);

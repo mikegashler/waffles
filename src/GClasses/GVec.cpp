@@ -57,7 +57,7 @@ GVec::GVec(int n)
 		m_data = new double[n];
 }
 
-GVec::GVec(std::initializer_list<double> list)
+GVec::GVec(const std::initializer_list<double>& list)
 : m_size(list.size())
 {
 	if(list.size() == 0)
@@ -523,6 +523,11 @@ void GVec::erase(size_t start, size_t count)
 	for(size_t i = start; i < end; i++)
 		(*this)[i] = (*this)[i + count];
 	m_size -= count;
+	if(m_size == 0)
+	{
+		delete(m_data);
+		m_data = nullptr;
+	}
 }
 
 double GVec::correlation(const GVec& that) const
@@ -782,7 +787,7 @@ GIndexVec::GIndexVec(size_t n)
 		m_data = new size_t[n];
 }
 
-GIndexVec::GIndexVec(std::initializer_list<size_t> list)
+GIndexVec::GIndexVec(const std::initializer_list<size_t>& list)
 : m_size(list.size())
 {
 	if(list.size() == 0)
@@ -836,7 +841,7 @@ void GIndexVec::resize(size_t n)
 	delete[] m_data;
 	m_size = n;
 	if(n == 0)
-		m_data = NULL;
+		m_data = nullptr;
 	else
 		m_data = new size_t[n];
 }
@@ -854,9 +859,38 @@ size_t GIndexVec::popRandom(GRand& rand)
 	size_t r = rand.next(m_size);
 	size_t v = m_data[r];
 	m_data[r] = m_data[m_size - 1];
-	m_size--;
+	if(--m_size == 0)
+	{
+		delete[] m_data;
+		m_data = nullptr;
+	}
 	return v;
 }
+
+void GIndexVec::erase(size_t start, size_t count)
+{
+	if(start + count > m_size)
+		throw Ex("out of range");
+	size_t end = m_size - count;
+	for(size_t i = start; i < end; i++)
+		(*this)[i] = (*this)[i + count];
+	m_size -= count;
+	if(m_size == 0)
+	{
+		delete(m_data);
+		m_data = nullptr;
+	}
+}
+
+void GIndexVec::append(size_t count)
+{
+	size_t* pNewData = new size_t[m_size + count];
+	memcpy(pNewData, m_data, sizeof(size_t) * m_size);
+	m_size += count;
+	delete[] m_data;
+	m_data = pNewData;
+}
+
 
 
 
@@ -1231,7 +1265,7 @@ void GCoordVectorIterator::test()
 
 
 
-size_t countTensorSize(const GIndexVec& dims)
+size_t GTensor_countTensorSize(const GIndexVec& dims)
 {
 	size_t n = 1;
 	for(size_t i = 0; i < dims.size(); i++)
@@ -1239,40 +1273,18 @@ size_t countTensorSize(const GIndexVec& dims)
 	return n;
 }
 
-GTensor::GTensor(GVec& vals)
-: GVecWrapper(vals), dims(1)
+GTensor::GTensor(GVec& vals, const std::initializer_list<size_t>& list)
+: GVecWrapper(vals), dims(list.size())
 {
-	dims[0] = vals.size();
-}
-
-GTensor::GTensor(GVec& vals, size_t width, size_t height)
-: GVecWrapper(vals), dims(2)
-{
-	if(width * height != vals.size())
-		throw Ex("Mismatching sizes");
-	dims[0] = width;
-	dims[1] = height;
-}
-
-GTensor::GTensor(GVec& vals, size_t a, size_t b, size_t c)
-: GVecWrapper(vals), dims(3)
-{
-	if(a * b * c != vals.size())
-		throw Ex("Mismatching sizes");
-	dims[0] = a;
-	dims[1] = b;
-	dims[2] = c;
-}
-
-GTensor::GTensor(GVec& vals, size_t a, size_t b, size_t c, size_t d)
-: GVecWrapper(vals), dims(4)
-{
-	if(a * b * c * d != vals.size())
-		throw Ex("Mismatching sizes");
-	dims[0] = a;
-	dims[1] = b;
-	dims[2] = c;
-	dims[3] = d;
+	size_t i = 0;
+	size_t tot = 1;
+	for(const size_t* it = begin(list); it != end(list); ++it)
+	{
+		dims[i++] = *it;
+		tot *= *it;
+	}
+	if(tot != vals.size())
+		throw Ex("Mismatching sizes. GVec has ", GClasses::to_str(vals.size()), ", GTensor has ", GClasses::to_str(tot));
 }
 
 GTensor::GTensor(const GTensor& copyMe)
@@ -1282,7 +1294,7 @@ dims(copyMe.dims)
 }
 
 GTensor::GTensor(double* buf, const GIndexVec& _dims)
-: GVecWrapper(buf, buf ? countTensorSize(_dims) : 0),
+: GVecWrapper(buf, buf ? GTensor_countTensorSize(_dims) : 0),
 dims(_dims)
 {
 }
@@ -1390,64 +1402,58 @@ void GTensor::test()
 {
 	{
 		// 1D test
-		GVec in(5);
-		in[0] = 2;
-		in[1] = 3;
-		in[2] = 1;
-		in[3] = 0;
-		in[4] = 1;
-		GTensor tin(in);
+		GVec in({2,3,1,0,1});
+		GTensor tin(in, {5});
 
-		GVec k(3);
-		k[0] = 1;
-		k[1] = 0;
-		k[2] = 2;
-		GTensor tk(k);
+		GVec k({1, 0, 2});
+		GTensor tk(k, {3});
 
 		GVec out(7);
-		GTensor tout(out);
+		GTensor tout(out, {7});
 
 		GTensor::convolve(tin, tk, tout, true, 1);
 
 		//     2 3 1 0 1
 		// 2 0 1 --->
-		if(std::abs(2 - out[0]) > 1e-10) throw Ex("wrong");
-		if(std::abs(3 - out[1]) > 1e-10) throw Ex("wrong");
-		if(std::abs(5 - out[2]) > 1e-10) throw Ex("wrong");
-		if(std::abs(6 - out[3]) > 1e-10) throw Ex("wrong");
-		if(std::abs(3 - out[4]) > 1e-10) throw Ex("wrong");
-		if(std::abs(0 - out[5]) > 1e-10) throw Ex("wrong");
-		if(std::abs(2 - out[6]) > 1e-10) throw Ex("wrong");
+		GVec expected({2, 3, 5, 6, 3, 0, 2});
+		if(std::sqrt(out.squaredDistance(expected)) > 1e-10)
+			throw Ex("wrong");
 	}
 
 	{
 		// 2D test
-		GVec in(9);
-		in[0] = 1; in[1] = 2; in[2] = 3;
-		in[3] = 4; in[4] = 5; in[5] = 6;
-		in[6] = 7; in[7] = 8; in[8] = 9;
-		GTensor tin(in, 3, 3);
+		GVec in(
+			{
+				1, 2, 3,
+				4, 5, 6,
+				7, 8, 9
+			}
+		);
+		GTensor tin(in, {3, 3});
 
-		GVec k(9);
-		k[0] = 1; k[1] = 2; k[2] = 1;
-		k[3] = 0; k[4] = 0; k[5] = 0;
-		k[6] = -1; k[7] = -2; k[8] = -1;
-		GTensor tk(k, 3, 3);
+		GVec k(
+			{
+				 1,  2,  1,
+				 0,  0,  0,
+				-1, -2, -1
+			}
+		);
+		GTensor tk(k, {3, 3});
 
 		GVec out(9);
-		GTensor tout(out, 3, 3);
+		GTensor tout(out, {3, 3});
 
 		GTensor::convolve(tin, tk, tout, false, 1);
-
-		if(std::abs(-13 - out[0]) > 1e-10) throw Ex("wrong");
-		if(std::abs(-20 - out[1]) > 1e-10) throw Ex("wrong");
-		if(std::abs(-17 - out[2]) > 1e-10) throw Ex("wrong");
-		if(std::abs(-18 - out[3]) > 1e-10) throw Ex("wrong");
-		if(std::abs(-24 - out[4]) > 1e-10) throw Ex("wrong");
-		if(std::abs(-18 - out[5]) > 1e-10) throw Ex("wrong");
-		if(std::abs(13 - out[6]) > 1e-10) throw Ex("wrong");
-		if(std::abs(20 - out[7]) > 1e-10) throw Ex("wrong");
-		if(std::abs(17 - out[8]) > 1e-10) throw Ex("wrong");
+		
+		GVec expected(
+			{
+				-13, -20, -17,
+				-18, -24, -18,
+				 13,  20,  17
+			}
+		);
+		if(std::sqrt(out.squaredDistance(expected)) > 1e-10)
+			throw Ex("wrong");
 	}
 }
 

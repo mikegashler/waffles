@@ -450,6 +450,75 @@ void GBlockTemperedLinear::initWeights(GRand& rand, GVec& weights)
 
 
 
+
+
+
+size_t GBlockConv_countElements(const std::initializer_list<size_t>& dims)
+{
+	size_t n = 1;
+	for(const size_t* it = begin(dims); it != end(dims); ++it)
+		n *= *it;
+	return n;
+}
+
+GBlockConv::GBlockConv(const std::initializer_list<size_t>& inputDims, const std::initializer_list<size_t>& filterDims, const std::initializer_list<size_t>& outputDims)
+: GBlock(GBlockConv_countElements(inputDims), GBlockConv_countElements(outputDims)),
+filterSize(GBlockConv_countElements(filterDims)),
+tensorInput(nullptr, inputDims),
+tensorFilter(nullptr, filterDims),
+tensorOutput(nullptr, outputDims)
+{
+	filterCount = 1;
+	outputsPerFilter = 1;
+	const size_t* itIn = begin(inputDims);
+	const size_t* itFilt = begin(filterDims);
+	const size_t* itOut = begin(outputDims);
+	while(true)
+	{
+		if(itIn != end(inputDims))
+		{
+			++itIn;
+			++itFilt;
+			if(itOut != end(outputDims))
+			{
+				outputsPerFilter *= *itOut;
+				++itOut;
+			}
+		}
+		else
+		{
+			if(itFilt == end(filterDims))
+				break;
+			filterCount *= *itFilt;
+			++itFilt;
+		}
+	}
+	if(filterCount * outputsPerFilter != outputCount)
+		throw Ex("output dimensions do not work with input and filter dimensions");
+	while(tensorFilter.dims.size() > tensorInput.dims.size())
+		tensorFilter.dims.erase(tensorFilter.dims.size() - 1);
+	while(tensorOutput.dims.size() > tensorInput.dims.size())
+		tensorOutput.dims.erase(tensorOutput.dims.size() - 1);
+	if(tensorOutput.dims.size() < tensorFilter.dims.size())
+	{
+		size_t old = tensorOutput.dims.size();
+		tensorOutput.dims.append(tensorFilter.dims.size() - tensorOutput.dims.size());
+		for(size_t i = old; i < tensorFilter.dims.size(); i++)
+			tensorOutput.dims[i] = 1;
+	}
+}
+
+GBlockConv::GBlockConv(const GBlockConv& that)
+: GBlock(that),
+filterSize(that.filterSize),
+tensorInput(that.tensorInput),
+tensorFilter(that.tensorFilter),
+tensorOutput(that.tensorOutput),
+filterCount(that.filterCount),
+outputsPerFilter(that.outputsPerFilter)
+{
+}
+
 size_t GBlockConv_countTensorSize(const GIndexVec& dims)
 {
 	size_t n = 1;
@@ -458,58 +527,17 @@ size_t GBlockConv_countTensorSize(const GIndexVec& dims)
 	return n;
 }
 
-size_t GBlockConv_countTensorOutputSize(const GIndexVec& inDims, const GIndexVec& filterDims)
-{
-	size_t n = 1;
-	for(size_t i = 0; i < inDims.size(); i++)
-	{
-		size_t d = inDims[i];
-		if(d == filterDims[i])
-			d = 1;
-		n *= d;
-	}
-	return n;
-}
-
-GBlockConv::GBlockConv(const GIndexVec& inputDims, const GIndexVec& filterDims, size_t _filterCount, const GIndexVec* pOutputDims)
-: GBlock(GBlockConv_countTensorSize(inputDims), (pOutputDims ? GBlockConv_countTensorSize(*pOutputDims) : GBlockConv_countTensorOutputSize(inputDims, filterDims)) * _filterCount),
-filterCount(_filterCount),
-filterSize(GBlockConv_countTensorSize(filterDims)),
-outputsPerFilter(outputCount / filterCount),
-tensorInput(nullptr, inputDims),
-tensorFilter(nullptr, filterDims),
-tensorOutput(nullptr, pOutputDims ? *pOutputDims : inputDims)
-{
-	if(!pOutputDims)
-	{
-		for(size_t i = 0; i < inputDims.size(); i++)
-		{
-			if(tensorInput.dims[i] == tensorFilter.dims[i])
-				tensorOutput.dims[i] = 1;
-		}
-	}
-}
-
-GBlockConv::GBlockConv(const GBlockConv& that)
-: GBlock(that),
-filterCount(that.filterCount),
-filterSize(that.filterSize),
-outputsPerFilter(that.outputsPerFilter),
-tensorInput(that.tensorInput),
-tensorFilter(that.tensorFilter),
-tensorOutput(that.tensorOutput)
-{
-}
-
 GBlockConv::GBlockConv(GDomNode* pNode)
 : GBlock(pNode),
-filterCount(pNode->getInt("filterCount")),
-outputsPerFilter(outputCount / filterCount),
 tensorInput(pNode->get("inputDims")),
 tensorFilter(pNode->get("filterDims")),
-tensorOutput(nullptr, tensorInput.dims)
+tensorOutput(pNode->get("outputDims")),
+filterCount(pNode->getInt("filterCount")),
+outputsPerFilter(outputCount / filterCount)
 {
 	filterSize = GBlockConv_countTensorSize(tensorFilter.dims);
+	if(filterCount * outputsPerFilter != outputCount)
+		throw Ex("output dimensions do not work with input and filter dimensions");
 }
 
 GDomNode* GBlockConv::serialize(GDom* pDoc) const
@@ -518,6 +546,7 @@ GDomNode* GBlockConv::serialize(GDom* pDoc) const
 	pNode->add(pDoc, "filterCount", filterCount);
 	pNode->add(pDoc, "inputDims", tensorInput.dims.serialize(pDoc));
 	pNode->add(pDoc, "filterDims", tensorFilter.dims.serialize(pDoc));
+	pNode->add(pDoc, "outputDims", tensorOutput.dims.serialize(pDoc));
 	return pNode;
 }
 
@@ -587,9 +616,7 @@ void GBlockConv::initWeights(GRand& rand, GVec& weights)
 void GBlockConv::test()
 {
 	GNeuralNet nn;
-	GIndexVec inputDims({4});
-	GIndexVec filterDims({3});
-	nn.add(new GBlockConv(inputDims, filterDims, 1));
+	nn.add(new GBlockConv({4}, {3}, {4}));
 	if(nn.weightCount() != 4)
 		throw Ex("Unexpected number of weights");
 
@@ -2193,9 +2220,7 @@ void GNeuralNet_testLinearAndTanh()
 void GNeuralNet_testConvolutional1()
 {
 	GNeuralNet nn;
-	GIndexVec inDims({4, 4});
-	GIndexVec filterDims({3, 3});
-	nn.add(new GBlockConv(inDims, filterDims, 1));
+	nn.add(new GBlockConv({4, 4}, {3, 3}, {4, 4}));
 
 	GRand rand(0);
 	GVec weights(nn.weightCount());
@@ -2209,13 +2234,9 @@ void GNeuralNet_testConvolutional1()
 void GNeuralNet_testConvolutional3()
 {
 	GNeuralNet nn;
-	GIndexVec inDims({4, 4, 1});
-	GIndexVec filterDims({3, 3, 1});
-	nn.add(new GBlockConv(inDims, filterDims, 2));
+	nn.add(new GBlockConv({4, 4}, {3, 3, 2}, {4, 4, 2}));
 	nn.add(new GBlockLeakyRectifier(16 * 2));
-	inDims[2] = 2;
-	filterDims[2] = 2;
-	nn.add(new GBlockConv(inDims, filterDims, 1));
+	nn.add(new GBlockConv({4, 4, 2}, {3, 3, 2}, {4, 4}));
 	nn.add(new GBlockLeakyRectifier(16));
 
 	GRand rand(0);
