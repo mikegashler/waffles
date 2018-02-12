@@ -351,6 +351,66 @@ void GBlockLinear::initWeights(GRand& rand, GVec& weights)
 	weights.fillNormal(rand, std::max(0.03, 1.0 / std::max(1ul, inputCount)));
 }
 
+void GBlockLinear::ordinaryLeastSquares(const GMatrix& features, const GMatrix& labels, GVec& outWeights)
+{
+	if(features.rows() != labels.rows())
+		throw Ex("Mismatching number of rows");
+
+	// Compute centroids
+	GVec centroidFeat(features.cols());
+	features.centroid(centroidFeat);
+	GVec centroidLab(labels.cols());
+	labels.centroid(centroidLab);
+
+	// Compute numerator
+	GMatrix numerator(labels.cols(), features.cols());
+	numerator.fill(0.0);
+	for(size_t i = 0; i < features.rows(); i++)
+	{
+		const GVec& f = features[i];
+		const GVec& l = labels[i];
+		for(size_t j = 0; j < labels.cols(); j++)
+		{
+			for(size_t k = 0; k < features.cols(); k++)
+				numerator[j][k] += (l[j] - centroidLab[j]) * (f[k] - centroidFeat[k]);
+		}
+	}
+
+	// Compute denominator
+	GMatrix denomPre(features.cols(), features.cols());
+	denomPre.fill(0.0);
+	for(size_t i = 0; i < features.rows(); i++)
+	{
+		const GVec& f = features[i];
+		for(size_t j = 0; j < features.cols(); j++)
+		{
+			for(size_t k = 0; k < features.cols(); k++)
+				denomPre[j][k] += (f[j] - centroidFeat[j]) * (f[k] - centroidFeat[k]);
+		}
+	}
+	GMatrix* pDenom = denomPre.pseudoInverse();
+	Holder<GMatrix> hDenom(pDenom);
+
+	// Compute M and b
+	GMatrix* pM = GMatrix::multiply(numerator, *pDenom, false, true/*doesn't matter. it's symmetric about transposition*/);
+	Holder<GMatrix> hM(pM);
+	GVec b(labels.cols());
+	pM->multiply(centroidFeat, b);
+	b *= (-1);
+	b += centroidLab;
+
+	// Unpack into weights
+	size_t pos = 0;
+	outWeights.copy(pos, b);
+	pos += b.size();
+	for(size_t i = 0; i < pM->cols(); i++)
+	{
+		for(size_t j = 0; j < pM->rows(); j++)
+			outWeights[pos++] = (*pM)[j][i];
+	}
+	GAssert(pos == outWeights.size());
+}
+
 
 
 
@@ -699,7 +759,6 @@ void GBlockMaxPooling2D::forwardProp(const GVec& weights)
 
 void GBlockMaxPooling2D::backProp(const GVec& weights)
 {
-	inBlame.fill(0.0);
 	size_t chanSize = width * height;
 	size_t chanStart = 0;
 	size_t pos = 0;
@@ -727,7 +786,7 @@ void GBlockMaxPooling2D::backProp(const GVec& weights)
 				cand = input[vertStart + width + 1 + x];
 				if(cand > d)
 					i = vertStart + width + 1 + x;
-				inBlame[i] = outBlame[pos++];
+				inBlame[i] += outBlame[pos++];
 			}
 			vertStart += (width + width);
 		}
@@ -1757,8 +1816,15 @@ GNeuralNet::GNeuralNet(GDomNode* pNode, GRand& rand)
 // virtual
 GNeuralNet::~GNeuralNet()
 {
+	deleteAllLayers();
+}
+
+void GNeuralNet::deleteAllLayers()
+{
 	for(size_t i = 0; i < m_layers.size(); i++)
 		delete(m_layers[i]);
+	m_layers.clear();
+	m_weightCount = 0;
 }
 
 GDomNode* GNeuralNet::serialize(GDom* pDoc) const

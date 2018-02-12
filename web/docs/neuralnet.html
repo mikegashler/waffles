@@ -351,8 +351,60 @@ int main(int argc, char *argv[])
 <p>The left-most column shows that we get 332 misclassifications in less than 4 minutes of training.
 You can get much better accuracy using bigger layers, but then training will take longer too.</p>
 
+<p>If you want better results, and you are willing to wait for days to get your results, you can use a neural network with a bigger topology:</p>
 
+<pre class="code">
+	// Make a neural network
+	GNeuralNet nn;
+	nn.add(new GBlockConv({28, 28}, {5, 5, 32}, {28, 28, 32}));
+	nn.add(new GBlockLeakyRectifier(28 * 28 * 32));
+	nn.add(new GBlockMaxPooling2D(28, 28, 32));
+	nn.add(new GBlockConv({14, 14, 32}, {5, 5, 32, 64}, {14, 14, 1, 64}));
+	nn.add(new GBlockLeakyRectifier(14 * 14 * 64));
+	nn.add(new GBlockMaxPooling2D(14, 14, 64));
+	nn.add(new GBlockLinear(7 * 7 * 64, 1000));
+	nn.add(new GBlockLeakyRectifier(1000));
+	nn.add(new GBlockLinear(1000, 10));
+	nn.add(new GBlockLeakyRectifier(10));
+</pre>
 
+<p>Results:</p>
+
+<pre class="code">
+% Training patterns: 60000
+% Testing patterns: 10000
+% Topology:
+% [GNeuralNet: 784->10, Weights=6449506
+%    0) [GBlockConv: 784->25088, Weights=25632]
+%    1) [GBlockLeakyRectifier: 25088->25088, Weights=0]
+%    2) [GBlockMaxPooling2D: 25088->6272, Weights=0]
+%    3) [GBlockConv: 6272->12544, Weights=3276864]
+%    4) [GBlockLeakyRectifier: 12544->12544, Weights=0]
+%    5) [GBlockMaxPooling2D: 12544->3136, Weights=0]
+%    6) [GBlockLinear: 3136->1000, Weights=3137000]
+%    7) [GBlockLeakyRectifier: 1000->1000, Weights=0]
+%    8) [GBlockLinear: 1000->10, Weights=10010]
+%    9) [GBlockLeakyRectifier: 10->10, Weights=0]
+% ]
+@RELATION neural_net_training
+@ATTRIBUTE misclassification_rate real
+@ATTRIBUTE elapsed_time real
+@DATA
+0.8968,417.57785105705
+0.0151,9315.7933959961
+0.0118,18262.10059309
+0.0089,27112.086796045
+0.008,35959.635168076
+0.0069,44808.642307997
+0.0069,53653.528531075
+0.0067,62494.467343092
+0.0066,71333.166102171
+0.0059,80169.731641054
+0.0055,89011.055896997
+0.0059,97851.162302971
+0.0058,106692.02508712
+0.0052,115535.61306
+</pre>
 
 
 

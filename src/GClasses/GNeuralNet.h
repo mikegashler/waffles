@@ -636,6 +636,9 @@ public:
 
 	/// Initialize the weights with small random values.
 	virtual void initWeights(GRand& rand, GVec& weights) override;
+
+	/// Computes weights using Ordinary Least Squares
+	void ordinaryLeastSquares(const GMatrix& features, const GMatrix& labels, GVec& outWeights);
 };
 
 
@@ -1269,6 +1272,9 @@ public:
 
 	/// Destructor
 	virtual ~GNeuralNet();
+
+	/// Deletes all the layers
+	void deleteAllLayers();
 
 	/// Returns the type of this layer
 	virtual BlockType type() const override { return block_neuralnet; }

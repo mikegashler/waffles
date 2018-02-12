@@ -77,6 +77,193 @@ class ViewStats;
 #define LEARNING_RATE 0.001
 #define REGULARIZATION_TERM 0.00001
 
+const char* g_auto_name_1[] =
+{
+	"amazing",
+	"awesome",
+	"blue",
+	"brave",
+	"calm",
+	"cheesy",
+	"confused",
+	"cool",
+	"crazy",
+	"delicate",
+	"diligent",
+	"dippy",
+	"exciting",
+	"fearless",
+	"flaming",
+	"fluffy",
+	"friendly",
+	"funny",
+	"glowing",
+	"golden",
+	"greasy",
+	"green",
+	"gritty",
+	"happy",
+	"jumpy",
+	"killer",
+	"laughing",
+	"liquid",
+	"lucky",
+	"malted",
+	"meaty",
+	"mellow",
+	"melted",
+	"moldy",
+	"peaceful",
+	"pickled",
+	"pious",
+	"purple",
+	"quiet",
+	"red",
+	"rubber",
+	"sappy",
+	"silent",
+	"silky",
+	"silver",
+	"sneaky",
+	"stellar",
+	"subtle",
+	"super",
+	"trippy",
+	"uber",
+	"valiant",
+	"vicious",
+	"wild",
+	"yellow",
+	"zippy"
+};
+#define AUTO_NAME_1_COUNT (sizeof(g_auto_name_1) / sizeof(const char*))
+
+const char* g_auto_name_2[] =
+{
+	"alligator",
+	"ant",
+	"armadillo",
+	"bat",
+	"bear",
+	"beaver",
+	"camel",
+	"cat",
+	"cheetah",
+	"chicken",
+	"cricket",
+	"deer",
+	"dinosaur",
+	"dog",
+	"dolphin",
+	"duck",
+	"eagle",
+	"elephant",
+	"fish",
+	"frog",
+	"giraffe",
+	"hamster",
+	"hawk",
+	"horse",
+	"iguana",
+	"jaguar",
+	"kangaroo",
+	"lion",
+	"lemur",
+	"leopard",
+	"llama",
+	"monkey",
+	"mouse",
+	"newt",
+	"ninja",
+	"ox",
+	"panda",
+	"panther",
+	"parrot",
+	"porcupine",
+	"possum",
+	"raptor",
+	"rat",
+	"salmon",
+	"shark",
+	"snake",
+	"spider",
+	"squid",
+	"tiger",
+	"toad",
+	"toucan",
+	"turtle",
+	"unicorn",
+	"walrus",
+	"warrior",
+	"wizard",
+	"yak",
+	"zebra"
+};
+#define AUTO_NAME_2_COUNT (sizeof(g_auto_name_2) / sizeof(const char*))
+
+const char* g_auto_name_3[] =
+{
+	"arms",
+	"beak",
+	"beard",
+	"belly",
+	"belt",
+	"brain",
+	"bray",
+	"breath",
+	"brow",
+	"burrito",
+	"button",
+	"cheeks",
+	"chin",
+	"claw",
+	"crown",
+	"dancer",
+	"dream",
+	"eater",
+	"elbow",
+	"eye",
+	"feather",
+	"finger",
+	"fist",
+	"foot",
+	"forehead",
+	"fur",
+	"grin",
+	"hair",
+	"hands",
+	"head",
+	"horn",
+	"jaw",
+	"knee",
+	"knuckle",
+	"legs",
+	"mouth",
+	"neck",
+	"nose",
+	"pants",
+	"party",
+	"paw",
+	"pelt",
+	"pizza",
+	"roar",
+	"scalp",
+	"shoe",
+	"shoulder",
+	"skin",
+	"smile",
+	"taco",
+	"tail",
+	"tamer",
+	"toe",
+	"tongue",
+	"tooth",
+	"wart",
+	"wing",
+	"zit"
+};
+#define AUTO_NAME_3_COUNT (sizeof(g_auto_name_3) / sizeof(const char*))
+
 class Item
 {
 protected:
@@ -286,15 +473,16 @@ public:
 	virtual void onShutDown();
 	void addItem(size_t topic, const char* szTitle, const char* szUsername);
 	std::vector<Topic*>& topics() { return m_topics; }
-	Account* loadAccount(const char* szUsername, const char* szPasswordHash);
+	bool isUsernameTaken(const char* szUsername);
+	Account* findAccount(const char* szUsername);
 	Account* newAccount(const char* szUsername, const char* szPasswordHash);
 	void deleteAccount(Account* pAccount);
+	void onRenameAccount(const char* szOldName, Account* pAccount);
 	GDomNode* serializeState(GDom* pDoc);
 	void deserializeState(const GDomNode* pNode);
 	void proposeTopic(Account* pAccount, const char* szDescr);
 	void newTopic(const char* szDescr);
 	Account* randomAccount() { return m_accountsVec[(size_t)prng()->next(m_accountsVec.size())]; }
-	Account* findAccount(const char* szName);
 	void refineModel(size_t topic, size_t iters); // trains both personalities and weights
 	void refinePersonality(Account* pAccount, size_t iters); // trains just the personalities
 	std::vector<Account*>& accounts() { return m_accountsVec; }
@@ -379,26 +567,26 @@ public:
 	}
 };
 
-class Account : public GDynamicPageSessionExtension
+
+
+class Account
 {
 protected:
-	string m_afterLoginUrl;
-	string m_afterLoginParams;
 	string m_username;
 	string m_passwordHash;
-	std::vector<Ratings> m_ratings; // This is the training data for learning the user's personality vector.
+	std::vector<Ratings*> m_ratings; // This is the training data for learning the user's personality vector.
 	std::vector<double> m_personality; // This vector represents the user with respect to our model. That is, given the user's personality vector, our model should be able to predict the ratings of this user with some accuracy.
 	size_t m_currentTopic;
 
 	Account()
-	: GDynamicPageSessionExtension(), m_currentTopic(-1)
+	: m_currentTopic(-1)
 	{
 		m_personality.resize(PERSONALITY_DIMS);
 	}
 
 public:
 	Account(const char* szUsername, const char* szPasswordHash, GRand& rand)
-	: GDynamicPageSessionExtension(), m_username(szUsername), m_passwordHash(szPasswordHash), m_currentTopic(-1)
+	: m_username(szUsername), m_passwordHash(szPasswordHash), m_currentTopic(-1)
 	{
 		m_personality.resize(PERSONALITY_DIMS);
 		for(size_t i = 0; i < PERSONALITY_DIMS; i++)
@@ -407,35 +595,11 @@ public:
 
 	virtual ~Account()
 	{
+		for(size_t i = 0; i < m_ratings.size(); i++)
+			delete(m_ratings[i]);
 	}
 
-	virtual void onDisown()
-	{
-	}
-
-	std::vector<Ratings>& ratings() { return m_ratings; }
-
-	void setAfterLoginUrlAndParams(const char* szUrl, const char* szParams)
-	{
-		m_afterLoginUrl = szUrl;
-		m_afterLoginParams = szParams;
-	}
-
-	void clearAfterLoginStuff()
-	{
-		m_afterLoginUrl.clear();
-		m_afterLoginParams.clear();
-	}
-
-	const char* afterLoginUrl()
-	{
-		return m_afterLoginUrl.c_str();
-	}
-
-	const char* afterLoginParams()
-	{
-		return m_afterLoginParams.c_str();
-	}
+	std::vector<Ratings*>& ratings() { return m_ratings; }
 
 	static Account* fromDom(GDomNode* pNode, GRand& rand)
 	{
@@ -488,17 +652,17 @@ public:
 
 		// Serialize the ratings
 		size_t count = 0;
-		for(vector<Ratings>::iterator i = m_ratings.begin(); i != m_ratings.end(); i++)
+		for(vector<Ratings*>::iterator i = m_ratings.begin(); i != m_ratings.end(); i++)
 		{
-			map<size_t, float>& map = i->m_map;
+			map<size_t, float>& map = (*i)->m_map;
 			if(map.size() > 0)
 				count += (1 + 2 * map.size());
 		}
 		GDomNode* pRatings = pAccount->add(pDoc, "ratings", pDoc->newList());
 		size_t j = 0;
-		for(vector<Ratings>::iterator i = m_ratings.begin(); i != m_ratings.end(); i++)
+		for(vector<Ratings*>::iterator i = m_ratings.begin(); i != m_ratings.end(); i++)
 		{
-			map<size_t, float>& m = i->m_map;
+			map<size_t, float>& m = (*i)->m_map;
 			if(m.size() > 0)
 			{
 				ptrdiff_t r = -1;
@@ -523,6 +687,21 @@ public:
 	void setCurrentTopic(size_t topic) { m_currentTopic = topic; }
 	vector<double>& personality() { return m_personality; }
 
+	bool changeUsername(Server* pServer, const char* szNewName)
+	{
+		if(pServer->findAccount(szNewName))
+			return false;
+		string oldName = m_username;
+		m_username = szNewName;
+		pServer->onRenameAccount(oldName.c_str(), this);
+		return true;
+	}
+
+	void changePasswordHash(Server* pServer, const char* szNewPasswordHash)
+	{
+		m_passwordHash = szNewPasswordHash;
+	}
+
 	bool doesHavePassword()
 	{
 		return m_passwordHash.length() > 0;
@@ -531,29 +710,29 @@ public:
 	void addRating(size_t topic, size_t itemId, float rating)
 	{
 		GAssert(rating >= -1.0f && rating <= 1.0f);
-		if(topic >= m_ratings.size())
-			m_ratings.resize(topic + 1);
-		m_ratings[topic].addRating(itemId, rating);
+		while(topic >= m_ratings.size())
+			m_ratings.push_back(new Ratings());
+		m_ratings[topic]->addRating(itemId, rating);
 	}
 
 	void updateRating(size_t topic, size_t itemId, float rating)
 	{
 		GAssert(rating >= -1.0f && rating <= 1.0f);
-		if(topic >= m_ratings.size())
-			m_ratings.resize(topic + 1);
-		m_ratings[topic].updateRating(itemId, rating);
+		while(topic >= m_ratings.size())
+			m_ratings.push_back(new Ratings());
+		m_ratings[topic]->updateRating(itemId, rating);
 	}
 
 	void withdrawRating(size_t topic, size_t itemId)
 	{
 		if(topic < m_ratings.size())
-			m_ratings[topic].withdrawRating(itemId);
+			m_ratings[topic]->withdrawRating(itemId);
 	}
 
 	void swapItems(size_t topic, size_t a, size_t b)
 	{
 		if(topic < m_ratings.size())
-			m_ratings[topic].swapItems(a, b);
+			m_ratings[topic]->swapItems(a, b);
 	}
 
 	float predictRating(Item& item)
@@ -565,7 +744,7 @@ public:
 	{
 		if(topic >= m_ratings.size())
 			return false;
-		map<size_t, float>& m = m_ratings[topic].m_map;
+		map<size_t, float>& m = m_ratings[topic]->m_map;
 		map<size_t, float>::iterator it = m.find(itemId);
 		if(it == m.end())
 			return false;
@@ -574,23 +753,152 @@ public:
 	}
 };
 
+class Terminal : public GDynamicPageSessionExtension
+{
+protected:
+	size_t m_currentAccount; // The currently logged-in account. (nullptr if not logged in.)
+	std::vector<Account*> m_accounts; // All accounts associated with this machine
+	std::vector<bool> m_requirePassword; // Whether or not the password is required on this machine
+
+public:
+	Terminal() : GDynamicPageSessionExtension(), m_currentAccount((size_t)-1)
+	{
+	}
+
+	virtual ~Terminal()
+	{
+		for(size_t i = 0; i < m_accounts.size(); i++)
+			delete(m_accounts[i]);
+	}
+
+	/// Called when the sessions are destroyed, or a new GDynamicPageSessionExtension is
+	/// explicitly associated with this cookie.
+	virtual void onDisown()
+	{
+	}
+
+	/// Returns the current account, or nullptr if not logged in.
+	Account* currentAccount()
+	{
+		return (m_currentAccount == (size_t)-1 ? nullptr : m_accounts[m_currentAccount]);
+	}
+
+	size_t accountCount() { return m_accounts.size(); }
+	Account* account(size_t index) { return m_accounts[index]; }
+	bool requirePassword() { return m_requirePassword[m_currentAccount]; }
+	bool requirePassword(size_t index) { return m_requirePassword[index]; }
+
+	void logOut()
+	{
+		m_currentAccount = (size_t)-1;
+	}
+
+	bool forgetAccount(const char* szUsername)
+	{
+		for(size_t i = 0; i < m_accounts.size(); i++)
+		{
+			if(strcmp(m_accounts[i]->username(), szUsername) == 0)
+			{
+				m_accounts.erase(m_accounts.begin() + i);
+				m_requirePassword.erase(m_requirePassword.begin() + i);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	static string generateUsername(GRand& rand)
+	{
+		string s = g_auto_name_1[rand.next(AUTO_NAME_1_COUNT)];
+		s += g_auto_name_2[rand.next(AUTO_NAME_2_COUNT)];
+		s += g_auto_name_3[rand.next(AUTO_NAME_3_COUNT)];
+		return s;
+	}
+
+	Account* makeNewAccount(Server* pServer)
+	{
+		Account* pNewAccount = nullptr;
+		for(size_t patience = 10; patience > 0; patience--)
+		{
+			string userName = generateUsername(*pServer->prng());
+			if(!pServer->findAccount(userName.c_str()))
+			{
+				pNewAccount = pServer->newAccount(userName.c_str(), nullptr);
+				if(!pNewAccount)
+					throw Ex("Failed to create account");
+				break;
+			}
+		}
+		if(!pNewAccount)
+			throw Ex("Failed to generate a unique username");
+		m_currentAccount = m_accounts.size();
+		m_accounts.push_back(pNewAccount);
+		m_requirePassword.push_back(false);
+		return pNewAccount;
+	}
+
+	void setRequirePassword(bool require)
+	{
+		if(m_currentAccount == (size_t)-1)
+			throw Ex("not logged in");
+		m_requirePassword[m_currentAccount] = require;
+	}
+
+	bool logIn(Account* pAccount, const char* szPasswordHash)
+	{
+		bool found = false;
+		bool requirePassword = true;
+		size_t accountIndex = (size_t)-1;
+		for(size_t i = 0; i < m_accounts.size() && !found; i++)
+		{
+			if(m_accounts[i] == pAccount)
+			{
+				found = true;
+				accountIndex = i;
+				requirePassword = m_requirePassword[i];
+			}
+		}
+		if(requirePassword)
+		{
+			if(!pAccount->passwordHash())
+				return false;
+			if(strlen(pAccount->passwordHash()) < 1)
+				return false;
+			if(!szPasswordHash)
+				return false;
+			if(strcmp(pAccount->passwordHash(), szPasswordHash) != 0)
+				return false;
+		}
+		if(!found)
+		{
+			accountIndex = m_accounts.size();
+			m_accounts.push_back(pAccount);
+			m_requirePassword.push_back(requirePassword);
+		}
+		m_currentAccount = accountIndex;
+		return true;
+	}
+};
+
+
+
+Terminal* getTerminal(GDynamicPageSession* pSession)
+{
+	Terminal* pTerminal = (Terminal*)pSession->extension();
+	if(!pTerminal)
+	{
+		pTerminal = new Terminal();
+		pSession->setExtension(pTerminal);
+	}
+	return pTerminal;
+}
+
 Account* getAccount(GDynamicPageSession* pSession)
 {
-	Account* pAccount = (Account*)pSession->extension();
-	if(!pAccount)
-	{
-		Server* pServer = (Server*)pSession->server();
-		char szGenericUsername[32];
-		sprintf(szGenericUsername, "_%llu", pSession->id());
-		pAccount = pServer->loadAccount(szGenericUsername, NULL);
-		if(!pAccount)
-		{
-			pAccount = pServer->newAccount(szGenericUsername, NULL);
-			if(!pAccount)
-				throw Ex("Failed to create account");
-		}
-		pSession->setExtension(pAccount);
-	}
+	// Get the terminal
+	Terminal* pTerminal = getTerminal(pSession);
+	Account* pAccount = pTerminal->currentAccount();
+	GAssert(!pAccount || pAccount->username()[0] != '\0'); // every account should have a unique username
 	return pAccount;
 }
 
@@ -681,50 +989,17 @@ public:
 };
 
 
-void makeHeader(GDynamicPageSession* pSession, ostream& response)
+bool str_endswith(const char* szFull, const char* szTail)
 {
-	Account* pAccount = getAccount(pSession);
-	response << "<html><head>\n";
-	response << "	<title>Community Modeler</title>\n";
-	response << "	<link rel=\"stylesheet\" type=\"text/css\" href=\"/style/style.css\" />\n";
-	response << "</head><body><div id=\"wholepage\">\n";
-	response << "\n\n\n\n\n<!-- Header Area --><div id=\"header\">\n";
-	response << "	Community Modeler\n";
-	response << "</div>\n\n\n\n\n<!-- Left Bar Area --><div id=\"sidebar\">\n";
-	response << "	<center>";//<img src=\"style/logo.png\"><br>\n";
-	bool loggedin = false;
-	if(pAccount)
-	{
-		response << "Welcome, ";
-		const char* szUsername = pAccount->username();
-		if(*szUsername == '_')
-			response << "anonymous";
-		else
-		{
-			response << szUsername;
-			loggedin = true;
-		}
-		response << ".<br><br>\n";
-	}
-	response << "	</center>\n";
-	if(loggedin)
-		response << "	<a href=\"/login?action=logout\">log out</a><br>\n";
-	response << "	<a href=\"/survey?nc=" << to_str((size_t)pSession->server()->prng()->next()) << "\">Survey</a><br>\n";
-//	response << "	<a href=\"/login\">Switch user</a><br>\n";
-//	response << "	<a href=\"/main.hbody\">Overview</a><br>\n";
-	response << "	<a href=\"/admin\">Options</a><br>\n";
-	response << "	<br><br><br>\n";
-	response << "</div>\n\n\n\n\n<!-- Main Body Area --><div id=\"mainbody\">\n";
+	size_t lenFull = strlen(szFull);
+	size_t lenTail = strlen(szTail);
+	if(lenTail > lenFull)
+		return false;
+	if(strcmp(szFull + lenFull - lenTail, szTail) == 0)
+		return true;
+	return false;
 }
 
-void makeFooter(GDynamicPageSession* pSession, ostream& response)
-{
-	response << "</div>\n\n\n\n\n<!-- Footer Area --><div id=\"footer\">\n";
-//	response << "	The contents of this page are distributed under the <a href=\"http://creativecommons.org/publicdomain/zero/1.0/\">CC0 license</a>. <img src=\"http://i.creativecommons.org/l/zero/1.0/80x15.png\" border=\"0\" alt=\"CC0\" />\n";
-	response << "<br>";
-	response << "</div>\n\n\n\n\n";
-	response << "</div></body></html>\n";
-}
 
 class Connection : public GDynamicPageConnection
 {
@@ -738,6 +1013,85 @@ public:
 	}
 
 	virtual void handleRequest(GDynamicPageSession* pSession, std::ostream& response);
+	const char* processParams(GDynamicPageSession* pSession);
+
+	void makeHeader(GDynamicPageSession* pSession, ostream& response, const char* szParamsMessage)
+	{
+		response << "<html><head>\n";
+		Account* pAccount = getAccount(pSession);
+		response << "	<title>Community Modeler</title>\n";
+		response << "	<link rel=\"stylesheet\" type=\"text/css\" href=\"/style/style.css\" />\n";
+		response << "</head><body>\n";
+		response << "<table align=center width=1200 cellpadding=0 cellspacing=0><tr><td>\n";
+		response << "<table cellpadding=0 cellspacing=0>\n";
+
+		// The header row
+		response << "<tr><td colspan=2 id=\"header\">";
+		if(pAccount)
+		{
+			response << "Welcome, ";
+			const char* szUsername = pAccount->username();
+			response << szUsername;
+			response << ".";
+		}
+		else
+		{
+			response << "Please log in.";
+		}
+		if(szParamsMessage)
+		{
+			response << "<br>" << szParamsMessage;
+		}
+		response << "</td></tr>\n";
+
+		// The main row
+		response << "<tr>\n";
+
+		// The left sidebar
+		response << "<td id=\"sidebar\">";
+		if(pAccount)
+		{
+			response << "	<a href=\"/account?action=logout\">Log out</a><br><br>\n";
+			response << "	<a href=\"/account\">Account</a><br><br>\n";
+			response << "	<a href=\"/survey\">Survey</a><br><br>\n";
+		}
+		else
+		{
+			response << "	<a href=\"/account?action=newaccount\">New account</a><br><br>\n";
+		}
+	//	response << "	<a href=\"/main.hbody\">Overview</a><br>\n";
+		response << "	<a href=\"/admin\">Options</a><br><br>\n";
+		response << "</td><td id=\"mainbody\">\n\n\n\n";
+	}
+
+	void makeFooter(GDynamicPageSession* pSession, ostream& response)
+	{
+		// End of main row
+		response << "\n\n\n\n</td></tr>\n";
+
+		// Footer row
+		response << "<tr><td colspan=2 id=\"footer\">\n";
+		response << "</td></tr></table>\n";
+		response << "</td></tr></table></body></html>\n";
+	}
+
+	void pageRedirect(GDynamicPageSession* pSession, ostream& response, const char* url)
+	{
+		// Attempt an HTTP redirect
+		cout << "Redirecting from " << pSession->url() << " to " << url << "\n";
+		m_pServer->redirect(response, url);
+
+		// Do an HTML redirect as a backup
+		response << "<html><head>";
+		response << "<meta http-equiv=\"refresh\" content=\"0; url=" << url << "\">";
+		response << "</head>\n";
+
+		// Give the user a link as a last resort
+		response << "<body>";
+		response << "<a href=\"" << url << "\">Please click here to continue</a>\n";
+		response << "</body></html>\n";
+	}
+	
 
 	void makeUrlSlider(Account* pAccount, size_t itemId, ostream& response)
 	{
@@ -770,82 +1124,9 @@ public:
 	}
 
 
-	void makeLoginBody(GDynamicPageSession* pSession, ostream& response, Account* pAccount)
+	virtual void pageSurvey(GDynamicPageSession* pSession, ostream& response)
 	{
-		if(pSession->paramsLen() > 0)
-		{
-			// Check the password
-			GHttpParamParser params(pSession->params());
-			const char* szUsername = params.find("username");
-			const char* szPasswordHash = params.find("password");
-			if(szUsername)
-			{
-				Account* pNewAccount = ((Server*)m_pServer)->loadAccount(szUsername, szPasswordHash);
-				if(pNewAccount)
-				{
-					string s;
-					if(pAccount)
-					{
-						if(strlen(pAccount->afterLoginUrl()) > 0)
-							s = pAccount->afterLoginUrl();
-						if(strlen(pAccount->afterLoginParams()) > 0)
-						{
-							s += "?";
-							s += pAccount->afterLoginParams();
-						}
-						if(s.length() < 1)
-						{
-							s = "/survey?nc=";
-							s += to_str((size_t)m_pServer->prng()->next());
-						}
-					}
-					else
-					{
-						s = "/survey?nc=";
-						s += to_str((size_t)m_pServer->prng()->next());
-					}
-
-					// Log in with the new account
-					pSession->setExtension(pNewAccount);
-					m_pServer->redirect(response, s.c_str());
-				}
-				else
-					response << "<big><big>Incorrect Password! Please try again</big></big><br><br>\n";
-			}
-		}
-
-		response << "<br><br>\n";
-		response << "<SCRIPT language=\"JavaScript\" src=\"/sha1.js\" type=\"text/javascript\">\n</SCRIPT>\n";
-		response << "Please log in:<br><br>\n";
-		response << "<form name=\"loginform\" action=\"/login\" method=\"get\" onsubmit=\"return HashPassword('";
-		response << ((Server*)m_pServer)->passwordSalt();
-		response << "')\">\n";
-		response << "	Username:<input type=\"text\" name=\"username\" ><br>\n";
-		response << "	Password:<input type=\"password\" name=\"password\" ><br>\n";
-		response << "	<input type=\"submit\" value=\"Log In\">\n";
-		response << "</form><br>\n\n";
-
-		response << "or <a href=\"/newaccount\">create a new account</a><br><br><br>\n";
-	}
-
-	virtual void surveyMakePage(GDynamicPageSession* pSession, ostream& response)
-	{
-		makeHeader(pSession, response);
-
-		// Check whether the user is logged in
 		Account* pAccount = getAccount(pSession);
-		if(!pAccount)
-		{
-			makeLoginBody(pSession, response, pAccount);
-			return;
-		}
-		const char* szUsername = pAccount->username();
-		if(*szUsername == '_')
-		{
-			makeLoginBody(pSession, response, pAccount);
-			return;
-		}
-
 		size_t currentTopic = pAccount->currentTopic();
 		if(pSession->paramsLen() > 0)
 		{
@@ -961,7 +1242,6 @@ public:
 			response << "<h2>" << pCurrentTopic->descr() << "</h2>\n";
 			response << "<form name=\"formname\" action=\"/survey\" method=\"post\">\n";
 			response << "	<input type=\"hidden\" name=\"action\" value=\"rate\" />\n";
-			response << "	<input type=\"hidden\" name=\"nc\" value=\"" << to_str((size_t)m_pServer->prng()->next()) << "\" />\n";
 
 			// Random picks
 			size_t* pIndexes = new size_t[pCurrentTopic->size()];
@@ -1007,7 +1287,7 @@ public:
 			// The choices links at the bottom of the page
 			response << "<a href=\"/submit\">Submit a new statement</a>";
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/survey?topic=-1&nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Change topic</a>\n";
+			response << "<a href=\"/survey?topic=-1\">Change topic</a>\n";
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
 			response << "<a href=\"/update\">My opinions</a>\n";
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
@@ -1056,12 +1336,10 @@ public:
 			}
 */
 		}
-		makeFooter(pSession, response);
 	}
 
-	virtual void submitMakePage(GDynamicPageSession* pSession, ostream& response)
+	virtual void pageSubmit(GDynamicPageSession* pSession, ostream& response)
 	{
-		makeHeader(pSession, response);
 		Account* pAccount = getAccount(pSession);
 		size_t currentTopic = pAccount->currentTopic();
 		if(currentTopic >= ((Server*)m_pServer)->topics().size())
@@ -1080,7 +1358,6 @@ public:
 			response << "<h3>Submit a new statement to this topic</h3>\n";
 			response << "<form name=\"formname\" action=\"/survey\" method=\"post\">\n";
 			response << "	<input type=\"hidden\" name=\"action\" value=\"add\" />\n";
-			response << "	<input type=\"hidden\" name=\"nc\" value=\"" << to_str((size_t)m_pServer->prng()->next()) << "\" />\n";
 			response << "Statement: <input type=\"text\" name=\"title\" size=\"55\"><br>\n";
 			response << "	<input type=\"submit\" value=\"Submit\">";
 			response << "</form><br><br>\n\n";
@@ -1095,7 +1372,6 @@ public:
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
 			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Vizualize</a>\n";
 		}
-		makeFooter(pSession, response);
 	}
 
 	double computeVariance(double* pCentroid, Topic& topic, size_t topicId, Account** pAccs, size_t accCount)
@@ -1315,10 +1591,8 @@ public:
 		response << "</table>\n";
 	}
 
-	void statsMakePage(GDynamicPageSession* pSession, ostream& response)
+	void pageStats(GDynamicPageSession* pSession, ostream& response)
 	{
-		makeHeader(pSession, response);
-
 		// Get the topic
 		Account* pAccount = getAccount(pSession);
 		size_t currentTopic = pAccount->currentTopic();
@@ -1411,8 +1685,6 @@ public:
 		response << "<a href=\"/update\">My opinions</a>\n";
 		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
 		response << "<a href=\"/survey?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">" << "Survey</a>\n";
-
-		makeFooter(pSession, response);
 	}
 
 	void plotUsers(GDynamicPageSession* pSession, ostream& response)
@@ -1511,10 +1783,8 @@ public:
 		svg.print(response);
 	}
 
-	virtual void updateMakePage(GDynamicPageSession* pSession, ostream& response)
+	virtual void pageUpdate(GDynamicPageSession* pSession, ostream& response)
 	{
-		makeHeader(pSession, response);
-
 		Account* pAccount = getAccount(pSession);
 		size_t currentTopic = pAccount->currentTopic();
 		if(currentTopic >= ((Server*)m_pServer)->topics().size())
@@ -1538,13 +1808,12 @@ public:
 			// Display the items you have rated
 			if(pAccount->ratings().size() > currentTopic)
 			{
-				vector<pair<size_t, float> >& v = pAccount->ratings()[currentTopic].m_vec;
+				vector<pair<size_t, float> >& v = pAccount->ratings()[currentTopic]->m_vec;
 				if(v.size() > 0)
 				{
 					response << "<h3>Your opinions</h3>\n";
 					response << "<form name=\"formname\" action=\"/survey\" method=\"post\">\n";
 					response << "	<input type=\"hidden\" name=\"action\" value=\"rate\" />\n";
-					response << "	<input type=\"hidden\" name=\"nc\" value=\"" << to_str((size_t)m_pServer->prng()->next()) << "\" />\n";
 					UpdateComparer comparer;
 					std::sort(v.begin(), v.end(), comparer);
 					for(vector<pair<size_t, float> >::iterator it = v.begin(); it != v.end(); it++)
@@ -1571,12 +1840,10 @@ public:
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
 			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Vizualize</a>\n";
 		}
-		makeFooter(pSession, response);
 	}
 
-	virtual void adminMakePage(GDynamicPageSession* pSession, ostream& response)
+	virtual void pageAdmin(GDynamicPageSession* pSession, ostream& response)
 	{
-		makeHeader(pSession, response);
 		Account* pAccount = getAccount(pSession);
 		if(pSession->paramsLen() > 0)
 		{
@@ -1699,67 +1966,94 @@ public:
 		response << "<input type=\"hidden\" name=\"action\" value=\"nukeself\">\n";
 		response << "<input type=\"submit\" value=\"Nuke My Account\">\n";
 		response << "</form>\n";
-		
-		makeFooter(pSession, response);
 	}
 
-	virtual void loginMakePage(GDynamicPageSession* pSession, ostream& response)
+	virtual void pageAccount(GDynamicPageSession* pSession, ostream& response)
 	{
-		makeHeader(pSession, response);
+		Terminal* pTerminal = getTerminal(pSession);
+		Account* pAccount = pTerminal->currentAccount();
+		if(pAccount)
+		{
+			// Logged in
+
+			response << "<h3>Manage your account</h3>\n";
+
+			response << "<form><input type=\"hidden\" name=\"action\" value=\"changename\">";
+			response << "Change your username to: <input type=\"text\" name=\"newname\" value=\"" << pAccount->username() << "\">";
+			response << "<input type=\"submit\" value=\"Change username\">";
+			response << "</form>";
+			response << "<br><br>";
+
+			bool havePassword = true;
+			if(pAccount->passwordHash() == nullptr || strlen(pAccount->passwordHash()) < 1)
+				havePassword = false;
+			if(!havePassword)
+			{
+				response << "You do not yet have a password! Please set a password so you can access this account from other devices.<br>";
+			}
+			response << "<form><input type=\"hidden\" name=\"action\" value=\"changepassword\">";
+			response << "<table><tr><td align=right>" << (havePassword ? "Change" : "Set") << " your password to:</td><td><input type=\"password\" name=\"newpw\"></td><td></td></tr>";
+			response << "<tr><td align=right>Again:</td><td><input type=\"password\" name=\"pwagain\"></td><td><input type=\"submit\" value=\"Change password\"></td></tr></table>";
+			response << "</form>";
+			response << "<br><br>";
+
+			if(havePassword)
+			{
+				response << "<form><input type=\"hidden\" name=\"action\" value=\"requirepw\">";
+				response << "<input type=\"checkbox\" name=\"cb\"" << (pTerminal->requirePassword() ? " checked" : "") << " onChange=\"this.form.submit()\">Require a password when I visit using this device.";
+				response << "</form>";
+				response << "<br><br>";
+			}
+		}
+		else
+		{
+			// Not logged in
+			response << "Click on an account to log in:<br>(You can change the username or password after you log in.)<br><br>\n";
+			response << "<table>\n";
+			for(size_t i = 0; i < pTerminal->accountCount(); i++)
+			{
+				bool reqpw = pTerminal->requirePassword(i);
+				response << "<tr><td>";
+				Account* pAcc = pTerminal->account(i);
+				if(!reqpw)
+					response << "<a href=\"/account?action=login&name=" << pAcc->username() << "\">";
+				response << "<div style=\"";
+				response << "background-color:#203050;width:220px;height:60px;";
+				response << "border:1px solid #000000;border-radius:15px;";
+				response << "text-align:center;color:white";
+				response << "\">";
+				if(!pTerminal->requirePassword(i))
+					response << "<br>";
+				response << pAcc->username();
+				if(reqpw)
+				{
+					response << "<form>";
+					response << "<input type=\"hidden\" name=\"action\" value=\"login\">";
+					response << "<input type=\"hidden\" name=\"name\" value=\"" << pAcc->username() << "\">";
+					response << "<input type=\"password\" name=\"password\">";
+					response << "</form>";
+				}
+				response << "</div>";
+				if(!reqpw)
+					response << "</a>";
+				response << "</td><td>";
+				response << "<a href=\"/account?action=forget&name=" << pAcc->username() << "\">Forget account</a>";
+				response << "</td></tr>\n";
+			}
+			response << "</table>\n";
+		}
+/*
 		Account* pAccount = getAccount(pSession);
 		if(pSession->paramsLen() > 0)
 		{
-			// See if the user wants to log out
-			GHttpParamParser params(pSession->params());
-			const char* szAction = params.find("action");
-			if(szAction)
-			{
-				if(_stricmp(szAction, "logout") == 0)
-				{
-					string s = "/survey?nc=";
-					s += to_str((size_t)m_pServer->prng()->next());
-					m_pServer->redirect(response, s.c_str());
-					pSession->setExtension(NULL); // disconnect the account from this session
-					return;
-				}
-				else
-					response << "Unrecognized action: " << szAction << "<br><br>\n\n";
-			}
-
 			// Check the password
 			const char* szUsername = params.find("username");
 			const char* szPasswordHash = params.find("password");
 			if(szUsername)
 			{
-				Account* pNewAccount = ((Server*)m_pServer)->loadAccount(szUsername, szPasswordHash);
-				if(pNewAccount)
-				{
-					string s;
-					if(pAccount)
-					{
-						if(strlen(pAccount->afterLoginUrl()) > 0)
-							s = pAccount->afterLoginUrl();
-						if(strlen(pAccount->afterLoginParams()) > 0)
-						{
-							s += "?";
-							s += pAccount->afterLoginParams();
-						}
-						if(s.length() < 1)
-						{
-							s = "/survey?nc=";
-							s += to_str((size_t)m_pServer->prng()->next());
-						}
-					}
-					else
-					{
-						s = "/survey?nc=";
-						s += to_str((size_t)m_pServer->prng()->next());
-					}
-
-					// Log in with the new account
-					pSession->setExtension(pNewAccount);
-					m_pServer->redirect(response, s.c_str());
-				}
+				Account* pLoadedAccount = ((Server*)m_pServer)->loadAccount(szUsername, szPasswordHash);
+				if(pLoadedAccount)
+					getTerminal(pSession)->logIn(pLoadedAccount);
 				else
 					response << "<big><big>Incorrect Password! Please try again</big></big><br><br>\n";
 			}
@@ -1780,7 +2074,7 @@ public:
 		}
 		else
 			response << "Please log in:<br><br>\n";
-		response << "<form name=\"loginform\" action=\"/login\" method=\"get\" onsubmit=\"return HashPassword('";
+		response << "<form name=\"loginform\" action=\"/account\" method=\"get\" onsubmit=\"return HashPassword('";
 		response << ((Server*)m_pServer)->passwordSalt();
 		response << "')\">\n";
 		response << "	Username:<input type=\"text\" name=\"username\" ><br>\n";
@@ -1789,15 +2083,14 @@ public:
 		response << "</form><br>\n\n";
 
 		response << "or <a href=\"/newaccount\">create a new account</a><br><br><br>\n";
-		makeFooter(pSession, response);
+*/
 	}
 
-	void newAccountMakePage(GDynamicPageSession* pSession, ostream& response);
+	void pageNewAccount(GDynamicPageSession* pSession, ostream& response);
 };
 
-void Connection::newAccountMakePage(GDynamicPageSession* pSession, ostream& response)
+void Connection::pageNewAccount(GDynamicPageSession* pSession, ostream& response)
 {
-	makeHeader(pSession, response);
 	const char* szUsername = "";
 	const char* szPassword = "";
 	const char* szPWAgain = "";
@@ -1832,7 +2125,7 @@ void Connection::newAccountMakePage(GDynamicPageSession* pSession, ostream& resp
 			else
 			{
 				((Server*)m_pServer)->saveState();
-				response << "<big>An account has been successfully created.</big><br><br> Click here to <a href=\"/login\">log in</a><br>\n";
+				response << "<big>An account has been successfully created.</big><br><br> Click here to <a href=\"/account\">log in</a><br>\n";
 				return;
 			}
 		}
@@ -1865,7 +2158,102 @@ void Connection::newAccountMakePage(GDynamicPageSession* pSession, ostream& resp
 	response << "		<input type=\"submit\" value=\"Submit\">\n";
 	response << "	</form><br>\n\n";
 	response << "</tr></td></table></center>\n";
-	makeFooter(pSession, response);
+}
+
+const char* Connection::processParams(GDynamicPageSession* pSession)
+{
+	const char* szParamsMessage = nullptr;
+	GHttpParamParser params(pSession->params());
+	const char* szAction = params.find("action");
+	if(szAction)
+	{
+		Terminal* pTerminal = getTerminal(pSession);
+		if(strcmp(szAction, "logout") == 0)
+			pTerminal->logOut();
+		else if(strcmp(szAction, "login") == 0)
+		{
+			const char* szUsername = params.find("name");
+			if(szUsername)
+			{
+				const char* szPasswordHash = params.find("password");
+				Account* pAccount = ((Server*)m_pServer)->findAccount(szUsername);
+				if(pAccount)
+				{
+					if(!pTerminal->logIn(pAccount, szPasswordHash))
+					{
+						if(pTerminal->currentAccount())
+							throw Ex("say wha?");
+						szParamsMessage = "Incorrect password";
+					}
+				}
+				else
+					szParamsMessage = "Invalid username";
+			}
+			else
+				szParamsMessage = "Expected a username";
+		}
+		else if(strcmp(szAction, "newaccount") == 0)
+		{
+			pTerminal->makeNewAccount((Server*)m_pServer);
+		}
+		else if(strcmp(szAction, "changename") == 0)
+		{
+			Account* pAccount = pTerminal->currentAccount();
+			if(pAccount)
+			{
+				const char* szNewName = params.find("newname");
+				if(szNewName && strlen(szNewName) > 0)
+				{
+					if(!pAccount->changeUsername((Server*)m_pServer, szNewName))
+						szParamsMessage = "Sorry, that name is already taken";
+				}
+				else
+					szParamsMessage = "Expected a new name";
+			}
+			else
+				szParamsMessage = "You must log in to change the name";
+		}
+		else if(strcmp(szAction, "changepassword") == 0)
+		{
+			Account* pAccount = pTerminal->currentAccount();
+			if(pAccount)
+			{
+				const char* szNewPw = params.find("newpw");
+				const char* szPwAgain = params.find("pwagain");
+				if(szNewPw && szPwAgain && strlen(szNewPw) > 0 && strlen(szPwAgain))
+				{
+					if(strcmp(szNewPw, szPwAgain) == 0)
+						pAccount->changePasswordHash((Server*)m_pServer, szNewPw);
+					else
+						szParamsMessage = "The passwords do not match";
+				}
+				else
+					szParamsMessage = "Expected the password to be entered two times";
+			}
+			else
+				szParamsMessage = "You must log in to change the name";
+		}
+		else if(strcmp(szAction, "forget") == 0)
+		{
+			const char* szName = params.find("name");
+			if(szName && strlen(szName) > 0)
+			{
+				if(!pTerminal->forgetAccount(szName))
+					szParamsMessage = "No such account to forget";
+			}
+			else
+				szParamsMessage = "Expected a username to forget";
+		}
+		else if(strcmp(szAction, "requirepw") == 0)
+		{
+			const char* szCheckbox = params.find("cb");
+			if(szCheckbox)
+				pTerminal->setRequirePassword(true);
+			else
+				pTerminal->setRequirePassword(false);
+		}
+	}
+	return szParamsMessage;
 }
 
 // virtual
@@ -1873,30 +2261,48 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 {
 	if(strcmp(m_szUrl, "/favicon.ico") == 0)
 		return;
-	if(strncmp(m_szUrl, "/login", 6) == 0)
-		loginMakePage(pSession, response);
-	else if(strcmp(m_szUrl, "/") == 0 || strncmp(m_szUrl, "/survey", 4) == 0)
-		surveyMakePage(pSession, response);
-	else if(strncmp(m_szUrl, "/submit", 7) == 0)
-		submitMakePage(pSession, response);
-	else if(strncmp(m_szUrl, "/stats", 6) == 0)
-		statsMakePage(pSession, response);
-	else if(strncmp(m_szUrl, "/update", 7) == 0)
-		updateMakePage(pSession, response);
-	else if(strncmp(m_szUrl, "/admin", 6) == 0)
-		adminMakePage(pSession, response);
-	else if(strncmp(m_szUrl, "/newaccount", 11) == 0)
-		newAccountMakePage(pSession, response);
-	else if(strncmp(m_szUrl, "/users.svg", 10) == 0)
-		plotUsers(pSession, response);
-	else if(strncmp(m_szUrl, "/items.svg", 10) == 0)
-		plotItems(pSession, response);
+
+	const char* szParamsMessage = processParams(pSession);
+
+	// Fine a method to make the requested page
+	void (Connection::*makePage)(GDynamicPageSession* pSession, ostream& response) = nullptr;
+	if(strcmp(m_szUrl, "/") == 0) makePage = &Connection::pageAccount;
+	else if(strncmp(m_szUrl, "/account", 6) == 0) makePage = &Connection::pageAccount;
+	else if(strncmp(m_szUrl, "/survey", 4) == 0) makePage = &Connection::pageSurvey;
+	else if(strncmp(m_szUrl, "/submit", 7) == 0) makePage = &Connection::pageSubmit;
+	else if(strncmp(m_szUrl, "/stats", 6) == 0) makePage = &Connection::pageStats;
+	else if(strncmp(m_szUrl, "/update", 7) == 0) makePage = &Connection::pageUpdate;
+	else if(strncmp(m_szUrl, "/admin", 6) == 0) makePage = &Connection::pageAdmin;
+	else if(strncmp(m_szUrl, "/newaccount", 11) == 0) makePage = &Connection::pageNewAccount;
+	else if(strncmp(m_szUrl, "/users.svg", 10) == 0) makePage = &Connection::plotUsers;
+	else if(strncmp(m_szUrl, "/items.svg", 10) == 0) makePage = &Connection::plotItems;
+
+	if(makePage)
+	{
+		// Make sure there is at least one account
+		Terminal* pTerminal = getTerminal(pSession);
+		if(pTerminal->accountCount() == 0)
+			pTerminal->makeNewAccount((Server*)m_pServer);
+		Account* pAccount = pTerminal->currentAccount();
+		if(pAccount)
+		{
+			makeHeader(pSession, response, szParamsMessage);
+			(*this.*makePage)(pSession, response);
+			makeFooter(pSession, response);
+		}
+		else
+		{
+			makeHeader(pSession, response, szParamsMessage);
+			pageAccount(pSession, response);
+			makeFooter(pSession, response);
+		}
+	}
 	else
 	{
 		size_t len = strlen(m_szUrl);
 		if(len > 6 && strcmp(m_szUrl + len - 6, ".hbody") == 0)
 		{
-			makeHeader(pSession, response);
+			makeHeader(pSession, response, szParamsMessage);
 			sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
 			makeFooter(pSession, response);
 		}
@@ -2016,21 +2422,12 @@ void Server::onShutDown()
 {
 }
 
-
-Account* Server::loadAccount(const char* szUsername, const char* szPasswordHash)
+Account* Server::findAccount(const char* szUsername)
 {
-	if(!szPasswordHash)
-		szPasswordHash = "";
-
-	// Find the account
 	map<string,Account*>::iterator it = m_accountsMap.find(szUsername);
 	if(it == m_accountsMap.end())
-		return NULL;
+		return nullptr;
 	Account* pAccount = it->second;
-
-	// Check the password hash
-	if(_stricmp(pAccount->passwordHash(), szPasswordHash) != 0)
-		return NULL;
 	return pAccount;
 }
 
@@ -2040,9 +2437,8 @@ Account* Server::newAccount(const char* szUsername, const char* szPasswordHash)
 		szPasswordHash = "";
 
 	// See if that username already exists
-	map<string,Account*>::iterator it = m_accountsMap.find(szUsername);
-	if(it != m_accountsMap.end())
-		return NULL;
+	if(findAccount(szUsername))
+		return nullptr;
 
 	// Make the account
 	Account* pAccount = new Account(szUsername, szPasswordHash, *m_pRand);
@@ -2051,6 +2447,12 @@ Account* Server::newAccount(const char* szUsername, const char* szPasswordHash)
 	cout << "Made new account for " << szUsername << "\n";
 	cout.flush();
 	return pAccount;
+}
+
+void Server::onRenameAccount(const char* szOldName, Account* pAccount)
+{
+	m_accountsMap.erase(szOldName);
+	m_accountsMap.insert(make_pair(pAccount->username(), pAccount));
 }
 
 void Server::deleteAccount(Account* pAccount)
@@ -2097,7 +2499,7 @@ void Server::refineModel(size_t topic, size_t iters)
 		Account* pSomeAccount = randomAccount();
 		if(pSomeAccount->ratings().size() > topic)
 		{
-			std::vector<pair<size_t, float> >& v = pSomeAccount->ratings()[topic].m_vec;
+			std::vector<pair<size_t, float> >& v = pSomeAccount->ratings()[topic]->m_vec;
 			if(v.size() > 0)
 			{
 				vector<double>& personality = pSomeAccount->personality();
@@ -2116,15 +2518,6 @@ void Server::refineModel(size_t topic, size_t iters)
 	}
 }
 
-Account* Server::findAccount(const char* szName)
-{
-	std::map<std::string,Account*>::iterator it = m_accountsMap.find(szName);
-	if(it == m_accountsMap.end())
-		return NULL;
-	else
-		return it->second;
-}
-
 void Server::refinePersonality(Account* pAccount, size_t iters)
 {
 	// Train the personality a little bit
@@ -2132,7 +2525,7 @@ void Server::refinePersonality(Account* pAccount, size_t iters)
 	if(topic >= pAccount->ratings().size() || topic >= m_topics.size())
 		return;
 	Topic* pCurrentTopic = m_topics[topic];
-	std::vector<pair<size_t, float> >& v = pAccount->ratings()[topic].m_vec;
+	std::vector<pair<size_t, float> >& v = pAccount->ratings()[topic]->m_vec;
 	if(v.size() > 0)
 	{
 		for(size_t i = 0; i < iters; i++)
@@ -2209,8 +2602,7 @@ GDynamicPageConnection* Server::makeConnection(SOCKET sock)
 void LaunchBrowser(const char* szAddress, GRand* pRand)
 {
 	string s = szAddress;
-	s += "/survey?nc=";
-	s += to_str((size_t)pRand->next());
+	s += "/survey";
 	if(!GApp::openUrlInBrowser(s.c_str()))
 	{
 		cout << "Failed to open the URL: " << s.c_str() << "\nPlease open this URL manually.\n";
@@ -2275,6 +2667,7 @@ void doItAsDaemon()
 
 int main(int nArgs, char* pArgs[])
 {
+cout << "an1=" << to_str(AUTO_NAME_1_COUNT) << "," << to_str(AUTO_NAME_2_COUNT) << "," << to_str(AUTO_NAME_3_COUNT) << "\n";
 	int nRet = 1;
 	try
 	{

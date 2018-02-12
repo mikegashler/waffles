@@ -61,8 +61,8 @@ public:
 	/// Copy constructor. Copies all the values in orig.
 	GVec(const GVec& orig);
 
-	/// Copies all the values in orig.
-	~GVec();
+	/// Destructor
+	virtual ~GVec();
 
 	/// Returns the size of this vector.
 	size_t size() const { return m_size; }
@@ -324,7 +324,7 @@ public:
 		setData(buf, size);
 	}
 
-	~GConstVecWrapper()
+	virtual ~GConstVecWrapper()
 	{
 		m_data = NULL;
 		m_size = 0;
@@ -368,7 +368,7 @@ public:
 		setData(buf, size);
 	}
 
-	~GVecWrapper()
+	virtual ~GVecWrapper()
 	{
 		m_data = NULL;
 		m_size = 0;
@@ -415,7 +415,7 @@ public:
 	/// Unmarshaling constructor
 	GIndexVec(GDomNode* pNode);
 
-	~GIndexVec();
+	virtual ~GIndexVec();
 
 	/// Marshals this index vector into a DOM node.
 	GDomNode* serialize(GDom* pDoc) const;
