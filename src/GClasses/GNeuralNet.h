@@ -564,6 +564,7 @@ public:
 
 
 /// A block of sinusoid units arranged with exponentially growing wavelengths
+/// Assumes there is exactly 1 input.
 class GBlockSpectral : public GBlockWeightless
 {
 protected:
