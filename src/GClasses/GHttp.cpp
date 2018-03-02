@@ -562,7 +562,7 @@ unsigned char* GHttpClient::get(const char* url, size_t* pOutSize, unsigned int 
 		throw Ex("Failed to connect to ", url);
 	double startTime = GTime::seconds();
 	float prevProg = 0.0f;
-	float prog;
+	float prog = 0.0;
 	bool stillDownloading = true;
 	while(stillDownloading)
 	{
