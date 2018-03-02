@@ -2005,7 +2005,14 @@ void MakeAttributeSummaryGraph(const GRelation* pRelation, GMatrix* pData, GImag
 		pImage->clear(0xffffffff);
 		GHistogram hist(*pData, attr, UNKNOWN_REAL_VALUE, UNKNOWN_REAL_VALUE, (size_t)pImage->width());
 		double height = hist.binLikelihood(hist.modeBin());
-		GPlotWindow pw(pImage, hist.xmin(), 0.0, std::max(hist.xmin() + 1e-6, hist.xmax()), height);
+		double d = hist.xmax();
+		if(hist.xmin() >= d)
+			d += 1e-6;
+		if(hist.xmin() >= d)
+			d += 1;
+		if(hist.xmin() >= d)
+			return;
+		GPlotWindow pw(pImage, hist.xmin(), 0.0, d, std::max(height, 1e-6));
 		for(int i = 0; i < (int)pImage->width(); i++)
 		{
 			double x, y;
@@ -2076,6 +2083,14 @@ void MakeCorrelationGraph(const GRelation* pRelation, GMatrix* pData, GImage* pI
 		xmax = xmin + 1e-6;
 	if(ymax <= ymin)
 		ymax = ymin + 1e-6;
+	if(xmax <= xmin)
+		xmax = xmin + 1;
+	if(ymax <= ymin)
+		ymax = ymin + 1;
+	if(xmax <= xmin)
+		return;
+	if(ymax <= ymin)
+		return;
 	if(bothNominal)
 	{
 		GPlotWindow pw(pImage, 0.0, 0.0, 1.0, 1.0);
@@ -2183,7 +2198,7 @@ void PlotCorrelations(GArgReader& args)
 	int cellsize = 120;
 	int bordersize = 4;
 	unsigned int bgCol = 0xffd0d0e0;
-	size_t maxAttrs = 30;
+	size_t maxAttrs = 300;
 	double jitter = 0.03;
 	while(args.next_is_flag())
 	{
