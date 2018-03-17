@@ -528,6 +528,7 @@ tensorInput(nullptr, inputDims),
 tensorFilter(nullptr, filterDims),
 tensorOutput(nullptr, outputDims)
 {
+	// Iterate over all of the shape values
 	filterCount = 1;
 	outputsPerFilter = 1;
 	const size_t* itIn = begin(inputDims);
@@ -535,11 +536,11 @@ tensorOutput(nullptr, outputDims)
 	const size_t* itOut = begin(outputDims);
 	while(true)
 	{
-		if(itIn != end(inputDims))
+		if(itIn != end(inputDims)) // If there are more input dimensions...
 		{
 			++itIn;
 			++itFilt;
-			if(itOut != end(outputDims))
+			if(itOut != end(outputDims)) // If there are more output dimensions...
 			{
 				outputsPerFilter *= *itOut;
 				++itOut;
@@ -547,12 +548,13 @@ tensorOutput(nullptr, outputDims)
 		}
 		else
 		{
-			if(itFilt == end(filterDims))
+			if(itFilt == end(filterDims)) // If there are more filter dimensions...
 				break;
 			filterCount *= *itFilt;
 			++itFilt;
 		}
 	}
+	filterSize /= filterCount;
 	if(filterCount * outputsPerFilter != outputCount)
 		throw Ex("output dimensions do not work with input and filter dimensions");
 	while(tensorFilter.dims.size() > tensorInput.dims.size())
@@ -595,7 +597,7 @@ tensorOutput(pNode->get("outputDims")),
 filterCount(pNode->getInt("filterCount")),
 outputsPerFilter(outputCount / filterCount)
 {
-	filterSize = GBlockConv_countTensorSize(tensorFilter.dims);
+	filterSize = GBlockConv_countTensorSize(tensorFilter.dims) / filterCount;
 	if(filterCount * outputsPerFilter != outputCount)
 		throw Ex("output dimensions do not work with input and filter dimensions");
 }

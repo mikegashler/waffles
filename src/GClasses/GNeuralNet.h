@@ -704,9 +704,9 @@ class GBlockConv : public GBlock
 {
 protected:
 	size_t filterSize;
-	GTensor tensorInput; // BUG: this member variable makes this block non-thread-safe.
-	GTensor tensorFilter; // BUG: this member variable makes this block non-thread-safe.
-	GTensor tensorOutput; // BUG: this member variable makes this block non-thread-safe.
+	GTensor tensorInput;
+	GTensor tensorFilter;
+	GTensor tensorOutput;
 	size_t filterCount;
 	size_t outputsPerFilter;
 
