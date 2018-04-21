@@ -24,6 +24,7 @@
 #include "GVec.h"
 #include <vector>
 #include "GDom.h"
+#include <cmath>
 
 namespace GClasses {
 
@@ -241,10 +242,10 @@ public:
 	virtual ~GBlockIdentity() {}
 	virtual BlockType type() const override { return block_identity; }
 	virtual std::string name() const override { return "GBlockIdentity"; }
-	virtual GBlockIdentity* clone() const { return new GBlockIdentity(*this); }
+	virtual GBlockIdentity* clone() const override { return new GBlockIdentity(*this); }
 	virtual double eval(double x) const override { return x; }
 	virtual double derivative(double x, double f_x) const override { return 1.0; }
-	virtual double inverse(double y) const { return y; }
+	virtual double inverse(double y) const override { return y; }
 };
 
 
@@ -279,10 +280,10 @@ public:
 	virtual ~GBlockTanh() {}
 	virtual BlockType type() const override { return block_tanh; }
 	virtual std::string name() const override { return "GBlockTanh"; }
-	virtual GBlockTanh* clone() const { return new GBlockTanh(*this); }
+	virtual GBlockTanh* clone() const override { return new GBlockTanh(*this); }
 	virtual double eval(double x) const override { return std::tanh(x); }
 	virtual double derivative(double x, double f_x) const override { return 1.0 - (f_x * f_x); }
-	virtual double inverse(double y) const { return 0.5 * std::log(-(y + 1) / (y - 1)); }
+	virtual double inverse(double y) const override { return 0.5 * std::log(-(y + 1) / (y - 1)); }
 };
 
 
@@ -310,10 +311,10 @@ public:
 	virtual ~GBlockScaledTanh() {}
 	virtual BlockType type() const override { return block_scaledtanh; }
 	virtual std::string name() const override { return "GBlockScaledTanh"; }
-	virtual GBlockScaledTanh* clone() const { return new GBlockScaledTanh(*this); }
+	virtual GBlockScaledTanh* clone() const override { return new GBlockScaledTanh(*this); }
 	virtual double eval(double x) const override { return std::tanh(x * SCALE_IN) * SCALE_OUT; }
 	virtual double derivative(double x, double f_x) const override { return SCALE_IN/SCALE_OUT*(SCALE_OUT-f_x)*(SCALE_OUT+f_x); }
-	virtual double inverse(double y) const { return 0.5 / SCALE_IN * std::log(-(y / SCALE_OUT + 1) / (y / SCALE_OUT - 1)); }
+	virtual double inverse(double y) const override { return 0.5 / SCALE_IN * std::log(-(y / SCALE_OUT + 1) / (y / SCALE_OUT - 1)); }
 };
 
 
@@ -332,7 +333,7 @@ public:
 	virtual ~GBlockLogistic() {}
 	virtual BlockType type() const override { return block_logistic; }
 	virtual std::string name() const override { return "GBlockLogistic"; }
-	virtual GBlockLogistic* clone() const { return new GBlockLogistic(*this); }
+	virtual GBlockLogistic* clone() const override { return new GBlockLogistic(*this); }
 	virtual double eval(double x) const override
 	{
 		if(x >= 700.0) // Don't trigger a floating point exception
@@ -342,7 +343,7 @@ public:
 		else return 1.0 / (std::exp(-x) + 1.0);
 	}
 	virtual double derivative(double x, double f_x) const override { return f_x * (1.0 - f_x); }
-	virtual double inverse(double y) const { return std::log(y / (1.0 - y)); }
+	virtual double inverse(double y) const override { return std::log(y / (1.0 - y)); }
 };
 
 
@@ -363,10 +364,10 @@ public:
 	virtual ~GBlockBentIdentity() {}
 	virtual BlockType type() const override { return block_bentidentity; }
 	virtual std::string name() const override { return "GBlockBentIdentity"; }
-	virtual GBlockBentIdentity* clone() const { return new GBlockBentIdentity(*this); }
+	virtual GBlockBentIdentity* clone() const override { return new GBlockBentIdentity(*this); }
 	virtual double eval(double x) const override { return BEND_AMOUNT * (std::sqrt(x * x + BEND_SIZE * BEND_SIZE) - BEND_SIZE) + x; }
 	virtual double derivative(double x, double f_x) const override { return BEND_AMOUNT * x / std::sqrt(x * x + BEND_SIZE * BEND_SIZE) + 1.0; }
-	virtual double inverse(double y) const { return (std::sqrt(2.0 * BEND_AMOUNT * BEND_AMOUNT * BEND_AMOUNT * BEND_SIZE * y + BEND_AMOUNT * BEND_AMOUNT * BEND_SIZE * BEND_SIZE + BEND_AMOUNT * BEND_AMOUNT * y * y) - BEND_AMOUNT * BEND_SIZE - y) / (BEND_AMOUNT * BEND_AMOUNT - 1.0); }
+	virtual double inverse(double y) const override { return (std::sqrt(2.0 * BEND_AMOUNT * BEND_AMOUNT * BEND_AMOUNT * BEND_SIZE * y + BEND_AMOUNT * BEND_AMOUNT * BEND_SIZE * BEND_SIZE + BEND_AMOUNT * BEND_AMOUNT * y * y) - BEND_AMOUNT * BEND_SIZE - y) / (BEND_AMOUNT * BEND_AMOUNT - 1.0); }
 };
 
 
@@ -382,10 +383,10 @@ public:
 	virtual ~GBlockSigExp() {}
 	virtual BlockType type() const override { return block_sigexp; }
 	virtual std::string name() const override { return "GBlockSigExp"; }
-	virtual GBlockSigExp* clone() const { return new GBlockSigExp(*this); }
+	virtual GBlockSigExp* clone() const override { return new GBlockSigExp(*this); }
 	virtual double eval(double x) const override { return (x <= 0.0 ? exp(x) - 1.0 : std::log(x + 1.0)); }
 	virtual double derivative(double x, double f_x) const override { return (x <= 0.0 ? std::exp(x) : 1.0 / (x + 1.0)); }
-	virtual double inverse(double y) const { return (y > 0.0 ? exp(y) - 1.0 : std::log(y + 1.0)); }
+	virtual double inverse(double y) const override { return (y > 0.0 ? exp(y) - 1.0 : std::log(y + 1.0)); }
 };
 
 
@@ -404,7 +405,7 @@ public:
 	virtual ~GBlockGaussian() {}
 	virtual BlockType type() const override { return block_gaussian; }
 	virtual std::string name() const override { return "GBlockGaussian"; }
-	virtual GBlockGaussian* clone() const { return new GBlockGaussian(*this); }
+	virtual GBlockGaussian* clone() const override { return new GBlockGaussian(*this); }
 	virtual double eval(double x) const override { return std::exp(-(x * x)); }
 	virtual double derivative(double x, double f_x) const override { return -2.0 * x * std::exp(-(x * x)); }
 };
@@ -425,7 +426,7 @@ public:
 	virtual ~GBlockSine() {}
 	virtual BlockType type() const override { return block_sine; }
 	virtual std::string name() const override { return "GBlockSine"; }
-	virtual GBlockSine* clone() const { return new GBlockSine(*this); }
+	virtual GBlockSine* clone() const override { return new GBlockSine(*this); }
 	virtual double eval(double x) const override { return std::sin(x); }
 	virtual double derivative(double x, double f_x) const override { return std::cos(x); }
 };
@@ -447,7 +448,7 @@ public:
 	virtual ~GBlockRectifier() {}
 	virtual BlockType type() const override { return block_rectifier; }
 	virtual std::string name() const override { return "GBlockRectifier"; }
-	virtual GBlockRectifier* clone() const { return new GBlockRectifier(*this); }
+	virtual GBlockRectifier* clone() const override { return new GBlockRectifier(*this); }
 	virtual double eval(double x) const override { return std::max(0.0, x); }
 	virtual double derivative(double x, double f_x) const override { return (x >= 0.0 ? 1.0 : 0.0); }
 };
@@ -469,10 +470,10 @@ public:
 	virtual ~GBlockLeakyRectifier() {}
 	virtual BlockType type() const override { return block_leakyrectifier; }
 	virtual std::string name() const override { return "GBlockLeakyRectifier"; }
-	virtual GBlockLeakyRectifier* clone() const { return new GBlockLeakyRectifier(*this); }
+	virtual GBlockLeakyRectifier* clone() const override { return new GBlockLeakyRectifier(*this); }
 	virtual double eval(double x) const override { return x >= 0.0 ? x : 0.01 * x; }
 	virtual double derivative(double x, double f_x) const override { return x >= 0.0 ? 1.0 : 0.01; }
-	virtual double inverse(double y) const { return (y > 0.0 ? y : 100.0 * y); }
+	virtual double inverse(double y) const override { return (y > 0.0 ? y : 100.0 * y); }
 };
 
 
@@ -493,10 +494,10 @@ public:
 	virtual ~GBlockSoftPlus() {}
 	virtual BlockType type() const override { return block_softplus; }
 	virtual std::string name() const override { return "GBlockSoftPlus"; }
-	virtual GBlockSoftPlus* clone() const { return new GBlockSoftPlus(*this); }
+	virtual GBlockSoftPlus* clone() const override { return new GBlockSoftPlus(*this); }
 	virtual double eval(double x) const override { return x > 500 ? x : log(1.0 + exp(x)); }
 	virtual double derivative(double x, double f_x) const override { return 1.0 / (1.0 + exp(-x)); }
-	virtual double inverse(double y) const { return log(exp(y) - 1.0); }
+	virtual double inverse(double y) const override { return log(exp(y) - 1.0); }
 };
 
 
@@ -516,7 +517,7 @@ public:
 	virtual ~GBlockSoftRoot() {}
 	virtual BlockType type() const override { return block_softroot; }
 	virtual std::string name() const override { return "GBlockSoftRoot"; }
-	virtual GBlockSoftRoot* clone() const { return new GBlockSoftRoot(*this); }
+	virtual GBlockSoftRoot* clone() const override { return new GBlockSoftRoot(*this); }
 	virtual double eval(double x) const override
 	{
 		double d = std::sqrt(x * x + 1.0);
@@ -530,7 +531,7 @@ public:
 		double t = x / d;
 		return (t + 1.0) / (2.0 * std::sqrt(d + x)) - (t - 1.0) / (2.0 * std::sqrt(d - x));
 	}
-	virtual double inverse(double y) const { return 0.5 * y * std::sqrt(y * y + 4.0); }
+	virtual double inverse(double y) const override { return 0.5 * y * std::sqrt(y * y + 4.0); }
 };
 
 
@@ -546,7 +547,7 @@ public:
 	virtual ~GBlockSoftMax() {}
 	virtual BlockType type() const override { return block_softmax; }
 	virtual std::string name() const override { return "GBlockSoftMax"; }
-	virtual GBlockSoftMax* clone() const { return new GBlockSoftMax(*this); }
+	virtual GBlockSoftMax* clone() const override { return new GBlockSoftMax(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
@@ -579,7 +580,7 @@ public:
 	virtual ~GBlockSpectral() {}
 	virtual BlockType type() const override { return block_spectral; }
 	virtual std::string name() const override { return "GBlockSpectral"; }
-	virtual GBlockSpectral* clone() const { return new GBlockSpectral(*this); }
+	virtual GBlockSpectral* clone() const override { return new GBlockSpectral(*this); }
 
 	/// Marshall this block into a DOM.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
@@ -619,7 +620,7 @@ public:
 	virtual std::string name() const override { return "GBlockLinear"; }
 
 	/// Returns a copy of this block
-	virtual GBlockLinear* clone() const { return new GBlockLinear(*this); }
+	virtual GBlockLinear* clone() const override { return new GBlockLinear(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
@@ -675,7 +676,7 @@ public:
 	virtual std::string name() const override { return "GBlockTemperedLinear"; }
 
 	/// Returns a copy of this block
-	virtual GBlockTemperedLinear* clone() const { return new GBlockTemperedLinear(*this); }
+	virtual GBlockTemperedLinear* clone() const override { return new GBlockTemperedLinear(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
@@ -734,7 +735,7 @@ public:
 	virtual std::string name() const override { return "GBlockConv"; }
 
 	/// Returns a copy of this block
-	virtual GBlockConv* clone() const { return new GBlockConv(*this); }
+	virtual GBlockConv* clone() const override { return new GBlockConv(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
@@ -790,7 +791,7 @@ public:
 	virtual std::string name() const override { return "GBlockMaxPooling2D"; }
 
 	/// Returns a copy of this block
-	virtual GBlockMaxPooling2D* clone() const { return new GBlockMaxPooling2D(*this); }
+	virtual GBlockMaxPooling2D* clone() const override { return new GBlockMaxPooling2D(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
@@ -828,7 +829,7 @@ public:
 	virtual std::string name() const override { return "GBlockScalarSum"; }
 
 	/// Returns a copy of this block
-	virtual GBlockScalarSum* clone() const { return new GBlockScalarSum(*this); }
+	virtual GBlockScalarSum* clone() const override { return new GBlockScalarSum(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
@@ -863,10 +864,10 @@ public:
 	virtual BlockType type() const override { return block_scalarproduct; }
 
 	/// Returns the name of this block
-	virtual std::string name() const { return "GBlockScalarProduct"; }
+	virtual std::string name() const override { return "GBlockScalarProduct"; }
 
 	/// Returns a copy of this block
-	virtual GBlockScalarProduct* clone() const { return new GBlockScalarProduct(*this); }
+	virtual GBlockScalarProduct* clone() const override { return new GBlockScalarProduct(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
@@ -906,7 +907,7 @@ public:
 	virtual std::string name() const override { return "GBlockSwitch"; }
 
 	/// Returns a copy of this block
-	virtual GBlockSwitch* clone() const { return new GBlockSwitch(*this); }
+	virtual GBlockSwitch* clone() const override { return new GBlockSwitch(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
@@ -948,7 +949,7 @@ public:
 	virtual std::string name() const override { return "GBlockHinge"; }
 
 	/// Returns a copy of this block
-	virtual GBlockHinge* clone() const { return new GBlockHinge(*this); }
+	virtual GBlockHinge* clone() const override { return new GBlockHinge(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
@@ -1002,7 +1003,7 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const override;
 
 	/// Returns a copy of this block
-	virtual GBlockSoftExp* clone() const { return new GBlockSoftExp(*this); }
+	virtual GBlockSoftExp* clone() const override { return new GBlockSoftExp(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
@@ -1059,7 +1060,7 @@ public:
 	virtual std::string name() const override { return "GBlockPAL"; }
 
 	/// Returns a copy of this block
-	virtual GBlockPAL* clone() const { return new GBlockPAL(*this); }
+	virtual GBlockPAL* clone() const override { return new GBlockPAL(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
@@ -1125,7 +1126,7 @@ public:
 	virtual std::string name() const override { return "GBlockLSTM"; }
 
 	/// Returns a copy of this block
-	virtual GBlockLSTM* clone() const { return new GBlockLSTM(*this); }
+	virtual GBlockLSTM* clone() const override { return new GBlockLSTM(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
@@ -1353,7 +1354,7 @@ public:
 	GVec& forwardProp(const GVec& weights, const GVec& input);
 
 	/// Computes blame on the output of this neural network.
-	virtual void computeBlame(const GVec& target);
+	virtual void computeBlame(const GVec& target) override;
 
 	/// Resets the state in any recurrent connections
 	virtual void resetState() override;
