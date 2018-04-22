@@ -84,6 +84,11 @@ public:
 		delete(this);
 	}
 
+	virtual GDomNode* serialize(GDom* pDoc)
+	{
+		throw Ex("This should never be called");
+	}
+
 	void onShowPage()
 	{
 		m_pageStack.push(m_pCurrentPage);

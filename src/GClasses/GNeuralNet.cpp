@@ -1553,7 +1553,7 @@ GLayer::GLayer(const GLayer& that, GLayer* pPrevLayer)
 : input_count(that.input_count), output_count(that.output_count), weight_count(that.weight_count), output(that.output.size()), outBlame(that.outBlame.size())
 {
 	size_t pos = 0;
-	for(size_t i = 0; i < m_blocks.size(); i++)
+	for(size_t i = 0; i < that.m_blocks.size(); i++)
 	{
 		GBlock* pB = that.m_blocks[i]->clone();
 		if(pPrevLayer)
@@ -2014,12 +2014,12 @@ void GNeuralNet::copyStructure(const GNeuralNet* pOther, GRand& rand)
 	for(size_t i = 0; i < m_layers.size(); i++)
 		delete(m_layers[i]);
 	m_layers.clear();
+	GLayer* pPrevLayer = nullptr;
 	for(size_t i = 0; i < pOther->m_layers.size(); i++)
 	{
-		// todo: this is not a very efficient way to copy a layer
-		GDom doc;
-		GDomNode* pNode = pOther->m_layers[i]->serialize(&doc);
-		m_layers.push_back(new GLayer(pNode, rand));
+		GLayer* pNewLayer = new GLayer(*pOther->m_layers[i], pPrevLayer);
+		m_layers.push_back(pNewLayer);
+		pPrevLayer = pNewLayer;
 	}
 }
 

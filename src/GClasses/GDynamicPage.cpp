@@ -79,6 +79,16 @@ void GDynamicPageSession::setExtension(GDynamicPageSessionExtension* pExtension)
 	m_pExtension = pExtension;
 }
 
+GDomNode* GDynamicPageSession::serialize(GDom* pDoc)
+{
+	GDomNode* pObj = pDoc->newObj();
+	pObj->add(pDoc, "id", (long long)m_id);
+	pObj->add(pDoc, "acc", (long long)m_tLastAccessed);
+	pObj->add(pDoc, "ext", m_pExtension->serialize(pDoc));
+	return pObj;
+}
+
+
 // ------------------------------------------------------
 
 GDynamicPageConnection::GDynamicPageConnection(SOCKET sock, GDynamicPageServer* pServer)
@@ -95,6 +105,17 @@ GDynamicPageConnection::~GDynamicPageConnection()
 bool GDynamicPageConnection::hasBeenModifiedSince(const char* szUrl, const char* szDate)
 {
 	return true;
+}
+
+string remove_cr_lf(const char* str)
+{
+	string s = str;
+	for(size_t i = 0; i < s.length(); i++)
+	{
+		if(s[i] == '\r' || s[i] == '\n')
+			s[i] = '_';
+	}
+	return s;
 }
 
 GDynamicPageSession* GDynamicPageConnection::establishSession()
@@ -116,7 +137,7 @@ GDynamicPageSession* GDynamicPageConnection::establishSession()
 			pSession = m_pServer->findSession(nSessionID);
 			if(!pSession)
 			{
-				cout << "Unrecognized session id cookie crumb from " << inet_ntoa(ipAddr()) << ": " << crumb << "\n";
+				cout << "Unrecognized session id cookie crumb from " << inet_ntoa(ipAddr()) << ": " << remove_cr_lf(crumb) << "\n";
 				cout.flush();
 			}
 		}
@@ -407,4 +428,24 @@ void GDynamicPageServer::redirect(std::ostream& response, const char* szUrl)
 	r << szUrl;
 	r << "\">here</a>\n";
 }
+/*
+GDomNode* GDynamicPageServer::serialize(GDom* pDoc)
+{
+	std::map<unsigned long long, GDynamicPageSession*> m_sessions;
+	char* m_szMyAddress;
+	char m_daemonSalt[16];
+	char m_passwordSalt[16];
 
+
+	GDomNode* pObj = pDoc->newObj();
+	pObj->add(pDoc, "daemonSalt", m_daemonSalt);
+	pObj->add(pDoc, "pwSalt", m_passwordSalt);
+	GDomNode* pSessionList = pDoc->newList();
+	for(std::map<unsigned long long, GDynamicPageSession*>::iterator it = m_sessions.begin(); it != m_sessions.end(); it++)
+	{
+		unsigned long long cookie_id = it->first;
+		GDynamicPageSession*
+		xxx
+	}
+}
+*/

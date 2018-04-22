@@ -54,6 +54,7 @@
 #include <set>
 #include <sstream>
 #include <cmath>
+#include "recommender.h"
 
 using namespace GClasses;
 using std::cout;
@@ -71,11 +72,6 @@ class View;
 class Account;
 class ViewStats;
 
-#define PERSONALITY_DIMS 3 // (one of these is used for the bias)
-#define ON_RATE_TRAINING_ITERS 5000
-#define ON_STARTUP_TRAINING_ITERS 250000
-#define LEARNING_RATE 0.001
-#define REGULARIZATION_TERM 0.00001
 
 const char* g_auto_name_1[] =
 {
@@ -264,215 +260,27 @@ const char* g_auto_name_3[] =
 };
 #define AUTO_NAME_3_COUNT (sizeof(g_auto_name_3) / sizeof(const char*))
 
-class Item
-{
-protected:
-	std::string m_title;
-	std::string m_submitter;
-	time_t m_date; // the date this item was submitted
-	std::vector<double> m_weights; // used to predict the rating from a user's personality vector
-
-public:
-	Item(const char* szTitle, const char* szSubmitter, time_t date, GRand* pRand)
-	{
-		m_title = szTitle;
-		m_submitter = szSubmitter;
-		m_date = date;
-		m_weights.resize(PERSONALITY_DIMS);
-		for(size_t i = 0; i < PERSONALITY_DIMS; i++)
-			m_weights[i] = 0.01 * pRand->normal();
-	}
-
-	Item(GDomNode* pNode, GRand* pRand)
-	{
-		m_title = pNode->getString("title");
-		m_submitter = pNode->getString("subm");
-		m_date = (time_t)pNode->getInt("date");
-		m_weights.resize(PERSONALITY_DIMS);
-		GDomNode* pWeights = pNode->get("weights");
-		GDomListIterator it(pWeights);
-		size_t i;
-		for(i = 0; i < (size_t)PERSONALITY_DIMS && it.current(); i++)
-		{
-			m_weights[i] = it.currentDouble();
-			it.advance();
-		}
-		for( ; i < PERSONALITY_DIMS; i++)
-			m_weights[i] = LEARNING_RATE * pRand->normal();
-	}
-
-	const char* title() { return m_title.c_str(); }
-	std::vector<double>& weights() { return m_weights; }
-
-	GDomNode* toDom(GDom* pDoc)
-	{
-		GDomNode* pNode = pDoc->newObj();
-		pNode->add(pDoc, "title", m_title.c_str());
-		pNode->add(pDoc, "subm", m_submitter.c_str());
-		pNode->add(pDoc, "date", (long long)m_date);
-		GDomNode* pWeights = pNode->add(pDoc, "weights", pDoc->newList());
-		for(size_t i = 0; i < PERSONALITY_DIMS; i++)
-			pWeights->add(pDoc, m_weights[i]);
-		return pNode;
-	}
-
-	double predictRating(const vector<double>& personality) const
-	{
-		vector<double>::const_iterator itW = m_weights.begin();
-		vector<double>::const_iterator itP = personality.begin();
-
-		// Add the bias weights
-		double d = *(itW++) + *(itP++);
-
-		// Multiply the weight vector by the personality vector
-		while(itW != m_weights.end())
-			d += *(itW++) * *(itP++);
-
-		return d;
-	}
-
-	// This method adjusts the weights in the opposite direction of the gradient of
-	// the squared-error with respect to the weights.
-	void trainWeights(double target, double learningRate, const vector<double>& personality)
-	{
-		GAssert(target >= -1.0 && target <= 1.0);
-		double prediction = predictRating(personality);
-		double err = learningRate * (target - prediction);
-		vector<double>::iterator itW = m_weights.begin();
-		vector<double>::const_iterator itP = personality.begin();
-
-		// Update the bias weight
-		itP++;
-		*(itW++) += err;
-
-		// Update the other weights
-		while(itW != m_weights.end())
-		{
-			//*itW = std::max(-8.0, std::min(8.0, *itW + err * *(itP++)));
-			*itW += err * *(itP++);
-			itW++;
-		}
-#ifdef _DEBUG
-		double postpred = predictRating(personality);
-		GAssert(std::abs(target - postpred) < std::abs(target - prediction) || std::abs(target - postpred) < 0.001);
-#endif
-	}
-
-	// This method adjusts the personality vector in the opposite direction of the gradient of
-	// the squared-error with respect to the personality vector.
-	void trainPersonality(double target, double learningRate, vector<double>& personality) const
-	{
-		GAssert(target >= -1.0 && target <= 1.0);
-		double prediction = predictRating(personality);
-		double err = learningRate * (target - prediction);
-		vector<double>::const_iterator itW = m_weights.begin();
-		vector<double>::iterator itP = personality.begin();
-
-		// Update the bias
-		itW++;
-		*(itP) += err;
-		itP++;
-
-		// Update the personality vector
-		while(itW != m_weights.end())
-		{
-			//*itP = std::max(-1.0, std::min(1.0, *itP + err * *itW));
-			*itP += err * *itW;
-			itW++;
-			itP++;
-		}
-#ifdef _DEBUG
-		double postpred = predictRating(personality);
-		GAssert(std::abs(target - postpred) <= std::abs(target - prediction) || std::abs(target - postpred) < 0.001);
-#endif
-	}
-};
 
 
-// This class contains all of the items that have been submitted to the recommender system
-class Topic
-{
-protected:
-	std::string m_descr;
-	std::vector<Item*> m_items;
-
-public:
-	Topic(const char* szDescr)
-	: m_descr(szDescr)
-	{
-	}
-
-	~Topic()
-	{
-		for(vector<Item*>::iterator it = m_items.begin(); it != m_items.end(); it++)
-			delete(*it);
-	}
-
-	size_t size() { return m_items.size(); }
-
-	Item& item(size_t id)
-	{
-		GAssert(id < m_items.size());
-		GAssert(m_items[id] != NULL);
-		return *m_items[id];
-	}
-
-	const char* descr() { return m_descr.c_str(); }
-
-	void addItem(const char* szTitle, const char* szUsername, time_t date, GRand* pRand)
-	{
-		m_items.push_back(new Item(szTitle, szUsername, date, pRand));
-	}
-
-	GDomNode* toDom(GDom* pDoc)
-	{
-		GDomNode* pNode = pDoc->newObj();
-		pNode->add(pDoc, "descr", m_descr.c_str());
-		GDomNode* pItems = pNode->add(pDoc, "items", pDoc->newList());
-		for(size_t i = 0; i < m_items.size(); i++)
-			pItems->add(pDoc, m_items[i]->toDom(pDoc));
-		return pNode;
-	}
-
-	void fromDom(GDomNode* pNode, GRand* pRand)
-	{
-		m_descr = pNode->getString("descr");
-		GDomNode* pItems = pNode->get("items");
-		GAssert(m_items.size() == 0);
-		GDomListIterator it(pItems);
-		m_items.reserve(it.remaining());
-		for( ; it.current(); it.advance())
-			m_items.push_back(new Item(it.current(), pRand));
-	}
-
-	void deleteItemAndSwapInLast(size_t itemId)
-	{
-		delete(m_items[itemId]);
-		m_items[itemId] = m_items[m_items.size() - 1];
-		m_items.pop_back();
-	}
-};
 
 class Server : public GDynamicPageServer
 {
 protected:
-	std::vector<Topic*> m_topics;
-	std::map<std::string,Account*> m_accountsMap;
-	std::vector<Account*> m_accountsVec;
+	std::map<std::string,Account*> m_accounts; // Mapping from username to account
+	Recommender m_recommender; // The recommender system
 
 public:
 	std::string m_basePath;
 
 	Server(int port, GRand* pRand);
 	virtual ~Server();
+	Recommender& recommender() { return m_recommender; }
 	void loadState();
 	void saveState();
 	void getStatePath(char* buf);
 	virtual void onEverySixHours();
 	virtual void onStateChange();
 	virtual void onShutDown();
-	void addItem(size_t topic, const char* szTitle, const char* szUsername);
-	std::vector<Topic*>& topics() { return m_topics; }
 	bool isUsernameTaken(const char* szUsername);
 	Account* findAccount(const char* szUsername);
 	Account* newAccount(const char* szUsername, const char* szPasswordHash);
@@ -480,92 +288,12 @@ public:
 	void onRenameAccount(const char* szOldName, Account* pAccount);
 	GDomNode* serializeState(GDom* pDoc);
 	void deserializeState(const GDomNode* pNode);
-	void proposeTopic(Account* pAccount, const char* szDescr);
-	void newTopic(const char* szDescr);
-	Account* randomAccount() { return m_accountsVec[(size_t)prng()->next(m_accountsVec.size())]; }
-	void refineModel(size_t topic, size_t iters); // trains both personalities and weights
-	void refinePersonality(Account* pAccount, size_t iters); // trains just the personalities
-	std::vector<Account*>& accounts() { return m_accountsVec; }
 
 	virtual GDynamicPageConnection* makeConnection(SOCKET sock);
 };
 
-class Ratings
-{
-public:
-	std::map<size_t, float> m_map;
-	std::vector<pair<size_t, float> > m_vec;
 
-	void addRating(size_t itemId, float rating)
-	{
-		m_map[itemId] = rating;
-		m_vec.push_back(make_pair(itemId, rating));
-	}
 
-	void updateRating(size_t itemId, float rating)
-	{
-		if(m_map.find(itemId) == m_map.end())
-			addRating(itemId, rating);
-		else
-		{
-			m_map[itemId] = rating;
-			for(vector<pair<size_t, float> >::iterator it = m_vec.begin(); it != m_vec.end(); it++)
-			{
-				if(it->first == itemId)
-				{
-					it->second = rating;
-					break;
-				}
-			}
-		}
-	}
-
-	void withdrawRating(size_t itemId)
-	{
-		if(m_map.find(itemId) != m_map.end())
-		{
-			m_map.erase(itemId);
-			for(vector<pair<size_t, float> >::iterator it = m_vec.begin(); it != m_vec.end(); it++)
-			{
-				if(it->first == itemId)
-				{
-					size_t index = it - m_vec.begin();
-					std::swap(m_vec[index], m_vec[m_vec.size() - 1]);
-					m_vec.erase(m_vec.end() - 1);
-					break;
-				}
-			}
-		}
-	}
-
-	void swapItems(size_t a, size_t b)
-	{
-		std::map<size_t, float>::iterator itA = m_map.find(a);
-		std::map<size_t, float>::iterator itB = m_map.find(b);
-		float ratingA = 0.0f;
-		float ratingB = 0.0f;
-		bool gotA = false;
-		bool gotB = false;
-		if(itA != m_map.end())
-		{
-			gotA = true;
-			ratingA = itA->second;
-		}
-		if(itB != m_map.end())
-		{
-			gotB = true;
-			ratingB = itB->second;
-		}
-		if(gotA)
-			withdrawRating(a);
-		if(gotB)
-			withdrawRating(b);
-		if(gotA)
-			addRating(b, ratingA);
-		if(gotB)
-			addRating(a, ratingB);
-	}
-};
 
 
 
@@ -574,68 +302,37 @@ class Account
 protected:
 	string m_username;
 	string m_passwordHash;
-	std::vector<Ratings*> m_ratings; // This is the training data for learning the user's personality vector.
-	std::vector<double> m_personality; // This vector represents the user with respect to our model. That is, given the user's personality vector, our model should be able to predict the ratings of this user with some accuracy.
 	size_t m_currentTopic;
-
-	Account()
-	: m_currentTopic(-1)
-	{
-		m_personality.resize(PERSONALITY_DIMS);
-	}
+	User* m_pUser; // A redundant pointer to the User object that goes with this account
+	bool m_admin;
 
 public:
-	Account(const char* szUsername, const char* szPasswordHash, GRand& rand)
-	: m_username(szUsername), m_passwordHash(szPasswordHash), m_currentTopic(-1)
+	Account(const char* szUsername, const char* szPasswordHash)
+	: m_username(szUsername), m_passwordHash(szPasswordHash), m_currentTopic(-1), m_pUser(nullptr), m_admin(false)
 	{
-		m_personality.resize(PERSONALITY_DIMS);
-		for(size_t i = 0; i < PERSONALITY_DIMS; i++)
-			m_personality[i] = LEARNING_RATE * rand.normal();
 	}
 
 	virtual ~Account()
 	{
-		for(size_t i = 0; i < m_ratings.size(); i++)
-			delete(m_ratings[i]);
 	}
 
-	std::vector<Ratings*>& ratings() { return m_ratings; }
+	bool isAdmin()
+	{
+		return m_admin;
+	}
+
+	void makeAdmin(bool admin)
+	{
+		m_admin = admin;
+	}
 
 	static Account* fromDom(GDomNode* pNode, GRand& rand)
 	{
-		Account* pAccount = new Account();
-		pAccount->m_username = pNode->getString("username");
-		pAccount->m_passwordHash = pNode->getString("password");
-
-		// Deserialize the personality vector
-		GDomNode* pPersonality = pNode->get("pers");
-		{
-			GDomListIterator it(pPersonality);
-			size_t i;
-			for(i = 0; i < (size_t)PERSONALITY_DIMS && it.current(); i++)
-			{
-				pAccount->m_personality[i] = std::max(-1.0, std::min(1.0, it.currentDouble()));
-				it.advance();
-			}
-			for( ; i < PERSONALITY_DIMS; i++)
-				pAccount->m_personality[i] = 0.02 * rand.normal();
-		}
-
-		// Deserialize the ratings
-		GDomNode* pRatings = pNode->get("ratings");
-		size_t topic = 0;
-		for(GDomListIterator it(pRatings); it.current(); it.advance())
-		{
-			ptrdiff_t j = (ptrdiff_t)it.currentInt();
-			if(j < 0)
-				topic = (size_t)(-j - 1);
-			else
-			{
-				it.advance();
-				if(it.current())
-					pAccount->addRating(topic, (size_t)j, (float)it.currentDouble());
-			}
-		}
+		const char* un = pNode->getString("username");
+		const char* pw = pNode->getString("password");
+		Account* pAccount = new Account(un, pw);
+		if(pNode->getIfExists("admin"))
+			pAccount->makeAdmin(true);
 		return pAccount;
 	}
 
@@ -644,40 +341,8 @@ public:
 		GDomNode* pAccount = pDoc->newObj();
 		pAccount->add(pDoc, "username", m_username.c_str());
 		pAccount->add(pDoc, "password", m_passwordHash.c_str());
-
-		// Serialize the personality vector
-		GDomNode* pPersonality = pAccount->add(pDoc, "pers", pDoc->newList());
-		for(size_t i = 0; i < PERSONALITY_DIMS; i++)
-			pPersonality->add(pDoc, m_personality[i]);
-
-		// Serialize the ratings
-		size_t count = 0;
-		for(vector<Ratings*>::iterator i = m_ratings.begin(); i != m_ratings.end(); i++)
-		{
-			map<size_t, float>& map = (*i)->m_map;
-			if(map.size() > 0)
-				count += (1 + 2 * map.size());
-		}
-		GDomNode* pRatings = pAccount->add(pDoc, "ratings", pDoc->newList());
-		size_t j = 0;
-		for(vector<Ratings*>::iterator i = m_ratings.begin(); i != m_ratings.end(); i++)
-		{
-			map<size_t, float>& m = (*i)->m_map;
-			if(m.size() > 0)
-			{
-				ptrdiff_t r = -1;
-				r -= (j++);
-				GAssert(r < 0);
-				pRatings->add(pDoc, (long long)r);
-				for(map<size_t,float>::iterator it = m.begin(); it != m.end(); it++)
-				{
-					pRatings->add(pDoc, it->first);
-					double clipped = 0.001 * (double)floor(it->second * 1000 + 0.5f);
-					pRatings->add(pDoc, clipped);
-				}
-			}
-		}
-
+		if(m_admin)
+			pAccount->add(pDoc, "admin", "true");
 		return pAccount;
 	}
 
@@ -685,7 +350,16 @@ public:
 	const char* passwordHash() { return m_passwordHash.c_str(); }
 	size_t currentTopic() { return m_currentTopic; }
 	void setCurrentTopic(size_t topic) { m_currentTopic = topic; }
-	vector<double>& personality() { return m_personality; }
+
+	User* getUser(Recommender& recommender)
+	{
+		if(!m_pUser)
+			m_pUser = recommender.findOrMakeUser(m_username.c_str());
+		return m_pUser;
+	}
+	
+	User* user() { return m_pUser; }
+	void setUser(User* pUser) { m_pUser = pUser; }
 
 	bool changeUsername(Server* pServer, const char* szNewName)
 	{
@@ -706,52 +380,10 @@ public:
 	{
 		return m_passwordHash.length() > 0;
 	}
-
-	void addRating(size_t topic, size_t itemId, float rating)
-	{
-		GAssert(rating >= -1.0f && rating <= 1.0f);
-		while(topic >= m_ratings.size())
-			m_ratings.push_back(new Ratings());
-		m_ratings[topic]->addRating(itemId, rating);
-	}
-
-	void updateRating(size_t topic, size_t itemId, float rating)
-	{
-		GAssert(rating >= -1.0f && rating <= 1.0f);
-		while(topic >= m_ratings.size())
-			m_ratings.push_back(new Ratings());
-		m_ratings[topic]->updateRating(itemId, rating);
-	}
-
-	void withdrawRating(size_t topic, size_t itemId)
-	{
-		if(topic < m_ratings.size())
-			m_ratings[topic]->withdrawRating(itemId);
-	}
-
-	void swapItems(size_t topic, size_t a, size_t b)
-	{
-		if(topic < m_ratings.size())
-			m_ratings[topic]->swapItems(a, b);
-	}
-
-	float predictRating(Item& item)
-	{
-		return item.predictRating(m_personality);
-	}
-
-	bool getRating(size_t topic, size_t itemId, float* pOutRating)
-	{
-		if(topic >= m_ratings.size())
-			return false;
-		map<size_t, float>& m = m_ratings[topic]->m_map;
-		map<size_t, float>::iterator it = m.find(itemId);
-		if(it == m.end())
-			return false;
-		*pOutRating = it->second;
-		return true;
-	}
 };
+
+
+
 
 class Terminal : public GDynamicPageSessionExtension
 {
@@ -777,6 +409,21 @@ public:
 	{
 	}
 
+	virtual GDomNode* serialize(GDom* pDoc)
+	{
+		GDomNode* pObj = pDoc->newObj();
+		pObj->add(pDoc, "loggedin", m_currentAccount);
+		GDomNode* pAccList = pDoc->newList();
+		pObj->add(pDoc, "accounts", pAccList);
+		for(size_t i = 0; i < m_accounts.size(); i++)
+			pAccList->add(pDoc, m_accounts[i]->username());
+		GDomNode* pReqList = pDoc->newList();
+		pObj->add(pDoc, "reqpw", pReqList);
+		for(size_t i = 0; i < m_requirePassword.size(); i++)
+			pReqList->add(pDoc, m_requirePassword[i]);
+		return pObj;
+	}
+	
 	/// Returns the current account, or nullptr if not logged in.
 	Account* currentAccount()
 	{
@@ -834,6 +481,8 @@ public:
 		m_currentAccount = m_accounts.size();
 		m_accounts.push_back(pNewAccount);
 		m_requirePassword.push_back(false);
+		if(m_currentAccount == 0)
+			pNewAccount->makeAdmin(true);
 		return pNewAccount;
 	}
 
@@ -913,17 +562,17 @@ protected:
 	double m_deviation;
 
 public:
-	ItemStats(size_t topicId, Item& itm, size_t itemId, Account** pAccs, size_t accCount)
+	ItemStats(size_t topicId, Item& itm, size_t itemId, User** pUsers, size_t accCount)
 	: m_item(itm), m_id(itemId), m_agree(0), m_uncertain(0), m_disagree(0), m_agg(0), m_dis(0)
 	{
 		// Compute the mean
-		Account** pAc = pAccs;
+		User** Us = pUsers;
 		float rating;
 		double mean = 0.0;
 		size_t count = 0;
 		for(size_t i = 0; i < accCount; i++)
 		{
-			if((*pAc)->getRating(topicId, itemId, &rating))
+			if((*Us)->getRating(topicId, itemId, &rating))
 			{
 				mean += rating;
 				count++;
@@ -938,21 +587,21 @@ public:
 				else
 					m_agg++;
 			}
-			pAc++;
+			Us++;
 		}
 		mean /= count;
 
 		// Compute the deviation
-		pAc = pAccs;
+		Us = pUsers;
 		double var = 0.0;
 		for(size_t i = 0; i < accCount; i++)
 		{
-			if((*pAc)->getRating(topicId, itemId, &rating))
+			if((*Us)->getRating(topicId, itemId, &rating))
 			{
 				double d = mean - rating;
 				var += (d * d);
 			}
-			pAc++;
+			Us++;
 		}
 		m_deviation = sqrt(var / count);
 	}
@@ -999,6 +648,9 @@ bool str_endswith(const char* szFull, const char* szTail)
 		return true;
 	return false;
 }
+
+
+
 
 
 class Connection : public GDynamicPageConnection
@@ -1091,35 +743,42 @@ public:
 		response << "<a href=\"" << url << "\">Please click here to continue</a>\n";
 		response << "</body></html>\n";
 	}
-	
+
+	void makeSliderScript(ostream& response)
+	{
+		response << "<script language=\"JavaScript\" src=\"style/slider.js\"></script>\n";
+		response << "<script language=\"JavaScript\">\n";
+		response << "	var A_TPL = { 'b_vertical' : false, 'b_watch': true, 'n_controlWidth': 321, 'n_controlHeight': 22, 'n_sliderWidth': 19, 'n_sliderHeight': 20, 'n_pathLeft' : 1, 'n_pathTop' : 1, 'n_pathLength' : 300, 's_imgControl': 'style/slider_bg.png', 's_imgSlider': 'style/slider_tab.png', 'n_zIndex': 1 }\n";
+		response << "</script>\n";
+	}
 
 	void makeUrlSlider(Account* pAccount, size_t itemId, ostream& response)
 	{
 		// Compute the rating (or predicted rating if this item has not been rated)
 		size_t currentTopic = pAccount->currentTopic();
-		Topic* pCurrentTopic = ((Server*)m_pServer)->topics()[currentTopic];
+		Topic* pCurrentTopic = ((Server*)m_pServer)->recommender().topics()[currentTopic];
 		Item& item = pCurrentTopic->item(itemId);
 		float score;
-		if(!pAccount->getRating(currentTopic, itemId, &score))
-			score = pAccount->predictRating(item);
-		score *= 500.0;
+		User* pUser = pAccount->getUser(((Server*)m_pServer)->recommender());
+		if(!pUser->getRating(currentTopic, itemId, &score))
+			score = pUser->predictRating(item);
+/*		score *= 500.0;
 		score += 500.0;
-		score = 0.1 * floor(score);
+		score = 0.1 * floor(score);*/
 
 		// Display the slider
-		response << "<table cellpadding=0 cellspacing=0><tr><td width=430>\n	";
-// uncomment the next line to always display the predicted score in brackets
-//response << "[" << 0.1 * floor(pAccount->predictRating(item) * 1000) << "] ";
-		response << item.title();
-		response << "\n";
+		response << "<table cellpadding=0 cellspacing=0><tr><td width=200>\n	";
+		response << item.title() << "\n";
 		response << "</td><td>\n";
 		response << "	<input type=checkbox name=\"check_slider" << itemId << "\" id=\"check_slider" << itemId << "\">\n";
 		response << "	<input name=\"slider" << itemId << "\" id=\"slider" << itemId << "\" type=\"Text\" size=\"3\">\n";
 		response << "</td><td>\n";
 		response << "<script language=\"JavaScript\">\n";
-		response << "	var A_INIT1 = { 's_checkname': 'check_slider" << itemId << "', 's_name': 'slider" << itemId << "', 'n_minValue' : 0, 'n_maxValue' : 100, 'n_value' : " << score << ", 'n_step' : 0.1 }\n";
+		response << "	var A_INIT1 = { 's_checkname': 'check_slider" << itemId << "', 's_name': 'slider" << itemId << "', 'n_minValue' : -1, 'n_maxValue' : 1, 'n_value' : " << score << ", 'n_step' : 0.01 }\n";
 		response << "	new slider(A_INIT1, A_TPL);\n";
 		response << "</script>\n";
+		response << "</td><td width=200>\n";
+		response << item.title() << "\n";
 		response << "</td></tr></table>\n";
 	}
 
@@ -1127,6 +786,7 @@ public:
 	virtual void pageSurvey(GDynamicPageSession* pSession, ostream& response)
 	{
 		Account* pAccount = getAccount(pSession);
+		User* pUser = pAccount->getUser(((Server*)m_pServer)->recommender());
 		size_t currentTopic = pAccount->currentTopic();
 		if(pSession->paramsLen() > 0)
 		{
@@ -1135,7 +795,7 @@ public:
 			const char* szTopic = params.find("topic");
 			if(szTopic)
 			{
-				vector<Topic*>& topics = ((Server*)m_pServer)->topics();
+				const vector<Topic*>& topics = ((Server*)m_pServer)->recommender().topics();
 #ifdef WINDOWS
 				size_t i = (size_t)_strtoui64(szTopic, NULL, 10);
 #else
@@ -1153,10 +813,10 @@ public:
 			if(pAccount->doesHavePassword())
 				szProposal = params.find("proposal");
 			if(szProposal)
-				((Server*)m_pServer)->proposeTopic(pAccount, szProposal);
+				((Server*)m_pServer)->recommender().proposeTopic(pAccount->username(), szProposal);
 
 			// Do the action
-			if(currentTopic < ((Server*)m_pServer)->topics().size())
+			if(currentTopic < ((Server*)m_pServer)->recommender().topics().size())
 			{
 				const char* szAction = params.find("action");
 				if(!szAction)
@@ -1169,7 +829,7 @@ public:
 						response << "[invalid params]<br>\n";
 					else
 					{
-						((Server*)m_pServer)->addItem(currentTopic, szTitle, pAccount->username());
+						((Server*)m_pServer)->recommender().addItem(currentTopic, szTitle, pAccount->username());
 						response << "[The new statement has been added. Thank you.]<br>\n";
 						cout << "added " << szTitle << "\n";
 						((Server*)m_pServer)->saveState();
@@ -1211,7 +871,7 @@ public:
 								float score = (float)atof(it->second);
 								if(score >= 0.0f && score <= 100.0f)
 								{
-									pAccount->updateRating(currentTopic, itemId, 0.02 * score - 1.0);
+									pUser->updateRating(currentTopic, itemId, 0.02 * score - 1.0);
 									response << "[Rating recorded. Thank you.]<br>\n";
 								}
 								else
@@ -1221,24 +881,19 @@ public:
 					}
 
 					// Do some training
-					((Server*)m_pServer)->refinePersonality(pAccount, ON_RATE_TRAINING_ITERS); // trains just personalities
-					((Server*)m_pServer)->refineModel(currentTopic, ON_RATE_TRAINING_ITERS); // trains both personalities and weights
+					((Server*)m_pServer)->recommender().refinePersonality(pUser, pAccount->currentTopic(), ON_RATE_TRAINING_ITERS); // trains just personalities
+					((Server*)m_pServer)->recommender().refineModel(currentTopic, ON_RATE_TRAINING_ITERS); // trains both personalities and weights
 					((Server*)m_pServer)->saveState();
 				}
 			}
 		}
 
-		if(currentTopic < ((Server*)m_pServer)->topics().size()) // if a topic has been selected...
+		if(currentTopic < ((Server*)m_pServer)->recommender().topics().size()) // if a topic has been selected...
 		{
-			Topic* pCurrentTopic = ((Server*)m_pServer)->topics()[currentTopic];
+			Topic* pCurrentTopic = ((Server*)m_pServer)->recommender().topics()[currentTopic];
 			
-			// The slider-bar script
-			response << "<script language=\"JavaScript\" src=\"style/slider.js\"></script>\n";
-			response << "<script language=\"JavaScript\">\n";
-			response << "	var A_TPL = { 'b_vertical' : false, 'b_watch': true, 'n_controlWidth': 321, 'n_controlHeight': 22, 'n_sliderWidth': 19, 'n_sliderHeight': 20, 'n_pathLeft' : 1, 'n_pathTop' : 1, 'n_pathLength' : 300, 's_imgControl': 'style/slider_bg.png', 's_imgSlider': 'style/slider_tab.png', 'n_zIndex': 1 }\n";
-			response << "</script>\n";
-
 			// Display the topic
+			makeSliderScript(response);
 			response << "<h2>" << pCurrentTopic->descr() << "</h2>\n";
 			response << "<form name=\"formname\" action=\"/survey\" method=\"post\">\n";
 			response << "	<input type=\"hidden\" name=\"action\" value=\"rate\" />\n";
@@ -1255,7 +910,7 @@ public:
 					break;
 				size_t itemId = pIndexes[i];
 				float rating;
-				if(pAccount->getRating(currentTopic, itemId, &rating))
+				if(pUser->getRating(currentTopic, itemId, &rating))
 					continue;
 				if(sliderCount == 0)
 				{
@@ -1303,13 +958,13 @@ public:
 		}
 		else
 		{
-			vector<Topic*>& topics = ((Server*)m_pServer)->topics();
+			const vector<Topic*>& topics = ((Server*)m_pServer)->recommender().topics();
 			response << "<h3>Choose a topic:</h3>\n";
 			if(topics.size() > 0)
 			{
 				response << "<ul>\n";
 				size_t i = 0;
-				for(vector<Topic*>::iterator it = topics.begin(); it != topics.end(); it++)
+				for(vector<Topic*>::const_iterator it = topics.begin(); it != topics.end(); it++)
 				{
 					response << "	<li><a href=\"/survey?topic=" << i << "&nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">" << (*it)->descr() << "</a></li>\n";
 					i++;
@@ -1319,14 +974,14 @@ public:
 			else
 			{
 				response << "There are currently no topics. Please ";
-				if(_stricmp(pAccount->username(), "root") != 0)
+				if(!pAccount->isAdmin())
 					response << "ask the administrator to ";
 				response << "go to the <a href=\"/admin\">admin</a> page and add at least one topic.<br><br><br>";
 			}
 			response << "<br><br>\n";
 /*
 			// Make the form to propose new topics
-			if(pAccount->doesHavePassword() && _stricmp(pAccount->username(), "root") != 0)
+			if(!pAccount->isAdmin())
 			{
 				response << "<form name=\"propose\" action=\"/survey\" method=\"get\">\n";
 				response << "	<h3>Propose a new topic:</h3>\n";
@@ -1342,7 +997,7 @@ public:
 	{
 		Account* pAccount = getAccount(pSession);
 		size_t currentTopic = pAccount->currentTopic();
-		if(currentTopic >= ((Server*)m_pServer)->topics().size())
+		if(currentTopic >= ((Server*)m_pServer)->recommender().topics().size())
 		{
 			string s = "/survey?nc=";
 			s += to_str((size_t)m_pServer->prng()->next());
@@ -1351,7 +1006,7 @@ public:
 		else
 		{
 			// Display the topic
-			Topic* pCurrentTopic = ((Server*)m_pServer)->topics()[currentTopic];
+			Topic* pCurrentTopic = ((Server*)m_pServer)->recommender().topics()[currentTopic];
 			response << "<h2>" << pCurrentTopic->descr() << "</h2>\n";
 
 			// Make the form to submit a new item
@@ -1374,23 +1029,23 @@ public:
 		}
 	}
 
-	double computeVariance(double* pCentroid, Topic& topic, size_t topicId, Account** pAccs, size_t accCount)
+	double computeVariance(double* pCentroid, Topic& topic, size_t topicId, User** pUsers, size_t accCount)
 	{
 		// Compute the centroid
 		GVec::setAll(pCentroid, 0.0, topic.size());
-		Account** pAc = pAccs;
+		User** pUs = pUsers;
 		for(size_t j = 0; j < accCount; j++)
 		{
 			double* pC = pCentroid;
 			for(size_t i = 0; i < topic.size(); i++)
 			{
 				float rating;
-				if(!(*pAc)->getRating(topicId, i, &rating))
-					rating = (*pAc)->predictRating(topic.item(i));
+				if(!(*pUs)->getRating(topicId, i, &rating))
+					rating = (*pUs)->predictRating(topic.item(i));
 				(*pC) += rating;
 				pC++;
 			}
-			pAc++;
+			pUs++;
 		}
 		double t = 1.0 / accCount;
 		for(size_t i = 0; i < topic.size(); i++)
@@ -1398,37 +1053,37 @@ public:
 
 		// Measure the sum-squared error with the centroid
 		double sse = 0.0;
-		pAc = pAccs;
+		pUs = pUsers;
 		for(size_t j = 0; j < accCount; j++)
 		{
 			double* pC = pCentroid;
 			for(size_t i = 0; i < topic.size(); i++)
 			{
 				float rating;
-				if(!(*pAc)->getRating(topicId, i, &rating))
-					rating = (*pAc)->predictRating(topic.item(i));
+				if(!(*pUs)->getRating(topicId, i, &rating))
+					rating = (*pUs)->predictRating(topic.item(i));
 				double d = *pC - rating;
 				sse += (d * d);
 				pC++;
 			}
-			pAc++;
+			pUs++;
 		}
 		return sse;
 	}
 
-	size_t divideAccounts(Topic& topic, size_t topicId, Account** pAccs, size_t accCount, size_t itm)
+	size_t divideAccounts(Topic& topic, size_t topicId, User** pUsers, size_t accCount, size_t itm)
 	{
 		size_t head = 0;
 		size_t tail = accCount;
 		while(tail > head)
 		{
 			float rating;
-			if(!pAccs[head]->getRating(topicId, itm, &rating))
-				rating = pAccs[head]->predictRating(topic.item(itm));
+			if(!pUsers[head]->getRating(topicId, itm, &rating))
+				rating = pUsers[head]->predictRating(topic.item(itm));
 			if(rating < 0.0)
 			{
 				tail--;
-				std::swap(pAccs[head], pAccs[tail]);
+				std::swap(pUsers[head], pUsers[tail]);
 			}
 			else
 				head++;
@@ -1437,7 +1092,7 @@ public:
 		return head;
 	}
 
-	void makeTree(Topic& topic, size_t topicId, GBitTable& bt, Account** pAccs, size_t accCount, ostream& response, vector<char>& prefix, int type)
+	void makeTree(Topic& topic, size_t topicId, GBitTable& bt, User** pUsers, size_t accCount, ostream& response, vector<char>& prefix, int type)
 	{
 		// Try splitting on each of the remaining statements
 		size_t best = (size_t)-1;
@@ -1449,7 +1104,7 @@ public:
 		{
 			if(bt.bit(i))
 				continue;
-			ItemStats is(topicId, topic.item(i), i, pAccs, accCount);
+			ItemStats is(topicId, topic.item(i), i, pUsers, accCount);
 			double c = is.controversy();
 			if(is.split() > 0)
 			{
@@ -1471,7 +1126,7 @@ public:
 		if(best != (size_t)-1)
 		{
 			// Divide on the best statement
-			size_t firstHalfSize = divideAccounts(topic, topicId, pAccs, accCount, best);
+			size_t firstHalfSize = divideAccounts(topic, topicId, pUsers, accCount, best);
 			bt.set(best);
 
 			// Recurse
@@ -1479,7 +1134,7 @@ public:
 			if(type >= 0) prefix.push_back(' '); else prefix.push_back('|');
 			prefix.push_back(' ');
 			prefix.push_back(' ');
-			makeTree(topic, topicId, bt, pAccs, firstHalfSize, response, prefix, 1);
+			makeTree(topic, topicId, bt, pUsers, firstHalfSize, response, prefix, 1);
 
 			for(vector<char>::iterator it = prefix.begin(); it != prefix.end(); it++)
 				response << *it;
@@ -1500,7 +1155,7 @@ public:
 				response << *it;
 			response << " |\n";
 
-			makeTree(topic, topicId, bt, pAccs + firstHalfSize, accCount - firstHalfSize, response, prefix, -1);
+			makeTree(topic, topicId, bt, pUsers + firstHalfSize, accCount - firstHalfSize, response, prefix, -1);
 			prefix.pop_back(); prefix.pop_back(); prefix.pop_back(); prefix.pop_back();
 
 			bt.unset(best);
@@ -1511,32 +1166,32 @@ public:
 			{
 				for(vector<char>::iterator it = prefix.begin(); it != prefix.end(); it++)
 					response << *it;
-				response << " +-&gt;<a href=\"/stats?user=" << pAccs[j]->username() << "\">";
-				response << pAccs[j]->username() << "</a>\n";
+				response << " +-&gt;<a href=\"/stats?user=" << pUsers[j]->username() << "\">";
+				response << pUsers[j]->username() << "</a>\n";
 			}
 		}
 	}
 
-	virtual void makeItemBody(GDynamicPageSession* pSession, ostream& response, size_t topicId, size_t itemId, Item& item, Account** pAccs, size_t accCount)
+	virtual void makeItemBody(GDynamicPageSession* pSession, ostream& response, size_t topicId, size_t itemId, Item& item, User** pUsers, size_t accCount)
 	{
 		response << "<h2>" << item.title() << "</h2>\n";
-		std::multimap<double,Account*> mm;
+		std::multimap<double,User*> mm;
 		while(accCount > 0)
 		{
 			float rating;
-			if((*pAccs)->getRating(topicId, itemId, &rating))
+			if((*pUsers)->getRating(topicId, itemId, &rating))
 			{
 				double r = rating * 50000 + 50000;
 				double clipped = 0.001 * (double)floor(r + 0.5f);
-				mm.insert(std::pair<double,Account*>(clipped,*pAccs));
+				mm.insert(std::pair<double,User*>(clipped,*pUsers));
 			}
 			accCount--;
-			pAccs++;
+			pUsers++;
 		}
 		response << "<h3>Disagree</h3>\n";
 		response << "<table>\n";
 		size_t hh = 0;
-		for(std::multimap<double,Account*>::iterator it = mm.begin(); it != mm.end(); it++)
+		for(std::multimap<double,User*>::iterator it = mm.begin(); it != mm.end(); it++)
 		{
 			if(hh == 0 && it->first > 33.3333)
 			{
@@ -1563,7 +1218,7 @@ public:
 		response << "</table>\n";
 	}
 
-	virtual void makeUserBody(GDynamicPageSession* pSession, ostream& response, Account* pA, Account* pB, size_t topicId, Topic& topic)
+	virtual void makeUserBody(GDynamicPageSession* pSession, ostream& response, User* pA, User* pB, size_t topicId, Topic& topic)
 	{
 		std::multimap<float,size_t> m;
 		float rA = 0.0f;
@@ -1595,27 +1250,25 @@ public:
 	{
 		// Get the topic
 		Account* pAccount = getAccount(pSession);
+		User* pUser = pAccount->getUser(((Server*)m_pServer)->recommender());
 		size_t currentTopic = pAccount->currentTopic();
-		if(currentTopic >= ((Server*)m_pServer)->topics().size())
+		if(currentTopic >= ((Server*)m_pServer)->recommender().topics().size())
 		{
 			response << "Unrecognized topic.";
 			return;
 		}
-		Topic& topic = *((Server*)m_pServer)->topics()[currentTopic];
+		Topic& topic = *((Server*)m_pServer)->recommender().topics()[currentTopic];
 
 		// Copy the account pointers into an array
-		std::vector<Account*>& accs = ((Server*)m_pServer)->accounts();
-		Account** pAccs = new Account*[accs.size()];
-		ArrayHolder<Account*> hAccs(pAccs);
-		Account** pAc = pAccs;
+		const std::vector<User*>& users = ((Server*)m_pServer)->recommender().users();
+		User** pAccs = new User*[users.size()];
+		ArrayHolder<User*> hAccs(pAccs);
+		User** pAc = pAccs;
 		size_t accountCount = 0;
-		for(std::vector<Account*>::iterator it = accs.begin(); it != accs.end(); it++)
+		for(std::vector<User*>::const_iterator it = users.begin(); it != users.end(); it++)
 		{
-			if((*it)->username()[0] != '_' && strcmp((*it)->username(), "root") != 0)
-			{
-				*(pAc++) = *it;
-				accountCount++;
-			}
+			*(pAc++) = *it;
+			accountCount++;
 		}
 
 		// Check the params
@@ -1630,11 +1283,11 @@ public:
 		const char* szOtherUser = params.find("user");
 		if(szOtherUser)
 		{
-			Account* pOther = ((Server*)m_pServer)->findAccount(szOtherUser);
+			User* pOther = ((Server*)m_pServer)->recommender().findUser(szOtherUser);
 			if(!pOther)
 				response << "[No such user]<br><br>\n";
 			else
-				makeUserBody(pSession, response, pAccount, pOther, currentTopic, topic);
+				makeUserBody(pSession, response, pUser, pOther, currentTopic, topic);
 			return;
 		}
 
@@ -1692,18 +1345,15 @@ public:
 		setContentType("image/svg+xml");
 		GSVG svg(800, 800);
 
-		vector<Account*>& accounts = ((Server*)m_pServer)->accounts();
+		const std::vector<User*>& users = ((Server*)m_pServer)->recommender().users();
 		double xmin = 0;
 		double ymin = 0;
 		double xmax = 0;
 		double ymax = 0;
-		for(size_t i = 0; i < accounts.size(); i++)
+		for(std::vector<User*>::const_iterator it = users.begin(); it != users.end(); it++)
 		{
-			Account* pAcc = accounts[i];
-			const char* szUsername = pAcc->username();
-			if(*szUsername == '_')
-				continue;
-			vector<double>& profile = pAcc->personality();
+			User* pUser = *it;
+			vector<double>& profile = pUser->personality();
 			xmin = std::min(xmin, profile[1]);
 			xmax = std::max(xmax, profile[1]);
 			ymin = std::min(ymin, profile[2]);
@@ -1720,15 +1370,12 @@ public:
 		if(ymax - ymin < 1e-4)
 			ymax += 1e-4;
 		svg.newChart(xmin, ymin, xmax, ymax, 0, 0, 0);
-		for(size_t i = 0; i < accounts.size(); i++)
+		for(std::vector<User*>::const_iterator it = users.begin(); it != users.end(); it++)
 		{
-			Account* pAcc = accounts[i];
-			const char* szUsername = pAcc->username();
-			if(*szUsername == '_')
-				continue;
-			vector<double>& profile = pAcc->personality();
+			User* pUser = *it;
+			vector<double>& profile = pUser->personality();
 			svg.dot(profile[1], profile[2], 0.75, 0x008080);
-			svg.text(profile[1], profile[2], szUsername, 0.75);
+			svg.text(profile[1], profile[2], (*it)->username(), 0.75);
 		}
 		svg.print(response);
 	}
@@ -1738,12 +1385,12 @@ public:
 		// Get the topic
 		Account* pAccount = getAccount(pSession);
 		size_t currentTopic = pAccount->currentTopic();
-		if(currentTopic >= ((Server*)m_pServer)->topics().size())
+		if(currentTopic >= ((Server*)m_pServer)->recommender().topics().size())
 		{
 			response << "Unrecognized topic.";
 			return;
 		}
-		Topic& topic = *((Server*)m_pServer)->topics()[currentTopic];
+		Topic& topic = *((Server*)m_pServer)->recommender().topics()[currentTopic];
 
 		setContentType("image/svg+xml");
 		GSVG svg(800, 800);
@@ -1786,8 +1433,9 @@ public:
 	virtual void pageUpdate(GDynamicPageSession* pSession, ostream& response)
 	{
 		Account* pAccount = getAccount(pSession);
+		User* pUser = pAccount->getUser(((Server*)m_pServer)->recommender());
 		size_t currentTopic = pAccount->currentTopic();
-		if(currentTopic >= ((Server*)m_pServer)->topics().size())
+		if(currentTopic >= ((Server*)m_pServer)->recommender().topics().size())
 		{
 			string s = "/survey?nc=";
 			s += to_str((size_t)m_pServer->prng()->next());
@@ -1795,20 +1443,16 @@ public:
 		}
 		else
 		{
-			// The slider-bar script
-			response << "<script language=\"JavaScript\" src=\"style/slider.js\"></script>\n";
-			response << "<script language=\"JavaScript\">\n";
-			response << "	var A_TPL = { 'b_vertical' : false, 'b_watch': true, 'n_controlWidth': 321, 'n_controlHeight': 22, 'n_sliderWidth': 19, 'n_sliderHeight': 20, 'n_pathLeft' : 1, 'n_pathTop' : 1, 'n_pathLength' : 300, 's_imgControl': 'style/slider_bg.png', 's_imgSlider': 'style/slider_tab.png', 'n_zIndex': 1 }\n";
-			response << "</script>\n";
+			makeSliderScript(response);
 
 			// Display the topic
-			Topic* pCurrentTopic = ((Server*)m_pServer)->topics()[currentTopic];
+			Topic* pCurrentTopic = ((Server*)m_pServer)->recommender().topics()[currentTopic];
 			response << "<h2>" << pCurrentTopic->descr() << "</h2>\n";
 
 			// Display the items you have rated
-			if(pAccount->ratings().size() > currentTopic)
+			if(pUser->ratings().size() > currentTopic)
 			{
-				vector<pair<size_t, float> >& v = pAccount->ratings()[currentTopic]->m_vec;
+				vector<pair<size_t, float> >& v = pUser->ratings()[currentTopic]->m_vec;
 				if(v.size() > 0)
 				{
 					response << "<h3>Your opinions</h3>\n";
@@ -1854,7 +1498,7 @@ public:
 				// Do the action
 				if(_stricmp(szAction, "shutdown") == 0)
 				{
-					if(_stricmp(pAccount->username(), "root") == 0)
+					if(pAccount->isAdmin())
 					{
 						cout << "root has told the server to shut down.\n";
 						cout.flush();
@@ -1864,12 +1508,12 @@ public:
 				}
 				else if(_stricmp(szAction, "newtopic") == 0)
 				{
-					if(_stricmp(pAccount->username(), "root") == 0)
+					if(pAccount->isAdmin())
 					{
 						const char* szDescr = params.find("descr");
 						if(szDescr && strlen(szDescr) > 0)
 						{
-							((Server*)m_pServer)->newTopic(szDescr);
+							((Server*)m_pServer)->recommender().newTopic(szDescr);
 							response << "[The new topic has been added]<br>\n";
 						}
 						else
@@ -1892,19 +1536,19 @@ public:
 			if(szDel)
 			{
 				size_t currentTopic = pAccount->currentTopic();
-				if(currentTopic >= ((Server*)m_pServer)->topics().size())
+				if(currentTopic >= ((Server*)m_pServer)->recommender().topics().size())
 					response << "[invalid topic id]<br><br>\n";
 				else
 				{
 					size_t index = atoi(szDel);
-					std::vector<Account*>& accs = ((Server*)m_pServer)->accounts();
-					Topic& topic = *((Server*)m_pServer)->topics()[currentTopic];
+					const std::vector<User*>& users = ((Server*)m_pServer)->recommender().users();
+					Topic& topic = *((Server*)m_pServer)->recommender().topics()[currentTopic];
 					if(index >= topic.size())
 						response << "[invalid item index]<br><br>\n";
 					else
 					{
 						cout << "Deleted item " << topic.item(index).title() << "\n";
-						for(vector<Account*>::iterator it = accs.begin(); it != accs.end(); it++)
+						for(std::vector<User*>::const_iterator it = users.begin(); it != users.end(); it++)
 						{
 							(*it)->withdrawRating(currentTopic, index);
 							(*it)->swapItems(currentTopic, index, topic.size() - 1);
@@ -1916,10 +1560,10 @@ public:
 			}
 		}
 
-		// Root controls
-		if(_stricmp(pAccount->username(), "root") == 0)
+		// Admin controls
+		if(pAccount->isAdmin())
 		{
-			response << "<h2>Root controls</h2>\n\n";
+			response << "<h2>Admin controls</h2>\n\n";
 
 			// Form to shut down the server
 			response << "<form name=\"shutdownform\" action=\"/admin\" method=\"get\">\n";
@@ -1941,12 +1585,12 @@ public:
 		// Form to delete a statement
 		response << "<h2>Delete Statements</h2>\n\n";
 		size_t currentTopic = pAccount->currentTopic();
-		if(currentTopic >= ((Server*)m_pServer)->topics().size())
+		if(currentTopic >= ((Server*)m_pServer)->recommender().topics().size())
 			response << "<p>No topic has been selected. If you want to delete one or more statements, please click on \"Survey\", choose a topic, then return to here.</p>\n";
 		else
 		{
 			response << "<p>If a statement can be corrected, it is courteous to submit a corrected version after you delete it. Valid reasons to delete a statement include: not controversial enough, too long-winded, confusing, difficult to negate, ambiguous, off-topic, etc.</p>";
-			Topic& topic = *((Server*)m_pServer)->topics()[currentTopic];
+			Topic& topic = *((Server*)m_pServer)->recommender().topics()[currentTopic];
 			response << "<table>\n";
 			for(size_t i = 0; i < topic.size(); i++)
 			{
@@ -2087,6 +1731,11 @@ public:
 	}
 
 	void pageNewAccount(GDynamicPageSession* pSession, ostream& response);
+
+	void pageError(ostream& response)
+	{
+		response << "Sorry, an error occurred. Please yell at the operator of this site.\n";
+	}
 };
 
 void Connection::pageNewAccount(GDynamicPageSession* pSession, ostream& response)
@@ -2277,43 +1926,51 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 	else if(strncmp(m_szUrl, "/users.svg", 10) == 0) makePage = &Connection::plotUsers;
 	else if(strncmp(m_szUrl, "/items.svg", 10) == 0) makePage = &Connection::plotItems;
 
-	if(makePage)
+	try
 	{
-		// Make sure there is at least one account
-		Terminal* pTerminal = getTerminal(pSession);
-		if(pTerminal->accountCount() == 0)
-			pTerminal->makeNewAccount((Server*)m_pServer);
-		Account* pAccount = pTerminal->currentAccount();
-		if(pAccount)
+		if(makePage)
 		{
-			makeHeader(pSession, response, szParamsMessage);
-			(*this.*makePage)(pSession, response);
-			makeFooter(pSession, response);
+			// Make sure there is at least one account
+			Terminal* pTerminal = getTerminal(pSession);
+			if(pTerminal->accountCount() == 0)
+				pTerminal->makeNewAccount((Server*)m_pServer);
+			Account* pAccount = pTerminal->currentAccount();
+			if(pAccount)
+			{
+				makeHeader(pSession, response, szParamsMessage);
+				(*this.*makePage)(pSession, response);
+				makeFooter(pSession, response);
+			}
+			else
+			{
+				makeHeader(pSession, response, szParamsMessage);
+				pageAccount(pSession, response);
+				makeFooter(pSession, response);
+			}
 		}
 		else
 		{
-			makeHeader(pSession, response, szParamsMessage);
-			pageAccount(pSession, response);
-			makeFooter(pSession, response);
+			size_t len = strlen(m_szUrl);
+			if(len > 6 && strcmp(m_szUrl + len - 6, ".hbody") == 0)
+			{
+				makeHeader(pSession, response, szParamsMessage);
+				sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
+				makeFooter(pSession, response);
+			}
+			else
+				sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
 		}
 	}
-	else
+	catch(std::exception& e)
 	{
-		size_t len = strlen(m_szUrl);
-		if(len > 6 && strcmp(m_szUrl + len - 6, ".hbody") == 0)
-		{
-			makeHeader(pSession, response, szParamsMessage);
-			sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
-			makeFooter(pSession, response);
-		}
-		else
-			sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
+		cerr << "An error occurred: " << e.what() << "\n";
+		pageError(response);
 	}
 }
 
 // ------------------------------------------------------
 
-Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand)
+Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand), m_recommender(*pRand)
 {
 	char buf[300];
 	GTime::asciiTime(buf, 256, false);
@@ -2333,12 +1990,8 @@ Server::~Server()
 
 	// Delete all the accounts
 	flushSessions(); // ensure that there are no sessions referencing the accounts
-	for(vector<Account*>::iterator it = m_accountsVec.begin(); it != m_accountsVec.end(); it++)
-		delete(*it);
-
-	// Delete all the topics
-	for(vector<Topic*>::iterator it = m_topics.begin(); it != m_topics.end(); it++)
-		delete(*it);
+	for(map<std::string,Account*>::iterator it = m_accounts.begin(); it != m_accounts.end(); it++)
+		delete(it->second);
 }
 
 void Server::loadState()
@@ -2354,8 +2007,8 @@ void Server::loadState()
 
 		// Do some training to make sure the model is in good shape
 		cout << "doing some training...\n";
-		for(size_t i = 0; i < m_topics.size(); i++)
-			refineModel(i, ON_STARTUP_TRAINING_ITERS);
+		for(size_t i = 0; i < recommender().topics().size(); i++)
+			recommender().refineModel(i, ON_STARTUP_TRAINING_ITERS);
 		cout << "done.\n";
 	}
 	else
@@ -2372,16 +2025,6 @@ void Server::saveState()
 	char szTime[256];
 	GTime::asciiTime(szTime, 256, false);
 	cout << "Server state saved at: " << szTime << "\n";
-}
-
-void Server::addItem(size_t topic, const char* szTitle, const char* szUsername)
-{
-	if(topic >= m_topics.size())
-	{
-		cout << "Topic ID out of range\n";
-		return;
-	}
-	m_topics[topic]->addItem(szTitle, szUsername, time(NULL), prng());
 }
 
 void getLocalStorageFolder(char* buf)
@@ -2405,8 +2048,8 @@ void Server::onEverySixHours()
 {
 	for(size_t i = 0; i < 3; i++)
 	{
-		size_t topicId = m_pRand->next(m_topics.size());
-		refineModel(topicId, ON_RATE_TRAINING_ITERS);
+		size_t topicId = m_pRand->next(recommender().topics().size());
+		recommender().refineModel(topicId, ON_RATE_TRAINING_ITERS);
 	}
 	saveState();
 	fflush(stdout);
@@ -2424,8 +2067,8 @@ void Server::onShutDown()
 
 Account* Server::findAccount(const char* szUsername)
 {
-	map<string,Account*>::iterator it = m_accountsMap.find(szUsername);
-	if(it == m_accountsMap.end())
+	map<string,Account*>::iterator it = m_accounts.find(szUsername);
+	if(it == m_accounts.end())
 		return nullptr;
 	Account* pAccount = it->second;
 	return pAccount;
@@ -2441,9 +2084,8 @@ Account* Server::newAccount(const char* szUsername, const char* szPasswordHash)
 		return nullptr;
 
 	// Make the account
-	Account* pAccount = new Account(szUsername, szPasswordHash, *m_pRand);
-	m_accountsVec.push_back(pAccount);
-	m_accountsMap.insert(make_pair(string(szUsername), pAccount));
+	Account* pAccount = new Account(szUsername, szPasswordHash);
+	m_accounts.insert(make_pair(string(szUsername), pAccount));
 	cout << "Made new account for " << szUsername << "\n";
 	cout.flush();
 	return pAccount;
@@ -2451,14 +2093,14 @@ Account* Server::newAccount(const char* szUsername, const char* szPasswordHash)
 
 void Server::onRenameAccount(const char* szOldName, Account* pAccount)
 {
-	m_accountsMap.erase(szOldName);
-	m_accountsMap.insert(make_pair(pAccount->username(), pAccount));
+	m_accounts.erase(szOldName);
+	m_accounts.insert(make_pair(pAccount->username(), pAccount));
 }
 
 void Server::deleteAccount(Account* pAccount)
 {
 	string s;
-	for(std::map<std::string,Account*>::iterator it = m_accountsMap.begin(); it != m_accountsMap.end(); it++)
+	for(std::map<std::string,Account*>::iterator it = m_accounts.begin(); it != m_accounts.end(); it++)
 	{
 		if(it->second == pAccount)
 		{
@@ -2466,75 +2108,9 @@ void Server::deleteAccount(Account* pAccount)
 			break;
 		}
 	}
-	m_accountsMap.erase(s);
-	std::vector<Account*>::iterator it;
-	for(it = m_accountsVec.begin(); it != m_accountsVec.end(); it++)
-	{
-		if(*it == pAccount)
-			break;
-	}
-	if(*it == pAccount)
-		m_accountsVec.erase(it);
+	m_accounts.erase(s);
 	cout << "Account " << pAccount->username() << " deleted.\n";
 	saveState();
-}
-
-void Server::proposeTopic(Account* pAccount, const char* szDescr)
-{
-	cout << "The following new topic was proposed by " << pAccount->username() << "\n";
-	cout << "	" << szDescr << "\n";
-}
-
-void Server::newTopic(const char* szDescr)
-{
-	m_topics.push_back(new Topic(szDescr));
-}
-
-void Server::refineModel(size_t topic, size_t iters)
-{
-	// Do some training
-	Topic* pCurrentTopic = m_topics[topic];
-	for(size_t i = 0; i < iters; i++)
-	{
-		Account* pSomeAccount = randomAccount();
-		if(pSomeAccount->ratings().size() > topic)
-		{
-			std::vector<pair<size_t, float> >& v = pSomeAccount->ratings()[topic]->m_vec;
-			if(v.size() > 0)
-			{
-				vector<double>& personality = pSomeAccount->personality();
-				size_t index = (size_t)prng()->next(v.size());
-				Item& item = pCurrentTopic->item(v[index].first);
-				double target = (double)v[index].second;
-				GAssert(target >= -1.0 && target <= 1.0);
-				for(size_t j = 0; j < item.weights().size(); j++)
-					item.weights()[j] *= (1.0 - LEARNING_RATE * REGULARIZATION_TERM);
-				for(size_t j = 0; j < personality.size(); j++)
-					personality[j] *= (1.0 - LEARNING_RATE * REGULARIZATION_TERM);
-				item.trainWeights(target, LEARNING_RATE, personality);
-				item.trainPersonality(target, LEARNING_RATE, personality);
-			}
-		}
-	}
-}
-
-void Server::refinePersonality(Account* pAccount, size_t iters)
-{
-	// Train the personality a little bit
-	size_t topic = pAccount->currentTopic();
-	if(topic >= pAccount->ratings().size() || topic >= m_topics.size())
-		return;
-	Topic* pCurrentTopic = m_topics[topic];
-	std::vector<pair<size_t, float> >& v = pAccount->ratings()[topic]->m_vec;
-	if(v.size() > 0)
-	{
-		for(size_t i = 0; i < iters; i++)
-		{
-			size_t index = (size_t)prng()->next(v.size());
-			Item& item = pCurrentTopic->item(v[index].first);
-			item.trainPersonality((double)v[index].second, LEARNING_RATE, pAccount->personality());
-		}
-	}
 }
 
 GDomNode* Server::serializeState(GDom* pDoc)
@@ -2544,19 +2120,17 @@ GDomNode* Server::serializeState(GDom* pDoc)
 	// Captcha salt
 	pNode->add(pDoc, "daemonSalt", daemonSalt());
 
-	// Save the topcs
-	GDomNode* pTopics = pNode->add(pDoc, "topics", pDoc->newList());
-	for(size_t i = 0; i < m_topics.size(); i++)
-		pTopics->add(pDoc, m_topics[i]->toDom(pDoc));
-
 	// Save the accounts
 	GDomNode* pAccounts = pNode->add(pDoc, "accounts", pDoc->newList());
-	for(map<string,Account*>::iterator it = m_accountsMap.begin(); it != m_accountsMap.end(); it++)
+	for(map<string,Account*>::iterator it = m_accounts.begin(); it != m_accounts.end(); it++)
 	{
 		Account* pAccount = it->second;
 		if(pAccount->username()[0] != '_') // Don't bother persisting anonymous accounts
 			pAccounts->add(pDoc, pAccount->toDom(pDoc));
 	}
+
+	// Recommender system
+	pNode->add(pDoc, "recommender", m_recommender.serialize(pDoc));
 
 	return pNode;
 }
@@ -2567,25 +2141,17 @@ void Server::deserializeState(const GDomNode* pNode)
 	const char* daemon_Salt = pNode->getString("daemonSalt");
 	setDaemonSalt(daemon_Salt);
 
-	// Load the topics
-	GAssert(m_topics.size() == 0);
-	GDomNode* pTopics = pNode->get("topics");
-	for(GDomListIterator it(pTopics); it.current(); it.advance())
-	{
-		Topic* pTopic = new Topic("");
-		m_topics.push_back(pTopic);
-		pTopic->fromDom(it.current(), prng());
-	}
-
 	// Load the accounts
-	GAssert(m_accountsVec.size() == 0 && m_accountsMap.size() == 0);
+	GAssert(m_accounts.size() == 0);
 	GDomNode* pAccounts = pNode->get("accounts");
 	for(GDomListIterator it(pAccounts); it.current(); it.advance())
 	{
 		Account* pAccount = Account::fromDom(it.current(), *m_pRand);
-		m_accountsVec.push_back(pAccount);
-		m_accountsMap.insert(make_pair(string(pAccount->username()), pAccount));
+		m_accounts.insert(make_pair(string(pAccount->username()), pAccount));
 	}
+
+	// Recommender system
+	m_recommender.deserialize(pNode->get("recommender"));
 }
 
 // virtual

@@ -49,6 +49,9 @@ public:
 	/// you know that the session will no longer be referring to
 	/// this extension.
 	virtual void onDisown() = 0;
+
+	/// Marshal this object into a Dom node.
+	virtual GDomNode* serialize(GDom* pDoc) = 0;
 };
 
 
@@ -86,6 +89,9 @@ public:
 	/// Retrieve the extension object that was associated with this
 	/// session by a call to setExtension.
 	GDynamicPageSessionExtension* extension() { return m_pExtension; }
+
+	/// Marshal this object into a Dom node
+	GDomNode* serialize(GDom* pDom);
 
 	void setCurrentUrl(const char* szUrl, const char* szParams, size_t paramsLength)
 	{
@@ -154,7 +160,7 @@ public:
 	void go();
 	void shutDown();
 	void flushSessions();
-	
+
 	/// Returns the session with the specified id. If no session is found with that id, returns NULL.
 	GDynamicPageSession* findSession(unsigned long long id);
 
@@ -166,12 +172,15 @@ public:
 
 	/// Returns the account if the password is correct. Returns NULL if not.
 	const char* myAddress();
+
 	void setDaemonSalt(const char* szSalt);
 	const char* daemonSalt();
 	const char* passwordSalt();
 
 	GRand* prng() { return m_pRand; }
 	void redirect(std::ostream& response, const char* szUrl);
+
+	//GDomNode* serialize(GDom* pDoc);
 
 protected:
 	void doMaintenance();

@@ -374,11 +374,11 @@ You can get much better accuracy using bigger layers, but then training will tak
 % Training patterns: 60000
 % Testing patterns: 10000
 % Topology:
-% [GNeuralNet: 784->10, Weights=6449506
-%    0) [GBlockConv: 784->25088, Weights=25632]
+% [GNeuralNet: 784->10, Weights=3199106
+%    0) [GBlockConv: 784->25088, Weights=832]
 %    1) [GBlockLeakyRectifier: 25088->25088, Weights=0]
 %    2) [GBlockMaxPooling2D: 25088->6272, Weights=0]
-%    3) [GBlockConv: 6272->12544, Weights=3276864]
+%    3) [GBlockConv: 6272->12544, Weights=51264]
 %    4) [GBlockLeakyRectifier: 12544->12544, Weights=0]
 %    5) [GBlockMaxPooling2D: 12544->3136, Weights=0]
 %    6) [GBlockLinear: 3136->1000, Weights=3137000]
@@ -390,20 +390,18 @@ You can get much better accuracy using bigger layers, but then training will tak
 @ATTRIBUTE misclassification_rate real
 @ATTRIBUTE elapsed_time real
 @DATA
-0.8968,417.57785105705
-0.0151,9315.7933959961
-0.0118,18262.10059309
-0.0089,27112.086796045
-0.008,35959.635168076
-0.0069,44808.642307997
-0.0069,53653.528531075
-0.0067,62494.467343092
-0.0066,71333.166102171
-0.0059,80169.731641054
-0.0055,89011.055896997
-0.0059,97851.162302971
-0.0058,106692.02508712
-0.0052,115535.61306
+0.902,406.85959005356
+0.0083,8818.7493638992
+0.0069,17199.837296009
+0.0074,25583.630297899
+0.0052,33968.527590036
+0.0052,42350.959198952
+0.004,50734.125929832
+0.0045,59116.222265959
+0.0046,67543.822458982
+0.0047,75979.265183926
+0.0041,84432.53459096
+0.0035,92888.616713047
 </pre>
 
 

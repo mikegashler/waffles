@@ -263,7 +263,7 @@ public:
 			pNN->setLearningRate(0.005);*/
 			delete(m_pNNCopyForVisualizing);
 			m_pNNCopyForVisualizing = new GNeuralNetLearner();
-			m_pNNCopyForVisualizing->nn().copyStructure(&pNN->nn());
+			m_pNNCopyForVisualizing->nn().copyStructure(&pNN->nn(), *m_pRand);
 		}
 		m_workerMode = 3; // train
 	}
@@ -283,7 +283,7 @@ public:
 		addModel("Bag of 30 Decision trees"); // 10
 		addModel("Bag of 30 MeanMargins trees"); // 11
 		addModel("Logistic regression"); // 12
-		addModel("Neural Net, 2-30-256-3, tanh, online back-prop"); // 13
+		addModel("Neural Net, 2-16-16-16-16-3, tanh, online back-prop"); // 13
 		addModel("Naive Instance 20"); // 14
 		addModel("Mean label (a.k.a. baseline)"); // 15
 	}
@@ -387,11 +387,15 @@ public:
 		else if(index == 13)
 		{
 			GNeuralNetLearner* pNN = new GNeuralNetLearner();
-			pNN->nn().add(new GBlockLinear(2, 30));
-			pNN->nn().add(new GBlockTanh(30));
-			pNN->nn().add(new GBlockLinear(30, 256));
-			pNN->nn().add(new GBlockTanh(256));
-			pNN->nn().add(new GBlockLinear(256, 3));
+			pNN->nn().add(new GBlockLinear(2, 16));
+			pNN->nn().add(new GBlockTanh(16));
+			pNN->nn().add(new GBlockLinear(16, 16));
+			pNN->nn().add(new GBlockTanh(16));
+			pNN->nn().add(new GBlockLinear(16, 16));
+			pNN->nn().add(new GBlockTanh(16));
+			pNN->nn().add(new GBlockLinear(16, 16));
+			pNN->nn().add(new GBlockTanh(16));
+			pNN->nn().add(new GBlockLinear(16, 3));
 			pNN->nn().add(new GBlockTanh(3));
 
 			doBackProp(pNN);
@@ -412,11 +416,6 @@ public:
 	void workerThread()
 	{
 		GAssert(m_workerWorking);
-		GNeuralNetLearner* pNN = (GNeuralNetLearner*)m_pNNForTraining;
-		GSGDOptimizer* pOpt = NULL;
-		if(pNN)
-			pOpt = new GSGDOptimizer(pNN->nn(), pNN->rand());
-		std::unique_ptr<GSGDOptimizer> hOpt(pOpt);
 		while(m_workerMode > 0)
 		{
 			if(m_workerMode == 2) // yield
@@ -424,10 +423,12 @@ public:
 			else if(m_workerMode == 3) // train
 			{
 				GSpinLockHolder hLock(&m_weightsLock, "training the network");
+				GNeuralNetLearner* pNN = (GNeuralNetLearner*)m_pNNForTraining;
+				GNeuralNetOptimizer& opt = pNN->optimizer();
 				for(size_t i = 0; i < 100; i++)
 				{
 					size_t r = (size_t)m_pRand->next(m_pTrainingFeatures->rows());
-					pOpt->optimizeIncremental(m_pTrainingFeatures->row(r), m_pTrainingLabels->row(r));
+					opt.optimizeIncremental(m_pTrainingFeatures->row(r), m_pTrainingLabels->row(r));
 				}
 			}
 			else
