@@ -1305,7 +1305,7 @@ public:
 
 	/// Concatenates a block to the last (output-most) layer in this neural network.
 	/// (inPos specifies the starting position of the inputs into this block.)
-	void concat(GBlock* pBlock, size_t inPos = 0);
+	void concat(GBlock* pBlock, size_t inPos);
 
 	/// Returns the number of layers in this neural net.
 	/// (Layers within neural networks embedded within this one are not counted.)
