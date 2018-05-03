@@ -52,6 +52,9 @@ protected:
 	const GDomNode* m_pList;
 	GDomListItem* m_pCurrent;
 	size_t m_remaining;
+#ifdef _DEBUG
+	size_t m_safetyCounter;
+#endif // _DEBUG
 
 public:
 	GDomListIterator(const GDomNode* pNode);

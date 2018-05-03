@@ -59,6 +59,13 @@ GDynamicPageSession::GDynamicPageSession(GDynamicPageServer* pServer, unsigned l
 	m_pExtension = NULL;
 }
 
+GDynamicPageSession::GDynamicPageSession(GDynamicPageServer* pServer, GDomNode* pNode)
+{
+	m_id = (unsigned long long)pNode->getInt("id");
+	m_tLastAccessed = (time_t)pNode->getInt("acc");
+	m_pExtension = pServer->deserializeSessionExtension(pNode->get("ext"));
+}
+
 // virtual
 GDynamicPageSession::~GDynamicPageSession()
 {
@@ -428,24 +435,42 @@ void GDynamicPageServer::redirect(std::ostream& response, const char* szUrl)
 	r << szUrl;
 	r << "\">here</a>\n";
 }
-/*
+
 GDomNode* GDynamicPageServer::serialize(GDom* pDoc)
 {
-	std::map<unsigned long long, GDynamicPageSession*> m_sessions;
-	char* m_szMyAddress;
-	char m_daemonSalt[16];
-	char m_passwordSalt[16];
-
-
 	GDomNode* pObj = pDoc->newObj();
 	pObj->add(pDoc, "daemonSalt", m_daemonSalt);
 	pObj->add(pDoc, "pwSalt", m_passwordSalt);
 	GDomNode* pSessionList = pDoc->newList();
+	pObj->add(pDoc, "sessions", pSessionList);
 	for(std::map<unsigned long long, GDynamicPageSession*>::iterator it = m_sessions.begin(); it != m_sessions.end(); it++)
 	{
-		unsigned long long cookie_id = it->first;
-		GDynamicPageSession*
-		xxx
+		GDynamicPageSession* pSession = it->second;
+		GDomNode* pSessionNode = pSession->serialize(pDoc);
+		pSessionList->add(pDoc, pSessionNode);
+	}
+	return pObj;
+}
+
+void GDynamicPageServer::deserialize(const GDomNode* pNode)
+{
+	const char* szDaemonSalt = pNode->getString("daemonSalt");
+	if(strlen(szDaemonSalt) > 14)
+		throw Ex("bad daemon salt size");
+	strcpy(m_daemonSalt, szDaemonSalt);
+	const char* szPasswordSalt = pNode->getString("pwSalt");
+	if(strlen(szPasswordSalt) > 14)
+		throw Ex("bad pw salt size");
+	strcpy(m_passwordSalt, szPasswordSalt);
+	flushSessions();
+	GDomNode* pSessionList = pNode->get("sessions");
+	GDomListIterator it(pSessionList);
+	while(it.remaining() > 0)
+	{
+		GDomNode* pSessionNode = it.current();
+		unsigned long long id = (unsigned long long)pSessionNode->getInt("id");
+		GDynamicPageSession* pSession = new GDynamicPageSession(this, pSessionNode);
+		m_sessions.insert(std::pair<unsigned long long, GDynamicPageSession*>(id, pSession));
+		it.advance();
 	}
 }
-*/

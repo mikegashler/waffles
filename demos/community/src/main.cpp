@@ -93,6 +93,7 @@ const char* g_auto_name_1[] =
 	"fluffy",
 	"friendly",
 	"funny",
+	"gentle",
 	"glowing",
 	"golden",
 	"greasy",
@@ -103,6 +104,7 @@ const char* g_auto_name_1[] =
 	"killer",
 	"laughing",
 	"liquid",
+	"lovely",
 	"lucky",
 	"malted",
 	"meaty",
@@ -141,6 +143,7 @@ const char* g_auto_name_2[] =
 	"armadillo",
 	"bat",
 	"bear",
+	"bee",
 	"beaver",
 	"camel",
 	"cat",
@@ -159,6 +162,7 @@ const char* g_auto_name_2[] =
 	"giraffe",
 	"hamster",
 	"hawk",
+	"hornet",
 	"horse",
 	"iguana",
 	"jaguar",
@@ -191,6 +195,7 @@ const char* g_auto_name_2[] =
 	"unicorn",
 	"walrus",
 	"warrior",
+	"wasp",
 	"wizard",
 	"yak",
 	"zebra"
@@ -275,9 +280,7 @@ public:
 	Server(int port, GRand* pRand);
 	virtual ~Server();
 	Recommender& recommender() { return m_recommender; }
-	void loadState();
 	void saveState();
-	void getStatePath(char* buf);
 	virtual void onEverySixHours();
 	virtual void onStateChange();
 	virtual void onShutDown();
@@ -288,7 +291,7 @@ public:
 	void onRenameAccount(const char* szOldName, Account* pAccount);
 	GDomNode* serializeState(GDom* pDoc);
 	void deserializeState(const GDomNode* pNode);
-
+	virtual GDynamicPageSessionExtension* deserializeSessionExtension(const GDomNode* pNode);
 	virtual GDynamicPageConnection* makeConnection(SOCKET sock);
 };
 
@@ -397,6 +400,30 @@ public:
 	{
 	}
 
+	Terminal(const GDomNode* pNode, Server* pServer)
+	{
+		m_currentAccount = pNode->getInt("loggedin");
+		GDomListIterator it(pNode->get("accounts"));
+		while(it.remaining() > 0)
+		{
+			const char* username = it.currentString();
+			Account* pAccount = pServer->findAccount(username);
+			if(!pAccount)
+				throw Ex("Account not found for ", username);
+			m_accounts.push_back(pAccount);
+			it.advance();
+		}
+		GDomListIterator it2(pNode->get("reqpw"));
+		while(it2.remaining() > 0)
+		{
+			bool b = it2.currentBool();
+			m_requirePassword.push_back(b);
+			it2.advance();
+		}
+		if(m_accounts.size() != m_requirePassword.size())
+			throw Ex("Mismatching sizes");
+	}
+
 	virtual ~Terminal()
 	{
 		for(size_t i = 0; i < m_accounts.size(); i++)
@@ -457,7 +484,9 @@ public:
 	static string generateUsername(GRand& rand)
 	{
 		string s = g_auto_name_1[rand.next(AUTO_NAME_1_COUNT)];
+		s += " ";
 		s += g_auto_name_2[rand.next(AUTO_NAME_2_COUNT)];
+		s += " ";
 		s += g_auto_name_3[rand.next(AUTO_NAME_3_COUNT)];
 		return s;
 	}
@@ -703,16 +732,17 @@ public:
 		response << "<td id=\"sidebar\">";
 		if(pAccount)
 		{
+			response << "	<a href=\"/survey\">Survey</a><br><br>\n";
 			response << "	<a href=\"/account?action=logout\">Log out</a><br><br>\n";
 			response << "	<a href=\"/account\">Account</a><br><br>\n";
-			response << "	<a href=\"/survey\">Survey</a><br><br>\n";
+			if(pAccount->isAdmin())
+				response << "	<a href=\"/admin\">Admin</a><br><br>\n";
 		}
 		else
 		{
 			response << "	<a href=\"/account?action=newaccount\">New account</a><br><br>\n";
 		}
 	//	response << "	<a href=\"/main.hbody\">Overview</a><br>\n";
-		response << "	<a href=\"/admin\">Options</a><br><br>\n";
 		response << "</td><td id=\"mainbody\">\n\n\n\n";
 	}
 
@@ -768,7 +798,7 @@ public:
 
 		// Display the slider
 		response << "<table cellpadding=0 cellspacing=0><tr><td width=200>\n	";
-		response << item.title() << "\n";
+		response << item.left() << "\n";
 		response << "</td><td>\n";
 		response << "	<input type=checkbox name=\"check_slider" << itemId << "\" id=\"check_slider" << itemId << "\">\n";
 		response << "	<input name=\"slider" << itemId << "\" id=\"slider" << itemId << "\" type=\"Text\" size=\"3\">\n";
@@ -778,7 +808,7 @@ public:
 		response << "	new slider(A_INIT1, A_TPL);\n";
 		response << "</script>\n";
 		response << "</td><td width=200>\n";
-		response << item.title() << "\n";
+		response << item.right() << "\n";
 		response << "</td></tr></table>\n";
 	}
 
@@ -824,14 +854,14 @@ public:
 				}
 				else if(_stricmp(szAction, "add") == 0)
 				{
-					const char* szTitle = params.find("title");
-					if(!szTitle)
+					const char* szLeft = params.find("left");
+					const char* szRight = params.find("right");
+					if(!szLeft || !szRight)
 						response << "[invalid params]<br>\n";
 					else
 					{
-						((Server*)m_pServer)->recommender().addItem(currentTopic, szTitle, pAccount->username());
-						response << "[The new statement has been added. Thank you.]<br>\n";
-						cout << "added " << szTitle << "\n";
+						((Server*)m_pServer)->recommender().addItem(currentTopic, szLeft, szRight, pAccount->username());
+						cout << pAccount->username() << "added: " << szLeft << " <-----> " << szRight << "\n";
 						((Server*)m_pServer)->saveState();
 					}
 				}
@@ -869,9 +899,9 @@ public:
 							if(tmp != checks.end())
 							{
 								float score = (float)atof(it->second);
-								if(score >= 0.0f && score <= 100.0f)
+								if(score >= -1.0f && score <= 1.0f)
 								{
-									pUser->updateRating(currentTopic, itemId, 0.02 * score - 1.0);
+									pUser->updateRating(currentTopic, itemId, score);
 									response << "[Rating recorded. Thank you.]<br>\n";
 								}
 								else
@@ -932,9 +962,16 @@ public:
 			}
 			else
 			{
-				response << "Thank you. You have expressed your opinion about all ";
-				response << to_str(pCurrentTopic->size());
-				response << " survey statements in this topic.<br><br>\n";
+				if(pCurrentTopic->size() == 0)
+				{
+					response << "There are not yet any survey questions in this topic.<br><br>\n";
+				}
+				else
+				{
+					response << "Thank you. You have expressed your opinion about all ";
+					response << to_str(pCurrentTopic->size());
+					response << " survey statements in this topic.<br><br>\n";
+				}
 			}
 
 			response << "</form><br><br>\n\n";
@@ -946,7 +983,7 @@ public:
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
 			response << "<a href=\"/update\">My opinions</a>\n";
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Vizualize</a>\n";
+			response << "<a href=\"/stats\">Vizualize</a>\n";
 
 /*
 			response << "Stats:<br>\n";
@@ -966,7 +1003,7 @@ public:
 				size_t i = 0;
 				for(vector<Topic*>::const_iterator it = topics.begin(); it != topics.end(); it++)
 				{
-					response << "	<li><a href=\"/survey?topic=" << i << "&nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">" << (*it)->descr() << "</a></li>\n";
+					response << "	<li><a href=\"/survey?topic=" << i << "\">" << (*it)->descr() << "</a></li>\n";
 					i++;
 				}
 				response << "</ul><br><br><br>\n";
@@ -999,9 +1036,7 @@ public:
 		size_t currentTopic = pAccount->currentTopic();
 		if(currentTopic >= ((Server*)m_pServer)->recommender().topics().size())
 		{
-			string s = "/survey?nc=";
-			s += to_str((size_t)m_pServer->prng()->next());
-			m_pServer->redirect(response, s.c_str());
+			m_pServer->redirect(response, "/survey");
 		}
 		else
 		{
@@ -1010,22 +1045,23 @@ public:
 			response << "<h2>" << pCurrentTopic->descr() << "</h2>\n";
 
 			// Make the form to submit a new item
-			response << "<h3>Submit a new statement to this topic</h3>\n";
+			response << "<h3>Submit a new survey question to this topic</h3>\n";
 			response << "<form name=\"formname\" action=\"/survey\" method=\"post\">\n";
 			response << "	<input type=\"hidden\" name=\"action\" value=\"add\" />\n";
-			response << "Statement: <input type=\"text\" name=\"title\" size=\"55\"><br>\n";
+			response << "Left Statement: <input type=\"text\" name=\"left\" size=\"40\"><br>\n";
+			response << "Opposing right Statement:<input type=\"text\" name=\"right\" size=\"40\"><br>\n";
 			response << "	<input type=\"submit\" value=\"Submit\">";
 			response << "</form><br><br>\n\n";
 
 			// The choices links at the bottom of the page
 			response << "<br>\n";
-			response << "<a href=\"/survey?topic=-1&nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Change topic</a>\n";
+			response << "<a href=\"/survey?topic=-1\">Change topic</a>\n";
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
 			response << "<a href=\"/update\">My opinions</a>\n";
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/survey?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">" << "Survey</a>\n";
+			response << "<a href=\"/survey\">" << "Survey</a>\n";
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Vizualize</a>\n";
+			response << "<a href=\"/stats\">Vizualize</a>\n";
 		}
 	}
 
@@ -1138,22 +1174,21 @@ public:
 
 			for(vector<char>::iterator it = prefix.begin(); it != prefix.end(); it++)
 				response << *it;
-			response << " |\n";
+			response << "/ (" << topic.item(best).left() << ")\n";
 			prefix.pop_back(); prefix.pop_back(); prefix.pop_back(); prefix.pop_back();
 			for(vector<char>::iterator it = prefix.begin(); it != prefix.end(); it++)
 				response << *it;
 			if(type == 0)
-				response << "---&gt;";
+				response << "---(\n";
 			else
-				response << " +-&gt;";
-			response << topic.item(best).title() << "\n";
+				response << " +-(\n";
 			prefix.push_back(' ');
 			if(type <= 0) prefix.push_back(' '); else prefix.push_back('|');
 			prefix.push_back(' ');
 			prefix.push_back(' ');
 			for(vector<char>::iterator it = prefix.begin(); it != prefix.end(); it++)
 				response << *it;
-			response << " |\n";
+			response << "\\ (" << topic.item(best).right() << ")\n";
 
 			makeTree(topic, topicId, bt, pUsers + firstHalfSize, accCount - firstHalfSize, response, prefix, -1);
 			prefix.pop_back(); prefix.pop_back(); prefix.pop_back(); prefix.pop_back();
@@ -1174,7 +1209,6 @@ public:
 
 	virtual void makeItemBody(GDynamicPageSession* pSession, ostream& response, size_t topicId, size_t itemId, Item& item, User** pUsers, size_t accCount)
 	{
-		response << "<h2>" << item.title() << "</h2>\n";
 		std::multimap<double,User*> mm;
 		while(accCount > 0)
 		{
@@ -1188,7 +1222,7 @@ public:
 			accCount--;
 			pUsers++;
 		}
-		response << "<h3>Disagree</h3>\n";
+		response << "<h3>" << item.left() << "</h3>\n";
 		response << "<table>\n";
 		size_t hh = 0;
 		for(std::multimap<double,User*>::iterator it = mm.begin(); it != mm.end(); it++)
@@ -1200,7 +1234,7 @@ public:
 			}
 			if(hh == 1 && it->first > 66.6666)
 			{
-				response << "</table>\n<h3>Agree</h3>\n<table>\n";
+				response << "</table>\n<h3>" << item.right() << "</h3>\n<table>\n";
 				hh++;
 			}
 			response << "<tr><td>" << it->second->username() << "</td><td>" << to_str(it->first) << "</td></tr>\n";
@@ -1212,7 +1246,7 @@ public:
 		}
 		if(hh == 1)
 		{
-			response << "</table>\n<h3>Agree</h3>\n<table>\n";
+			response << "</table>\n<h3>" << item.right() << "</h3>\n<table>\n";
 			hh++;
 		}
 		response << "</table>\n";
@@ -1236,12 +1270,12 @@ public:
 			response << "You have no ratings in common.<br><br>\n";
 			return;
 		}
-		response << "<table><tr><td><u>" << pA->username() << "</u></td><td><u>" << pB->username() << "</u></td><td><u>delta</u></td><td><u>Statement</u></td></tr>\n";
+		response << "<table><tr><td><u>" << pA->username() << "</u></td><td><u>" << pB->username() << "</u></td><td><u>product</u></td><td><u>Left</u></td><td><u>Right</u></td></tr>\n";
 		for(std::multimap<float,size_t>::iterator it = m.begin(); it != m.end(); it++)
 		{
 			pA->getRating(topicId, it->second, &rA);
 			pB->getRating(topicId, it->second, &rB);
-			response << "<tr><td>" << to_str(0.1 * floor(rA * 500 + 500)) << "</td><td>" << to_str(0.1 * floor(rB * 500 + 500)) << "</td><td>" << to_str(0.1 * floor(std::abs(rA - rB) * 500)) << "</td><td>" << topic.item(it->second).title() << "</td></tr>\n";
+			response << "<tr><td>" << to_str(0.1 * floor(10 * rA)) << "</td><td>" << to_str(0.1 * floor(10 * rB)) << "</td><td>" << to_str(0.1 * floor(10 * rA * rB)) << "</td><td>" << topic.item(it->second).left() << "</td><td>" << topic.item(it->second).right() << "</td></tr>\n";
 		}
 		response << "</table>\n";
 	}
@@ -1294,8 +1328,8 @@ public:
 		GBitTable bt(topic.size());
 		vector<char> prefix;
 		response << "This ascii-art tree was constructed by dividing on the most controversial statements within each branch.\n";
-		response << "This tree is arranged such that the ascending branches lead to the usernames of people who agree with the statement, and the descending branches lead to the usernames of people who disagree with the statement.\n";
-		response << "(In cases of uncertainty or lack of response, predictions were used to make any judgement calls necessary to construct this tree.)\n";
+		response << "This tree is arranged such that the ascending branches lead to the usernames of people who support the left statement, and the descending branches lead to the usernames of people who support the right statement.\n";
+		response << "(In cases lacking response, predictions were used to make any judgement calls necessary to construct this tree, so some placements may be estimated.)\n";
 		response << "<br><br>\n";
 		response << "<pre>\n";
 		makeTree(topic, currentTopic, bt, pAccs, accountCount, response, prefix, 0);
@@ -1307,11 +1341,11 @@ public:
 		for(size_t i = 0; i < topic.size(); i++)
 			items.push_back(new ItemStats(currentTopic, topic.item(i), i, pAccs, accountCount));
 		sort(items.begin(), items.end(), ItemStats::comparer);
-		response << "<table><tr><td><b><i><u>Statement</u></i></b></td><td><b><i><u>Disagree</u></i></b></td><td><b><i><u>Uncertain</u></i></b></td><td><b><i><u>Agree</u></i></b></td><td><b><i><u>Controversy</u></i></b></td></tr>\n";
+		response << "<table><tr><td><b><i><u>Statement</u></i></b></td><td><b><i><u>Lean Left</u></i></b></td><td><b><i><u>Uncertain</u></i></b></td><td><b><i><u>Lean Right</u></i></b></td><td><b><i><u>Controversy</u></i></b></td></tr>\n";
 		for(vector<ItemStats*>::iterator it = items.begin(); it != items.end(); it++)
 		{
 			response << "<tr><td>";
-			response << "<a href=\"/stats?item=" << to_str((*it)->id()) << "\">" << (*it)->item().title() << "</a>";
+			response << "<a href=\"/stats?item=" << to_str((*it)->id()) << "\">" << (*it)->item().left() << " / " << (*it)->item().right() << "</a>";
 			response << "</td><td>";
 			response << to_str((*it)->disagree());
 			response << "</td><td>";
@@ -1331,13 +1365,13 @@ public:
 		response << "<img src=\"items.svg\"><br><br>\n";
 
 		// The choices links at the bottom of the page
-		response << "<a href=\"/submit\">Submit a new statement</a>";
+		response << "<a href=\"/submit\">Submit a new question</a>";
 		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-		response << "<a href=\"/survey?topic=-1&nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Change topic</a>\n";
+		response << "<a href=\"/survey?topic=-1\">Change topic</a>\n";
 		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
 		response << "<a href=\"/update\">My opinions</a>\n";
 		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-		response << "<a href=\"/survey?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">" << "Survey</a>\n";
+		response << "<a href=\"/survey\">" << "Survey</a>\n";
 	}
 
 	void plotUsers(GDynamicPageSession* pSession, ostream& response)
@@ -1422,7 +1456,7 @@ public:
 		for(size_t i = 0; i < topic.size(); i++)
 		{
 			Item& item = topic.item(i);
-			const char* szTitle = item.title();
+			const char* szTitle = item.left();
 			vector<double>& weights = item.weights();
 			svg.dot(weights[1], weights[2], 0.75, 0x008080);
 			svg.text(weights[1], weights[2], szTitle, 0.75);
@@ -1437,9 +1471,7 @@ public:
 		size_t currentTopic = pAccount->currentTopic();
 		if(currentTopic >= ((Server*)m_pServer)->recommender().topics().size())
 		{
-			string s = "/survey?nc=";
-			s += to_str((size_t)m_pServer->prng()->next());
-			m_pServer->redirect(response, s.c_str());
+			m_pServer->redirect(response, "/survey");
 		}
 		else
 		{
@@ -1478,11 +1510,11 @@ public:
 			// The choices links at the bottom of the page
 			response << "<a href=\"/submit\">Submit a new item</a>";
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/survey?topic=-1&nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Change topic</a>\n";
+			response << "<a href=\"/survey?topic=-1\">Change topic</a>\n";
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/survey?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">" << "Survey</a>\n";
+			response << "<a href=\"/survey\">" << "Survey</a>\n";
 			response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-			response << "<a href=\"/stats?nc=" << to_str((size_t)m_pServer->prng()->next()) << "\">Vizualize</a>\n";
+			response << "<a href=\"/stats\">Vizualize</a>\n";
 		}
 	}
 
@@ -1492,46 +1524,6 @@ public:
 		if(pSession->paramsLen() > 0)
 		{
 			GHttpParamParser params(pSession->params());
-			const char* szAction = params.find("action");
-			if(szAction)
-			{
-				// Do the action
-				if(_stricmp(szAction, "shutdown") == 0)
-				{
-					if(pAccount->isAdmin())
-					{
-						cout << "root has told the server to shut down.\n";
-						cout.flush();
-						cerr.flush();
-						m_pServer->shutDown();
-					}
-				}
-				else if(_stricmp(szAction, "newtopic") == 0)
-				{
-					if(pAccount->isAdmin())
-					{
-						const char* szDescr = params.find("descr");
-						if(szDescr && strlen(szDescr) > 0)
-						{
-							((Server*)m_pServer)->recommender().newTopic(szDescr);
-							response << "[The new topic has been added]<br>\n";
-						}
-						else
-							response << "[You must enter a topic description]<br>\n";
-					}
-				}
-				else if(_stricmp(szAction, "nukeself") == 0)
-				{
-					((Server*)m_pServer)->deleteAccount(pAccount);
-					string s = "/survey?nc=";
-					s += to_str((size_t)m_pServer->prng()->next());
-					m_pServer->redirect(response, s.c_str());
-					pSession->setExtension(NULL); // disconnect the account from this session
-					return;
-				}
-				else
-					response << "[Unknown action! No action taken]<br>\n";
-			}
 			const char* szDel = params.find("del");
 			if(szDel)
 			{
@@ -1547,7 +1539,7 @@ public:
 						response << "[invalid item index]<br><br>\n";
 					else
 					{
-						cout << "Deleted item " << topic.item(index).title() << "\n";
+						cout << "Deleted item " << topic.item(index).left() << " / " << topic.item(index).right() << "\n";
 						for(std::vector<User*>::const_iterator it = users.begin(); it != users.end(); it++)
 						{
 							(*it)->withdrawRating(currentTopic, index);
@@ -1560,28 +1552,6 @@ public:
 			}
 		}
 
-		// Admin controls
-		if(pAccount->isAdmin())
-		{
-			response << "<h2>Admin controls</h2>\n\n";
-
-			// Form to shut down the server
-			response << "<form name=\"shutdownform\" action=\"/admin\" method=\"get\">\n";
-			response << "	Shut down the daemon:<br>\n";
-			response << "	<input type=\"hidden\" name=\"action\" value=\"shutdown\" />\n";
-			response << "	<input type=\"submit\" value=\"Shut down now\">\n";
-			response << "</form><br><br>\n\n";
-
-			// Form to add a new topic
-			response << "<form name=\"shutdownform\" action=\"/admin\" method=\"get\">\n";
-			response << "	Add a new topic:<br>\n";
-			response << "	<input type=\"hidden\" name=\"action\" value=\"newtopic\" />\n";
-			response << "	<input type=\"text\" name=\"descr\" size=\"55\"><input type=\"submit\" value=\"Add\"><br>\n";
-			response << "</form><br><br>\n\n";
-		}
-		else
-			response << "(Note: Additional controls are available to the user with username \"root\".)<br><br>\n";
-		
 		// Form to delete a statement
 		response << "<h2>Delete Statements</h2>\n\n";
 		size_t currentTopic = pAccount->currentTopic();
@@ -1597,19 +1567,39 @@ public:
 				Item& itm = topic.item(i);
 				response << "<tr><td>";
 				response << "<form name=\"delitem\" action=\"/admin\" method=\"get\"><input type=\"hidden\" name=\"del\" value=\"" << to_str(i) << "\"><input type=\"submit\" value=\"Delete\"></form>";
-				response << "</td><td>" << itm.title() << "</td></tr>\n";
+				response << "</td><td>" << itm.left() << " / " << itm.right() << "</td></tr>\n";
 			}
 			response << "</table>\n";
 			response << "<br>\n";
 			response << "</form><br><br>\n\n";
 		}
 
-		// Button to nuke my account
-		response << "Warning: Don't push this button unless you really mean it! ";
-		response << "<form name=\"nukeself\" action=\"/admin\" method=\"get\">\n";
-		response << "<input type=\"hidden\" name=\"action\" value=\"nukeself\">\n";
-		response << "<input type=\"submit\" value=\"Nuke My Account\">\n";
-		response << "</form>\n";
+		// Admin controls
+		if(pAccount->isAdmin())
+		{
+			response << "<h2>Admin controls</h2>\n\n";
+
+			// Form to add a new topic
+			response << "<form name=\"newtopicform\" action=\"/admin\" method=\"get\">\n";
+			response << "	Add a new topic:<br>\n";
+			response << "	<input type=\"hidden\" name=\"action\" value=\"newtopic\" />\n";
+			response << "	<input type=\"text\" name=\"descr\" size=\"55\"><input type=\"submit\" value=\"Add\"><br>\n";
+			response << "</form><br><br>\n\n";
+
+			// Form to shut down the server
+			response << "<form name=\"trainform\" action=\"/admin\" method=\"get\">\n";
+			response << "	Refine the recommender system:<br>\n";
+			response << "	<input type=\"hidden\" name=\"action\" value=\"train\" />\n";
+			response << "	<input type=\"submit\" value=\"Train\">\n";
+			response << "</form><br><br>\n\n";
+
+			// Form to shut down the server
+			response << "<form name=\"shutdownform\" action=\"/admin\" method=\"get\">\n";
+			response << "	Shut down the daemon:<br>\n";
+			response << "	<input type=\"hidden\" name=\"action\" value=\"shutdown\" />\n";
+			response << "	<input type=\"submit\" value=\"Shut down now\">\n";
+			response << "</form><br><br>\n\n";
+		}
 	}
 
 	virtual void pageAccount(GDynamicPageSession* pSession, ostream& response)
@@ -1618,16 +1608,16 @@ public:
 		Account* pAccount = pTerminal->currentAccount();
 		if(pAccount)
 		{
-			// Logged in
-
 			response << "<h3>Manage your account</h3>\n";
 
+			// Change username
 			response << "<form><input type=\"hidden\" name=\"action\" value=\"changename\">";
 			response << "Change your username to: <input type=\"text\" name=\"newname\" value=\"" << pAccount->username() << "\">";
 			response << "<input type=\"submit\" value=\"Change username\">";
 			response << "</form>";
 			response << "<br><br>";
 
+			// Add a password
 			bool havePassword = true;
 			if(pAccount->passwordHash() == nullptr || strlen(pAccount->passwordHash()) < 1)
 				havePassword = false;
@@ -1641,6 +1631,7 @@ public:
 			response << "</form>";
 			response << "<br><br>";
 
+			// Check box to require password on this account
 			if(havePassword)
 			{
 				response << "<form><input type=\"hidden\" name=\"action\" value=\"requirepw\">";
@@ -1648,6 +1639,14 @@ public:
 				response << "</form>";
 				response << "<br><br>";
 			}
+/*
+			// Button to nuke my account
+			response << "Warning: Don't push this button unless you really mean it! ";
+			response << "<form name=\"nukeself\" action=\"/account\" method=\"get\">\n";
+			response << "<input type=\"hidden\" name=\"action\" value=\"nukeself\">\n";
+			response << "<input type=\"submit\" value=\"Nuke My Account\">\n";
+			response << "</form>\n";
+*/
 		}
 		else
 		{
@@ -1669,6 +1668,8 @@ public:
 				if(!pTerminal->requirePassword(i))
 					response << "<br>";
 				response << pAcc->username();
+				if(pAcc->isAdmin())
+					response << " (Admin)";
 				if(reqpw)
 				{
 					response << "<form>";
@@ -1901,6 +1902,55 @@ const char* Connection::processParams(GDynamicPageSession* pSession)
 			else
 				pTerminal->setRequirePassword(false);
 		}
+		else if(strcmp(szAction, "shutdown") == 0)
+		{
+			Account* pAccount = pTerminal->currentAccount();
+			if(pAccount)
+			{
+				if(pAccount->isAdmin())
+				{
+					m_pServer->shutDown();
+				}
+				else
+					szParamsMessage = "Sorry, only an administrator may perform that action";
+			}
+			else
+				szParamsMessage = "You must log in to do this action";
+		}
+		else if(strcmp(szAction, "newtopic") == 0)
+		{
+			Account* pAccount = pTerminal->currentAccount();
+			if(pAccount)
+			{
+				if(pAccount->isAdmin())
+				{
+					const char* szDescr = params.find("descr");
+					if(szDescr && strlen(szDescr) > 0)
+					{
+						((Server*)m_pServer)->recommender().newTopic(szDescr);
+					}
+					else
+						szParamsMessage = "You must enter a topic description";
+				}
+				else
+					szParamsMessage = "Sorry, only an administrator may perform that action";
+			}
+			else
+				szParamsMessage = "You must log in to do this action";
+		}
+		else if(strcmp(szAction, "nukeself") == 0)
+		{
+			Account* pAccount = pTerminal->currentAccount();
+			const char* szUsername = pAccount->username();
+			((Server*)m_pServer)->deleteAccount(pAccount);
+			pTerminal->forgetAccount(szUsername);
+			pTerminal->logOut();
+		}
+		else if(strcmp(szAction, "train") == 0)
+		{
+			Account* pAccount = pTerminal->currentAccount();
+			((Server*)m_pServer)->recommender().refineModel(pAccount->currentTopic(), ON_TRAIN_TRAINING_ITERS);
+		}
 	}
 	return szParamsMessage;
 }
@@ -1914,8 +1964,9 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 	const char* szParamsMessage = processParams(pSession);
 
 	// Fine a method to make the requested page
+	bool headers = true;
 	void (Connection::*makePage)(GDynamicPageSession* pSession, ostream& response) = nullptr;
-	if(strcmp(m_szUrl, "/") == 0) makePage = &Connection::pageAccount;
+	if(strcmp(m_szUrl, "/") == 0) makePage = &Connection::pageSurvey;
 	else if(strncmp(m_szUrl, "/account", 6) == 0) makePage = &Connection::pageAccount;
 	else if(strncmp(m_szUrl, "/survey", 4) == 0) makePage = &Connection::pageSurvey;
 	else if(strncmp(m_szUrl, "/submit", 7) == 0) makePage = &Connection::pageSubmit;
@@ -1923,8 +1974,8 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 	else if(strncmp(m_szUrl, "/update", 7) == 0) makePage = &Connection::pageUpdate;
 	else if(strncmp(m_szUrl, "/admin", 6) == 0) makePage = &Connection::pageAdmin;
 	else if(strncmp(m_szUrl, "/newaccount", 11) == 0) makePage = &Connection::pageNewAccount;
-	else if(strncmp(m_szUrl, "/users.svg", 10) == 0) makePage = &Connection::plotUsers;
-	else if(strncmp(m_szUrl, "/items.svg", 10) == 0) makePage = &Connection::plotItems;
+	else if(strncmp(m_szUrl, "/users.svg", 10) == 0) { makePage = &Connection::plotUsers; headers = false; }
+	else if(strncmp(m_szUrl, "/items.svg", 10) == 0) { makePage = &Connection::plotItems; headers = false; }
 
 	try
 	{
@@ -1937,15 +1988,19 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 			Account* pAccount = pTerminal->currentAccount();
 			if(pAccount)
 			{
-				makeHeader(pSession, response, szParamsMessage);
+				if(headers)
+					makeHeader(pSession, response, szParamsMessage);
 				(*this.*makePage)(pSession, response);
-				makeFooter(pSession, response);
+				if(headers)
+					makeFooter(pSession, response);
 			}
 			else
 			{
-				makeHeader(pSession, response, szParamsMessage);
+				if(headers)
+					makeHeader(pSession, response, szParamsMessage);
 				pageAccount(pSession, response);
-				makeFooter(pSession, response);
+				if(headers)
+					makeFooter(pSession, response);
 			}
 		}
 		else
@@ -1953,9 +2008,11 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 			size_t len = strlen(m_szUrl);
 			if(len > 6 && strcmp(m_szUrl + len - 6, ".hbody") == 0)
 			{
-				makeHeader(pSession, response, szParamsMessage);
+				if(headers)
+					makeHeader(pSession, response, szParamsMessage);
 				sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
-				makeFooter(pSession, response);
+				if(headers)
+					makeFooter(pSession, response);
 			}
 			else
 				sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
@@ -1970,17 +2027,16 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 
 // ------------------------------------------------------
 
-Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand), m_recommender(*pRand)
+Server::Server(int port, GRand* pRand)
+: GDynamicPageServer(port, pRand),
+m_recommender(*pRand)
 {
 	char buf[300];
-	GTime::asciiTime(buf, 256, false);
-	cout << "Server starting at: " << buf << "\n";
 	GApp::appPath(buf, 256, true);
 	strcat(buf, "web/");
 	GFile::condensePath(buf);
 	m_basePath = buf;
 	cout << "Base path: " << m_basePath << "\n";
-	loadState();
 }
 
 // virtual
@@ -1994,39 +2050,6 @@ Server::~Server()
 		delete(it->second);
 }
 
-void Server::loadState()
-{
-	char statePath[300];
-	getStatePath(statePath);
-	if(GFile::doesFileExist(statePath))
-	{
-		GDom doc;
-		doc.loadJson(statePath);
-		deserializeState(doc.root());
-		cout << "State loaded from: " << statePath << "\n";
-
-		// Do some training to make sure the model is in good shape
-		cout << "doing some training...\n";
-		for(size_t i = 0; i < recommender().topics().size(); i++)
-			recommender().refineModel(i, ON_STARTUP_TRAINING_ITERS);
-		cout << "done.\n";
-	}
-	else
-		cout << "No state file (" << statePath << ") found. Creating new state.\n";
-}
-
-void Server::saveState()
-{
-	GDom doc;
-	doc.setRoot(serializeState(&doc));
-	char szStoragePath[300];
-	getStatePath(szStoragePath);
-	doc.saveJson(szStoragePath);
-	char szTime[256];
-	GTime::asciiTime(szTime, 256, false);
-	cout << "Server state saved at: " << szTime << "\n";
-}
-
 void getLocalStorageFolder(char* buf)
 {
 	if(!GFile::localStorageDirectory(buf))
@@ -2037,10 +2060,17 @@ void getLocalStorageFolder(char* buf)
 		throw Ex("Failed to create folder in storage area");
 }
 
-void Server::getStatePath(char* buf)
+void Server::saveState()
 {
-	getLocalStorageFolder(buf);
-	strcat(buf, "state.json");
+	GDom doc;
+	doc.setRoot(serializeState(&doc));
+	char szStoragePath[300];
+	getLocalStorageFolder(szStoragePath);
+	strcat(szStoragePath, "state.json");
+	doc.saveJson(szStoragePath);
+	char szTime[256];
+	GTime::asciiTime(szTime, 256, false);
+	cout << "Server state saved at: " << szTime << "\n";
 }
 
 // virtual
@@ -2049,7 +2079,7 @@ void Server::onEverySixHours()
 	for(size_t i = 0; i < 3; i++)
 	{
 		size_t topicId = m_pRand->next(recommender().topics().size());
-		recommender().refineModel(topicId, ON_RATE_TRAINING_ITERS);
+		recommender().refineModel(topicId, ON_TRAIN_TRAINING_ITERS);
 	}
 	saveState();
 	fflush(stdout);
@@ -2115,32 +2145,20 @@ void Server::deleteAccount(Account* pAccount)
 
 GDomNode* Server::serializeState(GDom* pDoc)
 {
-	GDomNode* pNode = pDoc->newObj();
-
-	// Captcha salt
-	pNode->add(pDoc, "daemonSalt", daemonSalt());
-
-	// Save the accounts
-	GDomNode* pAccounts = pNode->add(pDoc, "accounts", pDoc->newList());
-	for(map<string,Account*>::iterator it = m_accounts.begin(); it != m_accounts.end(); it++)
+	GDomNode* pNode = GDynamicPageServer::serialize(pDoc);
+	GDomNode* pAccounts = pDoc->newList();
+	pNode->add(pDoc, "accounts", pAccounts);
+	for(std::map<std::string,Account*>::iterator it = m_accounts.begin(); it != m_accounts.end(); it++)
 	{
-		Account* pAccount = it->second;
-		if(pAccount->username()[0] != '_') // Don't bother persisting anonymous accounts
-			pAccounts->add(pDoc, pAccount->toDom(pDoc));
+		Account* pAcc = it->second;
+		pAccounts->add(pDoc, pAcc->toDom(pDoc));
 	}
-
-	// Recommender system
 	pNode->add(pDoc, "recommender", m_recommender.serialize(pDoc));
-
 	return pNode;
 }
 
 void Server::deserializeState(const GDomNode* pNode)
 {
-	// Captcha salt
-	const char* daemon_Salt = pNode->getString("daemonSalt");
-	setDaemonSalt(daemon_Salt);
-
 	// Load the accounts
 	GAssert(m_accounts.size() == 0);
 	GDomNode* pAccounts = pNode->get("accounts");
@@ -2150,8 +2168,16 @@ void Server::deserializeState(const GDomNode* pNode)
 		m_accounts.insert(make_pair(string(pAccount->username()), pAccount));
 	}
 
+	// Load the base stuff
+	GDynamicPageServer::deserialize(pNode);
+
 	// Recommender system
 	m_recommender.deserialize(pNode->get("recommender"));
+}
+
+GDynamicPageSessionExtension* Server::deserializeSessionExtension(const GDomNode* pNode)
+{
+	return new Terminal(pNode, this);
 }
 
 // virtual
@@ -2206,9 +2232,34 @@ void doit(void* pArg)
 #endif
 		size_t seed = getpid() * (size_t)time(NULL);
 		GRand prng(seed);
-		Server server(port, &prng);
-		LaunchBrowser(server.myAddress(), &prng);
-		server.go();
+		char statePath[300];
+		getLocalStorageFolder(statePath);
+		strcat(statePath, "state.json");
+		Server* pServer = new Server(port, &prng);
+		Holder<Server> hServer(pServer);
+		if(GFile::doesFileExist(statePath))
+		{
+			GDom doc;
+			doc.loadJson(statePath);
+			pServer->deserializeState(doc.root());
+			cout << "Server state loaded from " << statePath << "\n";
+
+/*
+			// Do some training to make sure the model is in good shape
+			cout << "doing some training...\n";
+			for(size_t i = 0; i < recommender().topics().size(); i++)
+				recommender().refineModel(i, ON_STARTUP_TRAINING_ITERS);
+*/
+		}
+		else
+			cout << "No saved state. Made a new server\n";
+
+		char buf[300];
+		GTime::asciiTime(buf, 256, false);
+		cout << "Server started at: " << buf << "\n";
+
+		LaunchBrowser(pServer->myAddress(), &prng);
+		pServer->go();
 	}
 	cout << "Goodbye.\n";
 }

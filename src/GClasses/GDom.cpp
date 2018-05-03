@@ -65,6 +65,9 @@ GDomListIterator::GDomListIterator(const GDomNode* pNode)
 	m_pList = pNode;
 	m_remaining = m_pList->reverseItemOrder();
 	m_pCurrent = m_pList->m_value.m_pLastItem;
+#ifdef _DEBUG
+	m_safetyCounter = 0;
+#endif
 }
 
 GDomListIterator::~GDomListIterator()
@@ -74,6 +77,7 @@ GDomListIterator::~GDomListIterator()
 
 GDomNode* GDomListIterator::current()
 {
+	GAssert(++m_safetyCounter < 10000); // It looks like you are stuck in an endless loop. Did you forget to call "advance()" ?
 	return m_pCurrent ? m_pCurrent->m_pValue : NULL;
 }
 
@@ -101,6 +105,9 @@ void GDomListIterator::advance()
 {
 	m_pCurrent = m_pCurrent->m_pPrev;
 	m_remaining--;
+#ifdef _DEBUG
+	m_safetyCounter = 0;
+#endif
 }
 
 size_t GDomListIterator::remaining()

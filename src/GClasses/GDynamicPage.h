@@ -68,6 +68,7 @@ protected:
 
 public:
 	GDynamicPageSession(GDynamicPageServer* pServer, unsigned long long id);
+	GDynamicPageSession(GDynamicPageServer* pServer, GDomNode* pNode);
 	virtual ~GDynamicPageSession();
 
 	/// Returns the server object associated with this session
@@ -157,6 +158,11 @@ public:
 	virtual void onStateChange() {}
 	virtual void onEverySixHours() {}
 	virtual void onShutDown() {}
+	virtual GDynamicPageSessionExtension* deserializeSessionExtension(const GDomNode* pNode)
+	{
+		throw Ex("deserializeSessionExtension has not be overridden");
+	}
+
 	void go();
 	void shutDown();
 	void flushSessions();
@@ -180,7 +186,8 @@ public:
 	GRand* prng() { return m_pRand; }
 	void redirect(std::ostream& response, const char* szUrl);
 
-	//GDomNode* serialize(GDom* pDoc);
+	GDomNode* serialize(GDom* pDoc);
+	void deserialize(const GDomNode* pNode);
 
 protected:
 	void doMaintenance();
