@@ -694,10 +694,12 @@ public:
 	}
 
 	virtual void handleRequest(GDynamicPageSession* pSession, std::ostream& response);
+	void handleAjax(GDynamicPageSession* pSession, ostream& response);
 	const char* processParams(GDynamicPageSession* pSession);
 
 	void makeHeader(GDynamicPageSession* pSession, ostream& response, const char* szParamsMessage)
 	{
+		//response << "<!DOCTYPE html>";
 		response << "<html><head>\n";
 		Account* pAccount = getAccount(pSession);
 		response << "	<title>Community Modeler</title>\n";
@@ -1731,84 +1733,87 @@ public:
 */
 	}
 
-	void pageNewAccount(GDynamicPageSession* pSession, ostream& response);
-
 	void pageError(ostream& response)
 	{
 		response << "Sorry, an error occurred. Please yell at the operator of this site.\n";
 	}
-};
 
-void Connection::pageNewAccount(GDynamicPageSession* pSession, ostream& response)
-{
-	const char* szUsername = "";
-	const char* szPassword = "";
-	const char* szPWAgain = "";
-	GHttpParamParser params(pSession->params());
-	if(pSession->paramsLen() > 0)
+	void pageNewAccount(GDynamicPageSession* pSession, ostream& response)
 	{
-		// Get the action
-		const char* szError = NULL;
-		const char* szAction = params.find("action");
-		if(!szAction)
-			szError = "Expected an action param";
-		if(!szError && _stricmp(szAction, "newaccount") != 0)
-			szError = "Unrecognized action";
-
-		szUsername = params.find("username");
-		szPassword = params.find("password");
-		szPWAgain = params.find("pwagain");
-
-		// Check the parameters
-		if(!szUsername || strlen(szUsername) < 1)
-			szError = "The username is not valid";
-		if(!szPassword || strlen(szPassword) < 1)
-			szError = "The password is not valid";
-		if(!szPWAgain || strcmp(szPassword, szPWAgain) != 0)
-			szError = "The passwords don't match";
-		if(!szError)
+		const char* szUsername = "";
+		const char* szPassword = "";
+		const char* szPWAgain = "";
+		GHttpParamParser params(pSession->params());
+		if(pSession->paramsLen() > 0)
 		{
-			// Create the account
-			Account* pAccount = ((Server*)m_pServer)->newAccount(szUsername, szPassword);
-			if(!pAccount)
-				szError = "That username is already taken.";
-			else
+			// Get the action
+			const char* szError = NULL;
+			const char* szAction = params.find("action");
+			if(!szAction)
+				szError = "Expected an action param";
+			if(!szError && _stricmp(szAction, "newaccount") != 0)
+				szError = "Unrecognized action";
+
+			szUsername = params.find("username");
+			szPassword = params.find("password");
+			szPWAgain = params.find("pwagain");
+
+			// Check the parameters
+			if(!szUsername || strlen(szUsername) < 1)
+				szError = "The username is not valid";
+			if(!szPassword || strlen(szPassword) < 1)
+				szError = "The password is not valid";
+			if(!szPWAgain || strcmp(szPassword, szPWAgain) != 0)
+				szError = "The passwords don't match";
+			if(!szError)
 			{
-				((Server*)m_pServer)->saveState();
-				response << "<big>An account has been successfully created.</big><br><br> Click here to <a href=\"/account\">log in</a><br>\n";
-				return;
+				// Create the account
+				Account* pAccount = ((Server*)m_pServer)->newAccount(szUsername, szPassword);
+				if(!pAccount)
+					szError = "That username is already taken.";
+				else
+				{
+					((Server*)m_pServer)->saveState();
+					response << "<big>An account has been successfully created.</big><br><br> Click here to <a href=\"/account\">log in</a><br>\n";
+					return;
+				}
+			}
+			if(szError)
+			{
+				response << "<center>";
+				response << szError;
+				response << "</center><br><br>\n\n";
+				szPassword = "";
+				szPWAgain = "";
 			}
 		}
-		if(szError)
-		{
-			response << "<center>";
-			response << szError;
-			response << "</center><br><br>\n\n";
-			szPassword = "";
-			szPWAgain = "";
-		}
+
+		response << "<br><center><table width=\"400\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tr><td>\n";
+		response << "<SCRIPT language=\"JavaScript\" src=\"/sha1.js\" type=\"text/javascript\">\n</SCRIPT>\n";
+		response << "	<big><big><b>Create a new account</b></big></big><br><br>\n";
+		response << "	<form name=\"newaccountform\" action=\"/newaccount\" method=\"post\" onsubmit=\"return HashNewAccount('";
+		response << ((Server*)m_pServer)->passwordSalt();
+		response << "')\">\n";
+		response << "		<input type=\"hidden\" name=\"action\" value=\"newaccount\" />\n";
+		response << "		Username: <input type=\"text\" size=\"15\" name=\"username\" value=\"";
+		response << szUsername;
+		response << "\"><br><br>\n";
+		response << "		Password: <input type=\"password\" name=\"password\" size=\"15\" value=\"";
+		response << szPassword;
+		response << "\"><br>\n";
+		response << "		PW Again: <input type=\"password\" name=\"pwagain\" size=\"15\" value=\"";
+		response << szPWAgain;
+		response << "\"><br><br>\n";
+		response << "		<input type=\"submit\" value=\"Submit\">\n";
+		response << "	</form><br>\n\n";
+		response << "</tr></td></table></center>\n";
 	}
 
-	response << "<br><center><table width=\"400\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tr><td>\n";
-	response << "<SCRIPT language=\"JavaScript\" src=\"/sha1.js\" type=\"text/javascript\">\n</SCRIPT>\n";
-	response << "	<big><big><b>Create a new account</b></big></big><br><br>\n";
-	response << "	<form name=\"newaccountform\" action=\"/newaccount\" method=\"post\" onsubmit=\"return HashNewAccount('";
-	response << ((Server*)m_pServer)->passwordSalt();
-	response << "')\">\n";
-	response << "		<input type=\"hidden\" name=\"action\" value=\"newaccount\" />\n";
-	response << "		Username: <input type=\"text\" size=\"15\" name=\"username\" value=\"";
-	response << szUsername;
-	response << "\"><br><br>\n";
-	response << "		Password: <input type=\"password\" name=\"password\" size=\"15\" value=\"";
-	response << szPassword;
-	response << "\"><br>\n";
-	response << "		PW Again: <input type=\"password\" name=\"pwagain\" size=\"15\" value=\"";
-	response << szPWAgain;
-	response << "\"><br><br>\n";
-	response << "		<input type=\"submit\" value=\"Submit\">\n";
-	response << "	</form><br>\n\n";
-	response << "</tr></td></table></center>\n";
-}
+	void pageTest(GDynamicPageSession* pSession, ostream& response)
+	{
+		response << "<script type=\"text/javascript\" src=\"ajax.js\"></script>\n";
+	}
+};
 
 const char* Connection::processParams(GDynamicPageSession* pSession)
 {
@@ -1955,27 +1960,72 @@ const char* Connection::processParams(GDynamicPageSession* pSession)
 	return szParamsMessage;
 }
 
+void Connection::handleAjax(GDynamicPageSession* pSession, ostream& response)
+{
+	GDom docIn;
+	double d = 0;
+	try
+	{
+		docIn.parseJson(pSession->params(), pSession->paramsLen());
+		const GDomNode* pNode = docIn.root();
+		d = pNode->getDouble("burrito");
+	}
+	catch(std::exception& e)
+	{
+		cout << "Invalid incoming AJAX blob. " << e.what();
+		return;
+	}
+
+	GDom doc;
+	GDomNode* pNode = doc.newObj();
+	pNode->add(&doc, "someval", 3.14159);
+	pNode->add(&doc, "yousaid", d);
+	
+	setContentType("application/json");
+	pNode->writeJson(response);
+}
+
+bool isurl(const char* url, const char* dynpage)
+{
+	while(true)
+	{
+		if(*dynpage == '\0')
+			break;
+		if(*url != *dynpage)
+			return false;
+		url++;
+		dynpage++;
+	}
+	if(*url == '\0' || *url == '?')
+		return true;
+	return false;
+}
+
 // virtual
 void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 {
-	if(strcmp(m_szUrl, "/favicon.ico") == 0)
+	if(isurl(m_szUrl, "/ajax"))
+	{
+		handleAjax(pSession, response);
 		return;
+	}
 
 	const char* szParamsMessage = processParams(pSession);
 
 	// Fine a method to make the requested page
 	bool headers = true;
 	void (Connection::*makePage)(GDynamicPageSession* pSession, ostream& response) = nullptr;
-	if(strcmp(m_szUrl, "/") == 0) makePage = &Connection::pageSurvey;
-	else if(strncmp(m_szUrl, "/account", 6) == 0) makePage = &Connection::pageAccount;
-	else if(strncmp(m_szUrl, "/survey", 4) == 0) makePage = &Connection::pageSurvey;
-	else if(strncmp(m_szUrl, "/submit", 7) == 0) makePage = &Connection::pageSubmit;
-	else if(strncmp(m_szUrl, "/stats", 6) == 0) makePage = &Connection::pageStats;
-	else if(strncmp(m_szUrl, "/update", 7) == 0) makePage = &Connection::pageUpdate;
-	else if(strncmp(m_szUrl, "/admin", 6) == 0) makePage = &Connection::pageAdmin;
-	else if(strncmp(m_szUrl, "/newaccount", 11) == 0) makePage = &Connection::pageNewAccount;
-	else if(strncmp(m_szUrl, "/users.svg", 10) == 0) { makePage = &Connection::plotUsers; headers = false; }
-	else if(strncmp(m_szUrl, "/items.svg", 10) == 0) { makePage = &Connection::plotItems; headers = false; }
+	if(isurl(m_szUrl, "/")) makePage = &Connection::pageSurvey;
+	else if(isurl(m_szUrl, "/account")) makePage = &Connection::pageAccount;
+	else if(isurl(m_szUrl, "/survey")) makePage = &Connection::pageSurvey;
+	else if(isurl(m_szUrl, "/submit")) makePage = &Connection::pageSubmit;
+	else if(isurl(m_szUrl, "/stats")) makePage = &Connection::pageStats;
+	else if(isurl(m_szUrl, "/test")) makePage = &Connection::pageTest;
+	else if(isurl(m_szUrl, "/update")) makePage = &Connection::pageUpdate;
+	else if(isurl(m_szUrl, "/admin")) makePage = &Connection::pageAdmin;
+	else if(isurl(m_szUrl, "/newaccount")) makePage = &Connection::pageNewAccount;
+	else if(isurl(m_szUrl, "/users.svg")) { makePage = &Connection::plotUsers; headers = false; }
+	else if(isurl(m_szUrl, "/items.svg")) { makePage = &Connection::plotItems; headers = false; }
 
 	try
 	{

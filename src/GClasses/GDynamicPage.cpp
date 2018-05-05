@@ -212,6 +212,9 @@ void GDynamicPageConnection::sendFile(const char* szMimeType, const char* szFile
 
 void GDynamicPageConnection::sendFileSafe(const char* szJailPath, const char* szLocalPath, ostream& response)
 {
+	cout << "Requested file: " << szLocalPath;
+	cout.flush();
+
 	// Make sure the file is within the jail
 	size_t jailLen = strlen(szJailPath);
 	size_t localLen = strlen(szLocalPath);
@@ -220,7 +223,10 @@ void GDynamicPageConnection::sendFileSafe(const char* szJailPath, const char* sz
 	strcpy(buf + jailLen, szLocalPath);
 	GFile::condensePath(buf);
 	if(strncmp(buf, szJailPath, jailLen) != 0)
+	{
+		cout << "Denied because " << buf << " it is not within " << szJailPath << "\n";
 		return;
+	}
 
 	// Send the file
 	if(GFile::doesFileExist(buf))
@@ -229,16 +235,20 @@ void GDynamicPageConnection::sendFileSafe(const char* szJailPath, const char* sz
 		try
 		{
 			sendFile(extensionToMimeType(buf), buf, response);
+			cout << ", Sent: " << buf << "\n";
+			cout.flush();
 		}
 		catch(const char* szError)
 		{
-			cout << "Error sending file: " << buf << "\n" << szError;
+			cout << ", Error sending file: " << buf << ", " << szError << "\n";
+			cout.flush();
 			return;
 		}
 	}
 	else
 	{
-		cout << "Not found: " << szJailPath << szLocalPath << "\n";
+		cout << ", Not found: " << buf << "\n";
+		cout.flush();
 		response << "404 - not found.<br><br>\n";
 	}
 }
