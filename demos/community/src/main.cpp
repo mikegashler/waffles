@@ -267,6 +267,16 @@ const char* g_auto_name_3[] =
 
 
 
+string to_string(double d, int decimal_places)
+{
+	double p = pow(10, decimal_places);
+	d *= p;
+	d += 0.5;
+	d = floor(d);
+	d /= p;
+	return to_str(d);
+}
+
 
 class Server : public GDynamicPageServer
 {
@@ -605,9 +615,9 @@ public:
 			{
 				mean += rating;
 				count++;
-				if(rating < 0.333334)
+				if(rating < -0.333333)
 					m_disagree++;
-				else if(rating > 0.666666)
+				else if(rating > 0.333333)
 					m_agree++;
 				else
 					m_uncertain++;
@@ -799,7 +809,7 @@ public:
 		score = 0.1 * floor(score);*/
 
 		// Display the slider
-		response << "<table cellpadding=0 cellspacing=0><tr><td width=200>\n	";
+		response << "<table cellpadding=0 cellspacing=0><tr><td width=300>\n	";
 		response << item.left() << "\n";
 		response << "</td><td>\n";
 		response << "	<input type=checkbox name=\"check_slider" << itemId << "\" id=\"check_slider" << itemId << "\">\n";
@@ -809,7 +819,7 @@ public:
 		response << "	var A_INIT1 = { 's_checkname': 'check_slider" << itemId << "', 's_name': 'slider" << itemId << "', 'n_minValue' : -1, 'n_maxValue' : 1, 'n_value' : " << score << ", 'n_step' : 0.01 }\n";
 		response << "	new slider(A_INIT1, A_TPL);\n";
 		response << "</script>\n";
-		response << "</td><td width=200>\n";
+		response << "</td><td width=300>\n";
 		response << item.right() << "\n";
 		response << "</td></tr></table>\n";
 	}
@@ -950,6 +960,7 @@ public:
 					response << "<p>It is okay to skip statements you find ambiguous, invasive, or uninteresting. For your convenience, the sliders have been set to reflect predictions of your opinions. As you express more opinions, these predictions should improve.</p>\n";
 				}
 				makeUrlSlider(pAccount, itemId, response);
+				response << "<br><br>\n";
 				sliderCount++;
 			}
 
@@ -1118,7 +1129,7 @@ public:
 			float rating;
 			if(!pUsers[head]->getRating(topicId, itm, &rating))
 				rating = pUsers[head]->predictRating(topic.item(itm));
-			if(rating < 0.0)
+			if(rating > 0.0)
 			{
 				tail--;
 				std::swap(pUsers[head], pUsers[tail]);
@@ -1216,37 +1227,36 @@ public:
 		{
 			float rating;
 			if((*pUsers)->getRating(topicId, itemId, &rating))
-			{
-				double r = rating * 50000 + 50000;
-				double clipped = 0.001 * (double)floor(r + 0.5f);
-				mm.insert(std::pair<double,User*>(clipped,*pUsers));
-			}
+				mm.insert(std::pair<double,User*>(rating,*pUsers));
 			accCount--;
 			pUsers++;
 		}
+
+		// First show all the left-leaning answers from the sorted map
 		response << "<h3>" << item.left() << "</h3>\n";
 		response << "<table>\n";
 		size_t hh = 0;
 		for(std::multimap<double,User*>::iterator it = mm.begin(); it != mm.end(); it++)
 		{
-			if(hh == 0 && it->first > 33.3333)
+			if(hh == 0 && it->first > -0.3333) // When they cross into being uncertain
 			{
 				response << "</table>\n<h3>Uncertain</h3>\n<table>\n";
 				hh++;
 			}
-			if(hh == 1 && it->first > 66.6666)
+			if(hh == 1 && it->first > 0.3333) // when they cross into being right-learning
 			{
 				response << "</table>\n<h3>" << item.right() << "</h3>\n<table>\n";
 				hh++;
 			}
-			response << "<tr><td>" << it->second->username() << "</td><td>" << to_str(it->first) << "</td></tr>\n";
+			response << "<tr><td>" << it->second->username() << "</td><td>" << to_string(it->first, 2) << "</td></tr>\n";
 		}
-		if(hh == 0)
+
+		if(hh == 0) // in the obscure case where we haven't found any uncertain people yet...
 		{
 			response << "</table>\n<h3>Uncertain</h3>\n<table>\n";
 			hh++;
 		}
-		if(hh == 1)
+		if(hh == 1) // in the obscure case where we haven't found any right-leaning people yet...
 		{
 			response << "</table>\n<h3>" << item.right() << "</h3>\n<table>\n";
 			hh++;
