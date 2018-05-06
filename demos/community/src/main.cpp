@@ -1924,6 +1924,8 @@ const char* Connection::processParams(GDynamicPageSession* pSession)
 			{
 				if(pAccount->isAdmin())
 				{
+					cout << "An admin has directed the server to shut down\n";
+					cout.flush();
 					m_pServer->shutDown();
 				}
 				else
@@ -2300,9 +2302,12 @@ void doit(void* pArg)
 		if(GFile::doesFileExist(statePath))
 		{
 			GDom doc;
+			cout << "Loading state...\n";
+			cout.flush();
 			doc.loadJson(statePath);
 			pServer->deserializeState(doc.root());
 			cout << "Server state loaded from " << statePath << "\n";
+			cout.flush();
 
 /*
 			// Do some training to make sure the model is in good shape
@@ -2317,6 +2322,7 @@ void doit(void* pArg)
 		char buf[300];
 		GTime::asciiTime(buf, 256, false);
 		cout << "Server started at: " << buf << "\n";
+		cout.flush();
 
 		LaunchBrowser(pServer->myAddress(), &prng);
 		pServer->go();

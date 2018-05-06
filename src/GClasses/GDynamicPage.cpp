@@ -365,8 +365,13 @@ void GDynamicPageServer::go()
 {
 	double dLastMaintenance = GTime::seconds();
 	GSignalHandler sh;
-	while(m_bKeepGoing && sh.check() == 0)
+	while(m_bKeepGoing)
 	{
+		if(sh.check() != 0)
+		{
+			cout << "Received signal " << to_str(sh.check()) << ". Shutting down.\n";
+			cout.flush();
+		}
 		if(!process())
 		{
 			if(GTime::seconds() - dLastMaintenance > 14400)	// 4 hours
