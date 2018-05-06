@@ -371,6 +371,7 @@ void GDynamicPageServer::go()
 		{
 			cout << "Received signal " << to_str(sh.check()) << ". Shutting down.\n";
 			cout.flush();
+			break;
 		}
 		if(!process())
 		{
