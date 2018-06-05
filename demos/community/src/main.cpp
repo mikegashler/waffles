@@ -315,6 +315,7 @@ class Account
 protected:
 	string m_username;
 	string m_passwordHash;
+	string m_path; // Within .../usercontent/username/pages/. Does not start with a slash.
 	size_t m_currentTopic;
 	User* m_pUser; // A redundant pointer to the User object that goes with this account
 	bool m_admin;
@@ -359,6 +360,7 @@ public:
 		return pAccount;
 	}
 
+	string& path() { return m_path; }
 	const char* username() { return m_username.c_str(); }
 	const char* passwordHash() { return m_passwordHash.c_str(); }
 	size_t currentTopic() { return m_currentTopic; }
@@ -642,7 +644,7 @@ public:
 			}
 			Us++;
 		}
-		m_deviation = sqrt(var / count);
+		m_deviation = sqrt(var / std::max((size_t)1, count));
 	}
 
 	Item& item() { return m_item; }
@@ -711,9 +713,10 @@ public:
 	{
 		//response << "<!DOCTYPE html>";
 		response << "<html><head>\n";
+		response << "	<meta charset=\"utf-8\">\n";
 		Account* pAccount = getAccount(pSession);
 		response << "	<title>Community Modeler</title>\n";
-		response << "	<link rel=\"stylesheet\" type=\"text/css\" href=\"/style/style.css\" />\n";
+		response << "	<link rel=\"stylesheet\" type=\"text/css\" href=\"style/style.css\" />\n";
 		response << "</head><body>\n";
 		response << "<table align=center width=1200 cellpadding=0 cellspacing=0><tr><td>\n";
 		response << "<table cellpadding=0 cellspacing=0>\n";
@@ -744,6 +747,7 @@ public:
 		response << "<td id=\"sidebar\">";
 		if(pAccount)
 		{
+			response << "	<a href=\"/browse\">My pages</a><br><br>\n";
 			response << "	<a href=\"/survey\">Survey</a><br><br>\n";
 			response << "	<a href=\"/account?action=logout\">Log out</a><br><br>\n";
 			response << "	<a href=\"/account\">Account</a><br><br>\n";
@@ -1096,7 +1100,7 @@ public:
 			}
 			pUs++;
 		}
-		double t = 1.0 / accCount;
+		double t = 1.0 / std::max((size_t)1, accCount);
 		for(size_t i = 0; i < topic.size(); i++)
 			pCentroid[i] *= t;
 
@@ -1289,6 +1293,79 @@ public:
 			pB->getRating(topicId, it->second, &rB);
 			response << "<tr><td>" << to_str(0.1 * floor(10 * rA)) << "</td><td>" << to_str(0.1 * floor(10 * rB)) << "</td><td>" << to_str(0.1 * floor(10 * rA * rB)) << "</td><td>" << topic.item(it->second).left() << "</td><td>" << topic.item(it->second).right() << "</td></tr>\n";
 		}
+		response << "</table>\n";
+	}
+
+	void pageBrowse(GDynamicPageSession* pSession, ostream& response)
+	{
+		//Account* pAccount = getAccount(pSession);
+		response << "<script type=\"text/javascript\" src=\"browse.js\"></script>\n";
+		//response << "<input type=\"hidden\" id=\"username\" value=\"" << pAccount->username() << "\">\n";
+		response << "Path: <input type=\"text\" id=\"path\" size=\"60\" disabled=\"disabled\">\n";
+		response << "<table>\n";
+		response << "	<tr><td width=200px>Folders:</td><td width=400px>Files:</td></tr>\n";
+		response << "	<tr>\n";
+		response << "		<td>\n";
+		response << "			<select id=\"folders\" size=\"12\" onclick=\"closeDetails(0)\" ondblclick=\"onfolderchange()\" style=\"width:100%\">\n";
+		response << "			</select>\n";
+		response << "		</td>\n";
+		response << "		<td>\n";
+		response << "			<select id=\"files\" size=\"12\" onclick=\"closeDetails(0)\" ondblclick=\"onfilechange()\" style=\"width:100%\">\n";
+		response << "			</select>\n";
+		response << "		</td>\n";
+		response << "	</tr>\n";
+		response << "	<tr>\n";
+		response << "		<td valign=top>\n";
+		response << "			<details id=\"d1\" onclick=\"onclickd1()\"><summary>Delete selected folder</summary>\n";
+		response << "				Are you sure? <input type=\"submit\" value=\"Yes, delete it\">\n";
+		response << "			</details><br>\n";
+		response << "			<details id=\"d2\" onclick=\"onclickd2()\"><summary>New folder</summary>\n";
+		response << "				Name: <input type=\"text\" id=\"newfoldername\"><input type=\"button\" onclick=\"newfolder()\" value=\"Create\">\n";
+		response << "			</details>\n";
+		response << "		</td>\n";
+		response << "		<td valign=top>\n";
+		response << "			<details id=\"d3\" onclick=\"onclickd3()\"><summary>Delete selected file</summary>\n";
+		response << "				Are you sure? <input type=\"submit\" value=\"Yes, delete it\">\n";
+		response << "			</details><br>\n";
+		response << "			<details id=\"d4\" onclick=\"onclickd4()\"><summary>New page</summary>\n";
+		response << "				<form action=\"/edit\">Name: <input type=\"text\" name=\"name\"><input type=\"submit\" value=\"Create\"></form>\n";
+		response << "			</details>\n";
+		response << "		</td>\n";
+		response << "	</tr>\n";
+		response << "</table>\n";
+		response << "<br><br>\n";
+	}
+
+	void pageEdit(GDynamicPageSession* pSession, ostream& response)
+	{
+		response << "<script type=\"text/javascript\" src=\"editor.js\"></script>\n";
+		response << "<table border=1 borderwidth=0 bgcolor=#ffffff>\n";
+		response << "<tr><td>Page name: <input type=\"text\" id=\"filename\" value=\"somepagename\"></td></tr>\n";
+		response << "<tr><td>\n";
+		response << "	<button onclick=\"removeFormatting()\" class=\"tooltip\">0<span class=\"tooltiptext\">Remove formatting</span></button>\n";
+		response << "	<button onclick=\"toggle('H1')\" class=\"tooltip\">H1<span class=\"tooltiptext\">Document heading</span></button>\n";
+		response << "	<button onclick=\"toggle('H2')\" class=\"tooltip\">H2<span class=\"tooltiptext\">Chapter heading</span></button>\n";
+		response << "	<button onclick=\"toggle('H3')\" class=\"tooltip\">H3<span class=\"tooltiptext\">Section heading</span></button>\n";
+		response << "	<button onclick=\"toggle('H4')\" class=\"tooltip\">H4<span class=\"tooltiptext\">Subsection heading</span></button>\n";
+		response << "	<button onclick=\"toggle('B')\" class=\"tooltip\"><b>B</b><span class=\"tooltiptext\">Boldify</span></button>\n";
+		response << "	<button onclick=\"toggle('I')\" class=\"tooltip\"><i>I</i><span class=\"tooltiptext\">Italicize</span></button>\n";
+		response << "	<button onclick=\"toggle('U')\" class=\"tooltip\"><u>U</u><span class=\"tooltiptext\">Underline</span></button>\n";
+		response << "	<button onclick=\"toggle('STRIKE')\" class=\"tooltip\"><strike>S</strike><span class=\"tooltiptext\">Strike-through</span></button>\n";
+		response << "	<button onclick=\"toggle('SUP')\" class=\"tooltip\"><small>x<sup>i</sup></small><span class=\"tooltiptext\">Superscript</span></button>\n";
+		response << "	<button onclick=\"toggle('SUB')\" class=\"tooltip\"><small>x<sub>i</sub></small><span class=\"tooltiptext\">Subscript</span></button>\n";
+		response << "	<button onclick=\"increase('BIG', 'SMALL')\" class=\"tooltip\"><small>A</small>►<b>A</b><span class=\"tooltiptext\">Bigger</span></button>\n";
+		response << "	<button onclick=\"increase('SMALL', 'BIG')\" class=\"tooltip\"><b>A</b>►<small>A</small><span class=\"tooltiptext\">Smaller</span></button>\n";
+		response << "	<button onclick=\"indent()\" class=\"tooltip\">►<span class=\"tooltiptext\">Indent</span></button>\n";
+		response << "	<button onclick=\"remove('MENU')\" class=\"tooltip\">◄<span class=\"tooltiptext\">Unindent</span></button>\n";
+		response << "	<button onclick=\"toggle('CENTER')\" class=\"tooltip\">C<span class=\"tooltiptext\">Center</span></button>\n";
+		response << "	<button onclick=\"addLi(false)\" class=\"tooltip\">●<span class=\"tooltiptext\">Bullets</span></button>\n";
+		response << "	<button onclick=\"addLi(true)\" class=\"tooltip\">1<span class=\"tooltiptext\">Enumerate</span></button>\n";
+		response << "	<button onclick=\"addTable()\" class=\"tooltip\">╬<span class=\"tooltiptext\">Table</span></button>\n";
+		response << "	<button onclick=\"save()\" class=\"tooltip\">Save</button>\n";
+		response << "</td></tr>\n";
+		response << "<tr><td contenteditable=\"true\" id=\"body\">\n";
+		response << "	<br><br><br><br><br>\n";
+		response << "</td></tr>\n";
 		response << "</table>\n";
 	}
 
@@ -1819,11 +1896,138 @@ public:
 		response << "</tr></td></table></center>\n";
 	}
 
+	void ensureFolderExists(string& folderName)
+	{
+		bool ok;
+#ifdef WINDOWS
+		ok = (mkdir(folderName.c_str()) == 0);
+#else
+		ok = (mkdir(folderName.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == 0); // read/write/search permissions for owner and group, and with read/search permissions for others
+#endif
+		if(!ok)
+		{
+			//throw Ex("Failed to make directory: ", folderName);
+		}
+	}
+
 	void pageTest(GDynamicPageSession* pSession, ostream& response)
 	{
 		response << "<script type=\"text/javascript\" src=\"ajax.js\"></script>\n";
 	}
+
+	void ajaxUnknownAction(const char* action, GDom& doc, GDomNode* pOut)
+	{
+		string s = "Error: unrecognized action, ";
+		s += action;
+		pOut->add(&doc, "msg", s.c_str());
+	}
+
+	string goUpOneDirectory(string& dir)
+	{
+		size_t lastSlash = dir.find_last_of("/");
+		if(lastSlash == string::npos)
+			return dir;
+		else
+		{
+			return dir.substr(0, lastSlash);
+		}
+	}
+
+	void ajaxFilelist(GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
+	{
+		Account* pAccount = getAccount(pSession);
+		string foldername = ((Server*)m_pServer)->m_basePath.c_str();
+		foldername += "usercontent/";
+		foldername += pAccount->username();
+		ensureFolderExists(foldername);
+		foldername += "/pages";
+		ensureFolderExists(foldername);
+		foldername += "/";
+		const char* szCD = pIn->getString("folder");
+		if(strstr(szCD, ".") != nullptr)
+		{
+			// found a dot
+			if(szCD[0] == '.' && szCD[1] == '.')
+			{
+				// It's ".."
+				pAccount->path() = goUpOneDirectory(pAccount->path());
+			}
+			else
+			{
+				// It's probably just a single dot, so don't change the path
+			}
+		}
+		else
+		{
+			// Change into the specified folder
+			pAccount->path() += "/";
+			pAccount->path() += szCD;
+		}
+		foldername += pAccount->path();
+
+		// Add the path
+		pOut->add(&doc, "path", pAccount->path().c_str());
+
+		// Add the folder list
+		GDomNode* pFolders = doc.newList();
+		pOut->add(&doc, "folders", pFolders);
+		vector<string> folderList;
+		GFile::folderList(folderList, foldername.c_str());
+		for(size_t i = 0; i < folderList.size(); i++)
+			pFolders->add(&doc, folderList[i].c_str());
+
+		// Add the file list
+		GDomNode* pFiles = doc.newList();
+		pOut->add(&doc, "files", pFiles);
+		vector<string> fileList;
+		GFile::fileList(fileList, foldername.c_str());
+		for(size_t i = 0; i < fileList.size(); i++)
+			pFiles->add(&doc, fileList[i].c_str());
+	}
+
+	void ajaxSave(GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
+	{
+		Account* pAccount = getAccount(pSession);
+		string filename = ((Server*)m_pServer)->m_basePath.c_str();
+		filename += "usercontent/";
+		filename += pAccount->username();
+		ensureFolderExists(filename);
+		filename += "/pages";
+		ensureFolderExists(filename);
+		filename += "/";
+		filename += pIn->getString("filename");
+		filename += ".json";
+		GDomNode* pPage = pIn->get("page");
+		pPage->saveJson(filename.c_str());
+		cout << "User " << pAccount->username() << " saved a page to: " << filename << "\n";
+		cout.flush();
+	}
 };
+
+void Connection::handleAjax(GDynamicPageSession* pSession, ostream& response)
+{
+	GDom docIn;
+	GDom docOut;
+	GDomNode* pOutNode = nullptr;
+	setContentType("application/json");
+	try
+	{
+		docIn.parseJson(pSession->params(), pSession->paramsLen());
+		const GDomNode* pInNode = docIn.root();
+		const char* action = pInNode->getString("action");
+		pOutNode = docOut.newObj();
+		if(strcmp(action, "save") == 0) ajaxSave(pSession, pInNode, docOut, pOutNode);
+		else if(strcmp(action, "filelist") == 0) ajaxFilelist(pSession, pInNode, docOut, pOutNode);
+		else ajaxUnknownAction(action, docOut, pOutNode);
+	}
+	catch(std::exception& e)
+	{
+		cout << "\nProblem during AJAX request. " << e.what();
+		cout.flush();
+		return;
+	}
+	pOutNode->writeJson(response);
+}
 
 const char* Connection::processParams(GDynamicPageSession* pSession)
 {
@@ -1972,31 +2176,6 @@ const char* Connection::processParams(GDynamicPageSession* pSession)
 	return szParamsMessage;
 }
 
-void Connection::handleAjax(GDynamicPageSession* pSession, ostream& response)
-{
-	GDom docIn;
-	double d = 0;
-	try
-	{
-		docIn.parseJson(pSession->params(), pSession->paramsLen());
-		const GDomNode* pNode = docIn.root();
-		d = pNode->getDouble("burrito");
-	}
-	catch(std::exception& e)
-	{
-		cout << "Invalid incoming AJAX blob. " << e.what();
-		return;
-	}
-
-	GDom doc;
-	GDomNode* pNode = doc.newObj();
-	pNode->add(&doc, "someval", 3.14159);
-	pNode->add(&doc, "yousaid", d);
-	
-	setContentType("application/json");
-	pNode->writeJson(response);
-}
-
 bool isurl(const char* url, const char* dynpage)
 {
 	while(true)
@@ -2016,6 +2195,7 @@ bool isurl(const char* url, const char* dynpage)
 // virtual
 void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 {
+	//cout << "Handling: " << m_szUrl << "?" << pSession->params() << "\n";
 	if(isurl(m_szUrl, "/ajax"))
 	{
 		handleAjax(pSession, response);
@@ -2029,6 +2209,8 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 	void (Connection::*makePage)(GDynamicPageSession* pSession, ostream& response) = nullptr;
 	if(isurl(m_szUrl, "/")) makePage = &Connection::pageSurvey;
 	else if(isurl(m_szUrl, "/account")) makePage = &Connection::pageAccount;
+	else if(isurl(m_szUrl, "/browse")) makePage = &Connection::pageBrowse;
+	else if(isurl(m_szUrl, "/edit")) makePage = &Connection::pageEdit;
 	else if(isurl(m_szUrl, "/survey")) makePage = &Connection::pageSurvey;
 	else if(isurl(m_szUrl, "/submit")) makePage = &Connection::pageSubmit;
 	else if(isurl(m_szUrl, "/stats")) makePage = &Connection::pageStats;
@@ -2067,17 +2249,19 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 		}
 		else
 		{
+			string webpath = ((Server*)m_pServer)->m_basePath;
+			webpath += "web/";
 			size_t len = strlen(m_szUrl);
 			if(len > 6 && strcmp(m_szUrl + len - 6, ".hbody") == 0)
 			{
 				if(headers)
 					makeHeader(pSession, response, szParamsMessage);
-				sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
+				sendFileSafe(webpath.c_str(), m_szUrl + 1, response);
 				if(headers)
 					makeFooter(pSession, response);
 			}
 			else
-				sendFileSafe(((Server*)m_pServer)->m_basePath.c_str(), m_szUrl + 1, response);
+				sendFileSafe(webpath.c_str(), m_szUrl + 1, response);
 		}
 	}
 	catch(std::exception& e)
@@ -2095,7 +2279,6 @@ m_recommender(*pRand)
 {
 	char buf[300];
 	GApp::appPath(buf, 256, true);
-	strcat(buf, "web/");
 	GFile::condensePath(buf);
 	m_basePath = buf;
 	cout << "Base path: " << m_basePath << "\n";
@@ -2350,7 +2533,7 @@ void doItAsDaemon()
 
 int main(int nArgs, char* pArgs[])
 {
-cout << "an1=" << to_str(AUTO_NAME_1_COUNT) << "," << to_str(AUTO_NAME_2_COUNT) << "," << to_str(AUTO_NAME_3_COUNT) << "\n";
+	//cout << "an1=" << to_str(AUTO_NAME_1_COUNT) << "," << to_str(AUTO_NAME_2_COUNT) << "," << to_str(AUTO_NAME_3_COUNT) << "\n";
 	int nRet = 1;
 	try
 	{

@@ -54,3 +54,45 @@ a:hover
 	text-align: center;
 	vertical-align: middle;
 }
+
+.tooltip
+{
+	background-color: #c0e0b0;
+	position: relative;
+	display: inline-block;
+	padding: 5px;
+	border: 0px
+}
+
+.tooltip .tooltiptext
+{
+	visibility: hidden;
+	background-color: green;
+	width: 110px;
+	color: #ffffff;
+	text-align: center;
+	border-radius: 6px;
+	padding: 5px 5px;
+
+	/* Position the tooltip */
+	position: absolute;
+	z-index: 1;
+	top: -25px;
+	left: 0%;
+}
+
+.tooltip:hover .tooltiptext
+{
+	visibility: visible;
+}
+
+summary
+{
+	color: #004080;
+	cursor: pointer;
+}
+
+details summary::-webkit-details-marker
+{
+	display:none;
+}
