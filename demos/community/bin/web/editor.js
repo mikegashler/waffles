@@ -209,7 +209,7 @@ function save()
 {
 	let ob = {};
 	ob.action = "save";
-	ob.page = document.getElementById("body").outerHTML;
+	ob.content = document.getElementById("content").outerHTML;
 	ob.filename = document.getElementById("filename").value;
 	httpPost("/ajax", JSON.stringify(ob), cb);
 }

@@ -41,6 +41,9 @@ class GJsonTokenizer;
 ///\brief Converts a GDomNode to a string
 std::string to_str(const GDomNode& node);
 
+///\brief Converts a GDomNode to a string, but if the resulting string is more than about 60 characters then it will be shortened to show only the first and last segments separated by ellipses.
+std::string to_str_brief(const GDomNode& node);
+
 ///\brief Converts a GDom to a string
 std::string to_str(const GDom& doc);
 

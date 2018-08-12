@@ -1,26 +1,21 @@
-body,center
-{
+body,center {
 	font-family: verdana, tahoma, geneva, sans-serif;
 	font-size: 18px;
 }
 
-a
-{
+a {
 	text-decoration: none;
 }
 
-a:hover
-{
+a:hover {
 	text-decoration: underline;
 }
 
-#wholepage
-{
+#wholepage {
 	color: #000040;
 }
 
-#header
-{
+#header {
 	background: #c2c2b6;
 	padding: 5px;
 	margin: 0px 0px 0px 0px;
@@ -28,8 +23,7 @@ a:hover
 	vertical-align: middle;
 }
 
-#sidebar
-{
+#sidebar {
 	background: #c2c2b6;
 	margin: 0px 0px 0px 0px;
 	padding: 5px;
@@ -37,8 +31,7 @@ a:hover
 	vertical-align: top;
 }
 
-#mainbody
-{
+#mainbody {
 	border: 1px solid #604000;
 	background: #F4f4e0;
 	margin: 0px 0px 0px 0px;
@@ -46,8 +39,7 @@ a:hover
 	width: 970px;
 }
 
-#footer
-{
+#footer {
 	background: #c2c2b6;
 	margin: 0px 0px 10px 0px;
 	padding: 5px;
@@ -55,8 +47,7 @@ a:hover
 	vertical-align: middle;
 }
 
-.tooltip
-{
+.tooltip {
 	background-color: #c0e0b0;
 	position: relative;
 	display: inline-block;
@@ -64,8 +55,7 @@ a:hover
 	border: 0px
 }
 
-.tooltip .tooltiptext
-{
+.tooltip .tooltiptext {
 	visibility: hidden;
 	background-color: green;
 	width: 110px;
@@ -81,18 +71,30 @@ a:hover
 	left: 0%;
 }
 
-.tooltip:hover .tooltiptext
-{
+.tooltip:hover .tooltiptext {
 	visibility: visible;
 }
 
-summary
-{
+summary {
 	color: #004080;
 	cursor: pointer;
 }
 
-details summary::-webkit-details-marker
-{
+details summary::-webkit-details-marker {
 	display:none;
 }
+
+
+/* Container holding the image and the text */
+.container {
+    position: relative;
+}
+
+/* Top left text */
+.overlay {
+	width: 100%;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+}
+

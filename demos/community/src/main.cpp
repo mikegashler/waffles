@@ -33,6 +33,7 @@
 #include <GClasses/GDom.h>
 #include <GClasses/GString.h>
 #include <GClasses/GHeap.h>
+#include <GClasses/GHtml.h>
 #include <GClasses/GHttp.h>
 #include <GClasses/GFile.h>
 #include <GClasses/GTime.h>
@@ -1317,7 +1318,7 @@ public:
 		response << "	<tr>\n";
 		response << "		<td valign=top>\n";
 		response << "			<details id=\"d1\" onclick=\"onclickd1()\"><summary>Delete selected folder</summary>\n";
-		response << "				Are you sure? <input type=\"submit\" value=\"Yes, delete it\">\n";
+		response << "				Are you sure? Everything inside it will be deleted too. <input type=\"submit\" value=\"Yes, delete it\">\n";
 		response << "			</details><br>\n";
 		response << "			<details id=\"d2\" onclick=\"onclickd2()\"><summary>New folder</summary>\n";
 		response << "				Name: <input type=\"text\" id=\"newfoldername\"><input type=\"button\" onclick=\"newfolder()\" value=\"Create\">\n";
@@ -1328,7 +1329,7 @@ public:
 		response << "				Are you sure? <input type=\"submit\" value=\"Yes, delete it\">\n";
 		response << "			</details><br>\n";
 		response << "			<details id=\"d4\" onclick=\"onclickd4()\"><summary>New page</summary>\n";
-		response << "				<form action=\"/edit\">Name: <input type=\"text\" name=\"name\"><input type=\"submit\" value=\"Create\"></form>\n";
+		response << "				<form action=\"/edit\">Name: <input type=\"text\" name=\"pagename\"><input type=\"submit\" value=\"Create\"></form>\n";
 		response << "			</details>\n";
 		response << "		</td>\n";
 		response << "	</tr>\n";
@@ -1338,9 +1339,40 @@ public:
 
 	void pageEdit(GDynamicPageSession* pSession, ostream& response)
 	{
+		// Determine the file name from a URL parameter
+		GHttpParamParser params(pSession->params());
+		const char* pagename = params.find("pagename");
+		if(!pagename || strlen(pagename) < 1)
+		{
+			response << "Expected a page name.";
+			return;
+		}
+
+		// Load the file
+		Account* pAccount = getAccount(pSession);
+		string filename = ((Server*)m_pServer)->m_basePath.c_str();
+		filename += "usercontent/";
+		filename += pAccount->username();
+		filename += "/pages/";
+		filename += pagename;
+		GHtmlDoc dom(filename.c_str());
+
+		// Find the content div and make it content-editable
+		GHtmlElement* pContent = dom.getElementById("content");
+		if(!pContent)
+		{
+			pContent = dom.getBody();
+			if(!pContent)
+				throw Ex("Could not find content or body");
+			pContent->name = "div";
+			pContent->addAttr("id", "\"content\"");
+		}
+		pContent->addAttr("contenteditable", "true");
+
+		// Generate the page content
 		response << "<script type=\"text/javascript\" src=\"editor.js\"></script>\n";
 		response << "<table border=1 borderwidth=0 bgcolor=#ffffff>\n";
-		response << "<tr><td>Page name: <input type=\"text\" id=\"filename\" value=\"somepagename\"></td></tr>\n";
+		response << "<tr><td>Page name: <input type=\"hidden\" id=\"filename\" value=\"" << pagename << "\"></td></tr>\n";
 		response << "<tr><td>\n";
 		response << "	<button onclick=\"removeFormatting()\" class=\"tooltip\">0<span class=\"tooltiptext\">Remove formatting</span></button>\n";
 		response << "	<button onclick=\"toggle('H1')\" class=\"tooltip\">H1<span class=\"tooltiptext\">Document heading</span></button>\n";
@@ -1363,8 +1395,13 @@ public:
 		response << "	<button onclick=\"addTable()\" class=\"tooltip\">╬<span class=\"tooltiptext\">Table</span></button>\n";
 		response << "	<button onclick=\"save()\" class=\"tooltip\">Save</button>\n";
 		response << "</td></tr>\n";
-		response << "<tr><td contenteditable=\"true\" id=\"body\">\n";
+		response << "<tr><td>";
+
+		pContent->write(response);
+/*		response << "<div contenteditable=\"true\" id=\"body\">\n";
 		response << "	<br><br><br><br><br>\n";
+		response << "</div>";
+*/
 		response << "</td></tr>\n";
 		response << "</table>\n";
 	}
@@ -1987,18 +2024,49 @@ public:
 
 	void ajaxSave(GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
 	{
+		// Load and parse the original file
 		Account* pAccount = getAccount(pSession);
 		string filename = ((Server*)m_pServer)->m_basePath.c_str();
 		filename += "usercontent/";
 		filename += pAccount->username();
-		ensureFolderExists(filename);
 		filename += "/pages";
-		ensureFolderExists(filename);
 		filename += "/";
 		filename += pIn->getString("filename");
-		filename += ".json";
-		GDomNode* pPage = pIn->get("page");
-		pPage->saveJson(filename.c_str());
+		GHtmlDoc domOld(filename.c_str());
+
+		// Find the old content
+		GHtmlElement* pOldContent = domOld.getElementById("content");
+		if(!pOldContent)
+		{
+			pOldContent = domOld.getBody();
+			if(!pOldContent)
+				throw Ex("Could not find content or body in the old dom");
+		}
+
+		// Parse the new content and strip the contenteditable attribute
+		const char* szNewContent = pIn->getString("content");
+		GHtmlDoc domNew(szNewContent, strlen(szNewContent));
+		GHtmlElement* pNewContent = domNew.getElementById("content");
+		if(!pNewContent)
+			throw Ex("Expected a tag with id=\"content\"");
+		pNewContent->dropAttr("contenteditable");
+
+		// Swap in the new content
+		pOldContent->swap(pNewContent);
+
+		// Write the file
+		std::ofstream s;
+		s.exceptions(std::ios::badbit | std::ios::failbit);
+		try
+		{
+			s.open(filename.c_str(), std::ios::binary);
+		}
+		catch(const std::exception&)
+		{
+			throw Ex("Error while trying to create the file, ", filename, ". ", strerror(errno));
+		}
+		domOld.document()->write(s);
+
 		cout << "User " << pAccount->username() << " saved a page to: " << filename << "\n";
 		cout.flush();
 	}

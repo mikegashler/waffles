@@ -71,7 +71,7 @@ public:
 /// 	tok.skip(whitespace);
 /// 	if(!tok.has_more())
 /// 		break;
-/// 	char* mystr = tok.nextWhile(alphanum);
+/// 	char* mystr = tok.readWhile(alphanum);
 /// 	tok.skip(commanewline);
 /// }
 class GTokenizer
@@ -84,7 +84,8 @@ protected:
 	char* m_pBufPos; // the current tail of the token buffer
 	char* m_pBufEnd; // the end of the capacity of the token buffer
 	std::istream* m_pStream; // the stream that is the source of the data
-	size_t m_lineCol; // column number
+	size_t m_pos; // the position relative to the start of the stream
+	size_t m_lineStart; // the position where this line started
 	size_t m_line; // line number
 
 public:
@@ -122,23 +123,21 @@ public:
 	/// minLen characters are read.
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
-	char* nextUntil(const GCharSet& delimeters, size_t minLen = 1);
+	char* readUntil(const GCharSet& delimeters, size_t minLen = 1, size_t maxLen = (size_t)-1);
 
 	/// Reads until the next character would be one of the specified delimeters,
-	/// and the current character is not escapeChar.
+	/// and is not preceded by escapeChar.
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
-	char* nextUntilNotEscaped(char escapeChar, const GCharSet& delimeters);
+	char* readUntil_escaped(char escapeChar, const GCharSet& delimeters);
 
 	/// Reads while the character is one of the specified characters. Throws an
 	/// exception if fewer than minLen characters are read.
 	/// The token returned by this method will have been copied into an
 	/// internal buffer, null-terminated, and a pointer to that buffer is returned.
-	char* nextWhile(const GCharSet& set, size_t minLen = 1);
+	char* readWhile(const GCharSet& set, size_t minLen = 1);
 
-	/// \brief Returns the next token defined by the given delimiters.
-	/// \brief Allows quoting " or ' and escapes with an escape
-	/// \brief character.
+	/// \brief Returns the next token defined by the given delimiters unless escaped or quoted with " or '.
 	///
 	/// Returns the next token delimited by the given delimiters.
 	///
@@ -173,25 +172,25 @@ public:
 	///
 	///\return a pointer to an internal character buffer containing the
 	///        null-terminated token
-	char* nextArg(const GCharSet& delimiters, char escapeChar = '\\');
+	char* readUntil_escaped_quoted(const GCharSet& delimiters, char escapeChar = '\\');
 
 	/// Reads past any characters specified in the list of delimeters.
 	/// If szDelimeters is NULL, then any characters <= ' ' are considered
 	/// to be delimeters. (This method is similar to nextWhile, except that
 	/// it does not buffer the characters it reads.)
-	void skip(const GCharSet& delimeters);
+	void skipWhile(const GCharSet& delimeters);
 
 	/// Skip until the next character is one of the delimeters.
-	/// (This method is the same as nextUntil, except that it does not buffer what it reads.)
-	void skipTo(const GCharSet& delimeters);
+	/// (This method is the same as readUntil, except that it does not buffer what it reads.)
+	void skipUntil(const GCharSet& delimeters);
 
 	/// Advances past the next 'n' characters. (Stops if the end-of-file is reached.)
-	void advance(size_t n);
+	void skip(size_t n);
 
 	/// Reads past the specified string of characters. If the characters
 	/// that are read from the file do not exactly match those in the string,
 	/// an exception is thrown.
-	void expect(const char* szString);
+	void skipExact(const char* szString);
 
 	/// Returns the previously-returned token, except with any of the specified characters
 	/// trimmed off of both the beginning and end of the token. For example, this method could
@@ -203,13 +202,16 @@ public:
 	/// (Calling this method will not change the value returned by tokenLength.)
 	char* filter(const GCharSet& set);
 
+	/// Returns the current position in this stream
+	size_t pos();
+
 	/// Returns the current line number. (Begins at 1. Each time a '\n' is encountered,
 	/// the line number is incremented. Mac line-endings do not increment the
 	/// line number.)
 	size_t line();
 
 	/// Returns the current column index, which is the number of characters that have
-	/// been read since the last newline character, plus 1.
+	/// been read since the last newline character.
 	size_t col();
 
 	/// Returns the length of the last token that was returned.

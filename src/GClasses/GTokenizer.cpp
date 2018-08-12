@@ -101,7 +101,8 @@ GTokenizer::GTokenizer(const char* szFilename)
 	m_pBufStart = new char[256];
 	m_pBufPos = m_pBufStart;
 	m_pBufEnd = m_pBufStart + 256;
-	m_lineCol = 0;
+	m_pos = 0;
+	m_lineStart = 0;
 	m_line = 1;
 }
 
@@ -120,7 +121,8 @@ GTokenizer::GTokenizer(const char* pFile, size_t len)
 	m_pBufStart = new char[256];
 	m_pBufPos = m_pBufStart;
 	m_pBufEnd = m_pBufStart + 256;
-	m_lineCol = 0;
+	m_pos = 0;
+	m_lineStart = 0;
 	m_line = 1;
 }
 
@@ -185,12 +187,11 @@ char GTokenizer::get()
 	if(++m_qPos >= GTOKENIZER_MAX_LOOKAHEAD)
 		m_qPos = 0;
 	m_qCount--;
+	m_pos++;
 	if(c == '\n')
 	{
 		m_line++;
-		m_lineCol = 0;
-	} else {
-		m_lineCol++;
+		m_lineStart = m_pos;
 	}
 	return c;
 }
@@ -232,23 +233,24 @@ char* GTokenizer::appendToToken(const char* string)
 	return nullTerminate();
 }
 
-char* GTokenizer::nextUntil(const GCharSet& delimeters, size_t minLen)
+char* GTokenizer::readUntil(const GCharSet& delimeters, size_t minLen, size_t maxLen)
 {
 	m_pBufPos = m_pBufStart;
-	while(has_more())
+	while(has_more() && maxLen > 0)
 	{
 		char c = peek();
 		if(delimeters.find(c))
 			break;
 		c = get();
 		bufferChar(c);
+		maxLen--;
 	}
 	if((size_t)(m_pBufPos - m_pBufStart) < minLen)
 		throw Ex("On line ", to_str(m_line), ", col ", to_str(col()), ", expected a token of at least size ", to_str(minLen), ", but got only ", to_str(m_pBufPos - m_pBufStart));
 	return nullTerminate();
 }
 
-char* GTokenizer::nextUntilNotEscaped(char escapeChar, const GCharSet& delimeters)
+char* GTokenizer::readUntil_escaped(char escapeChar, const GCharSet& delimeters)
 {
 	m_pBufPos = m_pBufStart;
 	char cCur = '\0';
@@ -264,7 +266,7 @@ char* GTokenizer::nextUntilNotEscaped(char escapeChar, const GCharSet& delimeter
 	return nullTerminate();
 }
 
-char* GTokenizer::nextWhile(const GCharSet& set, size_t minLen)
+char* GTokenizer::readWhile(const GCharSet& set, size_t minLen)
 {
 	m_pBufPos = m_pBufStart;
 	while(has_more())
@@ -280,7 +282,7 @@ char* GTokenizer::nextWhile(const GCharSet& set, size_t minLen)
 	return nullTerminate();
 }
 
-void GTokenizer::skip(const GCharSet& delimeters)
+void GTokenizer::skipWhile(const GCharSet& delimeters)
 {
 	while(has_more())
 	{
@@ -291,7 +293,7 @@ void GTokenizer::skip(const GCharSet& delimeters)
 	}
 }
 
-void GTokenizer::skipTo(const GCharSet& delimeters)
+void GTokenizer::skipUntil(const GCharSet& delimeters)
 {
 	while(has_more())
 	{
@@ -302,14 +304,14 @@ void GTokenizer::skipTo(const GCharSet& delimeters)
 	}
 }
 
-char* GTokenizer::nextArg(const GCharSet& delimiters, char escapeChar)
+char* GTokenizer::readUntil_escaped_quoted(const GCharSet& delimiters, char escapeChar)
 {
 	m_pBufPos = m_pBufStart;
 	char c = peek();
 	if(c == '"')
 	{
 		bufferChar('"');
-		advance(1);
+		skip(1);
 		while(has_more())
 		{
 			char c2 = peek();
@@ -322,15 +324,15 @@ char* GTokenizer::nextArg(const GCharSet& delimiters, char escapeChar)
 			throw Ex("Expected matching double-quotes on line ",
 								 to_str(m_line), ", col ", to_str(col()));
 		bufferChar('"');
-		advance(1);
+		skip(1);
 		while(!delimiters.find(peek()))
-			advance(1);
+			skip(1);
 		return nullTerminate();
 	}
 	else if(c == '\'')
 	{
 		bufferChar('\'');
-		advance(1);
+		skip(1);
 		while(has_more())
 		{
 			char c2 = peek();
@@ -343,9 +345,9 @@ char* GTokenizer::nextArg(const GCharSet& delimiters, char escapeChar)
 			throw Ex("Expected a matching single-quote on line ", to_str(m_line),
 								 ", col ", to_str(col()));
 		bufferChar('\'');
-		advance(1);
+		skip(1);
 		while(!delimiters.find(peek()))
-			advance(1);
+			skip(1);
 		return nullTerminate();
 	}
 
@@ -378,7 +380,7 @@ char* GTokenizer::nextArg(const GCharSet& delimiters, char escapeChar)
 	return nullTerminate();
 }
 
-void GTokenizer::advance(size_t n)
+void GTokenizer::skip(size_t n)
 {
 	while(n > 0 && has_more())
 	{
@@ -392,7 +394,7 @@ size_t GTokenizer::line()
 	return m_line;
 }
 
-void GTokenizer::expect(const char* szString)
+void GTokenizer::skipExact(const char* szString)
 {
 	while(*szString != '\0' && has_more())
 	{
@@ -439,7 +441,7 @@ char* GTokenizer::filter(const GCharSet& set)
 
 size_t GTokenizer::col()
 {
-	return m_lineCol;
+	return m_pos - m_lineStart;
 }
 
 } // namespace GClasses

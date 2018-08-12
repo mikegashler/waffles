@@ -61,7 +61,7 @@ public:
 GDomListIterator::GDomListIterator(const GDomNode* pNode)
 {
 	if(pNode->m_type != GDomNode::type_list)
-		throw Ex("\"", to_str(pNode), "\" is not a list type");
+		throw Ex(to_str_brief(*pNode), " is not a list type");
 	m_pList = pNode;
 	m_remaining = m_pList->reverseItemOrder();
 	m_pCurrent = m_pList->m_value.m_pLastItem;
@@ -119,7 +119,7 @@ size_t GDomListIterator::remaining()
 GDomNode* GDomNode::getIfExists(const char* szName) const
 {
 	if(m_type != type_obj)
-		throw Ex("\"", to_str(this), "\" is not an obj");
+		throw Ex(to_str_brief(*this), " is not an obj");
 	GDomObjField* pField;
 	for(pField = m_value.m_pLastField; pField; pField = pField->m_pPrev)
 	{
@@ -166,7 +166,7 @@ size_t GDomNode::reverseItemOrder() const
 GDomNode* GDomNode::add(GDom* pDoc, const char* szName, GDomNode* pNode)
 {
 	if(m_type != type_obj)
-		throw Ex("\"", to_str(this), "\" is not an obj");
+		throw Ex(to_str_brief(*this), " is not an obj");
 	GDomObjField* pField = pDoc->newField();
 	pField->m_pPrev = m_value.m_pLastField;
 	m_value.m_pLastField = pField;
@@ -204,7 +204,7 @@ GDomNode* GDomNode::add(GDom* pDoc, const char* szName, const char* str)
 GDomNode* GDomNode::add(GDom* pDoc, GDomNode* pNode)
 {
 	if(m_type != type_list)
-		throw Ex("\"", to_str(this), "\" is not a list");
+		throw Ex(to_str_brief(*this), " is not a list");
 	GDomListItem* pItem = pDoc->newItem();
 	pItem->m_pPrev = m_value.m_pLastItem;
 	m_value.m_pLastItem = pItem;
@@ -772,9 +772,9 @@ GDomListItem* GDom::newItem()
 
 char* GDom::loadJsonString(GJsonTokenizer& tok)
 {
-	tok.expect("\"");
-	char* szTok = tok.nextUntilNotEscaped('\\', tok.m_quot);
-	tok.advance(1);
+	tok.skipExact("\"");
+	char* szTok = tok.readUntil_escaped('\\', tok.m_quot);
+	tok.skip(1);
 	size_t eat = 0;
 	char* szString = szTok;
 	while(szString[eat] != '\0')
@@ -811,24 +811,24 @@ char* GDom::loadJsonString(GJsonTokenizer& tok)
 
 GDomNode* GDom::loadJsonObject(GJsonTokenizer& tok)
 {
-	tok.expect("{");
+	tok.skipExact("{");
 	GDomNode* pNewObj = newObj();
 	bool readyForField = true;
 	GCharSet& whitespace = tok.m_whitespace;
 	while(tok.has_more())
 	{
-		tok.skip(whitespace);
+		tok.skipWhile(whitespace);
 		char c = tok.peek();
 		if(c == '}')
 		{
-			tok.advance(1);
+			tok.skip(1);
 			break;
 		}
 		else if(c == ',')
 		{
 			if(readyForField)
 				throw Ex("Unexpected ',' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-			tok.advance(1);
+			tok.skip(1);
 			readyForField = true;
 		}
 		else if(c == '\"')
@@ -839,9 +839,9 @@ GDomNode* GDom::loadJsonObject(GJsonTokenizer& tok)
 			pNewField->m_pPrev = pNewObj->m_value.m_pLastField;
 			pNewObj->m_value.m_pLastField = pNewField;
 			pNewField->m_pName = m_heap.add(loadJsonString(tok));
-			tok.skip(whitespace);
-			tok.expect(":");
-			tok.skip(whitespace);
+			tok.skipWhile(whitespace);
+			tok.skipExact(":");
+			tok.skipWhile(whitespace);
 			pNewField->m_pValue = loadJsonValue(tok);
 			readyForField = false;
 		}
@@ -855,23 +855,23 @@ GDomNode* GDom::loadJsonObject(GJsonTokenizer& tok)
 
 GDomNode* GDom::loadJsonArray(GJsonTokenizer& tok)
 {
-	tok.expect("[");
+	tok.skipExact("[");
 	GDomNode* pNewList = newList();
 	bool readyForValue = true;
 	while(tok.has_more())
 	{
-		tok.skip(tok.m_whitespace);
+		tok.skipWhile(tok.m_whitespace);
 		char c = tok.peek();
 		if(c == ']')
 		{
-			tok.advance(1);
+			tok.skip(1);
 			break;
 		}
 		else if(c == ',')
 		{
 			if(readyForValue)
 				throw Ex("Unexpected ',' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-			tok.advance(1);
+			tok.skip(1);
 			readyForValue = true;
 		}
 		else if(c == '\0')
@@ -892,7 +892,7 @@ GDomNode* GDom::loadJsonArray(GJsonTokenizer& tok)
 
 GDomNode* GDom::loadJsonNumber(GJsonTokenizer& tok)
 {
-	char* szString = tok.nextWhile(tok.m_real);
+	char* szString = tok.readWhile(tok.m_real);
 	bool hasPeriod = false;
 	for(char* szChar = szString; *szChar != '\0'; szChar++)
 	{
@@ -922,17 +922,17 @@ GDomNode* GDom::loadJsonValue(GJsonTokenizer& tok)
 		return loadJsonArray(tok);
 	else if(c == 't')
 	{
-		tok.expect("true");
+		tok.skipExact("true");
 		return newBool(true);
 	}
 	else if(c == 'f')
 	{
-		tok.expect("false");
+		tok.skipExact("false");
 		return newBool(false);
 	}
 	else if(c == 'n')
 	{
-		tok.expect("null");
+		tok.skipExact("null");
 		return newNull();
 	}
 	else if((c >= '0' && c <= '9') || c == '-')
@@ -952,14 +952,14 @@ GDomNode* GDom::loadJsonValue(GJsonTokenizer& tok)
 void GDom::parseJson(const char* pJsonString, size_t len)
 {
 	GJsonTokenizer tok(pJsonString, len);
-	tok.skip(tok.m_whitespace);
+	tok.skipWhile(tok.m_whitespace);
 	setRoot(loadJsonValue(tok));
 }
 
 void GDom::loadJson(const char* szFilename)
 {
 	GJsonTokenizer tok(szFilename);
-	tok.skip(tok.m_whitespace);
+	tok.skipWhile(tok.m_whitespace);
 	setRoot(loadJsonValue(tok));
 }
 
@@ -1019,6 +1019,20 @@ std::string to_str(const GDomNode& node)
 	node.writeJsonPretty(os, 0);
 	return os.str();
 }
+
+std::string to_str_brief(const GDomNode& node)
+{
+	std::ostringstream os;
+	node.writeJsonPretty(os, 0);
+	std::string s = os.str();
+	if(s.length() < 60)
+		return s;
+	std::string s2 = s.substr(0, 30);
+	s2 += " ... ";
+	s2 += s.substr(s.length() - 30, 30);
+	return s2;
+}
+
 
 std::string to_str(const GDom& doc)
 {

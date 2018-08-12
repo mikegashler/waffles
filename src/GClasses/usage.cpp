@@ -1431,7 +1431,7 @@ UsageNode* makeSparseUsageTree()
 	UsageNode* pRoot = new UsageNode("waffles_sparse [command]", "Sparse learning, document classification, information retrieval, etc.");
 	{
 		UsageNode* pDocsToSparse = pRoot->add("docstosparsematrix <options> [folder1] [folder2] ...", "Converts a set of documents to a sparse feature matrix, and a dense label matrix. [folder1] should contain all of the documents in class1. [folder2] should contain all the documents in class2, and so forth. The words are filtered against a common set of stop words. Also, words less than 4 letters are ignored. "
-			"Currently, only .txt and .html documents are supported. Other file types are ignored. Each row in the sparse matrix represents one of the documents. Subdirectories are not followed. The feature vector is saved to a sparse matrix in compressed-column format. If more than one folder is specified, then a dense label matrix will also be generated. A mapping from row number to document filename is printed to stdout.");
+			"Currently, only .txt documents are supported. Other file types are ignored. Each row in the sparse matrix represents one of the documents. Subdirectories are not followed. The feature vector is saved to a sparse matrix in compressed-column format. If more than one folder is specified, then a dense label matrix will also be generated. A mapping from row number to document filename is printed to stdout.");
 		UsageNode* pOpts = pDocsToSparse->add("<options>");
 		pOpts->add("-nostem", "Specifies not to stem the words. (The default is to use the Porter stemming algorithm.)");
 		pOpts->add("-binary", "Just use the value 1 if the word occurs in a document, or a 0 if it does not occur. The default behavior is to compute the somewhat more meaningful value: a/b*log(c/d), where a=the number of times the word occurs in this document, b=the max number of times this word occurs in any document, c=total number of documents, and d=number of documents that contain this word.");
@@ -1608,6 +1608,9 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-precision [val]=14", "Specify how many digits of precision to use before truncating and resorting to scientific notation.");
 	}
 	{
+		pRoot->add("extracttext [html-file]=index.html", "Prints just the text from an HTML file.");
+	}
+	{
 		UsageNode* pFMS = pRoot->add("fillmissingvalues [dataset] <options>", "Replace all missing values in the dataset. (Note that the fillmissingvalues command in the waffles_recommend tool performs a similar task, but it can intelligently predict the missing values instead of just using the baseline value.)");
 		pFMS->add("[dataset]=data.arff", "The filename of a dataset");
 		UsageNode* pOpts = pFMS->add("<options>");
@@ -1738,6 +1741,9 @@ UsageNode* makeTransformUsageTree()
 	}
 	{
 		pRoot->add("prettify [json-file]=model.json", "Pretty-prints a JSON file.");
+	}
+	{
+		pRoot->add("prettifyhtml [html-file]=index.html", "Pretty-prints an HTML file.");
 	}
 	pRoot->add("pseudoinverse [dataset]=m.arff", "Compute the Moore-Penrose pseudo-inverse of the specified matrix of real values.");
 	pRoot->add("reducedrowechelonform [dataset]=m.arff", "Convert a matrix to reduced row echelon form. Results are printed to stdout.");

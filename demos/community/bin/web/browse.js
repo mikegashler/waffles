@@ -101,6 +101,8 @@ function onfolderchange()
 
 function onfilechange()
 {
+	let selectBox = document.getElementById("files");
+	window.location = "/edit?pagename=" + selectBox.value;
 }
 
 function newfolder()

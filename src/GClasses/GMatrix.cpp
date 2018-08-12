@@ -606,27 +606,27 @@ void GArffRelation::setName(const char* szName)
 
 void GArffRelation::parseAttribute(GArffTokenizer& tok)
 {
-	tok.skip(tok.m_spaces);
-	string dataname = tok.nextArg(tok.m_argEnd);
+	tok.skipWhile(tok.m_spaces);
+	string dataname = tok.readUntil_escaped_quoted(tok.m_argEnd);
 	//std::cerr << "Attr:" << dataname << "\n"; //DEBUG
-	tok.skip(tok.m_spaces);
+	tok.skipWhile(tok.m_spaces);
 	char c = tok.peek();
 	if(c == '{')
 	{
-		tok.advance(1);
+		tok.skip(1);
 		GAssert(m_attrs.size() == m_valueCounts.size());
 		size_t index = m_valueCounts.size();
 		m_attrs.resize(index + 1);
 		while(true)
 		{
-			tok.nextArg(tok.m_valEnd);
+			tok.readUntil_escaped_quoted(tok.m_valEnd);
 			char* szVal = tok.trim(tok.m_whitespace);
 			if(*szVal == '\0')
 				throw Ex("Empty value specified on line ", to_str(tok.line()));
 			m_attrs[index].m_values.push_back(szVal);
 			char c2 = tok.peek();
 			if(c2 == ',')
-				tok.advance(1);
+				tok.skip(1);
 			else if(c2 == '}')
 				break;
 			else if(c2 == '\n')
@@ -647,7 +647,7 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 	}
 	else
 	{
-		const char* szType = tok.nextUntil(tok.m_whitespace);
+		const char* szType = tok.readUntil(tok.m_whitespace);
 		if(	_stricmp(szType, "CONTINUOUS") == 0 ||
 			_stricmp(szType, "REAL") == 0 ||
 			_stricmp(szType, "NUMERIC") == 0 ||
@@ -660,22 +660,22 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 		else if(_stricmp(szType, "DATE") == 0)
 		{
 			dataname += ":";
-			tok.skip(tok.m_spaces);
+			tok.skipWhile(tok.m_spaces);
 			while(true)
 			{
 				char c2 = tok.peek();
 				if(c2 == '\n' || c2 == '\r')
 					break;
 				dataname += c2;
-				tok.advance(1);
+				tok.skip(1);
 			}
 			addAttribute(dataname.c_str(), (size_t)-2, NULL);
 		}
 		else
 			throw Ex("Unsupported attribute type: (", szType, "), at line ", to_str(tok.line()));
 	}
-	tok.skipTo(tok.m_newline);
-	tok.advance(1);
+	tok.skipUntil(tok.m_newline);
+	tok.skip(1);
 }
 
 // virtual
@@ -1095,31 +1095,31 @@ void GMatrix::parseArff(GArffTokenizer& tok, size_t maxRows)
 	GArffRelation* pRelation = new GArffRelation();
 	while(true)
 	{
-		tok.skip(tok.m_whitespace);
+		tok.skipWhile(tok.m_whitespace);
 		char c = tok.peek();
 		if(c == '\0')
 			throw Ex("Invalid ARFF file--contains no data");
 		else if(c == '%')
 		{
-			tok.advance(1);
-			tok.skipTo(tok.m_newline);
+			tok.skip(1);
+			tok.skipUntil(tok.m_newline);
 		}
 		else if(c == '@')
 		{
-			tok.advance(1);
-			const char* szTok = tok.nextUntil(tok.m_whitespace);
+			tok.skip(1);
+			const char* szTok = tok.readUntil(tok.m_whitespace);
 			if(_stricmp(szTok, "ATTRIBUTE") == 0)
 				pRelation->parseAttribute(tok);
 			else if(_stricmp(szTok, "RELATION") == 0)
 			{
-				tok.skip(tok.m_spaces);
-				pRelation->setName(tok.nextArg(tok.m_whitespace));
-				tok.advance(1);
+				tok.skipWhile(tok.m_spaces);
+				pRelation->setName(tok.readUntil_escaped_quoted(tok.m_whitespace));
+				tok.skip(1);
 			}
 			else if(_stricmp(szTok, "DATA") == 0)
 			{
-				tok.skipTo(tok.m_newline);
-				tok.advance(1);
+				tok.skipUntil(tok.m_newline);
+				tok.skip(1);
 				break;
 			}
 		}
@@ -1134,28 +1134,28 @@ void GMatrix::parseArff(GArffTokenizer& tok, size_t maxRows)
 	{
 		if(rows() >= maxRows)
 			break;
-		tok.skip(tok.m_whitespace);
+		tok.skipWhile(tok.m_whitespace);
 		char c = tok.peek();
 		if(c == '\0')
 			break;
 		else if(c == '%')
 		{
-			tok.advance(1);
-			tok.skipTo(tok.m_newline);
+			tok.skip(1);
+			tok.skipUntil(tok.m_newline);
 		}
 		else if(c == '{')
 		{
 			// Parse ARFF sparse data format
-			tok.advance(1);
+			tok.skip(1);
 			GVec& r = newRow();
 			r.fill(0.0);
 			while(true)
 			{
-				tok.skip(tok.m_space);
+				tok.skipWhile(tok.m_space);
 				char c2 = tok.peek();
 				if(c2 >= '0' && c2 <= '9')
 				{
-					const char* szTok = tok.nextUntil(tok.m_valEnder);
+					const char* szTok = tok.readUntil(tok.m_valEnder);
 #ifdef WINDOWS
 					size_t column = (size_t)_strtoui64(szTok, (char**)NULL, 10);
 #else
@@ -1163,17 +1163,17 @@ void GMatrix::parseArff(GArffTokenizer& tok, size_t maxRows)
 #endif
 					if(column >= colCount)
 						throw Ex("Column index out of range at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-					tok.skip(tok.m_spaces);
-					const char* szVal = tok.nextArg(tok.m_valEnder);
+					tok.skipWhile(tok.m_spaces);
+					const char* szVal = tok.readUntil_escaped_quoted(tok.m_valEnder);
 					r[column] = GMatrix_parseValue(pRelation, column, szVal, tok);
-					tok.skipTo(tok.m_valHardEnder);
+					tok.skipUntil(tok.m_valHardEnder);
 					c2 = tok.peek();
 					if(c2 == ',' || c2 == '\t')
-						tok.advance(1);
+						tok.skip(1);
 				}
 				else if(c2 == '}')
 				{
-					tok.advance(1);
+					tok.skip(1);
 					break;
 				}
 				else if(c2 == '\n' || c2 == '\0')
@@ -1191,24 +1191,24 @@ void GMatrix::parseArff(GArffTokenizer& tok, size_t maxRows)
 			{
 				if(column >= colCount)
 					throw Ex("Too many values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-				tok.nextArg(tok.m_commaNewlineTab);
+				tok.readUntil_escaped_quoted(tok.m_commaNewlineTab);
 				const char* szVal = tok.trim(tok.m_whitespace);
 				r[column] = GMatrix_parseValue(pRelation, column, szVal, tok);
 				column++;
 				char c2 = tok.peek();
 				while(c2 == '\t' || c2 == ' ')
 				{
-					tok.advance(1);
+					tok.skip(1);
 					c2 = tok.peek();
 				}
 				if(c2 == ',')
-					tok.advance(1);
+					tok.skip(1);
 				else if(c2 == '\n' || c2 == '\0')
 					break;
 				else if(c2 == '%')
 				{
-					tok.advance(1);
-					tok.skipTo(tok.m_newline);
+					tok.skip(1);
+					tok.skipUntil(tok.m_newline);
 					break;
 				}
 			}
@@ -5525,36 +5525,36 @@ void GRaggedMatrix::parseCSV(GTokenizer& tok)
 	while(true)
 	{
 		vals.clear();
-		tok.skip(c_whitespace);
+		tok.skipWhile(c_whitespace);
 		char c = tok.peek();
 		if(c == '\0')
 			break;
 		else if(c == '%')
 		{
-			tok.advance(1);
-			tok.skipTo(c_newline);
+			tok.skip(1);
+			tok.skipUntil(c_newline);
 		}
 		else
 		{
 			while(true)
 			{
-				tok.nextArg(c_commaNewlineTab);
+				tok.readUntil_escaped_quoted(c_commaNewlineTab);
 				const char* szVal = tok.trim(c_whitespace);
 				vals.push_back(GMatrix_parseValue(&rel, 0, szVal, tok));
 				char c2 = tok.peek();
 				while(c2 == '\t' || c2 == ' ')
 				{
-					tok.advance(1);
+					tok.skip(1);
 					c2 = tok.peek();
 				}
 				if(c2 == ',')
-					tok.advance(1);
+					tok.skip(1);
 				else if(c2 == '\n' || c2 == '\0')
 					break;
 				else if(c2 == '%')
 				{
-					tok.advance(1);
-					tok.skipTo(c_newline);
+					tok.skip(1);
+					tok.skipUntil(c_newline);
 					break;
 				}
 			}
