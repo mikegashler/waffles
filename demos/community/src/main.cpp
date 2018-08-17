@@ -279,11 +279,13 @@ string to_string(double d, int decimal_places)
 }
 
 
+
 class Server : public GDynamicPageServer
 {
 protected:
 	std::map<std::string,Account*> m_accounts; // Mapping from username to account
 	Recommender m_recommender; // The recommender system
+	GFileCache m_fileCache;
 
 public:
 	std::string m_basePath;
@@ -304,6 +306,7 @@ public:
 	void deserializeState(const GDomNode* pNode);
 	virtual GDynamicPageSessionExtension* deserializeSessionExtension(const GDomNode* pNode);
 	virtual GDynamicPageConnection* makeConnection(SOCKET sock);
+	string& cache(const char* szFilename);
 };
 
 
@@ -1311,7 +1314,7 @@ public:
 		response << "			</select>\n";
 		response << "		</td>\n";
 		response << "		<td>\n";
-		response << "			<select id=\"files\" size=\"12\" onclick=\"closeDetails(0)\" ondblclick=\"onfilechange()\" style=\"width:100%\">\n";
+		response << "			<select id=\"files\" size=\"12\" onclick=\"closeDetails(0)\" style=\"width:100%\">\n";
 		response << "			</select>\n";
 		response << "		</td>\n";
 		response << "	</tr>\n";
@@ -1325,6 +1328,8 @@ public:
 		response << "			</details>\n";
 		response << "		</td>\n";
 		response << "		<td valign=top>\n";
+		response << "			<a onclick=\"editgui()\" href=\"#\">wysiwyg editor</a><br><br>\n";
+		response << "			<a onclick=\"edittext()\" href=\"#\">text editor</a><br><br>\n";
 		response << "			<details id=\"d3\" onclick=\"onclickd3()\"><summary>Delete selected file</summary>\n";
 		response << "				Are you sure? <input type=\"submit\" value=\"Yes, delete it\">\n";
 		response << "			</details><br>\n";
@@ -1337,7 +1342,37 @@ public:
 		response << "<br><br>\n";
 	}
 
-	void pageEdit(GDynamicPageSession* pSession, ostream& response)
+	void pageEditText(GDynamicPageSession* pSession, ostream& response)
+	{
+		// Determine the file name from a URL parameter
+		GHttpParamParser params(pSession->params());
+		const char* pagename = params.find("pagename");
+		if(!pagename || strlen(pagename) < 1)
+		{
+			response << "Expected a page name.";
+			return;
+		}
+
+		// Load the file
+		Account* pAccount = getAccount(pSession);
+		string filename = ((Server*)m_pServer)->m_basePath.c_str();
+		filename += "usercontent/";
+		filename += pAccount->username();
+		filename += "/pages/";
+		filename += pagename;
+		size_t fileLen;
+		char* pFile = GFile::loadFile(filename.c_str(), &fileLen);
+		ArrayHolder<char> hFile(pFile);
+
+		// Generate the page content
+		response << "<input type=\"hidden\" id=\"filename\" value=\"" << pagename << "\">";
+		response << ((Server*)m_pServer)->cache("editorText.html");
+		response << "<tr><td><textarea id=\"page\" cols=\"100\" rows=\"30\">";
+		response.write(pFile, fileLen);
+		response << "</textarea></td></tr></table>\n";
+	}
+
+	void pageEditGui(GDynamicPageSession* pSession, ostream& response)
 	{
 		// Determine the file name from a URL parameter
 		GHttpParamParser params(pSession->params());
@@ -1370,40 +1405,11 @@ public:
 		pContent->addAttr("contenteditable", "true");
 
 		// Generate the page content
-		response << "<script type=\"text/javascript\" src=\"editor.js\"></script>\n";
-		response << "<table border=1 borderwidth=0 bgcolor=#ffffff>\n";
-		response << "<tr><td>Page name: <input type=\"hidden\" id=\"filename\" value=\"" << pagename << "\"></td></tr>\n";
-		response << "<tr><td>\n";
-		response << "	<button onclick=\"removeFormatting()\" class=\"tooltip\">0<span class=\"tooltiptext\">Remove formatting</span></button>\n";
-		response << "	<button onclick=\"toggle('H1')\" class=\"tooltip\">H1<span class=\"tooltiptext\">Document heading</span></button>\n";
-		response << "	<button onclick=\"toggle('H2')\" class=\"tooltip\">H2<span class=\"tooltiptext\">Chapter heading</span></button>\n";
-		response << "	<button onclick=\"toggle('H3')\" class=\"tooltip\">H3<span class=\"tooltiptext\">Section heading</span></button>\n";
-		response << "	<button onclick=\"toggle('H4')\" class=\"tooltip\">H4<span class=\"tooltiptext\">Subsection heading</span></button>\n";
-		response << "	<button onclick=\"toggle('B')\" class=\"tooltip\"><b>B</b><span class=\"tooltiptext\">Boldify</span></button>\n";
-		response << "	<button onclick=\"toggle('I')\" class=\"tooltip\"><i>I</i><span class=\"tooltiptext\">Italicize</span></button>\n";
-		response << "	<button onclick=\"toggle('U')\" class=\"tooltip\"><u>U</u><span class=\"tooltiptext\">Underline</span></button>\n";
-		response << "	<button onclick=\"toggle('STRIKE')\" class=\"tooltip\"><strike>S</strike><span class=\"tooltiptext\">Strike-through</span></button>\n";
-		response << "	<button onclick=\"toggle('SUP')\" class=\"tooltip\"><small>x<sup>i</sup></small><span class=\"tooltiptext\">Superscript</span></button>\n";
-		response << "	<button onclick=\"toggle('SUB')\" class=\"tooltip\"><small>x<sub>i</sub></small><span class=\"tooltiptext\">Subscript</span></button>\n";
-		response << "	<button onclick=\"increase('BIG', 'SMALL')\" class=\"tooltip\"><small>A</small>►<b>A</b><span class=\"tooltiptext\">Bigger</span></button>\n";
-		response << "	<button onclick=\"increase('SMALL', 'BIG')\" class=\"tooltip\"><b>A</b>►<small>A</small><span class=\"tooltiptext\">Smaller</span></button>\n";
-		response << "	<button onclick=\"indent()\" class=\"tooltip\">►<span class=\"tooltiptext\">Indent</span></button>\n";
-		response << "	<button onclick=\"remove('MENU')\" class=\"tooltip\">◄<span class=\"tooltiptext\">Unindent</span></button>\n";
-		response << "	<button onclick=\"toggle('CENTER')\" class=\"tooltip\">C<span class=\"tooltiptext\">Center</span></button>\n";
-		response << "	<button onclick=\"addLi(false)\" class=\"tooltip\">●<span class=\"tooltiptext\">Bullets</span></button>\n";
-		response << "	<button onclick=\"addLi(true)\" class=\"tooltip\">1<span class=\"tooltiptext\">Enumerate</span></button>\n";
-		response << "	<button onclick=\"addTable()\" class=\"tooltip\">╬<span class=\"tooltiptext\">Table</span></button>\n";
-		response << "	<button onclick=\"save()\" class=\"tooltip\">Save</button>\n";
-		response << "</td></tr>\n";
+		response << "<input type=\"hidden\" id=\"filename\" value=\"" << pagename << "\">";
+		response << ((Server*)m_pServer)->cache("editorGui.html");
 		response << "<tr><td>";
-
 		pContent->write(response);
-/*		response << "<div contenteditable=\"true\" id=\"body\">\n";
-		response << "	<br><br><br><br><br>\n";
-		response << "</div>";
-*/
-		response << "</td></tr>\n";
-		response << "</table>\n";
+		response << "</td></tr></table>\n";
 	}
 
 	void pageStats(GDynamicPageSession* pSession, ostream& response)
@@ -2022,7 +2028,39 @@ public:
 			pFiles->add(&doc, fileList[i].c_str());
 	}
 
-	void ajaxSave(GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
+	void ajaxSaveText(GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
+	{
+		// Find the filename
+		Account* pAccount = getAccount(pSession);
+		string filename = ((Server*)m_pServer)->m_basePath.c_str();
+		filename += "usercontent/";
+		filename += pAccount->username();
+		filename += "/pages";
+		filename += "/";
+		filename += pIn->getString("filename");
+
+		// Get the new page
+		const char* szNewPage = pIn->getString("page");
+		size_t pageLen = strlen(szNewPage);
+
+		// Write the file
+		std::ofstream s;
+		s.exceptions(std::ios::badbit | std::ios::failbit);
+		try
+		{
+			s.open(filename.c_str(), std::ios::binary);
+		}
+		catch(const std::exception&)
+		{
+			throw Ex("Error while trying to create the file, ", filename, ". ", strerror(errno));
+		}
+		s.write(szNewPage, pageLen);
+
+		cout << "User " << pAccount->username() << " saved raw text to: " << filename << "\n";
+		cout.flush();
+	}
+
+	void ajaxSaveGui(GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
 	{
 		// Load and parse the original file
 		Account* pAccount = getAccount(pSession);
@@ -2084,7 +2122,8 @@ void Connection::handleAjax(GDynamicPageSession* pSession, ostream& response)
 		const GDomNode* pInNode = docIn.root();
 		const char* action = pInNode->getString("action");
 		pOutNode = docOut.newObj();
-		if(strcmp(action, "save") == 0) ajaxSave(pSession, pInNode, docOut, pOutNode);
+		if(strcmp(action, "save_gui") == 0) ajaxSaveGui(pSession, pInNode, docOut, pOutNode);
+		else if(strcmp(action, "save_text") == 0) ajaxSaveText(pSession, pInNode, docOut, pOutNode);
 		else if(strcmp(action, "filelist") == 0) ajaxFilelist(pSession, pInNode, docOut, pOutNode);
 		else ajaxUnknownAction(action, docOut, pOutNode);
 	}
@@ -2278,7 +2317,8 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 	if(isurl(m_szUrl, "/")) makePage = &Connection::pageSurvey;
 	else if(isurl(m_szUrl, "/account")) makePage = &Connection::pageAccount;
 	else if(isurl(m_szUrl, "/browse")) makePage = &Connection::pageBrowse;
-	else if(isurl(m_szUrl, "/edit")) makePage = &Connection::pageEdit;
+	else if(isurl(m_szUrl, "/edit")) makePage = &Connection::pageEditGui;
+	else if(isurl(m_szUrl, "/edittext")) makePage = &Connection::pageEditText;
 	else if(isurl(m_szUrl, "/survey")) makePage = &Connection::pageSurvey;
 	else if(isurl(m_szUrl, "/submit")) makePage = &Connection::pageSubmit;
 	else if(isurl(m_szUrl, "/stats")) makePage = &Connection::pageStats;
@@ -2498,6 +2538,16 @@ GDynamicPageConnection* Server::makeConnection(SOCKET sock)
 {
 	return new Connection(sock, this);
 }
+
+string& Server::cache(const char* szFilename)
+{
+	string s = m_basePath;
+	s += "web/";
+	s += szFilename;
+	return m_fileCache.get(s.c_str());
+}
+
+
 
 
 

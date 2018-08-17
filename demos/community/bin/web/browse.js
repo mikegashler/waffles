@@ -99,10 +99,16 @@ function onfolderchange()
 	httpPost("/ajax", JSON.stringify(ob), cb);
 }
 
-function onfilechange()
+function editgui()
 {
 	let selectBox = document.getElementById("files");
 	window.location = "/edit?pagename=" + selectBox.value;
+}
+
+function edittext()
+{
+	let selectBox = document.getElementById("files");
+	window.location = "/edittext?pagename=" + selectBox.value;
 }
 
 function newfolder()

@@ -24,6 +24,8 @@
 #include <fcntl.h>
 #include <istream>
 #include <vector>
+#include <map>
+#include <fstream>
 
 namespace GClasses {
 
@@ -135,6 +137,20 @@ public:
 	/// returns a temporary filename
 	static void tempFilename(char* pBuf);
 };
+
+
+
+// A simple memory-cache for files that can be loaded as strings.
+class GFileCache
+{
+public:
+	std::map<std::string, std::string> m_filename_to_page;
+
+	// Loads a file into the cach (if it has not already been loaded) and returns a referent to it in string form.
+	std::string& get(const char* szFilename);
+};
+
+
 
 
 /// This implements a simple compression/decompression algorithm

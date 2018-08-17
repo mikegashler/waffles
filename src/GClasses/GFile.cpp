@@ -44,10 +44,16 @@
 #include <fstream>
 #include <errno.h>
 #include <memory>
+#include <set>
+#include <map>
 
 
 using namespace GClasses;
 using std::string;
+using std::set;
+using std::map;
+using std::make_pair;
+
 
 // static
 bool GFile::doesFileExist(const char *szFilename)
@@ -557,6 +563,45 @@ void GFile::tempFilename(char* pBuf)
 	strcpy(pBuf, s.c_str());
 }
 
+
+
+
+
+
+
+
+string& GFileCache::get(const char* szFilename)
+{
+	// Find existing content
+	map<string, string>::iterator it = m_filename_to_page.find(szFilename);
+	if(it != m_filename_to_page.end())
+		return it->second;
+
+	// Load content from file
+	string content;
+	try
+	{
+		std::ifstream stream(szFilename);
+		stream.exceptions(std::ios::badbit | std::ios::failbit);
+		content.assign(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+	}
+	catch(const std::exception&)
+	{
+		throw Ex("Error while trying to read the file, ", szFilename, ". ", strerror(errno));
+	}
+
+	// Insert content into the cache
+	const std::pair<map<string, string>::iterator, bool>& res = m_filename_to_page.insert(std::pair<string, string>(szFilename, content));
+	return res.first->second;
+}
+
+
+
+
+
+
+
+
 class CompressPieceComparer
 {
 public:
@@ -579,12 +624,6 @@ public:
 	}
 };
 
-#include <set>
-#include <map>
-
-using std::set;
-using std::map;
-using std::make_pair;
 
 
 unsigned char* compressWorker(unsigned char* pData, unsigned int len, unsigned int* pOutNewLen, unsigned int keySize, unsigned int pieceSize, unsigned int origLen)
