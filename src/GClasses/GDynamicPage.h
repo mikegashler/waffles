@@ -30,6 +30,7 @@ namespace GClasses {
 class GConstStringHashTable;
 class GDynamicPageServer;
 class GDynamicPageSession;
+class GDynamicPageConnection;
 class GRand;
 class GDom;
 
@@ -65,6 +66,7 @@ protected:
 	const char* m_szUrl;
 	const char* m_szParams;
 	size_t m_paramsLen;
+	GDynamicPageConnection* m_pConnection;
 
 public:
 	GDynamicPageSession(GDynamicPageServer* pServer, unsigned long long id);
@@ -86,6 +88,9 @@ public:
 
 	/// Stamp the session as having been accessed at the current time
 	void onAccess();
+
+	void setConnection(GDynamicPageConnection* pConn) { m_pConnection = pConn; }
+	GDynamicPageConnection* connection() { return m_pConnection; }
 
 	/// Retrieve the extension object that was associated with this
 	/// session by a call to setExtension.

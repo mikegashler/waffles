@@ -52,6 +52,7 @@ using std::ostringstream;
 
 
 GDynamicPageSession::GDynamicPageSession(GDynamicPageServer* pServer, unsigned long long ident)
+: m_pConnection(nullptr)
 {
 	m_id = ident;
 	m_pServer = pServer;
@@ -60,6 +61,7 @@ GDynamicPageSession::GDynamicPageSession(GDynamicPageServer* pServer, unsigned l
 }
 
 GDynamicPageSession::GDynamicPageSession(GDynamicPageServer* pServer, GDomNode* pNode)
+: m_pConnection(nullptr)
 {
 	m_id = (unsigned long long)pNode->getInt("id");
 	m_tLastAccessed = (time_t)pNode->getInt("acc");
@@ -167,6 +169,7 @@ GDynamicPageSession* GDynamicPageConnection::establishSession()
 		setCookie(tmp.c_str(), true);
 		pSession = m_pServer->makeNewSession(nSessionID);
 	}
+	pSession->setConnection(this);
 
 	return pSession;
 }

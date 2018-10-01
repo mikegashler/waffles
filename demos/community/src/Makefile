@@ -27,8 +27,11 @@ endif
 ################
 
 CPP_FILES =\
+	editor.cpp\
+	login.cpp\
 	main.cpp\
 	recommender.cpp\
+	server.cpp\
 
 ################
 # Lists

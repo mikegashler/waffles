@@ -98,3 +98,41 @@ details summary::-webkit-details-marker {
     left: 0px;
 }
 
+
+/* diff */
+pre
+{
+	white-space: pre-wrap;
+}
+.mono
+{
+	font-family: "Lucida Console", Monaco, monospace
+}
+.resolved
+{
+	display: inline;
+	text-decoration: none;
+	pointer-events: none;
+}
+.c0
+{
+	background-color: #ffd0e0;
+}
+.c1
+{
+	background-color: #e0e0ff;
+}
+.c2
+{
+	background-color: #ffc020;
+}
+.c3
+{
+	background-color: #20ff20;
+}
+.dc
+{
+	text-decoration: none;
+	display: inline;
+}
+

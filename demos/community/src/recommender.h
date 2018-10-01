@@ -1,17 +1,31 @@
+/*
+  The contents of this file are dedicated by all of its authors, including
+
+    Michael S. Gashler,
+    anonymous contributors,
+
+  to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
+
+  Note that some moral obligations still exist in the absence of legal ones.
+  For example, it would still be dishonest to deliberately misrepresent the
+  origin of a work. Although we impose no legal requirements to obtain a
+  license, it is beseeming for those who build on the works of others to
+  give back useful improvements, or pay it forward in their own field. If
+  you would like to cite us, a published paper about Waffles can be found
+  at http://jmlr.org/papers/volume12/gashler11a/gashler11a.pdf. If you find
+  our code to be useful, the Waffles team would love to hear how you use it.
+*/
+
 #ifndef RECOMMENDER
 #define RECOMMENDER
 
 
-#define PERSONALITY_DIMS 5 // (one of these is used for the bias)
-#define ON_RATE_TRAINING_ITERS 50000
-#define ON_TRAIN_TRAINING_ITERS 1000000
-#define ON_STARTUP_TRAINING_ITERS 250000
-#define LEARNING_RATE 0.001
-#define REGULARIZATION_TERM 0.00001
-
+#include <GClasses/GBitTable.h>
+#include <GClasses/GDynamicPage.h>
 #include <string>
 #include <vector>
 #include <map>
+
 
 namespace GClasses
 {
@@ -21,7 +35,18 @@ namespace GClasses
 }
 class Ratings;
 class Item;
+class Account;
+class Server;
 using namespace GClasses;
+
+
+#define PERSONALITY_DIMS 5 // (one of these is used for the bias)
+#define ON_RATE_TRAINING_ITERS 50000
+#define ON_TRAIN_TRAINING_ITERS 1000000
+#define ON_STARTUP_TRAINING_ITERS 250000
+#define LEARNING_RATE 0.001
+#define REGULARIZATION_TERM 0.00001
+
 
 
 class User
@@ -166,7 +191,7 @@ public:
 
 
 
-
+/// Collects users, items, and ratings
 class Recommender
 {
 protected:
@@ -195,6 +220,39 @@ public:
 	void newTopic(const char* szDescr);
 	void refineModel(size_t topic, size_t iters); // trains both personalities and weights
 	void refinePersonality(User* pUser, size_t topic, size_t iters); // trains just the personalities
+};
+
+
+/// Makes pages that collect survey responses and visualize the results
+class Survey
+{
+public:
+	/// Generates a page of slider bars for users to take a survey
+	static void pageSurvey(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
+
+	/// Generates a page that lets users submit new survey questions
+	static void pageNewSurveyItem(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
+
+	/// Generates a page that summarizes survey responses
+	static void pageStats(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
+
+	/// Generates an SVG plot of users
+	static void plotUsers(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
+
+	/// Generates an SVG plot of items
+	static void plotItems(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
+
+	/// A page that lets users update their survey responses
+	static void pageUpdateResponses(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
+
+protected:
+	static void makeSliderScript(std::ostream& response);
+	static void makeUrlSlider(Server* pServer, Account* pAccount, size_t itemId, std::ostream& response);
+	static double computeVariance(double* pCentroid, Topic& topic, size_t topicId, User** pUsers, size_t accCount);
+	static size_t divideAccounts(Topic& topic, size_t topicId, User** pUsers, size_t accCount, size_t itm);
+	static void makeTree(Server* pServer, Topic& topic, size_t topicId, GBitTable& bt, User** pUsers, size_t accCount, std::ostream& response, std::vector<char>& prefix, int type);
+	static void makeItemBody(GDynamicPageSession* pSession, std::ostream& response, size_t topicId, size_t itemId, Item& item, User** pUsers, size_t accCount);
+	static void makeUserBody(GDynamicPageSession* pSession, std::ostream& response, User* pA, User* pB, size_t topicId, Topic& topic);
 };
 
 

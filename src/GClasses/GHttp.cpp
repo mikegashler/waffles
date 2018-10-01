@@ -923,7 +923,7 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 				}
 				catch(std::exception&)
 				{
-					// failed to send response
+					std::cout << "Error: Failed to send GET response\n";
 				}
 			}
 			else
@@ -934,7 +934,7 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 				}
 				catch(std::exception&)
 				{
-					// failed to send response
+					std::cout << "Error: Failed to send not modified response\n";
 				}
 			}
 		}
@@ -948,7 +948,7 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 			}
 			catch(std::exception&)
 			{
-				// failed to send response
+				std::cout << "Error: Failed to HEAD response\n";
 			}
 		}
 		else if(pConn->m_eRequestType == GHttpConnection::Post)

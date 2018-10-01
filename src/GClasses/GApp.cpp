@@ -714,7 +714,9 @@ void GSignalHandler::onSignal(int sig)
 
 int GSignalHandler::check()
 {
-	return m_gotSignal;
+	int oldSignal = m_gotSignal;
+	m_gotSignal = 0;
+	return oldSignal;
 }
 
 

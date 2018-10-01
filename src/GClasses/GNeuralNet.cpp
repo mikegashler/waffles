@@ -348,7 +348,7 @@ size_t GBlockLinear::weightCount() const
 
 void GBlockLinear::initWeights(GRand& rand, GVec& weights)
 {
-	weights.fillNormal(rand, std::max(0.03, 1.0 / std::max(1ul, inputCount)));
+	weights.fillNormal(rand, std::max(0.03, 1.0 / std::max((size_t)1, inputCount)));
 }
 
 void GBlockLinear::ordinaryLeastSquares(const GMatrix& features, const GMatrix& labels, GVec& outWeights)
@@ -501,7 +501,7 @@ size_t GBlockTemperedLinear::weightCount() const
 
 void GBlockTemperedLinear::initWeights(GRand& rand, GVec& weights)
 {
-	weights.fillNormal(rand, std::max(0.03, 1.0 / std::max(1ul, inputCount)));
+	weights.fillNormal(rand, std::max(0.03, 1.0 / std::max((size_t)1, inputCount)));
 }
 
 
@@ -1171,7 +1171,7 @@ size_t GBlockPAL::weightCount() const
 
 void GBlockPAL::initWeights(GRand& rand, GVec& weights)
 {
-	weights.fillNormal(rand, std::max(0.03, 1.0 / std::max(1ul, inputCount)));
+	weights.fillNormal(rand, std::max(0.03, 1.0 / std::max((size_t)1, inputCount)));
 }
 
 

@@ -64,7 +64,6 @@ CPP_FILES = \
 	GCrypto.cpp\
 	GCudaMatrix.cpp\
 	GDecisionTree.cpp\
-	GDiff.cpp\
 	GDirList.cpp\
 	GDistance.cpp\
 	GDistribution.cpp\

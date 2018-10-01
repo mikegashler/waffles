@@ -137,6 +137,51 @@ public:
 	double weight(size_t word);
 };
 
+
+
+/// Represents a portion of a diff. Each chunk represents a left-only, right-only, or matching section.
+class GDiffChunk
+{
+public:
+	size_t left; // Line number in the left file, or INVALID_INDEX
+	size_t right; // Line number in the right file, or INVALID_INDEX
+	size_t len; // Length of the chunk
+};
+
+
+/// Diffs two files. (Works with binary files as well as text files.)
+class GDiffer
+{
+protected:
+	std::vector<GDiffChunk*> m_chunks;
+
+public:
+	GDiffer();
+	~GDiffer();
+
+protected:
+	static void biggest_matching_segment_one_way(const char* file1, size_t len1, size_t pos1, size_t spot, const char* file2, size_t len2, size_t pos2, size_t* match1, size_t* match2, size_t* matchLen);
+
+	// Attempts to find a big matching segment between two files, but may fail if it would be very expensive
+	static void biggest_matching_segment(const char* file1, size_t len1, size_t pos1, const char* file2, size_t len2, size_t pos2, size_t* match1, size_t* match2, size_t* matchLen);
+
+	// Guarantees to find the first matching segment in two files
+	static void first_matching_segment(const char* file1, size_t len1, size_t pos1, const char* file2, size_t len2, size_t pos2, size_t* match1, size_t* match2, size_t* matchLen);
+
+	void addChunk(size_t left, size_t right, size_t len);
+
+public:
+	/// Compares two files. Populates the "chunks" vector.
+	void compare(const char* file1, size_t len1, size_t pos1, const char* file2, size_t len2, size_t pos2);
+
+	/// Fuses small matching chunks with preceding left-only or right-only chunks
+	void simplify(size_t min_match_size);
+
+	/// Returns a vector describing all the left-only, right-only, and matching "chunks" in the two files.
+	std::vector<GDiffChunk*>& chunks() { return m_chunks; }
+};
+
+
 } // namespace GClasses
 
 #endif // __GTEXT_H__
