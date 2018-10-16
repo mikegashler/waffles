@@ -1185,8 +1185,6 @@ GRayTraceMaterial* GRayTraceMaterial::deserialize(GDomNode* pNode)
 			return new GRayTracePhysicalMaterial(pNode);
 		case Image:
 			return new GRayTraceImageTexture(pNode);
-		case Etherial:
-			throw Ex("Sorry, not implemented yet");
 	}
 	return NULL;
 }

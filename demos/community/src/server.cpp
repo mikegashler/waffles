@@ -61,7 +61,7 @@ void Server::makeHeader(GDynamicPageSession* pSession, ostream& response, const 
 	response << "	<meta charset=\"utf-8\">\n";
 	Account* pAccount = getAccount(pSession);
 	response << "	<title>Community Modeler</title>\n";
-	response << "	<link rel=\"stylesheet\" type=\"text/css\" href=\"style/style.css\" />\n";
+	response << "	<link rel=\"stylesheet\" type=\"text/css\" href=\"/tools/style/style.css\" />\n";
 	response << "</head><body>\n";
 	response << "<table align=center width=1200 cellpadding=0 cellspacing=0><tr><td>\n";
 	response << "<table cellpadding=0 cellspacing=0>\n";
@@ -92,18 +92,17 @@ void Server::makeHeader(GDynamicPageSession* pSession, ostream& response, const 
 	response << "<td id=\"sidebar\">";
 	if(pAccount)
 	{
-		response << "	<a href=\"/browse\">My pages</a><br><br>\n";
-		response << "	<a href=\"/survey\">Survey</a><br><br>\n";
-		response << "	<a href=\"/account?action=logout\">Log out</a><br><br>\n";
-		response << "	<a href=\"/account\">Account</a><br><br>\n";
+		response << "	<a href=\"/tools/browse\">My pages</a><br><br>\n";
+		response << "	<a href=\"/tools/survey\">Survey</a><br><br>\n";
+		response << "	<a href=\"/tools/account?action=logout\">Log out</a><br><br>\n";
+		response << "	<a href=\"/tools/account\">Account</a><br><br>\n";
 		if(pAccount->isAdmin())
-			response << "	<a href=\"/admin\">Admin</a><br><br>\n";
+			response << "	<a href=\"/tools/admin\">Admin</a><br><br>\n";
 	}
 	else
 	{
-		response << "	<a href=\"/account?action=newaccount\">New account</a><br><br>\n";
+		response << "	<a href=\"/tools/account?action=newaccount\">New account</a><br><br>\n";
 	}
-//	response << "	<a href=\"/main.hbody\">Overview</a><br>\n";
 	response << "</td><td id=\"mainbody\">\n\n\n\n";
 }
 
@@ -148,13 +147,23 @@ void Server::saveState()
 // virtual
 void Server::onEverySixHours()
 {
-	for(size_t i = 0; i < 3; i++)
+	try
 	{
-		size_t topicId = m_pRand->next(recommender().topics().size());
-		recommender().refineModel(topicId, ON_TRAIN_TRAINING_ITERS);
+		if(recommender().topics().size() > 0)
+		{
+			for(size_t i = 0; i < 3; i++)
+			{
+				size_t topicId = m_pRand->next(recommender().topics().size());
+				recommender().refineModel(topicId, ON_TRAIN_TRAINING_ITERS);
+			}
+		}
+		saveState();
+		fflush(stdout);
 	}
-	saveState();
-	fflush(stdout);
+	catch(std::exception& e)
+	{
+		cerr << "An error occurred: " << e.what() << " in method onEverySixHours\n";
+	}
 }
 
 // virtual
@@ -261,206 +270,44 @@ GDynamicPageConnection* Server::makeConnection(SOCKET sock)
 string& Server::cache(const char* szFilename)
 {
 	string s = m_basePath;
-	s += "web/";
+	s += "tools/";
 	s += szFilename;
 	return m_fileCache.get(s.c_str());
 }
 
 
 
-
-
-
-
 const char* g_auto_name_1[] =
 {
-	"amazing",
-	"awesome",
-	"blue",
-	"brave",
-	"calm",
-	"cheesy",
-	"confused",
-	"cool",
-	"crazy",
-	"delicate",
-	"diligent",
-	"dippy",
-	"exciting",
-	"fearless",
-	"flaming",
-	"fluffy",
-	"friendly",
-	"funny",
-	"gentle",
-	"glowing",
-	"golden",
-	"greasy",
-	"green",
-	"gritty",
-	"happy",
-	"jumpy",
-	"killer",
-	"laughing",
-	"liquid",
-	"lovely",
-	"lucky",
-	"malted",
-	"meaty",
-	"mellow",
-	"melted",
-	"moldy",
-	"peaceful",
-	"pickled",
-	"pious",
-	"purple",
-	"quiet",
-	"red",
-	"rubber",
-	"sappy",
-	"silent",
-	"silky",
-	"silver",
-	"sneaky",
-	"stellar",
-	"subtle",
-	"super",
-	"trippy",
-	"uber",
-	"valiant",
-	"vicious",
-	"wild",
-	"yellow",
-	"zippy"
+	"amazing",	"awesome",	"blue",		"brave",	"calm",		"cheesy",	"confused",	"cool",		"crazy",	"delicate",
+	"diligent",	"dippy",	"exciting",	"fearless",	"flaming",	"fluffy",	"friendly",	"funny",	"gentle",	"glowing",
+	"golden",	"greasy",	"green",	"gritty",	"happy",	"jumpy",	"killer",	"laughing",	"liquid",	"lovely",
+	"lucky",	"malted",	"meaty",	"mellow",	"melted",	"moldy",	"peaceful",	"pickled",	"pious",	"purple",
+	"quiet",	"red",		"rubber",	"sappy",	"silent",	"silky",	"silver",	"sneaky",	"stellar",	"subtle",
+	"super",	"trippy",	"uber",		"valiant",	"vicious",	"wild",		"yellow",	"zippy"
 };
 #define AUTO_NAME_1_COUNT (sizeof(g_auto_name_1) / sizeof(const char*))
 
 const char* g_auto_name_2[] =
 {
-	"alligator",
-	"ant",
-	"armadillo",
-	"bat",
-	"bear",
-	"bee",
-	"beaver",
-	"camel",
-	"cat",
-	"cheetah",
-	"chicken",
-	"cricket",
-	"deer",
-	"dinosaur",
-	"dog",
-	"dolphin",
-	"duck",
-	"eagle",
-	"elephant",
-	"fish",
-	"frog",
-	"giraffe",
-	"hamster",
-	"hawk",
-	"hornet",
-	"horse",
-	"iguana",
-	"jaguar",
-	"kangaroo",
-	"lion",
-	"lemur",
-	"leopard",
-	"llama",
-	"monkey",
-	"mouse",
-	"newt",
-	"ninja",
-	"ox",
-	"panda",
-	"panther",
-	"parrot",
-	"porcupine",
-	"possum",
-	"raptor",
-	"rat",
-	"salmon",
-	"shark",
-	"snake",
-	"spider",
-	"squid",
-	"tiger",
-	"toad",
-	"toucan",
-	"turtle",
-	"unicorn",
-	"walrus",
-	"warrior",
-	"wasp",
-	"wizard",
-	"yak",
+	"alligator","ant",		"armadillo","bat",		"bear",		"bee",		"beaver",	"camel",	"cat",		"cheetah",
+	"chicken",	"cricket",	"deer",		"dinosaur",	"dog",		"dolphin",	"duck",		"eagle",	"elephant",	"fish",
+	"frog",		"giraffe",	"hamster",	"hawk",		"hornet",	"horse",	"iguana",	"jaguar",	"kangaroo",	"lion",
+	"lemur",	"leopard",	"llama",	"monkey",	"mouse",	"newt",		"ninja",	"ox",		"panda",	"panther",
+	"parrot",	"porcupine","possum",	"raptor",	"rat",		"salmon",	"shark",	"snake",	"spider",	"squid",
+	"tiger",	"toad",		"toucan",	"turtle",	"unicorn",	"walrus",	"warrior",	"wasp",		"wizard",	"yak",
 	"zebra"
 };
 #define AUTO_NAME_2_COUNT (sizeof(g_auto_name_2) / sizeof(const char*))
 
 const char* g_auto_name_3[] =
 {
-	"arms",
-	"beak",
-	"beard",
-	"belly",
-	"belt",
-	"brain",
-	"bray",
-	"breath",
-	"brow",
-	"burrito",
-	"button",
-	"cheeks",
-	"chin",
-	"claw",
-	"crown",
-	"dancer",
-	"dream",
-	"eater",
-	"elbow",
-	"eye",
-	"feather",
-	"finger",
-	"fist",
-	"foot",
-	"forehead",
-	"fur",
-	"grin",
-	"hair",
-	"hands",
-	"head",
-	"horn",
-	"jaw",
-	"knee",
-	"knuckle",
-	"legs",
-	"mouth",
-	"neck",
-	"nose",
-	"pants",
-	"party",
-	"paw",
-	"pelt",
-	"pizza",
-	"roar",
-	"scalp",
-	"shoe",
-	"shoulder",
-	"skin",
-	"smile",
-	"taco",
-	"tail",
-	"tamer",
-	"toe",
-	"tongue",
-	"tooth",
-	"wart",
-	"wing",
-	"zit"
+	"arms",		"beak",		"beard",	"belly",	"belt",		"brain",	"bray",		"breath",	"brow",		"burrito",
+	"button",	"cheeks",	"chin",		"claw",		"crown",	"dancer",	"dream",	"eater",	"elbow",	"eye",
+	"feather",	"finger",	"fist",		"foot",		"forehead",	"fur",		"grin",		"hair",		"hands",	"head",
+	"horn",		"jaw",		"knee",		"knuckle",	"legs",		"mouth",	"neck",		"nose",		"pants",	"party",
+	"paw",		"pelt",		"pizza",	"roar",		"scalp",	"shoe",		"shoulder",	"skin",		"smile",	"taco",
+	"tail",		"tamer",	"toe",		"tongue",	"tooth",	"wart",		"wing",		"zit"
 };
 #define AUTO_NAME_3_COUNT (sizeof(g_auto_name_3) / sizeof(const char*))
 
@@ -468,13 +315,12 @@ const char* g_auto_name_3[] =
 std::string Terminal::generateUsername(GRand& rand)
 {
 	std::string s = g_auto_name_1[rand.next(AUTO_NAME_1_COUNT)];
-	s += " ";
+	s += "_";
 	s += g_auto_name_2[rand.next(AUTO_NAME_2_COUNT)];
-	s += " ";
+	s += "_";
 	s += g_auto_name_3[rand.next(AUTO_NAME_3_COUNT)];
 	return s;
 }
-
 
 
 Terminal* getTerminal(GDynamicPageSession* pSession)
@@ -512,6 +358,21 @@ Account* getAccount(GDynamicPageSession* pSession)
 
 
 
+bool check_url(const char* url, const char* dynpage)
+{
+	while(true)
+	{
+		if(*dynpage == '\0')
+			break;
+		if(*url != *dynpage)
+			return false;
+		url++;
+		dynpage++;
+	}
+	if(*url == '\0' || *url == '/' || *url == '?')
+		return true;
+	return false;
+}
 
 void Connection::handleAjax(Server* pServer, GDynamicPageSession* pSession, ostream& response)
 {
@@ -691,133 +552,111 @@ const char* Connection::processParams(GDynamicPageSession* pSession)
 	return szParamsMessage;
 }
 
-/*
-bool str_endswith(const char* szFull, const char* szTail)
+void Connection::handleTools(Server* pServer, GDynamicPageSession* pSession, ostream& response)
 {
-	size_t lenFull = strlen(szFull);
-	size_t lenTail = strlen(szTail);
-	if(lenTail > lenFull)
-		return false;
-	if(strcmp(szFull + lenFull - lenTail, szTail) == 0)
-		return true;
-	return false;
-}
-*/
-
-bool isurl(const char* url, const char* dynpage)
-{
-	while(true)
-	{
-		if(*dynpage == '\0')
-			break;
-		if(*url != *dynpage)
-			return false;
-		url++;
-		dynpage++;
-	}
-	if(*url == '\0' || *url == '?')
-		return true;
-	return false;
-}
-
-/*
-	void pageRedirect(Server* pServer, GDynamicPageSession* pSession, ostream& response, const char* url)
-	{
-		// Attempt an HTTP redirect
-		cout << "Redirecting from " << pSession->url() << " to " << url << "\n";
-		pServer->redirect(response, url);
-
-		// Do an HTML redirect as a backup
-		response << "<html><head>";
-		response << "<meta http-equiv=\"refresh\" content=\"0; url=" << url << "\">";
-		response << "</head>\n";
-
-		// Give the user a link as a last resort
-		response << "<body>";
-		response << "<a href=\"" << url << "\">Please click here to continue</a>\n";
-		response << "</body></html>\n";
-	}
-*/
-
-// virtual
-void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
-{
-	pSession->setConnection(this);
-	Server* pServer = (Server*)m_pServer;
-
-	//cout << "Handling: " << m_szUrl << "?" << pSession->params() << "\n";
-	if(isurl(m_szUrl, "/ajax"))
-	{
-		handleAjax(pServer, pSession, response);
-		return;
-	}
-
 	const char* szParamsMessage = processParams(pSession);
 
 	// Fine a method to make the requested page
 	bool headers = true;
-	void (*makePage)(Server* pServer, GDynamicPageSession* pSession, ostream& response) = nullptr;
-	if(isurl(m_szUrl, "/")) makePage = &Survey::pageSurvey;
-	else if(isurl(m_szUrl, "/account")) makePage = &Login::pageAccount;
-	else if(isurl(m_szUrl, "/browse")) makePage = &Editor::pageBrowse;
-	else if(isurl(m_szUrl, "/diff")) makePage = &Editor::pageDiff;
-	else if(isurl(m_szUrl, "/edit")) makePage = &Editor::pageEditGui;
-	else if(isurl(m_szUrl, "/edittext")) makePage = &Editor::pageEditText;
-	else if(isurl(m_szUrl, "/survey")) makePage = &Survey::pageSurvey;
-	else if(isurl(m_szUrl, "/submit")) makePage = &Survey::pageNewSurveyItem;
-	else if(isurl(m_szUrl, "/stats")) makePage = &Survey::pageStats;
-	else if(isurl(m_szUrl, "/update")) makePage = &Survey::pageUpdateResponses;
-	else if(isurl(m_szUrl, "/admin")) makePage = &Login::pageAdmin;
-	else if(isurl(m_szUrl, "/newaccount")) makePage = &Login::pageNewAccount;
-	else if(isurl(m_szUrl, "/users.svg")) { makePage = &Survey::plotUsers; headers = false; }
-	else if(isurl(m_szUrl, "/items.svg")) { makePage = &Survey::plotItems; headers = false; }
+	void (*pageMaker)(Server* pServer, GDynamicPageSession* pSession, ostream& response) = nullptr;
+	const char* szUrl = m_szUrl + 6; // Skip "/tools"
+	if(check_url(szUrl, "/account")) pageMaker = &Login::pageAccount;
+	else if(check_url(szUrl, "/browse")) pageMaker = &Editor::pageBrowse;
+	else if(check_url(szUrl, "/diff")) pageMaker = &Editor::pageDiff;
+	else if(check_url(szUrl, "/edit")) pageMaker = &Editor::pageEditGui;
+	else if(check_url(szUrl, "/edittext")) pageMaker = &Editor::pageEditText;
+	else if(check_url(szUrl, "/preview")) pageMaker = &Editor::pagePreview;
+	else if(check_url(szUrl, "/survey")) pageMaker = &Survey::pageSurvey;
+	else if(check_url(szUrl, "/submit")) pageMaker = &Survey::pageNewSurveyItem;
+	else if(check_url(szUrl, "/stats")) pageMaker = &Survey::pageStats;
+	else if(check_url(szUrl, "/update")) pageMaker = &Survey::pageUpdateResponses;
+	else if(check_url(szUrl, "/admin")) pageMaker = &Login::pageAdmin;
+	else if(check_url(szUrl, "/newaccount")) pageMaker = &Login::pageNewAccount;
+	else if(check_url(szUrl, "/users.svg")) { pageMaker = &Survey::plotUsers; headers = false; }
+	else if(check_url(szUrl, "/items.svg")) { pageMaker = &Survey::plotItems; headers = false; }
+	else headers = false;
 
+	if(pageMaker)
+	{
+		// Try to find the current account. Make one if there are none.
+		// (There may still be no current account if the user explicitly logged out.)
+		Terminal* pTerminal = getTerminal(pSession);
+		if(pTerminal->accountCount() == 0)
+			pTerminal->makeNewAccount((Server*)m_pServer);
+		Account* pAccount = pTerminal->currentAccount();
+
+		if(pAccount)
+		{
+			// Make the requested page
+			if(headers)
+				Server::makeHeader(pSession, response, szParamsMessage);
+			(*pageMaker)(pServer, pSession, response);
+			if(headers)
+				Server::makeFooter(pSession, response);
+		}
+		else
+		{
+			// The user must have explicitly logged out, so show the account login page
+			if(headers)
+				Server::makeHeader(pSession, response, szParamsMessage);
+			Login::pageAccount(pServer, pSession, response);
+			if(headers)
+				Server::makeFooter(pSession, response);
+		}
+	}
+	else
+	{
+		// Send the file
+		string webpath = ((Server*)m_pServer)->m_basePath;
+		webpath += "tools/";
+		if(headers)
+			Server::makeHeader(pSession, response, szParamsMessage);
+		sendFileSafe(webpath.c_str(), szUrl + 1, response);
+		if(headers)
+			Server::makeFooter(pSession, response);
+	}
+}
+
+// virtual
+void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
+{
 	try
 	{
-		if(makePage)
+		pSession->setConnection(this);
+		Server* pServer = (Server*)m_pServer;
+
+#ifdef _DEBUG
+		cout << "Handling request for: " << m_szUrl;
+		if(pSession->params() && pSession->params()[0] != '\0')
+			cout << "?" << pSession->params();
+		cout << "\n";
+#endif
+		if(strcmp(m_szUrl, "/") == 0)
+			strcpy(m_szUrl, "/tools/survey");
+		if(check_url(m_szUrl, "/ajax"))
 		{
-			// Make sure there is at least one account
-			Terminal* pTerminal = getTerminal(pSession);
-			if(pTerminal->accountCount() == 0)
-				pTerminal->makeNewAccount((Server*)m_pServer);
-			Account* pAccount = pTerminal->currentAccount();
-			if(pAccount)
-			{
-				if(headers)
-					Server::makeHeader(pSession, response, szParamsMessage);
-				(*makePage)(pServer, pSession, response);
-				if(headers)
-					Server::makeFooter(pSession, response);
-			}
-			else
-			{
-				if(headers)
-					Server::makeHeader(pSession, response, szParamsMessage);
-				Login::pageAccount(pServer, pSession, response);
-				if(headers)
-					Server::makeFooter(pSession, response);
-			}
+			handleAjax(pServer, pSession, response);
+			return;
+		}
+		else if(check_url(m_szUrl, "/tools"))
+		{
+			handleTools(pServer, pSession, response);
+			return;
 		}
 		else
 		{
 			string webpath = ((Server*)m_pServer)->m_basePath;
-			webpath += "web/";
-			size_t len = strlen(m_szUrl);
-			if(len > 6 && strcmp(m_szUrl + len - 6, ".hbody") == 0)
-			{
-				if(headers)
-					Server::makeHeader(pSession, response, szParamsMessage);
-				sendFileSafe(webpath.c_str(), m_szUrl + 1, response);
-				if(headers)
-					Server::makeFooter(pSession, response);
-			}
-			else
-				sendFileSafe(webpath.c_str(), m_szUrl + 1, response);
+			webpath += "users/";
+			//if(headers)
+			//	Server::makeHeader(pSession, response, szParamsMessage);
+			sendFileSafe(webpath.c_str(), m_szUrl + 1, response);
+			//if(headers)
+			//	Server::makeFooter(pSession, response);
 		}
 	}
 	catch(std::exception& e)
 	{
-		cerr << "An error occurred: " << e.what() << "\n";
+		cerr << "An error occurred: " << e.what() << " when processing the url: " << m_szUrl << "\n";
 		response << "Sorry, an error occurred. Please yell at the operator of this site.\n";
 	}
 }

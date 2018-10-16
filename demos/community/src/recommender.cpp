@@ -633,7 +633,7 @@ void Recommender::refinePersonality(User* pUser, size_t topic, size_t iters)
 
 void Survey::makeSliderScript(ostream& response)
 {
-	response << "<script language=\"JavaScript\" src=\"style/slider.js\"></script>\n";
+	response << "<script language=\"JavaScript\" src=\"/tools/style/slider.js\"></script>\n";
 	response << "<script language=\"JavaScript\">\n";
 	response << "	var A_TPL = { 'b_vertical' : false, 'b_watch': true, 'n_controlWidth': 321, 'n_controlHeight': 22, 'n_sliderWidth': 19, 'n_sliderHeight': 20, 'n_pathLeft' : 1, 'n_pathTop' : 1, 'n_pathLength' : 300, 's_imgControl': 'style/slider_bg.png', 's_imgSlider': 'style/slider_tab.png', 'n_zIndex': 1 }\n";
 	response << "</script>\n";

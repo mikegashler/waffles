@@ -56,16 +56,23 @@ void ensureFolderExists(string& folderName)
 	}
 }
 
+string Editor::userFolder(Server* pServer, Account* pAccount)
+{
+	string foldername = pServer->m_basePath.c_str();
+	foldername += "users/";
+	foldername += pAccount->username();
+	foldername += "/";
+	return foldername;
+}
+
 void Editor::ajaxFilelist(Server* pServer, GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
 {
 	Account* pAccount = getAccount(pSession);
-	string foldername = pServer->m_basePath.c_str();
-	foldername += "usercontent/";
-	foldername += pAccount->username();
+	string foldername = userFolder(pServer, pAccount);
 	ensureFolderExists(foldername);
-	foldername += "/pages";
-	ensureFolderExists(foldername);
-	foldername += "/";
+#ifdef _DEBUG
+	cout << "Making file list for " << foldername.c_str() << "\n";
+#endif
 	const char* szCD = pIn->getString("folder");
 	if(strstr(szCD, ".") != nullptr)
 	{
@@ -112,11 +119,7 @@ void Editor::ajaxSaveText(Server* pServer, GDynamicPageSession* pSession, const 
 {
 	// Find the filename
 	Account* pAccount = getAccount(pSession);
-	string filename = pServer->m_basePath.c_str();
-	filename += "usercontent/";
-	filename += pAccount->username();
-	filename += "/pages";
-	filename += "/";
+	string filename = userFolder(pServer, pAccount);
 	filename += pIn->getString("filename");
 
 	// Get the new page
@@ -188,11 +191,7 @@ void Editor::ajaxSaveGui(Server* pServer, GDynamicPageSession* pSession, const G
 {
 	// Load and parse the original file
 	Account* pAccount = getAccount(pSession);
-	string filename = pServer->m_basePath.c_str();
-	filename += "usercontent/";
-	filename += pAccount->username();
-	filename += "/pages";
-	filename += "/";
+	string filename = userFolder(pServer, pAccount);
 	filename += pIn->getString("filename");
 	archiveFile(filename.c_str());
 	GHtmlDoc domOld(filename.c_str());
@@ -236,44 +235,9 @@ void Editor::ajaxSaveGui(Server* pServer, GDynamicPageSession* pSession, const G
 
 void Editor::pageBrowse(Server* pServer, GDynamicPageSession* pSession, ostream& response)
 {
-	//Account* pAccount = getAccount(pSession);
-	response << "<script type=\"text/javascript\" src=\"browse.js\"></script>\n";
-	//response << "<input type=\"hidden\" id=\"username\" value=\"" << pAccount->username() << "\">\n";
-	response << "Path: <input type=\"text\" id=\"path\" size=\"60\" disabled=\"disabled\">\n";
-	response << "<table>\n";
-	response << "	<tr><td width=200px>Folders:</td><td width=400px>Files:</td></tr>\n";
-	response << "	<tr>\n";
-	response << "		<td>\n";
-	response << "			<select id=\"folders\" size=\"12\" onclick=\"closeDetails(0)\" ondblclick=\"onfolderchange()\" style=\"width:100%\">\n";
-	response << "			</select>\n";
-	response << "		</td>\n";
-	response << "		<td>\n";
-	response << "			<select id=\"files\" size=\"12\" onclick=\"closeDetails(0)\" style=\"width:100%\">\n";
-	response << "			</select>\n";
-	response << "		</td>\n";
-	response << "	</tr>\n";
-	response << "	<tr>\n";
-	response << "		<td valign=top>\n";
-	response << "			<details id=\"d1\" onclick=\"onclickd1()\"><summary>Delete selected folder</summary>\n";
-	response << "				Are you sure? Everything inside it will be deleted too. <input type=\"submit\" value=\"Yes, delete it\">\n";
-	response << "			</details><br>\n";
-	response << "			<details id=\"d2\" onclick=\"onclickd2()\"><summary>New folder</summary>\n";
-	response << "				Name: <input type=\"text\" id=\"newfoldername\"><input type=\"button\" onclick=\"newfolder()\" value=\"Create\">\n";
-	response << "			</details>\n";
-	response << "		</td>\n";
-	response << "		<td valign=top>\n";
-	response << "			<a onclick=\"editgui()\" href=\"#\">wysiwyg editor</a><br><br>\n";
-	response << "			<a onclick=\"edittext()\" href=\"#\">text editor</a><br><br>\n";
-	response << "			<details id=\"d3\" onclick=\"onclickd3()\"><summary>Delete selected file</summary>\n";
-	response << "				Are you sure? <input type=\"submit\" value=\"Yes, delete it\">\n";
-	response << "			</details><br>\n";
-	response << "			<details id=\"d4\" onclick=\"onclickd4()\"><summary>New page</summary>\n";
-	response << "				<form action=\"/edit\">Name: <input type=\"text\" name=\"pagename\"><input type=\"submit\" value=\"Create\"></form>\n";
-	response << "			</details>\n";
-	response << "		</td>\n";
-	response << "	</tr>\n";
-	response << "</table>\n";
-	response << "<br><br>\n";
+	Account* pAccount = getAccount(pSession);
+	response << "<input type=\"hidden\" id=\"username\" value=\"" << pAccount->username() << "\">\n";
+	response << pServer->cache("browse.html");
 }
 
 void Editor::pageEditText(Server* pServer, GDynamicPageSession* pSession, ostream& response)
@@ -282,17 +246,11 @@ void Editor::pageEditText(Server* pServer, GDynamicPageSession* pSession, ostrea
 	GHttpParamParser params(pSession->params());
 	const char* pagename = params.find("pagename");
 	if(!pagename || strlen(pagename) < 1)
-	{
-		response << "Expected a page name.";
-		return;
-	}
+		throw Ex("Expected a page name.");
 
 	// Load the file
 	Account* pAccount = getAccount(pSession);
-	string filename = pServer->m_basePath.c_str();
-	filename += "usercontent/";
-	filename += pAccount->username();
-	filename += "/pages/";
+	string filename = userFolder(pServer, pAccount);
 	filename += pagename;
 	size_t fileLen;
 	char* pFile = GFile::loadFile(filename.c_str(), &fileLen);
@@ -312,17 +270,11 @@ void Editor::pageEditGui(Server* pServer, GDynamicPageSession* pSession, ostream
 	GHttpParamParser params(pSession->params());
 	const char* pagename = params.find("pagename");
 	if(!pagename || strlen(pagename) < 1)
-	{
-		response << "Expected a page name.";
-		return;
-	}
+		throw Ex("Expected a page name.");
 
 	// Load the file
 	Account* pAccount = getAccount(pSession);
-	string filename = pServer->m_basePath.c_str();
-	filename += "usercontent/";
-	filename += pAccount->username();
-	filename += "/pages/";
+	string filename = userFolder(pServer, pAccount);
 	filename += pagename;
 	GHtmlDoc dom(filename.c_str());
 
@@ -345,6 +297,37 @@ void Editor::pageEditGui(Server* pServer, GDynamicPageSession* pSession, ostream
 	pContent->write(response);
 	response << "</td></tr></table>\n";
 }
+
+void Editor::pagePreview(Server* pServer, GDynamicPageSession* pSession, ostream& response)
+{
+	string s = pSession->url();
+	size_t pos = s.find("/tools/preview/");
+	if(pos == string::npos)
+		throw Ex("Unexpected url format");
+	pos += 14; // strlen("/tools/preview")
+
+	response << "<iframe width=\"560]\" height=\"315\" src=\"" << (s.c_str() + pos) << "\" frameborder=\"0\" allowfullscreen></iframe>";
+}
+
+/*
+void Editor::pageRedirect(Server* pServer, GDynamicPageSession* pSession, ostream& response, const char* url)
+{
+	// Attempt an HTTP redirect
+	cout << "Redirecting from " << pSession->url() << " to " << url << "\n";
+	pServer->redirect(response, url);
+
+	// Do an HTML redirect as a backup
+	response << "<html><head>";
+	response << "<meta http-equiv=\"refresh\" content=\"0; url=" << url << "\">";
+	response << "</head>\n";
+
+	// Give the user a link as a last resort
+	response << "<body>";
+	response << "<a href=\"" << url << "\">Please click here to continue</a>\n";
+	response << "</body></html>\n";
+}
+*/
+
 
 void Editor::writeHtmlPre(ostream& stream, char* file, size_t len)
 {
@@ -381,10 +364,7 @@ void Editor::pageDiff(Server* pServer, GDynamicPageSession* pSession, ostream& r
 
 	// Load the files
 	Account* pAccount = getAccount(pSession);
-	string filename = pServer->m_basePath.c_str();
-	filename += "usercontent/";
-	filename += pAccount->username();
-	filename += "/pages/";
+	string filename = userFolder(pServer, pAccount);
 	string leftfilename = filename + leftname;
 	string rightfilename = filename + rightname;
 	size_t leftSize, rightSize;
@@ -483,4 +463,45 @@ void Editor::pageDiff(Server* pServer, GDynamicPageSession* pSession, ostream& r
 	response << "\n</pre></td></tr></table>\n";
 }
 
+void Editor::pageHistory(Server* pServer, GDynamicPageSession* pSession, ostream& response)
+{
+	// Determine the file name from a URL parameter
+	GHttpParamParser params(pSession->params());
+	const char* fn = params.find("file");
+	if(!fn || strlen(fn) < 1)
+	{
+		response << "Expected a file.";
+		return;
+	}
+	string fileOnly = fn;
+
+	// Split the filename
+	string filename_without_extension;
+	string extension;
+	size_t lastDotPos = fileOnly.find_last_of(".");
+	if(lastDotPos == string::npos)
+	{
+		filename_without_extension = fileOnly;
+		extension = "";
+	}
+	else
+	{
+		filename_without_extension = fileOnly.substr(0, lastDotPos);
+		extension = fileOnly.substr(lastDotPos);
+	}
+
+	Account* pAccount = getAccount(pSession);
+	string historyFolder = userFolder(pServer, pAccount);
+	historyFolder += "history/";
+
+	// Get a list of matching files
+	vector<string> filelist;
+	GFile::fileList(filelist, historyFolder.c_str());
+	response << "<ul>\n";
+	for(size_t i = 0; i < filelist.size(); i++)
+	{
+		response << "	<li><a href=\"diff?left=" << fileOnly << "&right=history/" << filelist[i] << "\">" << filelist[i] << "</a></li>\n";
+	}
+	response << "</ul>\n";
+}
 

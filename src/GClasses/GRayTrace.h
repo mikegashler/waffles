@@ -364,6 +364,7 @@ public:
 	GRayTracePointLight(GDomNode* pNode);
 	virtual ~GRayTracePointLight();
 
+	G3DVector* position() { return &m_position; }
 	virtual GDomNode* serialize(GDom* pDoc, const GRayTraceScene* pScene) const;
 	virtual LightType lightType() const { return Point; }
 	virtual void colorContribution(GRayTraceScene* pScene, GRayTraceRay* pRay, GRayTraceMaterial* pMaterial, bool bSpecular);
@@ -396,7 +397,6 @@ public:
 	{
 		Physical,
 		Image,
-		Etherial,
 	};
 
 	enum ColorType

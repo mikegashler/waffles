@@ -225,6 +225,7 @@ public:
 	double estimateSquaredDistanceWithUnknowns(const GVec& that) const;
 
 	/// Adds scalar * that to this vector.
+	/// start refers only to "that".
 	void addScaled(double scalar, const GVec& that, size_t start = 0, size_t length = (size_t)-1);
 
 	/// Applies L1 regularization to this vector.

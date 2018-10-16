@@ -149,7 +149,8 @@ we can use the GAutoFilter class to turn the neural network into a classifier:</
 	GNeuralNetLearner learner;
 	learner.nn().add(new GBlockLinear(4, 3));
 	learner.nn().add(new GBlockLogistic(3));
-	GAutoFilter af(&amp;learner, false); // false means the auto-filter does not need to "delete(&amp;nn)" when it is destroyed.
+	GAutoFilter af(&amp;learner, false); // false means the auto-filter
+		does not need to "delete(&amp;nn)" when it is destroyed.
 </pre>
 
 <p>Now, we can train the auto-filter using the original data (with nominal labels). We no longer need to explicitly train

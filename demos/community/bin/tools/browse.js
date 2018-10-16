@@ -99,16 +99,32 @@ function onfolderchange()
 	httpPost("/ajax", JSON.stringify(ob), cb);
 }
 
-function editgui()
+function selected_filename()
 {
 	let selectBox = document.getElementById("files");
-	window.location = "/edit?pagename=" + selectBox.value;
+	let hiddenField = document.getElementById("username");
+	let path = document.getElementById("path");
+	return "/" + hiddenField.value + path.value + selectBox.value;
+}
+
+function viewpage()
+{
+	window.location = selected_filename();
+}
+
+function previewpage()
+{
+	window.location = "/tools/preview" + selected_filename();
+}
+
+function editgui()
+{
+	window.location = "/tools/edit?pagename=" + selected_filename();
 }
 
 function edittext()
 {
-	let selectBox = document.getElementById("files");
-	window.location = "/edittext?pagename=" + selectBox.value;
+	window.location = "/tools/edittext?pagename=" + selected_filename();
 }
 
 function newfolder()

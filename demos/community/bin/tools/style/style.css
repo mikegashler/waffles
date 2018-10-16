@@ -98,6 +98,14 @@ details summary::-webkit-details-marker {
     left: 0px;
 }
 
+/* browse */
+.btn
+{
+	width: 170px;
+	padding: 0px 8px;
+	font-size: 12px;
+}
+
 
 /* diff */
 pre

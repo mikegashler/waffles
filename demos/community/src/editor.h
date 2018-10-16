@@ -24,6 +24,7 @@
 #include <iostream>
 
 class Server;
+class Account;
 
 using namespace GClasses;
 
@@ -53,7 +54,17 @@ public:
 	/// Diff-merge two files
 	static void pageDiff(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
 
+	/// A page showing all known revisions of a particular file
+	static void pageHistory(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
+
+	/// A page showing how a web page will look embedded in an iframe
+	static void pagePreview(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
+
 protected:
+
+	/// Returns the folder where user pages are stored
+	static std::string userFolder(Server* pServer, Account* pAccount);
+
 	/// Writes text into an HTML <pre> tag, escaping '&', '<', and '>' characters.
 	static void writeHtmlPre(std::ostream& stream, char* file, size_t len);
 

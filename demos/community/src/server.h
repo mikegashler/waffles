@@ -337,6 +337,7 @@ public:
 
 	virtual void handleRequest(GDynamicPageSession* pSession, std::ostream& response);
 	void handleAjax(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
+	void handleTools(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
 	const char* processParams(GDynamicPageSession* pSession);
 };
 
