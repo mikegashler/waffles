@@ -45,11 +45,11 @@ void G3DVector::deserialize(GDomNode* pNode)
 	m_vals[2] = pNode->getDouble("z");
 }
 
-void G3DVector::reflectionVector(G3DVector* pRay, G3DVector* pNormal)
+void G3DVector::reflectionVector(const G3DVector& ray, const G3DVector& normal)
 {
-	copy(pNormal);
-	multiply(pNormal->dotProduct(pRay) * -2);
-	add(pRay);
+	copy(normal);
+	multiply(normal.dotProduct(ray) * -2);
+	add(ray);
 }
 
 void G3DVector::makeRandom(GRand* pRand)
@@ -62,9 +62,9 @@ void G3DVector::makeRandom(GRand* pRand)
 
 void G3DVector::multiply(G3DMatrix* pMatrix, G3DVector* pVector)
 {
-	m_vals[0] = pMatrix->m_rows[0].dotProduct(pVector);
-	m_vals[1] = pMatrix->m_rows[1].dotProduct(pVector);
-	m_vals[2] = pMatrix->m_rows[2].dotProduct(pVector);
+	m_vals[0] = pMatrix->m_rows[0].dotProduct(*pVector);
+	m_vals[1] = pMatrix->m_rows[1].dotProduct(*pVector);
+	m_vals[2] = pMatrix->m_rows[2].dotProduct(*pVector);
 }
 
 void G3DVector::yawAndPitch(G3DReal* pYaw, G3DReal* pPitch) const
@@ -103,9 +103,9 @@ void G3DMatrix::makeRandom(GRand* pRand)
 {
 	m_rows[0].makeRandom(pRand);
 	m_rows[1].makeRandom(pRand);
-	m_rows[2].crossProduct(&m_rows[0], &m_rows[1]);
+	m_rows[2].crossProduct(m_rows[0], m_rows[1]);
 	m_rows[2].normalize();
-	m_rows[1].crossProduct(&m_rows[0], &m_rows[2]);
+	m_rows[1].crossProduct(m_rows[0], m_rows[2]);
 	m_rows[1].normalize();
 }
 
@@ -166,11 +166,11 @@ void GCamera::setDirection(G3DVector* pDirection, G3DReal rollRads)
 
 	// Compute the up and side vector as if rollRads is zero
 	m_viewUpVector.set(0, 1, 0);
-	m_viewSideVector.crossProduct(pDirection, &m_viewUpVector);
+	m_viewSideVector.crossProduct(*pDirection, m_viewUpVector);
 	if(m_viewSideVector.squaredMag() == 0)
 		m_viewSideVector.m_vals[0] = 1.0;
 	m_viewSideVector.normalize();
-	m_viewUpVector.crossProduct(&m_viewSideVector, &m_lookDirection);
+	m_viewUpVector.crossProduct(m_viewSideVector, m_lookDirection);
 	m_viewUpVector.normalize();
 
 	if(rollRads != 0)
@@ -178,10 +178,10 @@ void GCamera::setDirection(G3DVector* pDirection, G3DReal rollRads)
 		// Compute the up vector with roll
 		m_viewUpVector.multiply(cos(rollRads));
 		m_viewSideVector.multiply(sin(rollRads));
-		m_viewUpVector.subtract(&m_viewSideVector);
+		m_viewUpVector.subtract(m_viewSideVector);
 
 		// Compute the side vector with roll
-		m_viewSideVector.crossProduct(&m_lookDirection, &m_viewUpVector);
+		m_viewSideVector.crossProduct(m_lookDirection, m_viewUpVector);
 	}
 }
 
@@ -191,11 +191,11 @@ void GCamera::setDirection(G3DVector* pDirection, G3DVector* pUpVector)
 	m_viewUpVector = *pUpVector;
 
 	// Compute the side vector
-	m_viewSideVector.crossProduct(&m_lookDirection, &m_viewUpVector);
+	m_viewSideVector.crossProduct(m_lookDirection, m_viewUpVector);
 
 	// Recompute the up vector. This shouldn't have any effect, but we recompute it
 	// just in case the one passed in wasn't really orthogonal to pDirection.
-	m_viewUpVector.crossProduct(&m_viewSideVector, &m_lookDirection);
+	m_viewUpVector.crossProduct(m_viewSideVector, m_lookDirection);
 
 	// Normalize
 	m_lookDirection.normalize();
@@ -216,16 +216,16 @@ void GCamera::computeRayDirection(int x, int y, G3DVector* pOutRay)
 	G3DReal wid = hgt * m_nWidth / m_nHeight;
 	G3DReal u = x * wid / (G3DReal)m_nWidth;
 	G3DReal v = y * hgt / (G3DReal)m_nHeight;
-	pOutRay->copy(&m_lookDirection);
-	pOutRay->add(u, &m_viewSideVector);
-	pOutRay->add(v, &m_viewUpVector);
+	pOutRay->copy(m_lookDirection);
+	pOutRay->add(u, m_viewSideVector);
+	pOutRay->add(v, m_viewUpVector);
 }
 
 void GCamera::project(const G3DVector* pPoint, G3DVector* pOut)
 {
-	G3DVector t(pPoint);
-	t.subtract(&m_lookFromPoint);
-	G3DReal forw = t.dotProduct(&m_lookDirection);
+	G3DVector t(*pPoint);
+	t.subtract(m_lookFromPoint);
+	G3DReal forw = t.dotProduct(m_lookDirection);
 	if(forw <= 0.0)
 	{
 		pOut->set(0.0, 0.0, forw);
@@ -233,8 +233,8 @@ void GCamera::project(const G3DVector* pPoint, G3DVector* pOut)
 	}
 	G3DReal hgt = m_halfViewHeight * 2;
 	G3DReal wid = hgt * m_nWidth / m_nHeight;
-	G3DReal u = t.dotProduct(&m_viewSideVector) * (G3DReal)m_nWidth / (forw * wid);
-	G3DReal v = t.dotProduct(&m_viewUpVector) * (G3DReal)m_nHeight / (forw * hgt);
+	G3DReal u = t.dotProduct(m_viewSideVector) * (G3DReal)m_nWidth / (forw * wid);
+	G3DReal v = t.dotProduct(m_viewUpVector) * (G3DReal)m_nHeight / (forw * hgt);
 
 	// Ensure that the x and y values are sufficiently small that they
 	// can be cast to 32-bit ints, but don't mess up the ratios between
@@ -274,7 +274,7 @@ GBillboard::GBillboard(GImage* pImage)
 void GBillboard::adjustHeightToRestoreAspect()
 {
 	// Subtract out any component of y that correlates with x
-	m_y.add(-m_y.dotProduct(&m_x) / m_x.squaredMag(), &m_x);
+	m_y.add(-m_y.dotProduct(m_x) / m_x.squaredMag(), m_x);
 
 	// Scale y to restore the aspect ratio of the image
 	m_y.multiply(sqrt(m_x.squaredMag()) * m_pImage->height() * m_repeatY / (m_pImage->width() * m_repeatX * sqrt(m_y.squaredMag())));
@@ -292,17 +292,17 @@ public:
 	int m_pixelsY;
 
 	GBBAugmented(GBillboard& bb)
-	: m_bb(bb), m_b(&bb.m_origin), m_d(&bb.m_origin), m_squaredMagX(bb.m_x.squaredMag()), m_squaredMagY(bb.m_y.squaredMag())
+	: m_bb(bb), m_b(bb.m_origin), m_d(bb.m_origin), m_squaredMagX(bb.m_x.squaredMag()), m_squaredMagY(bb.m_y.squaredMag())
 	{
-		m_b.add(&bb.m_x);
-		m_c.copy(&m_b);
-		m_c.add(&bb.m_y);
-		m_d.add(&bb.m_y);
+		m_b.add(bb.m_x);
+		m_c.copy(m_b);
+		m_c.add(bb.m_y);
+		m_d.add(bb.m_y);
 		m_pCorners[0] = &bb.m_origin;
 		m_pCorners[1] = &m_b;
 		m_pCorners[2] = &m_c;
 		m_pCorners[3] = &m_d;
-		m_face.crossProduct(&bb.m_x, &bb.m_y);
+		m_face.crossProduct(bb.m_x, bb.m_y);
 
 		// If this fails because m_face has zero-magnitude, then you neglected
 		// to set m_x and m_y to reasonable values. (For rectangular billboards,
@@ -319,25 +319,25 @@ public:
 		camera.computeRayDirection(x, y, &ray);
 
 		// Compute the intersection with the billboard plane
-		double denom = m_face.dotProduct(&ray);
+		double denom = m_face.dotProduct(ray);
 		if(std::abs(denom) < 1e-12)
 		{
 			*pZ = -1e200;
 			return 0; // ray runs parallel to the plane
 		}
-		G3DVector t(m_pCorners[0]);
-		t.subtract(camera.lookFromPoint());
-		double d = m_face.dotProduct(&t) / denom;
+		G3DVector t(*m_pCorners[0]);
+		t.subtract(*camera.lookFromPoint());
+		double d = m_face.dotProduct(t) / denom;
 		*pZ = d;
 		if(d < 0)
 			return 0; // the intersection is behind the camera
 		ray.multiply(d);
-		ray.add(camera.lookFromPoint());
-		ray.subtract(m_pCorners[0]);
+		ray.add(*camera.lookFromPoint());
+		ray.subtract(*m_pCorners[0]);
 
 		// Compute the image coordinates
-		int xx = (int)floor(ray.dotProduct(&m_bb.m_x) * m_pixelsX / m_squaredMagX + 0.5);
-		int yy = (int)floor(ray.dotProduct(&m_bb.m_y) * m_pixelsY / m_squaredMagY + 0.5);
+		int xx = (int)floor(ray.dotProduct(m_bb.m_x) * m_pixelsX / m_squaredMagX + 0.5);
+		int yy = (int)floor(ray.dotProduct(m_bb.m_y) * m_pixelsY / m_squaredMagY + 0.5);
 
 		// Get the pixel
 		if(xx < 0 || yy < 0 || xx >= m_pixelsX || yy >= m_pixelsY)
@@ -438,25 +438,25 @@ void GBillboardWorld::draw(GImage* pImage, double* pDepthMap, GCamera& camera)
 			G3DVector tmp2;
 			int indexValid = coordMap[(gap + coordCount - 1) % coordCount]; // The corner just before the gap
 			int indexFudge = (indexValid + 1) % VERTEX_COUNT; // The first corner that was behind the camera
-			tmp.copy(bb.m_pCorners[indexValid]);
-			tmp.subtract(bb.m_pCorners[indexFudge]);
-			tmp2.copy(camera.lookFromPoint());
-			tmp2.subtract(bb.m_pCorners[indexFudge]);
-			double d = (1e-6 + tmp2.dotProduct(camera.lookDirection())) / tmp.dotProduct(camera.lookDirection());
+			tmp.copy(*bb.m_pCorners[indexValid]);
+			tmp.subtract(*bb.m_pCorners[indexFudge]);
+			tmp2.copy(*camera.lookFromPoint());
+			tmp2.subtract(*bb.m_pCorners[indexFudge]);
+			double d = (1e-6 + tmp2.dotProduct(*camera.lookDirection())) / tmp.dotProduct(*camera.lookDirection());
 			tmp.multiply(d);
-			tmp.add(bb.m_pCorners[indexFudge]);
+			tmp.add(*bb.m_pCorners[indexFudge]);
 			camera.project(&tmp, &coords[gap]);
 
 			// Fudge the vertex that precedes the chain of valid vertices
 			indexValid = coordMap[(gap + 2) % coordCount]; // The corner just after the gap
 			indexFudge = (indexValid + VERTEX_COUNT - 1) % VERTEX_COUNT; // The last corner that was behind the camera
-			tmp.copy(bb.m_pCorners[indexValid]);
-			tmp.subtract(bb.m_pCorners[indexFudge]);
-			tmp2.copy(camera.lookFromPoint());
-			tmp2.subtract(bb.m_pCorners[indexFudge]);
-			d = (1e-6 + tmp2.dotProduct(camera.lookDirection())) / tmp.dotProduct(camera.lookDirection());
+			tmp.copy(*bb.m_pCorners[indexValid]);
+			tmp.subtract(*bb.m_pCorners[indexFudge]);
+			tmp2.copy(*camera.lookFromPoint());
+			tmp2.subtract(*bb.m_pCorners[indexFudge]);
+			d = (1e-6 + tmp2.dotProduct(*camera.lookDirection())) / tmp.dotProduct(*camera.lookDirection());
 			tmp.multiply(d);
-			tmp.add(bb.m_pCorners[indexFudge]);
+			tmp.add(*bb.m_pCorners[indexFudge]);
 			camera.project(&tmp, &coords[gap + 1]);
 		}
 

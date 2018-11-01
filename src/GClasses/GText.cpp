@@ -493,7 +493,7 @@ void GDiffer::compare(const char* file1, size_t len1, size_t pos1, const char* f
 	size_t tailMatchLen = 0;
 	while(pos1 + tailMatchLen < len1 && pos2 + tailMatchLen < len2 && file1[len1 - 1 - tailMatchLen] == file2[len2 - 1 - tailMatchLen])
 		tailMatchLen++;
-	GAssert(tailMatchLen < len1 && tailMatchLen < len2);
+	GAssert(tailMatchLen || (tailMatchLen < len1 && tailMatchLen < len2));
 	len1 -= tailMatchLen;
 	len2 -= tailMatchLen;
 

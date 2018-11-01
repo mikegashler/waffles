@@ -45,12 +45,16 @@ public:
 	{
 	}
 
-	/// Copies the values from pThat
-	G3DVector(const G3DVector* pThat)
+	~G3DVector()
 	{
-		m_vals[0] = pThat->m_vals[0];
-		m_vals[1] = pThat->m_vals[1];
-		m_vals[2] = pThat->m_vals[2];
+	}
+
+	/// Copies the values from pThat
+	G3DVector(const G3DVector& that)
+	{
+		m_vals[0] = that[0];
+		m_vals[1] = that[1];
+		m_vals[2] = that[2];
 	}
 
 	/// Initializes the values to <x,y,z>
@@ -59,6 +63,28 @@ public:
 		m_vals[0] = x;
 		m_vals[1] = y;
 		m_vals[2] = z;
+	}
+
+	G3DVector& operator=(const G3DVector& that)
+	{
+		m_vals[0] = that[0];
+		m_vals[1] = that[1];
+		m_vals[2] = that[2];
+		return *this;
+	}
+
+	/// \brief Returns a reference to the specified element.
+	inline G3DReal& operator [](size_t index)
+	{
+		GAssert(index < 3);
+		return m_vals[index];
+	}
+
+	/// \brief Returns a const reference to the specified element
+	inline const G3DReal& operator [](size_t index) const
+	{
+		GAssert(index < 3);
+		return m_vals[index];
 	}
 
 	/// Returns the vector as an array of reals
@@ -77,11 +103,11 @@ public:
 	}
 
 	/// Makes a copy of pThat
-	void copy(const G3DVector* pThat)
+	void copy(const G3DVector& that)
 	{
-		m_vals[0] = pThat->m_vals[0];
-		m_vals[1] = pThat->m_vals[1];
-		m_vals[2] = pThat->m_vals[2];
+		m_vals[0] = that[0];
+		m_vals[1] = that[1];
+		m_vals[2] = that[2];
 	}
 
 	/// Sets the values of this vector
@@ -107,11 +133,11 @@ public:
 	void makeRandom(GRand* pRand);
 
 	/// returns the squared distance between this and pThat
-	inline G3DReal squaredDist(const G3DVector* pThat) const
+	inline G3DReal squaredDist(const G3DVector& that) const
 	{
-		return (pThat->m_vals[0] - m_vals[0]) * (pThat->m_vals[0] - m_vals[0]) +
-			(pThat->m_vals[1] - m_vals[1]) * (pThat->m_vals[1] - m_vals[1]) +
-			(pThat->m_vals[2] - m_vals[2]) * (pThat->m_vals[2] - m_vals[2]);
+		return (that[0] - m_vals[0]) * (that[0] - m_vals[0]) +
+			(that[1] - m_vals[1]) * (that[1] - m_vals[1]) +
+			(that[2] - m_vals[2]) * (that[2] - m_vals[2]);
 	}
 
 	/// returns the squared magnitude of this vector
@@ -120,20 +146,20 @@ public:
 		return (m_vals[0] * m_vals[0] + m_vals[1] * m_vals[1] + m_vals[2] * m_vals[2]);
 	}
 
-	/// adds pThat to this
-	inline void add(const G3DVector* pThat)
+	/// adds that to this
+	inline void add(const G3DVector& that)
 	{
-		m_vals[0] += pThat->m_vals[0];
-		m_vals[1] += pThat->m_vals[1];
-		m_vals[2] += pThat->m_vals[2];
+		m_vals[0] += that[0];
+		m_vals[1] += that[1];
+		m_vals[2] += that[2];
 	}
 
-	/// adds mag * pThat to this
-	inline void add(G3DReal mag, const G3DVector* pThat)
+	/// adds mag * that to this
+	inline void add(G3DReal mag, const G3DVector& that)
 	{
-		m_vals[0] += mag * pThat->m_vals[0];
-		m_vals[1] += mag * pThat->m_vals[1];
-		m_vals[2] += mag * pThat->m_vals[2];
+		m_vals[0] += mag * that[0];
+		m_vals[1] += mag * that[1];
+		m_vals[2] += mag * that[2];
 	}
 
 	inline void add(G3DReal dx, G3DReal dy, G3DReal dz)
@@ -144,11 +170,11 @@ public:
 	}
 
 	/// subtracts pThat from this
-	inline void subtract(const G3DVector* pThat)
+	inline void subtract(const G3DVector& that)
 	{
-		m_vals[0] -= pThat->m_vals[0];
-		m_vals[1] -= pThat->m_vals[1];
-		m_vals[2] -= pThat->m_vals[2];
+		m_vals[0] -= that[0];
+		m_vals[1] -= that[1];
+		m_vals[2] -= that[2];
 	}
 
 	/// multiplies this by mag
@@ -163,43 +189,43 @@ public:
 	void multiply(G3DMatrix* pMatrix, G3DVector* pVector);
 
 	/// returns the dot product of this and that
-	inline G3DReal dotProduct(const G3DVector* pThat)
+	inline G3DReal dotProduct(const G3DVector& that) const
 	{
-		return m_vals[0] * pThat->m_vals[0] +
-			m_vals[1] * pThat->m_vals[1] +
-			m_vals[2] * pThat->m_vals[2];
+		return m_vals[0] * that[0] +
+			m_vals[1] * that[1] +
+			m_vals[2] * that[2];
 	}
 
 	/// this = pA x pB
-	inline void crossProduct(G3DVector* pA, G3DVector* pB)
+	inline void crossProduct(G3DVector& a, G3DVector& b)
 	{
-		m_vals[0] = pA->m_vals[1] * pB->m_vals[2] - pA->m_vals[2] * pB->m_vals[1];
-		m_vals[1] = pA->m_vals[2] * pB->m_vals[0] - pA->m_vals[0] * pB->m_vals[2];
-		m_vals[2] = pA->m_vals[0] * pB->m_vals[1] - pA->m_vals[1] * pB->m_vals[0];
+		m_vals[0] = a[1] * b[2] - a[2] * b[1];
+		m_vals[1] = a[2] * b[0] - a[0] * b[2];
+		m_vals[2] = a[0] * b[1] - a[1] * b[0];
 	}
 
 	/// Sets this to the normal vector of the triangle specified by three points
-	inline void triangleNormal(const G3DVector* pPoint1, const G3DVector* pPoint2, const G3DVector* pPoint3)
+	inline void triangleNormal(const G3DVector& point1, const G3DVector& point2, const G3DVector& point3)
 	{
-		G3DVector a(pPoint2);
-		a.subtract(pPoint1);
-		G3DVector b(pPoint3);
-		b.subtract(pPoint1);
-		crossProduct(&a, &b);
+		G3DVector a(point2);
+		a.subtract(point1);
+		G3DVector b(point3);
+		b.subtract(point1);
+		crossProduct(a, b);
 		normalize();
 	}
 
 	/// Computes the plane equation (ax + by + cz + d = 0) of the
 	/// specified triangle. this = <a, b, c> and *pOutD = d.
-	void planeEquation(const G3DVector* pPoint1, const G3DVector* pPoint2, const G3DVector* pPoint3, G3DReal* pOutD)
+	void planeEquation(const G3DVector& point1, const G3DVector& point2, const G3DVector& point3, G3DReal* pOutD)
 	{
-		triangleNormal(pPoint1, pPoint2, pPoint3);
-		*pOutD = -(this->dotProduct(pPoint1));
+		triangleNormal(point1, point2, point3);
+		*pOutD = -(this->dotProduct(point1));
 	}
 
 	/// Sets this to the reflection of pRay on a surface with
 	/// normal vector pNormal.
-	void reflectionVector(G3DVector* pRay, G3DVector* pNormal);
+	void reflectionVector(const G3DVector& ray, const G3DVector& normal);
 
 	/// *pYaw and *pPitch are in radians
 	void yawAndPitch(G3DReal* pYaw, G3DReal* pPitch) const;
@@ -239,9 +265,9 @@ public:
 	/// copies pThat
 	inline void copy(G3DMatrix* pThat)
 	{
-		m_rows[0].copy(&pThat->m_rows[0]);
-		m_rows[1].copy(&pThat->m_rows[1]);
-		m_rows[2].copy(&pThat->m_rows[2]);
+		m_rows[0].copy(pThat->m_rows[0]);
+		m_rows[1].copy(pThat->m_rows[1]);
+		m_rows[2].copy(pThat->m_rows[2]);
 	}
 
 	/// multiplies this by d
@@ -255,9 +281,9 @@ public:
 	/// pVecOut = this x pVecIn
 	inline void multiply(const G3DVector* pVecIn, G3DVector* pVecOut)
 	{
-		pVecOut->m_vals[0] = m_rows[0].dotProduct(pVecIn);
-		pVecOut->m_vals[1] = m_rows[1].dotProduct(pVecIn);
-		pVecOut->m_vals[2] = m_rows[2].dotProduct(pVecIn);
+		pVecOut->m_vals[0] = m_rows[0].dotProduct(*pVecIn);
+		pVecOut->m_vals[1] = m_rows[1].dotProduct(*pVecIn);
+		pVecOut->m_vals[2] = m_rows[2].dotProduct(*pVecIn);
 	}
 
 	/// Computes the dot-product of pVec with the specified column of this matrix

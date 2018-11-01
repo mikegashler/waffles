@@ -102,9 +102,8 @@ function onfolderchange()
 function selected_filename()
 {
 	let selectBox = document.getElementById("files");
-	let hiddenField = document.getElementById("username");
 	let path = document.getElementById("path");
-	return "/" + hiddenField.value + path.value + selectBox.value;
+	return path.value + selectBox.value;
 }
 
 function viewpage()
@@ -125,6 +124,11 @@ function editgui()
 function edittext()
 {
 	window.location = "/tools/edittext?pagename=" + selected_filename();
+}
+
+function history()
+{
+	window.location = "/tools/history?file=" + selected_filename();
 }
 
 function newfolder()

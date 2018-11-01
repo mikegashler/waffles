@@ -31,6 +31,72 @@ using std::vector;
 using std::cout;
 
 
+string scrub_filename(const string filename)
+{
+	string copy = filename;
+	for(size_t i = 0; i < copy.length(); i++)
+	{
+		char c = copy[i];
+		if(c == '.' && i + 1 < copy.length() && copy[i + 1] == '.')
+			copy[i] = '_';
+		if(c == ' ' || (c >= '-' && c <= '9') || (c >= 'A' && c <= 'Z') || c == '_' || (c >= 'a' && c <= 'z'))
+		{
+		}
+		else
+			copy[i] = '_';
+	}
+	return copy;
+}
+
+class FilenameParser
+{
+public:
+	string folder;
+	string name;
+	string extension;
+
+	// Scrubs the filename.
+	// Then parses it into three parts: folder, name, extension.
+	// Ensures that the folder begins and ends with a "/".
+	FilenameParser(const string& filename)
+	{
+		// Scrub the string
+		string copy = scrub_filename(filename);
+
+		// Split off the folder
+		size_t lastSlashPos = copy.find_last_of("/");
+		size_t nameStart;
+		if(lastSlashPos == string::npos)
+		{
+			nameStart = 0;
+			folder = "/";
+		}
+		else
+		{
+			nameStart = lastSlashPos + 1;
+			folder = copy.substr(0, nameStart);
+			if(folder[0] != '/')
+				folder.insert(0, "/");
+		}
+		string fn = copy.substr(nameStart);
+
+		// Split off the extension
+		size_t lastDotPos = fn.find_last_of(".");
+		if(lastDotPos == string::npos)
+		{
+			name = fn;
+			extension = "";
+		}
+		else
+		{
+			name = fn.substr(0, lastDotPos);
+			extension = fn.substr(lastDotPos);
+		}
+	}
+};
+
+
+
 string goUpOneDirectory(string& dir)
 {
 	size_t lastSlash = dir.find_last_of("/");
@@ -41,7 +107,7 @@ string goUpOneDirectory(string& dir)
 		return dir.substr(0, lastSlash);
 	}
 }
-
+/*
 void ensureFolderExists(string& folderName)
 {
 	bool ok;
@@ -55,21 +121,20 @@ void ensureFolderExists(string& folderName)
 		//throw Ex("Failed to make directory: ", folderName);
 	}
 }
-
+*/
 string Editor::userFolder(Server* pServer, Account* pAccount)
 {
 	string foldername = pServer->m_basePath.c_str();
-	foldername += "users/";
-	foldername += pAccount->username();
-	foldername += "/";
+	foldername += "users";
 	return foldername;
 }
 
 void Editor::ajaxFilelist(Server* pServer, GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
 {
 	Account* pAccount = getAccount(pSession);
-	string foldername = userFolder(pServer, pAccount);
-	ensureFolderExists(foldername);
+	string foldername = pServer->m_basePath.c_str();
+	foldername += "users";
+	//ensureFolderExists(foldername);
 #ifdef _DEBUG
 	cout << "Making file list for " << foldername.c_str() << "\n";
 #endif
@@ -119,7 +184,8 @@ void Editor::ajaxSaveText(Server* pServer, GDynamicPageSession* pSession, const 
 {
 	// Find the filename
 	Account* pAccount = getAccount(pSession);
-	string filename = userFolder(pServer, pAccount);
+	string filename = pServer->m_basePath.c_str();
+	filename += "users";
 	filename += pIn->getString("filename");
 
 	// Get the new page
@@ -146,52 +212,24 @@ void Editor::ajaxSaveText(Server* pServer, GDynamicPageSession* pSession, const 
 void Editor::archiveFile(const char* szFilename)
 {
 	// Divide into folder and file
-	string filename = szFilename;
-	string folderOnly;
-	string fileOnly;
-	size_t pos = filename.find_last_of("/");
-	if(pos == string::npos)
-	{
-		cout << "Error, expected a fully-qualified filename: " << szFilename << "\n";
-		folderOnly = "";
-		fileOnly = szFilename;
-	}
-	else
-	{
-		folderOnly = filename.substr(0, pos + 1);
-		fileOnly = filename.substr(pos + 1);
-	}
-
-	// Make the archive filename
-	string filename_without_extension;
-	string extension;
-	size_t lastDotPos = fileOnly.find_last_of(".");
-	if(lastDotPos == string::npos)
-	{
-		filename_without_extension = fileOnly;
-		extension = "";
-	}
-	else
-	{
-		filename_without_extension = fileOnly.substr(0, lastDotPos);
-		extension = fileOnly.substr(lastDotPos);
-	}
-	string newFilename = folderOnly;
+	FilenameParser fp(szFilename);
+	string newFilename = fp.folder;
 	newFilename += "history/";
-	newFilename += filename_without_extension;
+	newFilename += fp.name;
 	newFilename += "_";
 	GTime::appendTimeStampValue(&newFilename, "-", "_", "-");
-	newFilename += extension;
+	newFilename += fp.extension;
 	cout << "Archiving " << szFilename << " to " << newFilename << "\n";
-	if(!GFile::copyFile(filename.c_str(), newFilename.c_str()))
-		cout << "Failed to copy file " << filename << " to " << newFilename << "\n";
+	if(!GFile::copyFile(szFilename, newFilename.c_str()))
+		cout << "Failed to copy file " << szFilename << " to " << newFilename << "\n";
 }
 
 void Editor::ajaxSaveGui(Server* pServer, GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
 {
 	// Load and parse the original file
 	Account* pAccount = getAccount(pSession);
-	string filename = userFolder(pServer, pAccount);
+	string filename = pServer->m_basePath.c_str();
+	filename += "users";
 	filename += pIn->getString("filename");
 	archiveFile(filename.c_str());
 	GHtmlDoc domOld(filename.c_str());
@@ -235,8 +273,6 @@ void Editor::ajaxSaveGui(Server* pServer, GDynamicPageSession* pSession, const G
 
 void Editor::pageBrowse(Server* pServer, GDynamicPageSession* pSession, ostream& response)
 {
-	Account* pAccount = getAccount(pSession);
-	response << "<input type=\"hidden\" id=\"username\" value=\"" << pAccount->username() << "\">\n";
 	response << pServer->cache("browse.html");
 }
 
@@ -249,8 +285,8 @@ void Editor::pageEditText(Server* pServer, GDynamicPageSession* pSession, ostrea
 		throw Ex("Expected a page name.");
 
 	// Load the file
-	Account* pAccount = getAccount(pSession);
-	string filename = userFolder(pServer, pAccount);
+	string filename = pServer->m_basePath.c_str();
+	filename += "users";
 	filename += pagename;
 	size_t fileLen;
 	char* pFile = GFile::loadFile(filename.c_str(), &fileLen);
@@ -273,8 +309,8 @@ void Editor::pageEditGui(Server* pServer, GDynamicPageSession* pSession, ostream
 		throw Ex("Expected a page name.");
 
 	// Load the file
-	Account* pAccount = getAccount(pSession);
-	string filename = userFolder(pServer, pAccount);
+	string filename = pServer->m_basePath.c_str();
+	filename += "users";
 	filename += pagename;
 	GHtmlDoc dom(filename.c_str());
 
@@ -306,7 +342,7 @@ void Editor::pagePreview(Server* pServer, GDynamicPageSession* pSession, ostream
 		throw Ex("Unexpected url format");
 	pos += 14; // strlen("/tools/preview")
 
-	response << "<iframe width=\"560]\" height=\"315\" src=\"" << (s.c_str() + pos) << "\" frameborder=\"0\" allowfullscreen></iframe>";
+	response << "<iframe width=\"560\" height=\"315\" src=\"" << (s.c_str() + pos) << "\" frameborder=\"0\" allowfullscreen></iframe>";
 }
 
 /*
@@ -363,8 +399,8 @@ void Editor::pageDiff(Server* pServer, GDynamicPageSession* pSession, ostream& r
 	}
 
 	// Load the files
-	Account* pAccount = getAccount(pSession);
-	string filename = userFolder(pServer, pAccount);
+	string filename = pServer->m_basePath.c_str();
+	filename += "users";
 	string leftfilename = filename + leftname;
 	string rightfilename = filename + rightname;
 	size_t leftSize, rightSize;
@@ -376,7 +412,10 @@ void Editor::pageDiff(Server* pServer, GDynamicPageSession* pSession, ostream& r
 	// Diff the files
 	GDiffer diff;
 	diff.compare(leftFile, leftSize, 0, rightFile, rightSize, 0);
-	diff.simplify(12);
+	if(leftSize + rightSize < 1024)
+		diff.simplify(6);
+	else
+		diff.simplify(12);
 	std::vector<GDiffChunk*>& chunks = diff.chunks();
 
 	// Build the diff content
@@ -473,25 +512,11 @@ void Editor::pageHistory(Server* pServer, GDynamicPageSession* pSession, ostream
 		response << "Expected a file.";
 		return;
 	}
-	string fileOnly = fn;
+	FilenameParser fp(fn);
 
-	// Split the filename
-	string filename_without_extension;
-	string extension;
-	size_t lastDotPos = fileOnly.find_last_of(".");
-	if(lastDotPos == string::npos)
-	{
-		filename_without_extension = fileOnly;
-		extension = "";
-	}
-	else
-	{
-		filename_without_extension = fileOnly.substr(0, lastDotPos);
-		extension = fileOnly.substr(lastDotPos);
-	}
-
-	Account* pAccount = getAccount(pSession);
-	string historyFolder = userFolder(pServer, pAccount);
+	string historyFolder = pServer->m_basePath.c_str();
+	historyFolder += "users";
+	historyFolder += fp.folder;
 	historyFolder += "history/";
 
 	// Get a list of matching files
@@ -500,7 +525,20 @@ void Editor::pageHistory(Server* pServer, GDynamicPageSession* pSession, ostream
 	response << "<ul>\n";
 	for(size_t i = 0; i < filelist.size(); i++)
 	{
-		response << "	<li><a href=\"diff?left=" << fileOnly << "&right=history/" << filelist[i] << "\">" << filelist[i] << "</a></li>\n";
+		bool match = true;
+		string& file = filelist[i];
+		for(size_t j = 0; j < fp.name.length(); j++)
+		{
+			if(file[j] != fp.name[j])
+			{
+				match = false;
+				break;
+			}
+		}
+		if(match)
+		{
+			response << "	<li><a href=\"diff?left=" << fn << "&right=" << fp.folder << "history/" << file << "\">" << filelist[i] << "</a></li>\n";
+		}
 	}
 	response << "</ul>\n";
 }
