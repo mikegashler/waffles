@@ -8,7 +8,7 @@
   to the public domain (http://creativecommons.org/publicdomain/zero/1.0/).
 
   Note that some moral obligations still exist in the absence of legal ones.
-  For example, it would still be dishonest to deliberately misrepresent the
+  For example, it would still be dishonest to deliberateFiterly misrepresent the
   origin of a work. Although we impose no legal requirements to obtain a
   license, it is beseeming for those who build on the works of others to
   give back useful improvements, or find a way to pay it forward. If
@@ -29,7 +29,7 @@ namespace GClasses {
 class GDomNode;
 class GDom;
 class GDomObjField;
-class GDomListItem;
+class GDomArrayList;
 class GJsonTokenizer;
 
 
@@ -53,11 +53,7 @@ class GDomListIterator
 friend class GDomNode;
 protected:
 	const GDomNode* m_pList;
-	GDomListItem* m_pCurrent;
-	size_t m_remaining;
-#ifdef _DEBUG
-	size_t m_safetyCounter;
-#endif // _DEBUG
+	size_t m_index;
 
 public:
 	GDomListIterator(const GDomNode* pNode);
@@ -110,7 +106,7 @@ private:
 	union
 	{
 		GDomObjField* m_pLastField;
-		GDomListItem* m_pLastItem;
+		GDomArrayList* m_pArrayList;
 		bool m_bool;
 		long long m_int;
 		double m_double;
@@ -126,6 +122,7 @@ public:
 	{
 		return (nodetype)m_type;
 	}
+
 protected:
 	/// Returns the boolean value stored by this node. Throws if this is not a bool type
 	bool asBool() const
@@ -198,6 +195,30 @@ public:
 		return get(szName)->asString();
 	}
 
+	size_t size() const;
+
+	GDomNode* get(size_t index) const;
+
+	bool getBool(size_t index) const
+	{
+		return get(index)->asBool();
+	}
+
+	long long getInt(size_t index) const
+	{
+		return get(index)->asInt();
+	}
+
+	double getDouble(size_t index) const
+	{
+		return get(index)->asDouble();
+	}
+
+	const char* getString(size_t index) const
+	{
+		return get(index)->asString();
+	}
+
 	/// Adds a field with the specified name to this object. Throws if this is not an object type
 	/// Returns pNode. (Yes, it returns the same node that you pass in. This is useful for
 	/// writing compact marshalling code.)
@@ -236,6 +257,12 @@ public:
 	/// Adds a string list item
 	GDomNode* add(GDom* pDoc, const char* str);
 
+	/// Removes the specified field from an object
+	void del(const char* szField);
+
+	/// Removes the specified element from a list. An O(n) operation, since it shifts the remaining data.
+	void del(size_t index);
+
 	/// Writes this node to a JSON file
 	void saveJson(const char* filename) const;
 
@@ -252,7 +279,7 @@ public:
 	void writeXml(std::ostream& stream, const char* szLabel) const;
 
 protected:
-	/// Reverses the order of the fiels in the object and returns
+	/// Reverses the order of the fields in the object and returns
 	/// the number of fields.  Assumes this GDomNode is
 	/// a object node.  Behavior is undefined if it is not an object
 	/// node.
@@ -261,16 +288,6 @@ protected:
 	///
 	/// \return The number of fields
 	size_t reverseFieldOrder() const;
-
-	/// Reverses the order of the items in the list and returns
-	/// the number of items in the list.  Assumes this GDomNode is
-	/// a list node.  Behavior is undefined if it is not a list
-	/// node.
-	///
-	/// \note This method is hackishly marked const because it is always used twice, such that it has no net effect.
-	///
-	/// \return The number of items in the list
-	size_t reverseItemOrder() const;
 
 	void writeXmlInlineValue(std::ostream& stream);
 };
@@ -290,7 +307,7 @@ class GDom
 friend class GDomNode;
 protected:
 	GHeap m_heap;
-	const GDomNode* m_pRoot;
+	GDomNode* m_pRoot;
 	int m_line;
 	size_t m_len;
 	const char* m_pDoc;
@@ -333,9 +350,10 @@ public:
 
 	/// Gets the root document node
 	const GDomNode* root() const { return m_pRoot; }
+	GDomNode* root() { return m_pRoot; }
 
 	/// Sets the root document node. (Returns the same node that you pass in.)
-	const GDomNode* setRoot(const GDomNode* pNode) { m_pRoot = pNode; return pNode; }
+	const GDomNode* setRoot(const GDomNode* pNode) { m_pRoot = (GDomNode*)pNode; return pNode; }
 
 	/// Makes a new object node
 	GDomNode* newObj();
@@ -345,7 +363,7 @@ public:
 
 	/// Makes a new node to represent a null value
 	GDomNode* newNull();
-protected:
+
 	/// Makes a new boolean node
 	GDomNode* newBool(bool b);
 
@@ -359,22 +377,102 @@ protected:
 	/// to parse a JSON string, call parseJson instead. This method just wraps
 	/// the string in a node.)
 	GDomNode* newString(const char* szString);
-public:
+
 	/// Makes a new string node from the specified string segment
 	GDomNode* newString(const char* pString, size_t len);
+
+	/// Makes a deep copy of pNode in this DOM
+	GDomNode* clone(GDomNode* pNode);
 
 	/// Returns a pointer to the heap used by this doc
 	GHeap* heap() { return &m_heap; }
 
 protected:
 	GDomObjField* newField();
-	GDomListItem* newItem();
 	GDomNode* loadJsonObject(GJsonTokenizer& tok);
 	GDomNode* loadJsonArray(GJsonTokenizer& tok);
 	GDomNode* loadJsonNumber(GJsonTokenizer& tok);
 	GDomNode* loadJsonValue(GJsonTokenizer& tok);
 	char* loadJsonString(GJsonTokenizer& tok);
 };
+
+
+/// Represents a collection of JSON files that can be edited remotely via AJAX.
+///
+/// Example actions:
+///
+/// ### Get a value
+/// {
+///   "file":"/somepath/somefile.json",
+///   "auth":"sometoken",
+///   "act":"get",
+///   "ob":".somefield[3].anotherfield"
+/// }
+///
+/// ### Add a value to a list
+/// {
+///   "file":"/somepath/somefile.json",
+///   "auth":"sometoken",
+///   "act":"add",
+///   "ob":".somefield",
+///   "val":{"list":[{"x":1,"y":2},{"x":3,"y":4}]}
+/// }
+///
+/// ### Add a value to an object
+/// {
+///   "file":"/somepath/somefile.json",
+///   "auth":"sometoken",
+///   "act":"add",
+///   "ob":".somefield[3]",
+///   "name":"newfieldname",
+///   "val":{"list":[{"x":1,"y":2},{"x":3,"y":4}]}
+/// }
+///
+/// ### Delete an element from a list
+/// {
+///   "file":"/somepath/somefile.json",
+///   "auth":"sometoken",
+///   "act":"del",
+///   "ob":".somefield",
+///   "index":2
+/// }
+///
+/// ### Delete a field from an object
+/// {
+///   "file":"/somepath/somefile.json",
+///   "auth":"sometoken",
+///   "act":"del",
+///   "ob":".somefield[1]"
+///   "name":"fieldtodelete",
+/// }
+///
+class GRemotelyEditableDom
+{
+protected:
+	std::string m_basePath;
+	std::map<std::string, GDom*> m_doms;
+
+public:
+	GRemotelyEditableDom(const char* szBasePath);
+	~GRemotelyEditableDom();
+
+	/// Evaluates the szAuth parameter to determine whether the user has
+	/// permission to modify the specified file, szFilename.
+	/// The default implementation disallows everything.
+	/// You must override this method to allow valid actions to be performed.
+	virtual bool checkPermission(const char* szFilename, const char* szAuth) { return false; }
+
+	const GDomNode* apply(GDomNode* pRequest, GDom* pResponseDom);
+
+protected:
+	GDom* getDom(const char* szFile);
+	GDomNode* findNode(GDom* pDoc, GDom* pResponseDom, const char* szOb);
+	void add(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb);
+	void del(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb);
+};
+
+
+
 
 } // namespace GClasses
 

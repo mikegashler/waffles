@@ -370,9 +370,10 @@ void GDynamicPageServer::go()
 	GSignalHandler sh;
 	while(m_bKeepGoing)
 	{
-		if(sh.check() != 0)
+		int sig = sh.check();
+		if(sig != 0)
 		{
-			cout << "Received signal " << to_str(sh.check()) << ". Shutting down.\n";
+			cout << "Received signal " << to_str(sig) << "(" << sh.to_str(sig) << "). Shutting down.\n";
 			cout.flush();
 			break;
 		}

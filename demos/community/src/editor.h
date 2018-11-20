@@ -60,6 +60,9 @@ public:
 	/// A page showing how a web page will look embedded in an iframe
 	static void pagePreview(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
 
+	/// Shows a list of templates for making a new page
+	static void pageNewPage(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
+
 protected:
 
 	/// Returns the folder where user pages are stored

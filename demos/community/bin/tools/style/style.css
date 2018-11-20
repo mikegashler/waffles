@@ -144,3 +144,22 @@ pre
 	display: inline;
 }
 
+/* templates */
+.col_white { color: white; }
+.col_gray { color: gray; }
+.col_black { color: black; }
+.col_red { color: red; }
+.col_yellow { color: yellow; }
+.col_green { color: green; }
+.col_cyan { color: cyan; }
+.col_blue { color: blue; }
+.col_magenta { color: magenta; }
+.bg_white { background-color: white; }
+.bg_gray { background-color: gray; }
+.bg_black { background-color: black; }
+.bg_red { background-color: red; }
+.bg_yellow { background-color: yellow; }
+.bg_green { background-color: green; }
+.bg_cyan { background-color: cyan; }
+.bg_blue { background-color: blue; }
+.bg_magenta { background-color: magenta; }

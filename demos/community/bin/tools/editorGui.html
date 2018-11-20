@@ -1,6 +1,26 @@
 <script type="text/javascript" src="editorGui.js"></script>
 <table border=1 borderwidth=0 bgcolor=#ffffff>
 <tr><td>
+	<button onclick="setColor('col_white')" class="tooltip col_white">A<span class="tooltiptext">Text White</span></button>
+	<button onclick="setColor('col_gray')" class="tooltip col_gray">A<span class="tooltiptext">Text Gray</span></button>
+	<button onclick="setColor('col_black')" class="tooltip col_black">A<span class="tooltiptext">Text Black</span></button>
+	<button onclick="setColor('col_red')" class="tooltip col_red">A<span class="tooltiptext">Text Red</span></button>
+	<button onclick="setColor('col_yellow')" class="tooltip col_yellow">A<span class="tooltiptext">Text Yellow</span></button>
+	<button onclick="setColor('col_green')" class="tooltip col_green">A<span class="tooltiptext">Text Green</span></button>
+	<button onclick="setColor('col_cyan')" class="tooltip col_cyan">A<span class="tooltiptext">Text Cyan</span></button>
+	<button onclick="setColor('col_blue')" class="tooltip col_blue">A<span class="tooltiptext">Text Blue</span></button>
+	<button onclick="setColor('col_magenta')" class="tooltip col_magenta">A<span class="tooltiptext">BG Magenta</span></button>
+	<button onclick="setBGCol('bg_white')" class="tooltip col_white">█<span class="tooltiptext">BG White</span></button>
+	<button onclick="setBGCol('bg_gray')" class="tooltip col_gray">█<span class="tooltiptext">BG Gray</span></button>
+	<button onclick="setBGCol('bg_black')" class="tooltip col_black">█<span class="tooltiptext">BG Black</span></button>
+	<button onclick="setBGCol('bg_red')" class="tooltip col_red">█<span class="tooltiptext">BG Red</span></button>
+	<button onclick="setBGCol('bg_yellow')" class="tooltip col_yellow">█<span class="tooltiptext">BG Yellow</span></button>
+	<button onclick="setBGCol('bg_green')" class="tooltip col_green">█<span class="tooltiptext">BG Green</span></button>
+	<button onclick="setBGCol('bg_cyan')" class="tooltip col_cyan">█<span class="tooltiptext">BG Cyan</span></button>
+	<button onclick="setBGCol('bg_blue')" class="tooltip col_blue">█<span class="tooltiptext">BG Blue</span></button>
+	<button onclick="setBGCol('bg_magenta')" class="tooltip col_magenta">█<span class="tooltiptext">BG Magenta</span></button>
+</td></tr>
+<tr><td>
 	<button onclick="removeFormatting()" class="tooltip">0<span class="tooltiptext">Remove formatting</span></button>
 	<button onclick="toggle('H1')" class="tooltip">H1<span class="tooltiptext">Document heading</span></button>
 	<button onclick="toggle('H2')" class="tooltip">H2<span class="tooltiptext">Chapter heading</span></button>

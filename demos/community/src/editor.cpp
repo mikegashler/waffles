@@ -345,6 +345,40 @@ void Editor::pagePreview(Server* pServer, GDynamicPageSession* pSession, ostream
 	response << "<iframe width=\"560\" height=\"315\" src=\"" << (s.c_str() + pos) << "\" frameborder=\"0\" allowfullscreen></iframe>";
 }
 
+void Editor::pageNewPage(Server* pServer, GDynamicPageSession* pSession, std::ostream& response)
+{
+	Account* pAccount = getAccount(pSession);
+	string templatesFolder = pServer->m_basePath.c_str();
+	templatesFolder += "users/";
+	templatesFolder += pAccount->username();
+	templatesFolder += "/templates/";
+
+	// Get a list of matching files
+	vector<string> filelist;
+	GFile::fileList(filelist, templatesFolder.c_str());
+	response << "<ul>\n";
+	for(size_t i = 0; i < filelist.size(); i++)
+	{
+		bool match = false;
+		string& file = filelist[i];
+		FilenameParser fp(file);
+		if(fp.extension.compare(".html") == 0)
+			match = true;
+		if(match)
+		{
+			string url = "/";
+			url += pAccount->username();
+			url += "/templates/";
+			url += file;
+			response << "<iframe width=\"560\" height=\"315\" src=\"" << url << "\" frameborder=\"1\" allowfullscreen></iframe><br><br>";
+			
+			// Put an link overlay over the iframe
+			response << "<a href=\"redirect.html\" style=\"position:absolute; top:0; left:0; display:inline-block; width:500px; height:315px; z-index:5;\"></a>";
+		}
+	}
+	response << "</ul>\n";
+}
+
 /*
 void Editor::pageRedirect(Server* pServer, GDynamicPageSession* pSession, ostream& response, const char* url)
 {

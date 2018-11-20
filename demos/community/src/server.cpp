@@ -566,6 +566,7 @@ void Connection::handleTools(Server* pServer, GDynamicPageSession* pSession, ost
 	else if(check_url(szUrl, "/edit")) pageMaker = &Editor::pageEditGui;
 	else if(check_url(szUrl, "/edittext")) pageMaker = &Editor::pageEditText;
 	else if(check_url(szUrl, "/history")) pageMaker = &Editor::pageHistory;
+	else if(check_url(szUrl, "/newpage")) pageMaker = &Editor::pageNewPage;
 	else if(check_url(szUrl, "/preview")) pageMaker = &Editor::pagePreview;
 	else if(check_url(szUrl, "/survey")) pageMaker = &Survey::pageSurvey;
 	else if(check_url(szUrl, "/submit")) pageMaker = &Survey::pageNewSurveyItem;

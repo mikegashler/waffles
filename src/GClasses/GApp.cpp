@@ -719,6 +719,23 @@ int GSignalHandler::check()
 	return oldSignal;
 }
 
+/*static*/
+const char* GSignalHandler::to_str(int sig)
+{
+	switch(sig)
+	{
+		case SIGABRT: return "SIGABRT";
+		case SIGFPE: return "SIGFPE";
+		case SIGILL: return "SIGILL";
+		case SIGINT: return "SIGINT";
+		case SIGSEGV: return "SIGSEGV";
+		case SIGTERM: return "SIGTERM";
+		case SIGPIPE: return "SIGPIPE";
+		default: return "UNRECOGNIZED";
+	}
+}
+
+
 
 
 

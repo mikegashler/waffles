@@ -176,6 +176,42 @@ function removeFormatting()
 	while(remove("CENTER")) {}
 }
 
+function setColor(col)
+{
+	let range = window.getSelection().getRangeAt(0);
+	let node = range.commonAncestorContainer;
+	while(node.classList === undefined)
+		node = node.parentNode;
+	node.classList.remove("col_white");
+	node.classList.remove("col_gray");
+	node.classList.remove("col_black");
+	node.classList.remove("col_red");
+	node.classList.remove("col_yellow");
+	node.classList.remove("col_green");
+	node.classList.remove("col_cyan");
+	node.classList.remove("col_blue");
+	node.classList.remove("col_magenta");
+	node.classList.add(col);
+}
+
+function setBGCol(col)
+{
+	let range = window.getSelection().getRangeAt(0);
+	let node = range.commonAncestorContainer;
+	while(node.classList === undefined)
+		node = node.parentNode;
+	node.classList.remove("bg_white");
+	node.classList.remove("bg_gray");
+	node.classList.remove("bg_black");
+	node.classList.remove("bg_red");
+	node.classList.remove("bg_yellow");
+	node.classList.remove("bg_green");
+	node.classList.remove("bg_cyan");
+	node.classList.remove("bg_blue");
+	node.classList.remove("bg_magenta");
+	node.classList.add(col);
+}
+
 function httpPost(url, payload, callback)
 {
 	let request = new XMLHttpRequest();

@@ -1444,7 +1444,7 @@ void GTensor::test()
 		GTensor tout(out, {3, 3});
 
 		GTensor::convolve(tin, tk, tout, false, 1);
-		
+
 		GVec expected(
 			{
 				-13, -20, -17,
