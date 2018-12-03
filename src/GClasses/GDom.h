@@ -397,7 +397,7 @@ protected:
 };
 
 
-/// Represents a collection of JSON files that can be edited remotely via AJAX.
+/// Represents a collection of JSON files that can be edited remotely like a database.
 ///
 /// Example actions:
 ///
@@ -446,15 +446,15 @@ protected:
 ///   "name":"fieldtodelete",
 /// }
 ///
-class GRemotelyEditableDom
+class GJsonAsADatabase
 {
 protected:
 	std::string m_basePath;
 	std::map<std::string, GDom*> m_doms;
 
 public:
-	GRemotelyEditableDom(const char* szBasePath);
-	~GRemotelyEditableDom();
+	GJsonAsADatabase(const char* szBasePath);
+	~GJsonAsADatabase();
 
 	/// Evaluates the szAuth parameter to determine whether the user has
 	/// permission to modify the specified file, szFilename.

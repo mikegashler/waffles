@@ -211,7 +211,7 @@ void GBlockSoftMax::computeBlame(const GVec& target)
 void GBlockSoftMax::backProp(const GVec& weights)
 {
 	for(size_t i = 0; i < outputCount; i++)
-		inBlame[i] = outBlame[i];
+		inBlame[i] += outBlame[i];
 }
 
 
@@ -286,6 +286,22 @@ void GBlockSpectral::backProp(const GVec& weights)
 
 
 
+
+
+
+
+
+void GBlockRepeater::forwardProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+		output[i] = input[i % inputCount];
+}
+
+void GBlockRepeater::backProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+		inBlame[i % inputCount] += outBlame[i];
+}
 
 
 
@@ -1172,6 +1188,138 @@ size_t GBlockPAL::weightCount() const
 void GBlockPAL::initWeights(GRand& rand, GVec& weights)
 {
 	weights.fillNormal(rand, std::max(0.03, 1.0 / std::max((size_t)1, inputCount)));
+}
+
+
+
+
+
+
+
+
+
+GBlockHypercubeEdges::GBlockHypercubeEdges(size_t inputs, size_t outputs)
+: GBlock(inputs, outputs)
+{
+}
+
+GBlockHypercubeEdges::GBlockHypercubeEdges(GDomNode* pNode)
+: GBlock(pNode)
+{
+}
+
+void GBlockHypercubeEdges::forwardProp(const GVec& weights)
+{
+	output.copy(weights, 0, outputCount);
+	size_t pos = outputCount;
+	if(inputCount < outputCount)
+	{
+		for(size_t i = 0; i < outputCount; i++)
+		{
+			for(size_t n = 1; n < outputCount; n <<= 1)
+			{
+				size_t j = (i ^ n) % inputCount;
+				output[i] += weights[pos++] * input[j];
+			}
+		}
+	}
+	else
+	{
+		for(size_t i = 0; i < inputCount; i++)
+		{
+			for(size_t n = 1; n < inputCount; n <<= 1)
+			{
+				size_t j = (i ^ n) % outputCount;
+				output[j] += weights[pos++] * input[i];
+			}
+		}
+	}
+	GAssert(pos == weights.size());
+}
+
+void GBlockHypercubeEdges::backProp(const GVec& weights)
+{
+	size_t pos = outputCount; // skip the bias weights
+	if(inputCount < outputCount)
+	{
+		for(size_t i = 0; i < outputCount; i++)
+		{
+			for(size_t n = 1; n < outputCount; n <<= 1)
+			{
+				size_t j = (i ^ n) % inputCount;
+				inBlame[j] += weights[pos++] * outBlame[i];
+			}
+		}
+	}
+	else
+	{
+		for(size_t i = 0; i < inputCount; i++)
+		{
+			for(size_t n = 1; n < inputCount; n <<= 1)
+			{
+				size_t j = (i ^ n) % outputCount;
+				inBlame[i] += weights[pos++] * outBlame[j];
+			}
+		}
+	}
+	GAssert(pos == weights.size());
+
+}
+
+void GBlockHypercubeEdges::updateGradient(GVec& weights, GVec& gradient)
+{
+	size_t pos = 0;
+	for(size_t j = 0; j < outputCount; j++)
+		gradient[pos++] += outBlame[j];
+	if(inputCount < outputCount)
+	{
+		for(size_t i = 0; i < outputCount; i++)
+		{
+			for(size_t n = 1; n < outputCount; n <<= 1)
+			{
+				size_t j = (i ^ n) % inputCount;
+				gradient[pos++] += outBlame[i] * input[j];
+			}
+		}
+	}
+	else
+	{
+		for(size_t i = 0; i < inputCount; i++)
+		{
+			for(size_t n = 1; n < inputCount; n <<= 1)
+			{
+				size_t j = (i ^ n) % outputCount;
+				gradient[pos++] += outBlame[j] * input[i];
+			}
+		}
+	}
+	GAssert(pos == weights.size());
+}
+
+size_t log_2_ceil(size_t x)
+{
+	size_t bits = 0;
+	size_t n = 1;
+	while(n != 0)
+	{
+		if(n >= x)
+			return bits;
+		n <<= 1;
+		bits++;
+	}
+	return 0;
+}
+
+size_t GBlockHypercubeEdges::weightCount() const
+{
+	size_t n = std::max(inputCount, outputCount);
+	return outputCount + n * log_2_ceil(n);
+}
+
+void GBlockHypercubeEdges::initWeights(GRand& rand, GVec& weights)
+{
+	size_t n = std::max(inputCount, outputCount);
+	weights.fillNormal(rand, std::max(0.03, 0.3 / log_2_ceil(n)));
 }
 
 

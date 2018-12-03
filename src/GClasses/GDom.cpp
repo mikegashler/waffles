@@ -1192,12 +1192,12 @@ void GDom::test()
 
 
 
-GRemotelyEditableDom::GRemotelyEditableDom(const char* szBasePath)
+GJsonAsADatabase::GJsonAsADatabase(const char* szBasePath)
 : m_basePath(szBasePath)
 {
 }
 
-GRemotelyEditableDom::~GRemotelyEditableDom()
+GJsonAsADatabase::~GJsonAsADatabase()
 {
 	map<string, GDom*>::iterator it = m_doms.begin();
 	while(it != m_doms.end())
@@ -1208,7 +1208,7 @@ GRemotelyEditableDom::~GRemotelyEditableDom()
 	}
 }
 
-GDomNode* GRemotelyEditableDom::findNode(GDom* pDoc, GDom* pResponseDom, const char* szOb)
+GDomNode* GJsonAsADatabase::findNode(GDom* pDoc, GDom* pResponseDom, const char* szOb)
 {
 	size_t pos = 0;
 	GDomNode* pOb = pDoc->root();
@@ -1258,7 +1258,7 @@ GDomNode* GRemotelyEditableDom::findNode(GDom* pDoc, GDom* pResponseDom, const c
 	return pOb;
 }
 
-GDom* GRemotelyEditableDom::getDom(const char* szFile)
+GDom* GJsonAsADatabase::getDom(const char* szFile)
 {
 	map<string, GDom*>::iterator it = m_doms.find(szFile);
 	if(it == m_doms.end())
@@ -1276,7 +1276,7 @@ GDom* GRemotelyEditableDom::getDom(const char* szFile)
 		return it->second;
 }
 
-void GRemotelyEditableDom::add(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb)
+void GJsonAsADatabase::add(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb)
 {
 	if(pOb->type() == GDomNode::type_obj)
 	{
@@ -1293,7 +1293,7 @@ void GRemotelyEditableDom::add(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb)
 		throw Ex("An object or list type is needed for add");
 }
 
-void GRemotelyEditableDom::del(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb)
+void GJsonAsADatabase::del(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb)
 {
 	if(pOb->type() == GDomNode::type_obj)
 	{
@@ -1309,7 +1309,7 @@ void GRemotelyEditableDom::del(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb)
 		throw Ex("An object or list type is needed for del");
 }
 
-const GDomNode* GRemotelyEditableDom::apply(GDomNode* pRequest, GDom* pResponseDom)
+const GDomNode* GJsonAsADatabase::apply(GDomNode* pRequest, GDom* pResponseDom)
 {
 	try
 	{

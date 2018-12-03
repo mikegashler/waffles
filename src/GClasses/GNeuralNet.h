@@ -82,12 +82,14 @@ public:
 		block_pal,
 		block_hinge,
 		block_softexp,
+		block_hypercubeedges,
 
 		// weightless transfer
 		block_scalarsum,
 		block_scalarproduct,
 		block_switch,
 		block_spectral,
+		block_repeater,
 
 		// recurrent
 		block_lstm,
@@ -597,6 +599,30 @@ public:
 
 
 
+/// Expands a layer by repeating it as needed to acheive the desired number of units.
+class GBlockRepeater : public GBlockWeightless
+{
+public:
+	GBlockRepeater(size_t in, size_t out) : GBlockWeightless(in, out) { if(in > out) throw Ex("Expected more outputs than inputs"); }
+	GBlockRepeater(const GBlockRepeater& that) : GBlockWeightless(that) {}
+	GBlockRepeater(GDomNode* pNode);
+	virtual ~GBlockRepeater() {}
+	virtual BlockType type() const override { return block_repeater; }
+	virtual std::string name() const override { return "GBlockRepeater"; }
+	virtual GBlockRepeater* clone() const override { return new GBlockRepeater(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+};
+
+
+
+
+
 /// Standard fully-connected block of weights. Often followed by a GBlockActivation.
 class GBlockLinear : public GBlock
 {
@@ -800,7 +826,6 @@ public:
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
 	virtual void backProp(const GVec& weights) override;
 };
-
 
 
 
@@ -1084,6 +1109,52 @@ public:
 
 
 
+
+
+
+/// Connects units represented by edges in a hypercube.
+/// The larger of the inputs and outputs is used to determine the total number of connections, and wrapping is used to resolve differences.
+class GBlockHypercubeEdges : public GBlock
+{
+public:
+	/// General-purpose constructor
+	GBlockHypercubeEdges(size_t inputs, size_t outputs);
+
+	/// Copy constructor
+	GBlockHypercubeEdges(const GBlockHypercubeEdges& that) : GBlock(that) {}
+
+	/// Unmarshalling constructor
+	GBlockHypercubeEdges(GDomNode* pNode);
+
+	/// Destructor
+	virtual ~GBlockHypercubeEdges() {}
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_hypercubeedges; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockHypercubeEdges"; }
+
+	/// Returns a copy of this block
+	virtual GBlockHypercubeEdges* clone() const override { return new GBlockHypercubeEdges(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand, GVec& weights) override;
+};
 
 
 
