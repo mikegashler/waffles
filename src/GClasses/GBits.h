@@ -152,6 +152,9 @@ public:
 		return 0;
 	}
 
+	/// Reverses the bits in an unsigned char
+	unsigned char reverse_bits(unsigned char n);
+
 	/// Converts two hexadecimal digits to a byte. lsn is least significant
 	/// nybble. msn is most significant nybble.
 	static inline unsigned char hexToByte(char lsn, char msn)
