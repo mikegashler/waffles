@@ -349,7 +349,7 @@ int main(int argc, char *argv[])
 0.0338,95.829666852951
 </pre>
 
-<p>The left-most column shows that we get 332 misclassifications in less than 4 minutes of training.
+<p>The left-most column shows that we get 338/10000 misclassifications in just 96 seconds of training on a modest computer.
 You can get much better accuracy using bigger layers, but then training will take longer too.</p>
 
 <p>If you want better results, and you are willing to wait for days to get your results, you can use a neural network with a bigger topology:</p>
@@ -417,7 +417,7 @@ Here are some changes to the training section of the previous example to train t
 	// Train
 	GRand rand(0);
 	<font color="red">GVec weights(nn.weightCount());
-	GVec grad(nn.weightCount());
+	GVec grad(nn.gradCount());
 	grad.fill(0.0);
 	nn.initWeights(rand, weights);
 	double learningRate = 0.01;
@@ -438,7 +438,7 @@ Here are some changes to the training section of the previous example to train t
 			nn.backpropagate(weights);
 			grad *= momentum;
 			nn.updateGradient(weights, grad);
-			weights.addScaled(learningRate, grad);
+			nn.step(grad, weights, learningRate);
 		}</font>
 	}
 	return 0;

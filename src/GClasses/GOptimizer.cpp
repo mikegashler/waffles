@@ -223,12 +223,12 @@ void GSGDOptimizer::init()
 {
 	m_weights.resize(m_model.weightCount());
 	m_model.initWeights(m_rand, m_weights);
-	m_gradient.resize(m_weights.size());
+	m_gradient.resize(m_model.gradCount());
 	m_gradient.fill(0.0);
 #ifdef GCUDA
 	if(m_useGPU)
 	{
-		m_gradientCuda.resize(m_model.weightCount());
+		m_gradientCuda.resize(m_model.gradCount());
 		GContextNeuralNet& ctx = context();
 		if(&ctx.cudaEngine() == nullptr)
 			throw Ex("This context has no cuda engine");
@@ -248,7 +248,7 @@ void GSGDOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 
 void GSGDOptimizer::descendGradient(double learningRate)
 {
-	m_weights.addScaled(learningRate, m_gradient);
+	m_model.step(m_gradient, m_weights, learningRate);
 }
 
 #ifdef GCUDA
@@ -289,7 +289,7 @@ void GAdamOptimizer::init()
 {
 	m_weights.resize(m_model.weightCount());
 	m_model.initWeights(m_rand, m_weights);
-	m_gradient.resize(m_model.weightCount());
+	m_gradient.resize(m_model.gradCount());
 	m_deltas.resize(m_gradient.size());
 	m_sqdeltas.resize(m_gradient.size());
 	m_gradient.fill(0.0);
@@ -321,7 +321,7 @@ void GAdamOptimizer::descendGradient(double learningRate)
 	double alpha2 = 1.0 / (1.0 - m_correct2);
 	for(size_t i = 0; i < m_gradient.size(); i++)
 		m_gradient[i] = alpha1 * m_deltas[i] / (std::sqrt(alpha2 * m_sqdeltas[i]) + m_epsilon);
-	m_weights.addScaled(learningRate, m_gradient);
+	m_model.step(m_gradient, m_weights, learningRate);
 }
 
 #ifdef GCUDA
@@ -356,7 +356,7 @@ void GRMSPropOptimizer::init()
 {
 	m_weights.resize(m_model.weightCount());
 	m_model.initWeights(m_rand, m_weights);
-	m_gradient.resize(m_model.weightCount());
+	m_gradient.resize(m_model.gradCount());
 	m_meanSquare.resize(m_gradient.size());
 	m_gradient.fill(0.0);
 	m_meanSquare.fill(0.0);
@@ -379,7 +379,7 @@ void GRMSPropOptimizer::descendGradient(double learningRate)
 		m_meanSquare[i] += (1.0 - m_gamma) * m_gradient[i] * m_gradient[i];
 		m_gradient[i] /= sqrt(m_meanSquare[i]) + m_epsilon;
 	}
-	m_weights.addScaled(learningRate, m_gradient);
+	m_model.step(m_gradient, m_weights, learningRate);
 }
 
 #ifdef GCUDA

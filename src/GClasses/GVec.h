@@ -228,6 +228,10 @@ public:
 	/// start refers only to "that".
 	void addScaled(double scalar, const GVec& that, size_t start = 0, size_t length = (size_t)-1);
 
+	/// Adds scalar * that to this vector starting at startPos.
+	/// start refers only to "that".
+	void addScaled(size_t startPos, double scalar, const GVec& that, size_t start = 0, size_t length = (size_t)-1);
+
 	/// Applies L1 regularization to this vector.
 	void regularizeL1(double amount);
 
@@ -440,6 +444,9 @@ public:
 		GAssert(index < m_size);
 		return m_data[index];
 	}
+
+	/// Fills this vector with the specified value
+	void fill(size_t val);
 
 	/// Fills this vector with the values 0, 1, 2, ...
 	void fillIndexes();

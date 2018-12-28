@@ -83,12 +83,14 @@ public:
 		block_hinge,
 		block_softexp,
 		block_hypercubeedges,
+		block_catin,
 
 		// weightless transfer
 		block_scalarsum,
 		block_scalarproduct,
 		block_switch,
 		block_spectral,
+		block_spreader,
 		block_repeater,
 
 		// recurrent
@@ -105,7 +107,7 @@ public:
 
 	GBlock(size_t inputs, size_t outputs);
 	GBlock(const GBlock& that);
-	GBlock(GDomNode* pNode);
+	GBlock(const GDomNode* pNode);
 	virtual ~GBlock() {}
 
 	/// Returns the type of this block
@@ -161,8 +163,28 @@ public:
 	/// Evaluate the input and outBlame, update the gradient of the weights.
 	virtual void updateGradient(GVec& weights, GVec& gradient) = 0;
 
+	/// Adds the gradient scaled by the learning rate to the weights.
+	/// (Supporting blocks use biasRate to update their bias values instead of learningRate.)
+	virtual void step(const GVec& gradient, GVec& weights, double learningRate, double biasRate)
+	{
+		GAssert(weights.size() == gradient.size());
+		weights.addScaled(learningRate, gradient);
+	}
+
+	/// Adds the gradient scaled by the learning rate to the weights.
+	virtual void step(const GVec& gradient, GVec& weights, double learningRate)
+	{
+		step(gradient, weights, learningRate, learningRate);
+	}
+
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const = 0;
+
+	/// Returns the number of double-precision elements necessary to represent the gradient of this block.
+	virtual size_t gradCount() const
+	{
+		return weightCount();
+	}
 
 	/// Initialize the weights, usually with small random values.
 	virtual void initWeights(GRand& rand, GVec& weights) = 0;
@@ -183,12 +205,13 @@ class GBlockWeightless : public GBlock
 public:
 	GBlockWeightless(size_t inputs, size_t outputs) : GBlock(inputs, outputs) {}
 	GBlockWeightless(const GBlockWeightless& that) : GBlock(that) {}
-	GBlockWeightless(GDomNode* pNode) : GBlock(pNode) {}
+	GBlockWeightless(const GDomNode* pNode) : GBlock(pNode) {}
 	virtual ~GBlockWeightless() {}
 
 	virtual size_t weightCount() const override { return 0; }
 	virtual void initWeights(GRand& rand, GVec& weights) override {}
 	virtual void updateGradient(GVec& weights, GVec& gradient) override {}
+	virtual void step(const GVec& gradient, GVec& weights, double learningRate, double biasRate) {}
 };
 
 
@@ -199,7 +222,7 @@ class GBlockActivation : public GBlockWeightless
 public:
 	GBlockActivation(size_t size);
 	GBlockActivation(const GBlockActivation& that) : GBlockWeightless(that) {}
-	GBlockActivation(GDomNode* pNode);
+	GBlockActivation(const GDomNode* pNode);
 	virtual ~GBlockActivation() {}
 
 	/// Evaluate the input, set the output.
@@ -240,7 +263,7 @@ class GBlockIdentity : public GBlockActivation
 public:
 	GBlockIdentity(size_t size) : GBlockActivation(size) {}
 	GBlockIdentity(const GBlockIdentity& that) : GBlockActivation(that) {}
-	GBlockIdentity(GDomNode* pNode) : GBlockActivation(pNode) {}
+	GBlockIdentity(const GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual ~GBlockIdentity() {}
 	virtual BlockType type() const override { return block_identity; }
 	virtual std::string name() const override { return "GBlockIdentity"; }
@@ -278,7 +301,7 @@ class GBlockTanh : public GBlockActivation
 public:
 	GBlockTanh(size_t size) : GBlockActivation(size) {}
 	GBlockTanh(const GBlockTanh& that) : GBlockActivation(that) {}
-	GBlockTanh(GDomNode* pNode) : GBlockActivation(pNode) {}
+	GBlockTanh(const GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual ~GBlockTanh() {}
 	virtual BlockType type() const override { return block_tanh; }
 	virtual std::string name() const override { return "GBlockTanh"; }
@@ -309,7 +332,7 @@ class GBlockScaledTanh : public GBlockActivation
 public:
 	GBlockScaledTanh(size_t size) : GBlockActivation(size) {}
 	GBlockScaledTanh(const GBlockScaledTanh& that) : GBlockActivation(that) {}
-	GBlockScaledTanh(GDomNode* pNode) : GBlockActivation(pNode) {}
+	GBlockScaledTanh(const GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual ~GBlockScaledTanh() {}
 	virtual BlockType type() const override { return block_scaledtanh; }
 	virtual std::string name() const override { return "GBlockScaledTanh"; }
@@ -331,7 +354,7 @@ class GBlockLogistic : public GBlockActivation
 public:
 	GBlockLogistic(size_t size) : GBlockActivation(size) {}
 	GBlockLogistic(const GBlockLogistic& that) : GBlockActivation(that) {}
-	GBlockLogistic(GDomNode* pNode) : GBlockActivation(pNode) {}
+	GBlockLogistic(const GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual ~GBlockLogistic() {}
 	virtual BlockType type() const override { return block_logistic; }
 	virtual std::string name() const override { return "GBlockLogistic"; }
@@ -362,7 +385,7 @@ class GBlockBentIdentity : public GBlockActivation
 public:
 	GBlockBentIdentity(size_t size) : GBlockActivation(size) {}
 	GBlockBentIdentity(const GBlockBentIdentity& that) : GBlockActivation(that) {}
-	GBlockBentIdentity(GDomNode* pNode) : GBlockActivation(pNode) {}
+	GBlockBentIdentity(const GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual ~GBlockBentIdentity() {}
 	virtual BlockType type() const override { return block_bentidentity; }
 	virtual std::string name() const override { return "GBlockBentIdentity"; }
@@ -381,7 +404,7 @@ class GBlockSigExp : public GBlockActivation
 public:
 	GBlockSigExp(size_t size) : GBlockActivation(size) {}
 	GBlockSigExp(const GBlockSigExp& that) : GBlockActivation(that) {}
-	GBlockSigExp(GDomNode* pNode) : GBlockActivation(pNode) {}
+	GBlockSigExp(const GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual ~GBlockSigExp() {}
 	virtual BlockType type() const override { return block_sigexp; }
 	virtual std::string name() const override { return "GBlockSigExp"; }
@@ -403,7 +426,7 @@ class GBlockGaussian : public GBlockActivation
 public:
 	GBlockGaussian(size_t size) : GBlockActivation(size) {}
 	GBlockGaussian(const GBlockGaussian& that) : GBlockActivation(that) {}
-	GBlockGaussian(GDomNode* pNode) : GBlockActivation(pNode) {}
+	GBlockGaussian(const GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual ~GBlockGaussian() {}
 	virtual BlockType type() const override { return block_gaussian; }
 	virtual std::string name() const override { return "GBlockGaussian"; }
@@ -424,7 +447,7 @@ class GBlockSine : public GBlockActivation
 public:
 	GBlockSine(size_t size) : GBlockActivation(size) {}
 	GBlockSine(const GBlockSine& that) : GBlockActivation(that) {}
-	GBlockSine(GDomNode* pNode) : GBlockActivation(pNode) {}
+	GBlockSine(const GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual ~GBlockSine() {}
 	virtual BlockType type() const override { return block_sine; }
 	virtual std::string name() const override { return "GBlockSine"; }
@@ -446,7 +469,7 @@ class GBlockRectifier : public GBlockActivation
 public:
 	GBlockRectifier(size_t size) : GBlockActivation(size) {}
 	GBlockRectifier(const GBlockSine& that) : GBlockActivation(that) {}
-	GBlockRectifier(GDomNode* pNode) : GBlockActivation(pNode) {}
+	GBlockRectifier(const GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual ~GBlockRectifier() {}
 	virtual BlockType type() const override { return block_rectifier; }
 	virtual std::string name() const override { return "GBlockRectifier"; }
@@ -468,7 +491,7 @@ class GBlockLeakyRectifier : public GBlockActivation
 public:
 	GBlockLeakyRectifier(size_t size) : GBlockActivation(size) {}
 	GBlockLeakyRectifier(const GBlockLeakyRectifier& that) : GBlockActivation(that) {}
-	GBlockLeakyRectifier(GDomNode* pNode) : GBlockActivation(pNode) {}
+	GBlockLeakyRectifier(const GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual ~GBlockLeakyRectifier() {}
 	virtual BlockType type() const override { return block_leakyrectifier; }
 	virtual std::string name() const override { return "GBlockLeakyRectifier"; }
@@ -492,7 +515,7 @@ class GBlockSoftPlus : public GBlockActivation
 public:
 	GBlockSoftPlus(size_t size) : GBlockActivation(size) {}
 	GBlockSoftPlus(const GBlockSoftPlus& that) : GBlockActivation(that) {}
-	GBlockSoftPlus(GDomNode* pNode) : GBlockActivation(pNode) {}
+	GBlockSoftPlus(const GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual ~GBlockSoftPlus() {}
 	virtual BlockType type() const override { return block_softplus; }
 	virtual std::string name() const override { return "GBlockSoftPlus"; }
@@ -515,7 +538,7 @@ class GBlockSoftRoot : public GBlockActivation
 public:
 	GBlockSoftRoot(size_t size) : GBlockActivation(size) {}
 	GBlockSoftRoot(const GBlockSoftRoot& that) : GBlockActivation(that) {}
-	GBlockSoftRoot(GDomNode* pNode) : GBlockActivation(pNode) {}
+	GBlockSoftRoot(const GDomNode* pNode) : GBlockActivation(pNode) {}
 	virtual ~GBlockSoftRoot() {}
 	virtual BlockType type() const override { return block_softroot; }
 	virtual std::string name() const override { return "GBlockSoftRoot"; }
@@ -545,7 +568,7 @@ class GBlockSoftMax : public GBlockWeightless
 public:
 	GBlockSoftMax(size_t size) : GBlockWeightless(size, size) {}
 	GBlockSoftMax(const GBlockSoftMax& that) : GBlockWeightless(that) {}
-	GBlockSoftMax(GDomNode* pNode) : GBlockWeightless(pNode) {}
+	GBlockSoftMax(const GDomNode* pNode) : GBlockWeightless(pNode) {}
 	virtual ~GBlockSoftMax() {}
 	virtual BlockType type() const override { return block_softmax; }
 	virtual std::string name() const override { return "GBlockSoftMax"; }
@@ -578,7 +601,7 @@ protected:
 public:
 	GBlockSpectral(double min_wavelength, double max_wavelength, size_t units, bool linear_spacing = false);
 	GBlockSpectral(const GBlockSpectral& that) : GBlockWeightless(that) {}
-	GBlockSpectral(GDomNode* pNode);
+	GBlockSpectral(const GDomNode* pNode);
 	virtual ~GBlockSpectral() {}
 	virtual BlockType type() const override { return block_spectral; }
 	virtual std::string name() const override { return "GBlockSpectral"; }
@@ -605,11 +628,40 @@ class GBlockRepeater : public GBlockWeightless
 public:
 	GBlockRepeater(size_t in, size_t out) : GBlockWeightless(in, out) { if(in > out) throw Ex("Expected more outputs than inputs"); }
 	GBlockRepeater(const GBlockRepeater& that) : GBlockWeightless(that) {}
-	GBlockRepeater(GDomNode* pNode);
+	GBlockRepeater(const GDomNode* pNode) : GBlockWeightless(pNode) {}
 	virtual ~GBlockRepeater() {}
 	virtual BlockType type() const override { return block_repeater; }
 	virtual std::string name() const override { return "GBlockRepeater"; }
 	virtual GBlockRepeater* clone() const override { return new GBlockRepeater(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+};
+
+
+
+
+
+/// Fans out and shuffles in the values to break spatial locality.
+class GBlockSpreader : public GBlockWeightless
+{
+protected:
+	size_t m_spread;
+	GIndexVec m_forw;
+	GIndexVec m_back;
+
+public:
+	GBlockSpreader(size_t units, size_t spread);
+	GBlockSpreader(const GBlockSpreader& that);
+	GBlockSpreader(const GDomNode* pNode);
+	virtual ~GBlockSpreader() {}
+	virtual BlockType type() const override { return block_spreader; }
+	virtual std::string name() const override { return "GBlockSpreader"; }
+	virtual GBlockSpreader* clone() const override { return new GBlockSpreader(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
@@ -658,6 +710,9 @@ public:
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Adds the gradient scaled by learningRate to the weights.
+	virtual void step(const GVec& gradient, GVec& weights, double learningRate, double biasRate);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
@@ -1161,6 +1216,66 @@ public:
 
 
 
+/// A special block that expects one categorical input value (encoded as a zero-indexed int casted as a double).
+/// It learns the best encoding for each input value using each of its units.
+/// It dynamically adjusts to accomodate input values not previously seen.
+/// It does not backpropagate any error, so it is only suitable for inputs.
+class GBlockCatIn : public GBlock
+{
+protected:
+	size_t m_valueCount;
+
+public:
+	/// General-purpose constructor
+	GBlockCatIn(size_t valueCount, size_t units);
+
+	/// Copy constructor
+	GBlockCatIn(const GBlockCatIn& that) : GBlock(that) {}
+
+	/// Unmarshalling constructor
+	GBlockCatIn(GDomNode* pNode);
+
+	/// Destructor
+	virtual ~GBlockCatIn() {}
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_catin; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockCatIn"; }
+
+	/// Returns a copy of this block
+	virtual GBlockCatIn* clone() const override { return new GBlockCatIn(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes the error has already been computed and deactivated.)
+	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Updates the weights
+	virtual void step(const GVec& gradient, GVec& weights, double learningRate, double biasRate);
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Returns the number of elements for the gradient vector.
+	virtual size_t gradCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand, GVec& weights) override;
+};
+
+
+
+
+
+
 /// A Long-short-term-memory block
 class GBlockLSTM : public GBlock
 {
@@ -1249,6 +1364,7 @@ protected:
 	size_t input_count;
 	size_t output_count;
 	size_t weight_count;
+	size_t grad_count;
 	std::vector<GBlock*> m_blocks;
 
 public:
@@ -1295,6 +1411,9 @@ public:
 	/// Returns the total number of weights in this layer
 	size_t weightCount() const;
 
+	/// Returns the total number of gradient elements necessary for updating this layer
+	size_t gradCount() const;
+
 	/// Evaluate the input, set the output.
 	void forwardProp(const GVec& weights);
 
@@ -1314,6 +1433,9 @@ public:
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes the error has already been computed and deactivated.)
 	void updateGradient(GVec& weights, GVec& gradient);
+
+	/// Adds the gradient scaled by the learningRate to the weights.
+	void step(const GVec& gradient, GVec& weights, double learningRate, double biasRate);
 };
 
 
@@ -1438,6 +1560,11 @@ public:
 
 	/// Updates the gradient vector
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	using GBlock::step;
+
+	/// Adds the gradient scaled by the learning rate to the weights
+	virtual void step(const GVec& gradient, GVec& weights, double learningRate, double biasRate);
 
 	/// Returns a mathematical expression of this neural network.
 	/// (Currently only supports linear, tanh, and scalarProduct blocks in one-block layers.)

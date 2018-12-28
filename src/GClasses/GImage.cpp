@@ -444,7 +444,7 @@ void GImage::loadPixMap(FILE* pFile, bool bTextData, bool bGrayScale)
 					if(fread(pBuff, 1, 1, pFile) != 1)
 						throw Ex("error reading from file");
 					nRed = (pBuff[0] << 8) / nRange;
-					setPixel(x, y, gRGB(nRed, nRed, nRed));
+					setPixel(x, y, gRGB((int)nRed, (int)nRed, (int)nRed));
 				}
 				else
 				{
@@ -453,7 +453,7 @@ void GImage::loadPixMap(FILE* pFile, bool bTextData, bool bGrayScale)
 					nRed = (pBuff[0] << 8) / nRange;
 					nGreen = (pBuff[1] << 8) / nRange;
 					nBlue = (pBuff[2] << 8) / nRange;
-					setPixel(x, y, gRGB(nRed, nGreen, nBlue));
+					setPixel(x, y, gRGB((int)nRed, (int)nGreen, (int)nBlue));
 				}
 			}
 		}

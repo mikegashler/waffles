@@ -499,9 +499,18 @@ void GVec::addScaled(double scalar, const GVec& that, size_t start, size_t size)
 {
 	GAssert(start + size <= that.size() || size == (size_t)-1);
 	size = std::min(size, that.size() - start);
-	GAssert(this->size() == size);
+	GAssert(this->size() >= size);
 	for(size_t i = 0; i < size; i++)
 		(*this)[i] += (scalar * that[start + i]);
+}
+
+void GVec::addScaled(size_t startPos, double scalar, const GVec& that, size_t start, size_t size)
+{
+	GAssert(start + size <= that.size() || size == (size_t)-1);
+	size = std::min(size, that.size() - start);
+	GAssert(this->size() >= size + startPos);
+	for(size_t i = 0; i < size; i++)
+		(*this)[startPos + i] += (scalar * that[start + i]);
 }
 
 void GVec::regularizeL1(double amount)
@@ -844,6 +853,12 @@ void GIndexVec::resize(size_t n)
 		m_data = nullptr;
 	else
 		m_data = new size_t[n];
+}
+
+void GIndexVec::fill(size_t val)
+{
+	for(size_t i = 0; i < m_size; i++)
+		m_data[i] = val;
 }
 
 void GIndexVec::fillIndexes()

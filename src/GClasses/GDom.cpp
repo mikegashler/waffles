@@ -726,6 +726,96 @@ void GDomNode::writeXml(std::ostream& stream, const char* szLabel) const
 	}
 }
 
+bool GDomNode::isEqual(const GDomNode* pOther) const
+{
+	switch(m_type)
+	{
+		case type_obj:
+			if(pOther->m_type != type_obj)
+				return false;
+			{
+				GDomObjField* pOth = pOther->m_value.m_pLastField;
+				for(GDomObjField* pField = m_value.m_pLastField; pField; pField = pField->m_pPrev)
+				{
+					if(pOth && strcmp(pField->m_pName, pOth->m_pName) == 0)
+					{
+						if(!pField->m_pValue->isEqual(pOth->m_pValue))
+							return false;
+					}
+					else
+					{
+						for(pOth = pOther->m_value.m_pLastField; pOth; pOth = pOth->m_pPrev)
+						{
+							if(strcmp(pField->m_pName, pOth->m_pName) == 0)
+							{
+								if(!pField->m_pValue->isEqual(pOth->m_pValue))
+									return false;
+								break;
+							}
+						}
+					}
+					if(pOth)
+						pOth = pOth->m_pPrev;
+				}
+			}
+			return true;
+
+		case type_list:
+			if(pOther->m_type != type_list)
+				return false;
+			if(size() != pOther->size())
+				return false;
+			for(size_t i = 0; i < size(); i++)
+			{
+				if(!get(i)->isEqual(pOther->get(i)))
+					return false;
+			}
+			return true;
+
+		case type_bool:
+			if(pOther->m_type != type_bool)
+				return false;
+			if(m_value.m_bool == pOther->m_value.m_bool)
+				return true;
+			else
+				return false;
+
+		case type_int:
+			if(pOther->m_type != type_int)
+				return false;
+			if(m_value.m_int == pOther->m_value.m_int)
+				return true;
+			else
+				return false;
+
+		case type_double:
+			if(pOther->m_type != type_double)
+				return false;
+			if(m_value.m_double == pOther->m_value.m_double)
+				return true;
+			else
+				return false;
+
+		case type_string:
+			if(pOther->m_type != type_string)
+				return false;
+			if(strcmp(m_value.m_string, pOther->m_value.m_string) == 0)
+				return true;
+			else
+				return false;
+
+		case type_null:
+			if(pOther->m_type != type_bool)
+				return false;
+			else
+				return true;
+
+		default:
+			throw Ex("Unrecognized node type");
+	}
+}
+
+
 // -------------------------------------------------------------------------------
 
 class GJsonTokenizer : public GTokenizer
@@ -1208,10 +1298,9 @@ GJsonAsADatabase::~GJsonAsADatabase()
 	}
 }
 
-GDomNode* GJsonAsADatabase::findNode(GDom* pDoc, GDom* pResponseDom, const char* szOb)
+GDomNode* GJsonAsADatabase::findNode(GDomNode* pOb, GDom* pResponseDom, const char* szOb)
 {
 	size_t pos = 0;
-	GDomNode* pOb = pDoc->root();
 	while(true)
 	{
 		char c = szOb[pos];
@@ -1241,15 +1330,51 @@ GDomNode* GJsonAsADatabase::findNode(GDom* pDoc, GDom* pResponseDom, const char*
 			}
 			string sIndex(szOb + pos + 1, i);
 			if(sIndex.length() == 0)
-				throw Ex("Expected an index after '['");
+				throw Ex("Expected an index or equation after '['");
 			if(pOb->type() != GDomNode::type_list)
 				throw Ex("'[]' can only be used with list types");
-			std::stringstream sstream(sIndex);
-			size_t index;
-			sstream >> index;
-			if(index >= pOb->size())
-				throw Ex("index out of range. Index: ", to_str(index), ". Size: ", to_str(pOb->size()));
-			pOb = pOb->get(index);
+			char c = sIndex[0];
+			if(c >= '0' && c <= '9')
+			{
+				// It's a numerical index
+				std::stringstream sstream(sIndex);
+				size_t index;
+				sstream >> index;
+				if(index >= pOb->size())
+					throw Ex("index out of range. Index: ", to_str(index), ". Size: ", to_str(pOb->size()));
+				pOb = pOb->get(index);
+			}
+			else
+			{
+				// It's an equation
+				if(c != '.' && c != '[' && c != '=')
+					throw Ex("Unexpected index format");
+
+				// Find the '='
+				size_t eq;
+				for(eq = 0; eq < sIndex.length() && sIndex[eq] != '='; eq++)
+				{
+				}
+				if(eq >= sIndex.length())
+					throw Ex("Expected an '=' in an equation");
+
+				string pre(sIndex, 0, eq);
+				pResponseDom->parseJson(sIndex.c_str() + eq + 1, sIndex.length() - eq - 1);
+				GDomNode* pPost = pResponseDom->root();
+				size_t j;
+				for(j = 0; j < pOb->size(); j++)
+				{
+					GDomNode* pCand = pOb->get(j);
+					GDomNode* pComp = findNode(pCand, pResponseDom, pre.c_str());
+					if(pComp->isEqual(pPost))
+					{
+						pOb = pCand;
+						break;
+					}
+				}
+				if(j >= pOb->size())
+					throw Ex("No matching node found");
+			}
 			pos += (1 + i);
 			if(szOb[pos] == ']')
 				pos++;
@@ -1324,7 +1449,7 @@ const GDomNode* GJsonAsADatabase::apply(GDomNode* pRequest, GDom* pResponseDom)
 
 		// Find the ob
 		const char* szOb = pRequest->getString("ob");
-		GDomNode* pOb = findNode(pDoc, pResponseDom, szOb);
+		GDomNode* pOb = findNode(pDoc->root(), pResponseDom, szOb);
 
 		// Do the action
 		const char* szAct = pRequest->getString("act");
@@ -1350,7 +1475,6 @@ const GDomNode* GJsonAsADatabase::apply(GDomNode* pRequest, GDom* pResponseDom)
 		return pNode;
 	}
 }
-
 
 
 

@@ -62,7 +62,7 @@ GBlock::GBlock(const GBlock& that)
 	inBlame.setData(((GBlock*)&that)->inBlame);
 }
 
-GBlock::GBlock(GDomNode* pNode)
+GBlock::GBlock(const GDomNode* pNode)
 {
 	m_inPos = pNode->getInt("inpos");
 	inputCount = pNode->getInt("in");
@@ -154,7 +154,7 @@ GBlockActivation::GBlockActivation(size_t size)
 {
 }
 
-GBlockActivation::GBlockActivation(GDomNode* pNode)
+GBlockActivation::GBlockActivation(const GDomNode* pNode)
 : GBlockWeightless(pNode)
 {}
 
@@ -242,7 +242,7 @@ GBlockSpectral::GBlockSpectral(double min_wavelength, double max_wavelength, siz
 	}
 }
 
-GBlockSpectral::GBlockSpectral(GDomNode* pNode)
+GBlockSpectral::GBlockSpectral(const GDomNode* pNode)
 : GBlockWeightless(pNode),
 m_freq_start(pNode->getDouble("start")),
 m_freq_scale(pNode->getDouble("scale")),
@@ -308,6 +308,56 @@ void GBlockRepeater::backProp(const GVec& weights)
 
 
 
+
+
+GBlockSpreader::GBlockSpreader(size_t units, size_t spread)
+: GBlockWeightless(units, units), m_spread(spread), m_forw(units), m_back(units)
+{
+	size_t j = 0;
+	m_back.fill(INVALID_INDEX);
+	for(size_t i = 0; i < units; i++)
+	{
+		if(j >= units)
+		{
+			j -= units;
+			while(m_back[j] != INVALID_INDEX)
+				j++;
+		}
+		m_forw[i] = j;
+		m_back[j] = i;
+		j += spread;
+	}
+}
+
+GBlockSpreader::GBlockSpreader(const GBlockSpreader& that)
+: GBlockSpreader(that.outputCount, that.m_spread)
+{
+}
+
+GBlockSpreader::GBlockSpreader(const GDomNode* pNode)
+: GBlockSpreader(pNode->getInt("out"), pNode->getInt("spread"))
+{
+}
+
+void GBlockSpreader::forwardProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+		output[m_forw[i]] = input[i];
+}
+
+void GBlockSpreader::backProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+		inBlame[i % inputCount] += outBlame[i];
+}
+
+
+
+
+
+
+
+
 GBlockLinear::GBlockLinear(size_t inputs, size_t outputs)
 : GBlock(inputs, outputs)
 {
@@ -355,6 +405,12 @@ void GBlockLinear::updateGradient(GVec& weights, GVec& gradient)
 		for(size_t j = 0; j < outputCount; j++)
 			gradient[pos++] += outBlame[j] * act;
 	}
+}
+
+void GBlockLinear::step(const GVec& gradient, GVec& weights, double learningRate, double biasRate)
+{
+	weights.addScaled(biasRate, gradient, 0, outputCount);
+	weights.addScaled(outputCount, learningRate, gradient, outputCount);
 }
 
 size_t GBlockLinear::weightCount() const
@@ -1333,6 +1389,65 @@ void GBlockHypercubeEdges::initWeights(GRand& rand, GVec& weights)
 
 
 
+GBlockCatIn::GBlockCatIn(size_t valueCount, size_t units)
+: GBlock(1, units), m_valueCount(valueCount)
+{
+}
+
+GBlockCatIn::GBlockCatIn(GDomNode* pNode)
+: GBlock(pNode), m_valueCount(pNode->getInt("values"))
+{
+}
+
+void GBlockCatIn::forwardProp(const GVec& weights)
+{
+	size_t i = (size_t)input[0];
+	GAssert(i < m_valueCount);
+	output.copy(weights, outputCount * std::min(m_valueCount - 1, i), outputCount);
+}
+
+void GBlockCatIn::backProp(const GVec& weights)
+{
+	inBlame[0] = 0.0;
+}
+
+void GBlockCatIn::updateGradient(GVec& weights, GVec& gradient)
+{
+	gradient.copy(outBlame);
+}
+
+void GBlockCatIn::step(const GVec& gradient, GVec& weights, double learningRate, double biasRate)
+{
+	size_t i = std::min(m_valueCount - 1, (size_t)input[0]);
+	weights.addScaled(outputCount * i, gradient);
+}
+
+size_t GBlockCatIn::weightCount() const
+{
+	return m_valueCount * outputCount;
+}
+
+size_t GBlockCatIn::gradCount() const
+{
+	return outputCount;
+}
+
+void GBlockCatIn::initWeights(GRand& rand, GVec& weights)
+{
+	weights.fillNormal(rand, 0.2);
+}
+
+
+
+
+
+
+
+
+
+
+
+
 GBlockLSTM::GBlockLSTM(size_t inputs, size_t outputs)
 : GBlock(inputs, outputs), n(inputs + 2),
 f(outputs),
@@ -1719,7 +1834,8 @@ GLayer::GLayer(const GLayer& that, GLayer* pPrevLayer)
 GLayer::GLayer(GDomNode* pNode, GRand& rand)
 : input_count(pNode->getInt("inputs")),
 output_count(pNode->getInt("outputs")),
-weight_count(0)
+weight_count(0),
+grad_count(0)
 {
 	GDomNode* pBlocks = pNode->get("blocks");
 	GDomListIterator it(pBlocks);
@@ -1781,6 +1897,7 @@ void GLayer::recount()
 	input_count = 0;
 	output_count = 0;
 	weight_count = 0;
+	grad_count = 0;
 	for(size_t i = 0; i < m_blocks.size(); i++)
 	{
 		size_t inPos = m_blocks[i]->inPos();
@@ -1791,12 +1908,13 @@ void GLayer::recount()
 		input_count = std::max(input_count, inPos + inSize);
 		output_count += outSize;
 		weight_count += m_blocks[i]->weightCount();
+		grad_count += m_blocks[i]->gradCount();
 	}
 }
 
 size_t GLayer::inputs() const
 {
-	if(input_count == 0)
+	if(output_count == 0)
 		((GLayer*)this)->recount();
 	return input_count;
 }
@@ -1810,9 +1928,16 @@ size_t GLayer::outputs() const
 
 size_t GLayer::weightCount() const
 {
-	if(weight_count == 0)
+	if(output_count == 0)
 		((GLayer*)this)->recount();
 	return weight_count;
+}
+
+size_t GLayer::gradCount() const
+{
+	if(output_count == 0)
+		((GLayer*)this)->recount();
+	return grad_count;
 }
 
 void GLayer::initWeights(GRand& rand, GVec& weights)
@@ -1877,17 +2002,40 @@ void GLayer::backProp(const GVec& weights)
 
 void GLayer::updateGradient(GVec& weights, GVec& gradient)
 {
-	size_t pos = 0;
+	size_t posWeights = 0;
+	size_t posGrad = 0;
 	for(size_t i = 0; i < blockCount(); i++)
 	{
 		GBlock& b = block(i);
 		size_t wc = b.weightCount();
-		GVecWrapper w(weights, pos, wc);
-		GVecWrapper g(gradient, pos, wc);
-		pos += wc;
+		size_t gc = b.gradCount();
+		GVecWrapper w(weights, posWeights, wc);
+		GVecWrapper g(gradient, posGrad, gc);
+		posWeights += wc;
+		posGrad += gc;
 		b.updateGradient(w, g);
 	}
-	GAssert(pos == weights.size());
+	GAssert(posWeights == weights.size());
+	GAssert(posGrad == gradient.size());
+}
+
+void GLayer::step(const GVec& gradient, GVec& weights, double learningRate, double biasRate)
+{
+	size_t posWeights = 0;
+	size_t posGrad = 0;
+	for(size_t i = 0; i < blockCount(); i++)
+	{
+		GBlock& b = block(i);
+		size_t wc = b.weightCount();
+		size_t gc = b.gradCount();
+		GVecWrapper w(weights, posWeights, wc);
+		GConstVecWrapper g(gradient, posGrad, gc);
+		posWeights += wc;
+		posGrad += gc;
+		b.step(g, w, learningRate, biasRate);
+	}
+	GAssert(posWeights == weights.size());
+	GAssert(posGrad == gradient.size());
 }
 
 void GLayer::resetState()
@@ -2126,20 +2274,44 @@ void GNeuralNet::backpropagate(const GVec& weights, GVec* inputBlame)
 
 void GNeuralNet::updateGradient(GVec& weights, GVec& gradient)
 {
-	GAssert(weights.size() == gradient.size());
-	size_t pos = 0;
+	size_t posWeights = 0;
+	size_t posGrad = 0;
 	GVecWrapper w;
 	GVecWrapper g;
 	for(size_t i = 0; i < m_layers.size(); i++)
 	{
 		GLayer& lay = *m_layers[i];
 		size_t wc = lay.weightCount();
-		w.setData(weights, pos, wc);
-		g.setData(gradient, pos, wc);
-		pos += wc;
+		size_t gc = lay.gradCount();
+		w.setData(weights, posWeights, wc);
+		g.setData(gradient, posGrad, gc);
+		posWeights += wc;
+		posGrad += gc;
 		lay.updateGradient(w, g);
 	}
-	GAssert(pos == weights.size());
+	GAssert(posWeights == weights.size());
+	GAssert(posGrad == gradient.size());
+}
+
+void GNeuralNet::step(const GVec& gradient, GVec& weights, double learningRate, double biasRate)
+{
+	size_t posWeights = 0;
+	size_t posGrad = 0;
+	GVecWrapper w;
+	GConstVecWrapper g;
+	for(size_t i = 0; i < m_layers.size(); i++)
+	{
+		GLayer& lay = *m_layers[i];
+		size_t wc = lay.weightCount();
+		size_t gc = lay.gradCount();
+		w.setData(weights, posWeights, wc);
+		g.setData(gradient, posGrad, gc);
+		posWeights += wc;
+		posGrad += gc;
+		lay.step(g, w, learningRate, biasRate);
+	}
+	GAssert(posWeights == weights.size());
+	GAssert(posGrad == gradient.size());
 }
 
 void GNeuralNet::recount()

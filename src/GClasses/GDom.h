@@ -278,6 +278,9 @@ public:
 	/// Writes this node as XML
 	void writeXml(std::ostream& stream, const char* szLabel) const;
 
+	/// Returns true iff pOther is equivalent to this node
+	bool isEqual(const GDomNode* pOther) const;
+
 protected:
 	/// Reverses the order of the fields in the object and returns
 	/// the number of fields.  Assumes this GDomNode is
@@ -466,7 +469,7 @@ public:
 
 protected:
 	GDom* getDom(const char* szFile);
-	GDomNode* findNode(GDom* pDoc, GDom* pResponseDom, const char* szOb);
+	GDomNode* findNode(GDomNode* pOb, GDom* pResponseDom, const char* szOb);
 	void add(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb);
 	void del(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb);
 };
