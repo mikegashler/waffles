@@ -41,6 +41,9 @@ public:
 
 	/// A page to make a new account
 	static void pageNewAccount(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
+
+	/// A javascript file to be included in pages that need credentials
+	static void pageTools(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
 };
 
 #endif // LOGIN

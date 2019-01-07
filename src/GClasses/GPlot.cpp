@@ -459,7 +459,7 @@ void GSVG::line(double x1, double y1, double x2, double y2, double thickness, un
 	m_ss << "<line x1=\"" << svg_to_str(x1) << "\" y1=\"" << svg_to_str(y1) << "\" x2=\"" << svg_to_str(x2) << "\" y2=\"" << svg_to_str(y2) << "\" style=\"stroke:";
 	color(col);
 	double l = sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
-	double w = thickness * (std::abs(x2 - x1) * m_vunit + std::abs(y2 - y1) * m_hunit) / l;
+	double w = thickness * (std::abs(x2 - x1) * m_vunit + std::abs(y2 - y1) * m_hunit) / std::max(0.000001, l);
 	m_ss << ";stroke-width:" << svg_to_str(w) << "\"/>\n";
 }
 
@@ -468,6 +468,30 @@ void GSVG::rect(double x, double y, double w, double h, unsigned int col)
 	m_ss << "<rect x=\"" << svg_to_str(x) << "\" y=\"" << svg_to_str(y) << "\" width=\"" << svg_to_str(w) << "\" height=\"" << svg_to_str(h) << "\" style=\"fill:";
 	color(col);
 	m_ss << "\"/>\n";
+}
+
+void GSVG::arc(double cx, double cy, double r, double astart, double aend, double thickness, unsigned int col)
+{
+	bool bigarc = false;
+	if(aend > astart)
+	{
+		if(aend - astart > M_PI)
+			bigarc = true;
+	}
+	else
+	{
+		if(aend + 2 * M_PI - astart > M_PI)
+			bigarc = true;
+	}
+	double sx = cx + r * cos(astart);
+	double sy = cy + r * sin(astart);
+	double fx = cx + r * cos(aend);
+	double fy = cy + r * sin(aend);
+	m_ss << "<path d=\"M " << svg_to_str(sx) << " " << svg_to_str(sy) << " A ";
+	m_ss << svg_to_str(r) << " " << svg_to_str(r) << " 0 " << (bigarc ? "1" : "0") << " 1 ";
+	m_ss << svg_to_str(fx) << " " << svg_to_str(fy) << "\" stroke=\"";
+	color(col);
+	m_ss << "\" fill=\"none\" stroke-width=\"" << svg_to_str(thickness) << "\" />";
 }
 
 void GSVG::text(double x, double y, const char* szText, double size, Anchor eAnchor, unsigned int col, double angle, bool serifs)

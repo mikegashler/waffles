@@ -219,9 +219,17 @@ public:
 		return get(index)->asString();
 	}
 
+	/// Replaces an existing field with the specified name.
+	/// If no existing field is found, adds a new one.
+	GDomNode* set(GDom* pDoc, const char* szName, GDomNode* pNode);
+
+	/// Sets the specified element in a list
+	GDomNode* set(GDom* pDoc, size_t index, GDomNode* pNode);
+
 	/// Adds a field with the specified name to this object. Throws if this is not an object type
 	/// Returns pNode. (Yes, it returns the same node that you pass in. This is useful for
 	/// writing compact marshalling code.)
+	/// Assumes the user already knows there is no existing field with that name.
 	GDomNode* add(GDom* pDoc, const char* szName, GDomNode* pNode);
 
 	/// Adds a boolean field
@@ -400,54 +408,23 @@ protected:
 };
 
 
-/// Represents a collection of JSON files that can be edited remotely like a database.
+/// Represents a collection of JSON files that can be edited remotely, like a database.
 ///
-/// Example actions:
-///
-/// ### Get a value
+/// Example packet:
 /// {
 ///   "file":"/somepath/somefile.json",
 ///   "auth":"sometoken",
-///   "act":"get",
-///   "ob":".somefield[3].anotherfield"
+///   "cmd":".somefield[3].anotherfield"
 /// }
 ///
-/// ### Add a value to a list
-/// {
-///   "file":"/somepath/somefile.json",
-///   "auth":"sometoken",
-///   "act":"add",
-///   "ob":".somefield",
-///   "val":{"list":[{"x":1,"y":2},{"x":3,"y":4}]}
-/// }
-///
-/// ### Add a value to an object
-/// {
-///   "file":"/somepath/somefile.json",
-///   "auth":"sometoken",
-///   "act":"add",
-///   "ob":".somefield[3]",
-///   "name":"newfieldname",
-///   "val":{"list":[{"x":1,"y":2},{"x":3,"y":4}]}
-/// }
-///
-/// ### Delete an element from a list
-/// {
-///   "file":"/somepath/somefile.json",
-///   "auth":"sometoken",
-///   "act":"del",
-///   "ob":".somefield",
-///   "index":2
-/// }
-///
-/// ### Delete a field from an object
-/// {
-///   "file":"/somepath/somefile.json",
-///   "auth":"sometoken",
-///   "act":"del",
-///   "ob":".somefield[1]"
-///   "name":"fieldtodelete",
-/// }
+/// Some example commands:
+/// ".somefield[3].anotherfield"         Get a field value
+/// ".somefield += {'x':123, 'y':456}"   Add an object to a list
+/// ".somefield[3].newfield = 'newval'"  Set an field value
+/// ".somefield -= [3]"                  Remove a list element
+/// ".somefield[3] -= .newfield"         Remove a field
+/// ".somefield[.field == 'val']"        Get the object with a field of 'val'
+/// ".somefield[.field == 'val'].f2 = 3" Set f2 of the object with a field of 'val' to 3
 ///
 class GJsonAsADatabase
 {
@@ -468,8 +445,14 @@ public:
 	const GDomNode* apply(GDomNode* pRequest, GDom* pResponseDom);
 
 protected:
+	/// Finds the specified token, ignoring braced or bracked regions, escaped characters, and quoted or double-quoted strings.
+	/// Starts at position start. Returns the index of the token if it is found.
+	/// Returns s.size() if the token is not found.
+	static size_t findTok(const char* s, char tok, size_t start = 0);
+
 	GDom* getDom(const char* szFile);
-	GDomNode* findNode(GDomNode* pOb, GDom* pResponseDom, const char* szOb);
+	GDomNode* findNode(GDom* pDoc, GDomNode* pOb, GDom* pResponseDom, const char* szCmd);
+	GDomNode* findLValue(GDom* pDoc, GDomNode* pOb, GDom* pResponseDom, const char* szCmd, std::string* pOutField, size_t* pOutIndex);
 	void add(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb);
 	void del(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb);
 };

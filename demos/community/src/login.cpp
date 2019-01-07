@@ -308,4 +308,12 @@ void Login::pageNewAccount(Server* pServer, GDynamicPageSession* pSession, ostre
 	response << "</tr></td></table></center>\n";
 }
 
+void Login::pageTools(Server* pServer, GDynamicPageSession* pSession, std::ostream& response)
+{
+	Terminal* pTerminal = getTerminal(pSession);
+	Account* pAccount = pTerminal->currentAccount();
+	response << "let _username = " << pAccount->username() << ";\n\n";
+	response << pServer->cache("tools.js");
+}
+
 

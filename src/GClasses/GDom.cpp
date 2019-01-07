@@ -174,6 +174,43 @@ GDomNode* GDomNode::get(size_t index) const
 	return m_value.m_pArrayList->m_items[index];
 }
 
+GDomNode* GDomNode::set(GDom* pDoc, const char* szName, GDomNode* pNode)
+{
+	if(m_type != type_obj)
+		throw Ex(to_str_brief(*this), " is not an obj");
+	GDomObjField* pField;
+	for(pField = m_value.m_pLastField; pField; pField = pField->m_pPrev)
+	{
+		if(strcmp(szName, pField->m_pName) == 0)
+		{
+			pField->m_pValue = pNode;
+			return pNode;
+		}
+	}
+	pField = pDoc->newField();
+	pField->m_pPrev = m_value.m_pLastField;
+	m_value.m_pLastField = pField;
+	GHeap* pHeap = pDoc->heap();
+	pField->m_pName = pHeap->add(szName);
+	pField->m_pValue = pNode;
+	return pNode;
+}
+
+GDomNode* GDomNode::set(GDom* pDoc, size_t index, GDomNode* pNode)
+{
+	if(m_type != type_list)
+		throw Ex(to_str_brief(*this), " is not a list");
+	if(index == m_value.m_pArrayList->m_size)
+		return add(pDoc, pNode);
+	else if(index < m_value.m_pArrayList->m_size)
+	{
+		m_value.m_pArrayList->m_items[index] = pNode;
+		return pNode;
+	}
+	else
+		throw Ex("tried to set index ", to_str(index), " in a list of size ", to_str(m_value.m_pArrayList->m_size));
+}
+
 GDomNode* GDomNode::add(GDom* pDoc, const char* szName, GDomNode* pNode)
 {
 	if(m_type != type_obj)
@@ -1298,21 +1335,69 @@ GJsonAsADatabase::~GJsonAsADatabase()
 	}
 }
 
-GDomNode* GJsonAsADatabase::findNode(GDomNode* pOb, GDom* pResponseDom, const char* szOb)
+// static
+size_t GJsonAsADatabase::findTok(const char* s, char tok, size_t start)
+{
+	bool q = false;
+	bool qq = false;
+	size_t esc = 0;
+	size_t brace = 0;
+	size_t brack = 0;
+	size_t i;
+	for(i = start; s[i] != '\0'; i++)
+	{
+		if(!q && !qq)
+		{
+			if(s[i] == '[')
+				brace++;
+			else if(s[i] == ']')
+				brace--;
+			else if(s[i] == '{')
+				brack++;
+			else if(s[i] == '}')
+				brack--;
+			else if(s[i] == '\'')
+				q = true;
+			else if(s[i] == '"')
+				qq = true;
+			else if(s[i] == tok && brace == 0 && brack == 0)
+				break;
+		}
+		else
+		{
+			if(esc > 0)
+				esc--;
+			else if(s[i] == '\\')
+				esc = 2;
+			else if(q && s[i] == '\'')
+				q = false;
+			else if(qq && s[i] == '"')
+				qq = false;
+		}
+	}
+	return i;
+}
+
+
+GDomNode* GJsonAsADatabase::findNode(GDom* pDoc, GDomNode* pOb, GDom* pResponseDom, const char* szCmd)
 {
 	size_t pos = 0;
 	while(true)
 	{
-		char c = szOb[pos];
+		// Eat whitespace
+		while(szCmd[pos] != '\0' && szCmd[pos] <= ' ')
+			pos++;
+		char c = szCmd[pos];
 		if(c == '\0')
 			break;
-		else if(c == '.')
+
+		if(c == '.')
 		{
 			size_t i;
-			for(i = 0; szOb[pos + 1 + i] != '\0' && szOb[pos + 1 + i] != '.' && szOb[pos + 1 + i] != '['; i++)
+			for(i = pos + 1; szCmd[i] != '\0' && szCmd[i] != '.' && szCmd[i] != '['; i++)
 			{
 			}
-			string field(szOb + pos + 1, i);
+			string field(szCmd + pos + 1, i - (pos + 1));
 			if(field.length() == 0)
 				throw Ex("Expected a field name after '.'");
 			if(pOb->type() != GDomNode::type_obj)
@@ -1320,19 +1405,23 @@ GDomNode* GJsonAsADatabase::findNode(GDomNode* pOb, GDom* pResponseDom, const ch
 			pOb = pOb->getIfExists(field.c_str());
 			if(!pOb)
 				throw Ex("No field named ", field);
-			pos += (1 + i);
+			pos = i;
 		}
 		else if(c == '[')
 		{
-			size_t i;
-			for(i = 0; szOb[pos + 1 + i] != '\0' && szOb[pos + 1 + i] != ']'; i++)
-			{
-			}
-			string sIndex(szOb + pos + 1, i);
-			if(sIndex.length() == 0)
-				throw Ex("Expected an index or equation after '['");
 			if(pOb->type() != GDomNode::type_list)
 				throw Ex("'[]' can only be used with list types");
+
+			// Find the corresponding ']'
+			size_t i = findTok(szCmd, ']', pos + 1);
+			size_t indStart = pos + 1;
+			while(indStart < i && szCmd[indStart] <= ' ')
+				indStart++;
+			if(indStart == i)
+				throw Ex("Expected an index or equation after '['");
+			string sIndex(szCmd + indStart, i - indStart);
+
+			// Parse the index
 			char c = sIndex[0];
 			if(c >= '0' && c <= '9')
 			{
@@ -1350,22 +1439,20 @@ GDomNode* GJsonAsADatabase::findNode(GDomNode* pOb, GDom* pResponseDom, const ch
 				if(c != '.' && c != '[' && c != '=')
 					throw Ex("Unexpected index format");
 
-				// Find the '='
-				size_t eq;
-				for(eq = 0; eq < sIndex.length() && sIndex[eq] != '='; eq++)
-				{
-				}
+				// Find the "=="
+				size_t eq = findTok(sIndex.c_str(), '=');
 				if(eq >= sIndex.length())
 					throw Ex("Expected an '=' in an equation");
-
 				string pre(sIndex, 0, eq);
+				if(sIndex.length() > eq && sIndex[eq + 1] == '=')
+					eq++;
 				pResponseDom->parseJson(sIndex.c_str() + eq + 1, sIndex.length() - eq - 1);
 				GDomNode* pPost = pResponseDom->root();
 				size_t j;
 				for(j = 0; j < pOb->size(); j++)
 				{
 					GDomNode* pCand = pOb->get(j);
-					GDomNode* pComp = findNode(pCand, pResponseDom, pre.c_str());
+					GDomNode* pComp = findNode(pDoc, pCand, pResponseDom, pre.c_str());
 					if(pComp->isEqual(pPost))
 					{
 						pOb = pCand;
@@ -1375,12 +1462,147 @@ GDomNode* GJsonAsADatabase::findNode(GDomNode* pOb, GDom* pResponseDom, const ch
 				if(j >= pOb->size())
 					throw Ex("No matching node found");
 			}
-			pos += (1 + i);
-			if(szOb[pos] == ']')
+
+			// Move past the ']'
+			pos = i;
+			if(szCmd[pos] == ']')
 				pos++;
 		}
+		else
+			throw Ex("Unexpected token: ", string(szCmd + pos, 1));
 	}
 	return pOb;
+}
+
+GDomNode* GJsonAsADatabase::findLValue(GDom* pDoc, GDomNode* pOb, GDom* pResponseDom, const char* szCmd, string* pOutField, size_t* pOutIndex)
+{
+	GDomNode* pPrevOb = nullptr;
+	size_t pos = 0;
+	while(true)
+	{
+		// Eat whitespace
+		while(szCmd[pos] != '\0' && szCmd[pos] <= ' ')
+			pos++;
+		char c = szCmd[pos];
+		if(c == '\0')
+			break;
+
+		pPrevOb = pOb;
+		if(c == '.')
+		{
+			size_t i;
+			for(i = pos + 1; szCmd[i] != '\0' && szCmd[i] != '.' && szCmd[i] != '['; i++)
+			{
+			}
+			string field(szCmd + pos + 1, i - (pos + 1));
+			if(pOutField)
+				*pOutField = field;
+			if(field.length() == 0)
+				throw Ex("Expected a field name after '.'");
+			if(pOb->type() != GDomNode::type_obj)
+				throw Ex("'.' can only be used on object types.");
+			pOb = pOb->getIfExists(field.c_str());
+			if(!pOb)
+			{
+				size_t nextPos = i;
+				while(szCmd[nextPos] != '\0' && szCmd[nextPos] <= ' ')
+					nextPos++;
+				if(szCmd[nextPos] == '.')
+					pOb = pOb->add(pDoc, field.c_str(), pDoc->newObj());
+				else if(szCmd[nextPos] == '[')
+					pOb = pOb->add(pDoc, field.c_str(), pDoc->newList());
+				else if(szCmd[nextPos] == '\0')
+					return pOb;
+				else
+					throw Ex("Unexpected token: ", string(szCmd + nextPos, 1));
+			}
+			pos = i;
+		}
+		else if(c == '[')
+		{
+			if(pOb->type() != GDomNode::type_list)
+				throw Ex("'[]' can only be used with list types");
+
+			// Find the corresponding ']'
+			size_t i = findTok(szCmd, ']', pos + 1);
+			size_t indStart = pos + 1;
+			while(indStart < i && szCmd[indStart] <= ' ')
+				indStart++;
+			if(indStart == i)
+				throw Ex("Expected an index or equation after '['");
+			string sIndex(szCmd + indStart, i - indStart);
+
+			// Parse the index
+			char c = sIndex[0];
+			if(c >= '0' && c <= '9')
+			{
+				// It's a numerical index
+				std::stringstream sstream(sIndex);
+				size_t index;
+				sstream >> index;
+				if(pOutIndex)
+					*pOutIndex = index;
+				if(index > pOb->size())
+					throw Ex("index out of range. Index: ", to_str(index), ". Size: ", to_str(pOb->size()));
+				if(index == pOb->size())
+				{
+					size_t nextPos = i;
+					if(szCmd[nextPos] == ']')
+						nextPos++;
+					while(szCmd[nextPos] != '\0' && szCmd[nextPos] <= ' ')
+						nextPos++;
+					if(szCmd[nextPos] == '.')
+						pOb = pOb->add(pDoc, pDoc->newObj());
+					else if(szCmd[nextPos] == '[')
+						pOb = pOb->add(pDoc, pDoc->newList());
+					else if(szCmd[nextPos] == '\0')
+						return pOb;
+					else
+						throw Ex("Unexpected token: ", string(szCmd + nextPos, 1));
+				}
+				pOb = pOb->get(index);
+			}
+			else
+			{
+				// It's an equation
+				if(c != '.' && c != '[' && c != '=')
+					throw Ex("Unexpected index format");
+
+				// Find the "=="
+				size_t eq = findTok(sIndex.c_str(), '=');
+				if(eq >= sIndex.length())
+					throw Ex("Expected an '=' in an equation");
+				string pre(sIndex, 0, eq);
+				if(sIndex.length() > eq && sIndex[eq + 1] == '=')
+					eq++;
+				pResponseDom->parseJson(sIndex.c_str() + eq + 1, sIndex.length() - eq - 1);
+				GDomNode* pPost = pResponseDom->root();
+				size_t j;
+				for(j = 0; j < pOb->size(); j++)
+				{
+					GDomNode* pCand = pOb->get(j);
+					GDomNode* pComp = findNode(pDoc, pCand, pResponseDom, pre.c_str());
+					if(pComp->isEqual(pPost))
+					{
+						if(pOutIndex)
+							*pOutIndex = j;
+						pOb = pCand;
+						break;
+					}
+				}
+				if(j >= pOb->size())
+					throw Ex("No matching node found");
+			}
+
+			// Move past the ']'
+			pos = i;
+			if(szCmd[pos] == ']')
+				pos++;
+		}
+		else
+			throw Ex("Unexpected token: ", string(szCmd + pos, 1));
+	}
+	return pPrevOb;
 }
 
 GDom* GJsonAsADatabase::getDom(const char* szFile)
@@ -1447,26 +1669,94 @@ const GDomNode* GJsonAsADatabase::apply(GDomNode* pRequest, GDom* pResponseDom)
 		// Find or load the DOM
 		GDom* pDoc = getDom(szFile);
 
-		// Find the ob
-		const char* szOb = pRequest->getString("ob");
-		GDomNode* pOb = findNode(pDoc->root(), pResponseDom, szOb);
-
-		// Do the action
-		const char* szAct = pRequest->getString("act");
-		if(strcmp(szAct, "get") == 0)
-			return pOb;
-		else if(strcmp(szAct, "add") == 0)
+		// Do the command
+		const char* szCmd = pRequest->getString("cmd");
+		size_t op = findTok(szCmd, '=');
+		if(szCmd[op] == '\n')
 		{
-			add(pRequest, pDoc, pOb);
+			// No '=', so the user must be requesting an object be returned
+			GDomNode* pNode = findNode(pDoc, pDoc->root(), pResponseDom, szCmd);
+			return pNode;
+		}
+		if(op > 0 && szCmd[op - 1] == '+')
+		{
+			// It's a "+=" operation
+			string sLeft(szCmd, op);
+			GDomNode* pNode = findNode(pDoc, pDoc->root(), pResponseDom, sLeft.c_str());
+			if(pNode)
+			{
+				if(pNode->type() != GDomNode::type_list)
+					throw Ex("The left part before '+=' is not a list type");
+				GDomNode* pOldRoot = pDoc->root();
+				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+				pNode->add(pDoc, pDoc->root());
+				pDoc->setRoot(pOldRoot);
+			}
+			else
+			{
+				// Empty document. Make a root list node.
+				pNode = pDoc->newList();
+				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+				pNode->add(pDoc, pDoc->root());
+				pDoc->setRoot(pNode);
+			}
 			return pResponseDom->newBool(true);
 		}
-		else if(strcmp(szAct, "del") == 0)
+		else if(op > 0 && szCmd[op - 1] == '-')
 		{
-			del(pRequest, pDoc, pOb);
-			return pResponseDom->newBool(true);
+			// It's a "-=" operation
+			string sLeft(szCmd, op);
+			GDomNode* pNode = findNode(pDoc, pDoc->root(), pResponseDom, sLeft.c_str());
+			if(pNode)
+			{
+				string sField;
+				size_t index;
+				GDomNode* pVal = findLValue(pDoc, pNode, pResponseDom, szCmd + op + 1, &sField, &index);
+				if(pVal->type() == GDomNode::type_list)
+				{
+					pVal->del(index);
+					return pResponseDom->newBool(true);
+				}
+				else if(pVal->type() == GDomNode::type_obj)
+				{
+					pVal->del(sField.c_str());
+					return pResponseDom->newBool(true);
+				}
+				else
+					throw Ex("Can only remove from a list or object type");
+			}
+			else
+				throw Ex("Expected a left part before '-='");
 		}
 		else
-			throw Ex("Unrecognized action: ", szAct);
+		{
+			// It must be an "=" operation
+			string sLeft(szCmd, op);
+			string sField;
+			size_t index;
+			GDomNode* pNode = findLValue(pDoc, pDoc->root(), pResponseDom, sLeft.c_str(), &sField, &index);
+			if(!pNode)
+				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+			else if(pNode->type() == GDomNode::type_obj)
+			{
+				GDomNode* pOldRoot = pDoc->root();
+				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+				GDomNode* pVal = pDoc->root();
+				pDoc->setRoot(pOldRoot);
+				pNode->set(pDoc, sField.c_str(), pVal);
+			}
+			else if(pNode->type() == GDomNode::type_list)
+			{
+				GDomNode* pOldRoot = pDoc->root();
+				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+				GDomNode* pVal = pDoc->root();
+				pDoc->setRoot(pOldRoot);
+				pNode->set(pDoc, index, pVal);
+			}
+			else
+				throw Ex("Not an LValue");
+			return pResponseDom->newBool(true);
+		}
 	}
 	catch(const std::exception& e)
 	{
@@ -1475,8 +1765,6 @@ const GDomNode* GJsonAsADatabase::apply(GDomNode* pRequest, GDom* pResponseDom)
 		return pNode;
 	}
 }
-
-
 
 
 

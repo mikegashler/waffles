@@ -462,6 +462,9 @@ public:
 	/// Appends the specified number of uninitialized elements to this vector
 	void append(size_t count);
 
+	/// Returns a pointer to the data buffer
+	size_t* data() { return m_data; }
+
 
 
 

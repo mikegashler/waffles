@@ -221,6 +221,9 @@ public:
 	/// Draw a rectangle
 	void rect(double x, double y, double w, double h, unsigned int col = 0x008080);
 
+	/// Draw an arc
+	void arc(double cx, double cy, double r, double astart, double aend, double thickness, unsigned int col = 0x800080);
+
 	/// Draw text
 	void text(double x, double y, const char* szText, double size = 1.0, Anchor eAnchor = Start, unsigned int col = 0x000000, double angle = 0.0, bool serifs = true);
 

@@ -574,6 +574,7 @@ void Connection::handleTools(Server* pServer, GDynamicPageSession* pSession, ost
 	else if(check_url(szUrl, "/update")) pageMaker = &Survey::pageUpdateResponses;
 	else if(check_url(szUrl, "/admin")) pageMaker = &Login::pageAdmin;
 	else if(check_url(szUrl, "/newaccount")) pageMaker = &Login::pageNewAccount;
+	else if(check_url(szUrl, "/tools.js")) pageMaker = &Login::pageTools;
 	else if(check_url(szUrl, "/users.svg")) { pageMaker = &Survey::plotUsers; headers = false; }
 	else if(check_url(szUrl, "/items.svg")) { pageMaker = &Survey::plotItems; headers = false; }
 	else headers = false;
