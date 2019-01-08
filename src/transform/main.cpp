@@ -499,6 +499,40 @@ void dropHomogeneousCols(GArgReader& args)
 	pData->print(cout);
 }
 
+void dupes(GArgReader& args)
+{
+	std::map<std::string, std::vector<std::string>* > themap;
+	std::ifstream file(args.pop_string());
+	std::string key;
+	std::string val;
+	std::vector<std::string>* pAl;
+	while(std::getline(file, key))
+	{
+		std::getline(file, val);
+		std::map<std::string, std::vector<std::string>* >::iterator it = themap.find(key);
+		if(it == themap.end())
+		{
+			pAl = new std::vector<std::string>();
+			themap.insert(std::pair<std::string, std::vector<std::string>* >(key, pAl));
+		}
+		else
+			pAl = it->second;
+		pAl->push_back(val);
+	}
+	std::map<std::string, std::vector<std::string>* >::iterator it;
+	for(it = themap.begin(); it != themap.end(); it++)
+	{
+		pAl = it->second;
+		if(pAl->size() < 2)
+			continue;
+		const std::string& k = it->first;
+		std::cout << k << "\n";
+		for(size_t i = 0; i < pAl->size(); i++)
+			std::cout << (*pAl)[i] << "\n";
+		std::cout << "\n";
+	}
+}
+
 void keepOnlyColumns(GArgReader& args)
 {
 	//Load the data file and the list of columns to keep
@@ -2379,6 +2413,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("droprandomvalues")) dropRandomValues(args);
 		else if(args.if_pop("droprows")) dropRows(args);
 		else if(args.if_pop("dropunusedvalues")) dropUnusedValues(args);
+		else if(args.if_pop("dupes")) dupes(args);
 		else if(args.if_pop("enumeratevalues")) enumerateValues(args);
 		else if(args.if_pop("export")) Export(args);
 		else if(args.if_pop("extracttext")) extractText(args);

@@ -1608,6 +1608,9 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-precision [val]=14", "Specify how many digits of precision to use before truncating and resorting to scientific notation.");
 	}
 	{
+		pRoot->add("dupes [filename]=file.txt", "Finds all duplicate odd-numbered lines in file.txt, and groups the corresponding even-numbered lines together. (This is used, for example, as part of a script that searches for duplicate files in a directory hierarchy.)");
+	}
+	{
 		pRoot->add("extracttext [html-file]=index.html", "Prints just the text from an HTML file.");
 	}
 	{
