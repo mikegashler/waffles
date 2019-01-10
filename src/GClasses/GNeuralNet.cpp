@@ -1831,9 +1831,9 @@ GLayer::GLayer(const GLayer& that, GLayer* pPrevLayer)
 	}
 }
 
-GLayer::GLayer(GDomNode* pNode, GRand& rand)
-: input_count(pNode->getInt("inputs")),
-output_count(pNode->getInt("outputs")),
+GLayer::GLayer(GDomNode* pNode, GLayer* pPrevLayer, GRand& rand)
+: input_count(0),
+output_count(0),
 weight_count(0),
 grad_count(0)
 {
@@ -1841,7 +1841,8 @@ grad_count(0)
 	GDomListIterator it(pBlocks);
 	while(it.remaining() > 0)
 	{
-		m_blocks.push_back(GBlock::deserialize(it.current(), rand));
+		GBlock* pBlock = GBlock::deserialize(it.current(), rand);
+		add(pBlock, pPrevLayer, pBlock->inPos());
 		it.advance();
 	}
 }
@@ -1856,8 +1857,6 @@ GLayer::~GLayer()
 GDomNode* GLayer::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = pDoc->newObj();
-	pNode->add(pDoc, "inputs", input_count);
-	pNode->add(pDoc, "outputs", output_count);
 	GDomNode* pBlocks = pNode->add(pDoc, "blocks", pDoc->newList());
 	for(size_t i = 0; i < m_blocks.size(); i++)
 		pBlocks->add(pDoc, m_blocks[i]->serialize(pDoc));
@@ -2099,16 +2098,21 @@ GNeuralNet::GNeuralNet(const GNeuralNet& that)
 	}
 }
 
-GNeuralNet::GNeuralNet(GDomNode* pNode, GRand& rand)
+GNeuralNet::GNeuralNet(GDomNode* pNode, GRand& rand, GVec* pWeights)
 : GBlock(pNode), m_weightCount(0)
 {
 	GDomNode* pLayers = pNode->get("layers");
 	GDomListIterator it(pLayers);
+	GLayer* pPrevLayer = nullptr;
 	while(it.remaining() > 0)
 	{
-		m_layers.push_back(new GLayer(it.current(), rand));
+		GLayer* pNewLayer = new GLayer(it.current(), pPrevLayer, rand);
+		m_layers.push_back(pNewLayer);
+		pPrevLayer = pNewLayer;
 		it.advance();
 	}
+	if(pWeights)
+		pWeights->deserialize(pNode->get("weights"));
 }
 
 // virtual
@@ -2131,6 +2135,13 @@ GDomNode* GNeuralNet::serialize(GDom* pDoc) const
 	GDomNode* pLayers = pNode->add(pDoc, "layers", pDoc->newList());
 	for(size_t i = 0; i < m_layers.size(); i++)
 		pLayers->add(pDoc, m_layers[i]->serialize(pDoc));
+	return pNode;
+}
+
+GDomNode* GNeuralNet::serialize(GDom* pDoc, const GVec& weights) const
+{
+	GDomNode* pNode = serialize(pDoc);
+	pNode->add(pDoc, "weights", weights.serialize(pDoc));
 	return pNode;
 }
 
@@ -2636,12 +2647,44 @@ void GNeuralNet_testConvolutional3()
 	GNeuralNet_finiteDifferencingTest(nn, weights, x);
 }
 
+void GNeuralNet_testSerializationRoundTrip()
+{
+	// Make a random neural net
+	GNeuralNet nn;
+	nn.add(new GBlockLinear(1, 3));
+	nn.add(new GBlockTanh(3));
+	nn.add(new GBlockLinear(3, 2));
+	nn.add(new GBlockTanh(2));
+	nn.add(new GBlockLinear(2, 1));
+	nn.add(new GBlockTanh(1));
+	GVec weights(nn.weightCount());
+	GRand rand(0);
+	weights.fillNormal(rand, 0.3);
+
+	// Make a prediction
+	GVec in(1);
+	in[0] = 0.5;
+	GVec& pred = nn.forwardProp(weights, in);
+
+	// Roundtrip through serialization
+	GDom doc;
+	GDomNode* pNode = nn.serialize(&doc, weights);
+	GVec weights2;
+	GNeuralNet nn2(pNode, rand, &weights2);
+
+	// Make the same prediction
+	GVec& pred2 = nn.forwardProp(weights2, in);
+	if(std::abs(pred[0] - pred2[0]) > 1e-9)
+		throw Ex("failed");
+}
+
 // static
 void GNeuralNet::test()
 {
 	GNeuralNet_testLinearAndTanh();
 	GNeuralNet_testConvolutional1();
 	GNeuralNet_testConvolutional3();
+	GNeuralNet_testSerializationRoundTrip();
 }
 
 #endif // MIN_PREDICT

@@ -905,13 +905,13 @@ void dictAttackNTPassword(GArgReader& args)
 
 void permuteAttack(GArgReader& args)
 {
-	const char* szHashHex = args.pop_string();
+/*	const char* szHashHex = args.pop_string();
 	if(strlen(szHashHex) != 32)
 		throw Ex("Expected the hash to consist of 32 hexadecimal digits");
 	unsigned char hash[16];
 	GBits::hexToBufferBigEndian(szHashHex, 32, hash);
 
-	const char* szBase = args.pop_string();
+	//const char* szBase = args.pop_string();
 	size_t removals = 0;
 	size_t changes = 2;
 	size_t additions = 3;
@@ -929,7 +929,7 @@ void permuteAttack(GArgReader& args)
 
 	// todo: finish me
 	
-	
+	*/
 }
 
 void dump(GArgReader& args)
@@ -1825,18 +1825,24 @@ void OpenFile(const char* szFilename)
 #else // DARWIN
 	GTEMPBUF(char, pBuf, 32 + strlen(szFilename));
 
-	// Gnome
-	strcpy(pBuf, "gnome-open ");
+	// XFCE
+	strcpy(pBuf, "thunar ");
 	strcat(pBuf, szFilename);
 	if(system(pBuf) != 0)
 	{
-		// KDE
-		//strcpy(pBuf, "kfmclient exec ");
-		strcpy(pBuf, "konqueror ");
+		// Gnome
+		strcpy(pBuf, "gnome-open ");
 		strcat(pBuf, szFilename);
-		strcat(pBuf, " &");
 		if(system(pBuf) != 0)
-			cout << "Failed to open " << szFilename << ". Please open it manually.\n";
+		{
+			// KDE
+			//strcpy(pBuf, "kfmclient exec ");
+			strcpy(pBuf, "konqueror ");
+			strcat(pBuf, szFilename);
+			strcat(pBuf, " &");
+			if(system(pBuf) != 0)
+				cout << "Failed to open " << szFilename << ". Please open it manually.\n";
+		}
 	}
 #endif // !DARWIN
 #endif // !WINDOWS
@@ -2029,7 +2035,7 @@ void doit(GArgReader& args)
 	else if(args.if_pop("bandwidthserver")) doBandwidthServer(args);
 	//else if(args.if_pop("li")) doLogin(args);
 	else if(args.if_pop("bruteforcentpassword")) bruteForceNTPassword(args);
-	else if(args.if_pop("findbrokenlinks")) findbrokenlinks(args);
+	//else if(args.if_pop("findbrokenlinks")) findbrokenlinks(args);
 	else if(args.if_pop("dictattackntpassword")) dictAttackNTPassword(args);
 	else if(args.if_pop("dump")) dump(args);
 	else if(args.if_pop("fast")) fast(args);

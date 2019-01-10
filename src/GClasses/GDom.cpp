@@ -433,7 +433,7 @@ void GDomNode::writeJson(std::ostream& stream) const
 			break;
 		case type_list:
 			stream << "[";
-			if(!m_value.m_pArrayList)
+			if(m_value.m_pArrayList)
 			{
 				if(m_value.m_pArrayList->m_size > 0)
 					m_value.m_pArrayList->m_items[0]->writeJson(stream);
@@ -519,7 +519,11 @@ void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
 						for(size_t i = 0; i < m_value.m_pArrayList->m_size; i++)
 						{
 							if(i > 0)
+							{
 								stream << ",";
+								if(i % 100 == 0)
+									newLineAndIndent(stream, indents);
+							}
 							GDomNode* pNode = m_value.m_pArrayList->m_items[i];
 							pNode->writeJson(stream);
 						}

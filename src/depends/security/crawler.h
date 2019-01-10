@@ -8,7 +8,7 @@ namespace GClasses {
 }
 
 unsigned char* downloadFromWeb(const char* szAddr, size_t timeout, size_t* pOutSize);
-void findbrokenlinks(GClasses::GArgReader& args);
+//void findbrokenlinks(GClasses::GArgReader& args);
 
 
 #endif

@@ -1373,7 +1373,7 @@ public:
 
 	GLayer();
 	GLayer(const GLayer& that, GLayer* pPrevLayer);
-	GLayer(GDomNode* pNode, GRand& rand);
+	GLayer(GDomNode* pNode, GLayer* pPrevLayer, GRand& rand);
 	virtual ~GLayer();
 
 	/// Marshal this object into a dom node.
@@ -1463,7 +1463,7 @@ public:
 	GNeuralNet(const GNeuralNet& that);
 
 	/// Deserializing constructor
-	GNeuralNet(GDomNode* pNode, GRand& rand);
+	GNeuralNet(GDomNode* pNode, GRand& rand, GVec* pOutWeights = nullptr);
 
 	/// Destructor
 	virtual ~GNeuralNet();
@@ -1482,6 +1482,9 @@ public:
 
 	/// Marshal this object into a dom node.
 	GDomNode* serialize(GDom* pDoc) const override;
+
+	/// Marshal this object into a dom node. Also attaches a weights vector.
+	GDomNode* serialize(GDom* pDoc, const GVec& weights) const;
 
 	/// Adds a block as a new layer to this neural network.
 	void add(GBlock* pBlock);
