@@ -1246,6 +1246,7 @@ protected:
 class GCSVParser
 {
 protected:
+	bool m_single_quotes; // If false, treats apostrophes as normal text. If true, treats them as quotation marks.
 	char m_separator;
 	bool m_columnNamesInFirstRow;
 	bool m_tolerant;

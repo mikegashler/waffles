@@ -189,6 +189,9 @@ public:
 	/// Initialize the weights, usually with small random values.
 	virtual void initWeights(GRand& rand, GVec& weights) = 0;
 
+	/// Puts a 1 in elements that correspond with bias weights and a 0 in all other elements.
+	virtual void biasMask(GVec& mask);
+
 protected:
 	GDomNode* baseDomNode(GDom* pDoc) const;
 
@@ -722,6 +725,13 @@ public:
 
 	/// Computes weights using Ordinary Least Squares
 	void ordinaryLeastSquares(const GMatrix& features, const GMatrix& labels, GVec& outWeights);
+
+	/// Adjusts the bias and weights to compensate for an adjustment in the input range
+	/// Warning: the gradient is still scaled by the input values, so this is NOT equivalent for training.
+	void adjustInputRange(GVec& weights, size_t inputIndex, double oldMin, double oldMax, double newMin, double newMax);
+
+	/// Puts a 1 in elements that correspond with bias weights and a 0 in all other elements.
+	virtual void biasMask(GVec& mask);
 };
 
 
@@ -1436,6 +1446,9 @@ public:
 
 	/// Adds the gradient scaled by the learningRate to the weights.
 	void step(const GVec& gradient, GVec& weights, double learningRate, double biasRate);
+
+	/// Puts a 1 in elements that correspond with bias weights and a 0 in all other elements.
+	void biasMask(GVec& mask);
 };
 
 
@@ -1487,7 +1500,7 @@ public:
 	GDomNode* serialize(GDom* pDoc, const GVec& weights) const;
 
 	/// Adds a block as a new layer to this neural network.
-	void add(GBlock* pBlock);
+	GBlock* add(GBlock* pBlock);
 	void add(GBlock* a, GBlock* b) { add(a); add(b); }
 	void add(GBlock* a, GBlock* b, GBlock* c) { add(a); add(b, c); }
 	void add(GBlock* a, GBlock* b, GBlock* c, GBlock* d) { add(a); add(b, c, d); }
@@ -1501,7 +1514,7 @@ public:
 
 	/// Concatenates a block to the last (output-most) layer in this neural network.
 	/// (inPos specifies the starting position of the inputs into this block.)
-	void concat(GBlock* pBlock, size_t inPos);
+	GBlock* concat(GBlock* pBlock, size_t inPos);
 
 	/// Returns the number of layers in this neural net.
 	/// (Layers within neural networks embedded within this one are not counted.)
@@ -1572,6 +1585,9 @@ public:
 	/// Returns a mathematical expression of this neural network.
 	/// (Currently only supports linear, tanh, and scalarProduct blocks in one-block layers.)
 	std::string toEquation(const GVec& weights);
+
+	/// Puts a 1 in elements that correspond with bias weights and a 0 in all other elements.
+	virtual void biasMask(GVec& mask);
 
 #ifndef MIN_PREDICT
 	static void test();

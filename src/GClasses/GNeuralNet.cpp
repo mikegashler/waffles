@@ -140,6 +140,11 @@ std::string GBlock::to_str() const
 	return os.str();
 }
 
+void GBlock::biasMask(GVec& mask)
+{
+	mask.fill(0.0);
+}
+
 
 
 
@@ -481,6 +486,24 @@ void GBlockLinear::ordinaryLeastSquares(const GMatrix& features, const GMatrix& 
 			outWeights[pos++] = (*pM)[j][i];
 	}
 	GAssert(pos == outWeights.size());
+}
+
+void GBlockLinear::adjustInputRange(GVec& weights, size_t inputIndex, double oldMin, double oldMax, double newMin, double newMax)
+{
+	double scalar = (oldMax - oldMin) / (newMax - newMin);
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double oldWeight = weights[outputCount + outputCount * inputIndex + i];
+		double newWeight = oldWeight * scalar;
+		weights[outputCount + outputCount * inputIndex + i] = newWeight;
+		weights[i] += (oldMin * oldWeight - newMin * newWeight);
+	}
+}
+
+void GBlockLinear::biasMask(GVec& mask)
+{
+	mask.fill(1.0, 0, outputCount);
+	mask.fill(0.0, outputCount, mask.size());
 }
 
 
@@ -2072,6 +2095,19 @@ void GLayer::computeBlame(const GVec& target)
 	}
 }
 
+void GLayer::biasMask(GVec& mask)
+{
+	size_t posWeights = 0;
+	for(size_t i = 0; i < blockCount(); i++)
+	{
+		GBlock& b = block(i);
+		size_t wc = b.weightCount();
+		GVecWrapper w(mask, posWeights, wc);
+		posWeights += wc;
+		b.biasMask(w);
+	}
+	GAssert(posWeights == mask.size());
+}
 
 
 
@@ -2171,7 +2207,7 @@ std::string GNeuralNet::to_str() const
 	return to_str("");
 }
 
-void GNeuralNet::add(GBlock* pBlock)
+GBlock* GNeuralNet::add(GBlock* pBlock)
 {
 	GAssert(m_weightCount == 0, "weights were counted before all blocks were added");
 	GLayer* pPrevLayer = nullptr;
@@ -2184,9 +2220,10 @@ void GNeuralNet::add(GBlock* pBlock)
 		inputCount = pNewLayer->inputs();
 	outputCount = pNewLayer->outputs();
 	outBlame.setData(outputLayer().outBlame);
+	return pBlock;
 }
 
-void GNeuralNet::concat(GBlock* pBlock, size_t inPos)
+GBlock* GNeuralNet::concat(GBlock* pBlock, size_t inPos)
 {
 	GAssert(m_weightCount == 0, "weights were counted before all blocks were added");
 	GLayer* pPrevLayer = nullptr;
@@ -2198,6 +2235,7 @@ void GNeuralNet::concat(GBlock* pBlock, size_t inPos)
 		inputCount = pLastLayer->inputs();
 	outputCount = pLastLayer->outputs();
 	outBlame.setData(outputLayer().outBlame);
+	return pBlock;
 }
 
 void GNeuralNet::forwardProp(const GVec& weights)
@@ -2495,6 +2533,24 @@ std::string GNeuralNet::toEquation(const GVec& weights)
 	}
 	return os.str();
 }
+
+void GNeuralNet::biasMask(GVec& mask)
+{
+	size_t posWeights = 0;
+	GVecWrapper w;
+	for(size_t i = 0; i < m_layers.size(); i++)
+	{
+		GLayer& lay = *m_layers[i];
+		size_t wc = lay.weightCount();
+		w.setData(mask, posWeights, wc);
+		posWeights += wc;
+		lay.biasMask(w);
+	}
+	GAssert(posWeights == mask.size());
+}
+
+
+
 /*
 void GNeuralNet::prune(GVec& weights)
 {

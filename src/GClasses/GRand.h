@@ -121,6 +121,9 @@ public:
 	///       uninitialized.
 	virtual void setSeed(uint64_t seed);
 
+	/// Copies the state of another GRand object
+	virtual void copyState(const GRand& copyMyState);
+
 	/// Returns an unsigned pseudo-random 64-bit value
 	virtual uint64_t next()
 	{

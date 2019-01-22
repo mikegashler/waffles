@@ -4841,7 +4841,8 @@ GDataColSplitter::~GDataColSplitter()
 
 
 GCSVParser::GCSVParser()
-: m_separator(','),
+: m_single_quotes(false),
+m_separator(','),
 m_columnNamesInFirstRow(false),
 m_tolerant(false),
 m_clearlyNumericalThreshold(10),
@@ -4950,7 +4951,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 					}
 					else if(pFile[nPos + i] == '"')
 						quoquo = true;
-					else if(pFile[nPos + i] == '\'')
+					else if(pFile[nPos + i] == '\'' && m_single_quotes)
 						quo = true;
 					else if(pFile[nPos + i] == m_separator)
 						columnCount++;
@@ -5000,7 +5001,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 					}
 					else if(pFile[nPos + i] == '"')
 						quoquo = true;
-					else if(pFile[nPos + i] == '\'')
+					else if(pFile[nPos + i] == '\'' && m_single_quotes)
 						quo = true;
 					else if(pFile[nPos + i] == m_separator)
 						break;
@@ -5064,7 +5065,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 					if(el[k] == '"')
 						quoquo = false;
 				}
-				else if(el[k] == '\'')
+				else if(el[k] == '\'' && m_single_quotes)
 					quo = true;
 				else if(el[k] == '"')
 					quoquo = true;

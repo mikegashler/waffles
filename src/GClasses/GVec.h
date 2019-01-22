@@ -232,6 +232,10 @@ public:
 	/// start refers only to "that".
 	void addScaled(size_t startPos, double scalar, const GVec& that, size_t start = 0, size_t length = (size_t)-1);
 
+	/// Applies ElasticNet regularization.
+	/// Multiplies this vector by (1.0 - amount), then calls regularizeL1(0.2 * amount).
+	void regularize(double amount);
+
 	/// Applies L1 regularization to this vector.
 	void regularizeL1(double amount);
 

@@ -513,6 +513,12 @@ void GVec::addScaled(size_t startPos, double scalar, const GVec& that, size_t st
 		(*this)[startPos + i] += (scalar * that[start + i]);
 }
 
+void GVec::regularize(double amount)
+{
+	(*this) *= (1.0 - amount);
+	regularizeL1(0.2 * amount);
+}
+
 void GVec::regularizeL1(double amount)
 {
 	for(size_t i = 0; i < m_size; i++)

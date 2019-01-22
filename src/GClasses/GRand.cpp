@@ -111,7 +111,7 @@ GRand::GRand(uint64_t seed)
 
 GRand::GRand(const GRand& that)
 {
-	throw Ex("This object is not intended to be copied by value");
+	throw Ex("It is usually an error to copy a GRand object by value. If you really meant to do that, use the copyState method instead.");
 }
 
 GRand::~GRand()
@@ -122,6 +122,12 @@ void GRand::setSeed(uint64_t seed)
 {
 	m_b = 0xCA535ACA9535ACB2ull + seed;
 	m_a = 0x6CCF6660A66C35E7ull + (seed << 24);
+}
+
+void GRand::copyState(const GRand& copyMyState)
+{
+	m_a = copyMyState.m_a;
+	m_b = copyMyState.m_b;
 }
 
 uint64_t GRand::next(uint64_t range)
