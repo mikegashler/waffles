@@ -39,21 +39,57 @@ size_t safe_strcpy(char* szDest, const char* szSrc, size_t nMaxSize)
 	return n;
 }
 
-// ----------------------------------------------------------------------------------
 
-std::string pre_pad(size_t final_length, char pad_char, const std::string& src_string)
+std::string to_fixed_str(size_t val, size_t total_chars, char pad)
 {
-	if(src_string.length() <= final_length)
-	{
-		string s(final_length - src_string.length(), pad_char);
-		s += src_string;
-		return s;
-	}
-	else
-		return src_string.substr(src_string.length() - final_length, final_length);
+	std::string s = to_str(val);
+	if(s.length() < total_chars)
+		return std::string(total_chars - s.length(), pad) + s;
+	else if(s.length() > total_chars)
+		throw Ex("Not enough characters to represent the value ", s);
+	return s;
 }
 
-// ----------------------------------------------------------------------------------
+
+
+std::string to_fixed_str(double val, size_t total_chars, char pad)
+{
+	std::ostringstream os;
+	os.precision(total_chars);
+	os << val;
+	std::string s = os.str();
+	if(s.length() < total_chars)
+		return std::string(total_chars - s.length(), pad) + s;
+	else if(s.length() > total_chars)
+	{
+		size_t dot = s.find_last_of(".");
+		if(dot == string::npos)
+			throw Ex("Not enough characters to represent the value ", s);
+		size_t e = s.find_last_of("eE");
+		if(e == string::npos)
+		{
+			if(dot + 1 > total_chars)
+				throw Ex("Not enough characters to represent the value ", s);
+			while(s.length() > total_chars)
+				s.pop_back();
+			return s;
+		}
+		else
+		{
+			size_t b = e - (s.length() - total_chars);
+			if(b <= dot || b >= e)
+				throw Ex("Not enough characters to represent the value ", s);
+			s.erase(b, e - b);
+			return s;
+		}
+	}
+	else
+		return s;
+}
+
+
+
+
 
 GStringChopper::GStringChopper(const char* szString, size_t nMinLength, size_t nMaxLength, bool bDropLeadingWhitespace)
 {
@@ -115,6 +151,7 @@ const char* GStringChopper::next()
 	}
 	return m_pBuf;
 }
+
 
 } // namespace GClasses
 

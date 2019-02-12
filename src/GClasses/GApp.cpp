@@ -637,17 +637,21 @@ bool GApp::openUrlInBrowser(const char* szUrl)
 #	else // DARWIN
 	GTEMPBUF(char, pBuf, 32 + strlen(szUrl));
 
-	// Gnome
-	strcpy(pBuf, "gnome-open ");
+	strcpy(pBuf, "xdg-open ");
 	strcat(pBuf, szUrl);
 	if(system(pBuf) != 0)
 	{
-		// KDE
-		//strcpy(pBuf, "kfmclient exec ");
-		strcpy(pBuf, "konqueror ");
+		strcpy(pBuf, "gnome-open ");
 		strcat(pBuf, szUrl);
-		strcat(pBuf, " &");
-		return system(pBuf) == 0;
+		if(system(pBuf) != 0)
+		{
+			// KDE
+			//strcpy(pBuf, "kfmclient exec ");
+			strcpy(pBuf, "dolphin ");
+			strcat(pBuf, szUrl);
+			strcat(pBuf, " &");
+			return system(pBuf) == 0;
+		}
 	}
 #	endif // !DARWIN
 #endif // !WINDOWS

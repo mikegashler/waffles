@@ -117,7 +117,7 @@ public:
 	virtual std::string name() const = 0;
 
 	/// Returns a string representation of this block
-	virtual std::string to_str() const;
+	virtual std::string to_str(const GVec* pWeights = nullptr) const;
 
 	/// Returns true iff this block is recurrent
 	virtual bool isRecurrent() const { return false; }
@@ -148,6 +148,7 @@ public:
 
 	/// Computes the blame on the output of this block.
 	/// The default implementation computes it for SSE, but specialty blocks such as SoftMax may override it as needed.
+	/// (Assumes forwardProp has already been called.)
 	virtual void computeBlame(const GVec& target);
 
 	/// Resets the state in any recurrent connections.
@@ -158,24 +159,20 @@ public:
 
 	/// Evaluate outBlame, update inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	/// (Assumes computeBlame has already been called.)
 	virtual void backProp(const GVec& weights) = 0;
 
 	/// Evaluate the input and outBlame, update the gradient of the weights.
+	/// (Assumes backProp has already been called.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) = 0;
 
-	/// Adds the gradient scaled by the learning rate to the weights.
-	/// (Supporting blocks use biasRate to update their bias values instead of learningRate.)
-	virtual void step(const GVec& gradient, GVec& weights, double learningRate, double biasRate)
-	{
-		GAssert(weights.size() == gradient.size());
-		weights.addScaled(learningRate, gradient);
-	}
+	/// By default, just calls updateGradient. Blocks that implement this method
+	/// update the gradient using only the sign of the input, ignoring the magnitude of the input.
+	virtual void updateGradientNormalized(GVec& weights, GVec& gradient) { updateGradient(weights, gradient); }
 
 	/// Adds the gradient scaled by the learning rate to the weights.
-	virtual void step(const GVec& gradient, GVec& weights, double learningRate)
-	{
-		step(gradient, weights, learningRate, learningRate);
-	}
+	/// (Assumes updateGradient has already been called.)
+	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const = 0;
@@ -214,7 +211,7 @@ public:
 	virtual size_t weightCount() const override { return 0; }
 	virtual void initWeights(GRand& rand, GVec& weights) override {}
 	virtual void updateGradient(GVec& weights, GVec& gradient) override {}
-	virtual void step(const GVec& gradient, GVec& weights, double learningRate, double biasRate) {}
+	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum) override {}
 };
 
 
@@ -703,6 +700,9 @@ public:
 	/// Returns a copy of this block
 	virtual GBlockLinear* clone() const override { return new GBlockLinear(*this); }
 
+	/// Returns a string representation of this block
+	virtual std::string to_str(const GVec* pWeights = nullptr) const;
+
 	/// Evaluate the input, set the output.
 	virtual void forwardProp(const GVec& weights) override;
 
@@ -711,11 +711,11 @@ public:
 	virtual void backProp(const GVec& weights) override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
+	/// (Assumes backProp has already been called.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
 
-	/// Adds the gradient scaled by learningRate to the weights.
-	virtual void step(const GVec& gradient, GVec& weights, double learningRate, double biasRate);
+	/// Updates the gradient using only the sign of the input, ignoring the magnitude of the input.
+	virtual void updateGradientNormalized(GVec& weights, GVec& gradient) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
@@ -732,6 +732,66 @@ public:
 
 	/// Puts a 1 in elements that correspond with bias weights and a 0 in all other elements.
 	virtual void biasMask(GVec& mask);
+};
+
+
+
+
+
+/// This is a running version of batch normalization. That is, it uses running means and running variances
+/// instead of batch means and batch variances to normalize inputs.
+class GBlockRunningNormalizer : public GBlock
+{
+protected:
+	double batch_size;
+	double inv_bs;
+	double decay_scalar;
+	double epsilon;
+
+public:
+	/// General-purpose constructor
+	GBlockRunningNormalizer(size_t units, double effective_batch_size);
+
+	/// Copy constructor
+	GBlockRunningNormalizer(const GBlockRunningNormalizer& that) : GBlock(that) {}
+
+	/// Unmarshalling constructor
+	GBlockRunningNormalizer(GDomNode* pNode);
+
+	/// Destructor
+	virtual ~GBlockRunningNormalizer() {}
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_linear; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockRunningNormalizer"; }
+
+	/// Returns a copy of this block
+	virtual GBlockRunningNormalizer* clone() const override { return new GBlockRunningNormalizer(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes backProp has already been called.)
+	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Updates the weights
+	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Returns the number of gradient elements
+	virtual size_t gradCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand, GVec& weights) override;
 };
 
 
@@ -777,7 +837,7 @@ public:
 	virtual void backProp(const GVec& weights) override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
+	/// (Assumes backProp has already been called.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
@@ -836,7 +896,7 @@ public:
 	virtual void backProp(const GVec& weights) override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
+	/// (Assumes backProp has already been called.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
@@ -1015,13 +1075,13 @@ public:
 
 
 /// A parameterized activation function (a.k.a. adaptive transfer function).
+/// When alpha is 0, this activation function always approximates identity. When alpha is positive, it bends upward. When alpha is negative, it bends downward.
+/// Beta specifies approximately how big the bending curve is. When beta is 0, it bends on a point.
 class GBlockHinge : public GBlock
 {
 public:
 	/// General-purpose constructor
-	/// When alpha is 0, this activation function always approximates identity. When alpha is positive, it bends upward. When alpha is negative, it bends downward.
-	/// Beta specifies approximately how big the bending curve is. When beta is 0, it bends on a point.
-	/// Size specifies the number of units in this layer.
+/// Size specifies the number of units in this layer.
 	GBlockHinge(size_t size);
 
 	/// Copy constructor
@@ -1049,8 +1109,61 @@ public:
 	virtual void backProp(const GVec& weights) override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Updates the weights
+	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand, GVec& weights) override;
+};
+
+
+
+
+
+/// A parameterized activation function (a.k.a. adaptive transfer function).
+/// When alpha=0, it is the identity function.
+/// As alpha approaches infinity, it approaches tanh.
+class GBlockLeakyTanh : public GBlock
+{
+public:
+	/// General-purpose constructor
+	/// Size specifies the number of units in this layer.
+	GBlockLeakyTanh(size_t size);
+
+	/// Copy constructor
+	GBlockLeakyTanh(const GBlockLeakyTanh& that) : GBlock(that) {}
+
+	GBlockLeakyTanh(GDomNode* pNode);
+
+	/// Destructor
+	virtual ~GBlockLeakyTanh() {}
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_hinge; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockLeakyTanh"; }
+
+	/// Returns a copy of this block
+	virtual GBlockLeakyTanh* clone() const override { return new GBlockLeakyTanh(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Updates the weights
+	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
@@ -1103,7 +1216,6 @@ public:
 	virtual void backProp(const GVec& weights) override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
@@ -1160,7 +1272,6 @@ public:
 	virtual void backProp(const GVec& weights) override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
@@ -1211,7 +1322,6 @@ public:
 	virtual void backProp(const GVec& weights) override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
@@ -1265,11 +1375,10 @@ public:
 	virtual void backProp(const GVec& weights) override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
 
 	/// Updates the weights
-	virtual void step(const GVec& gradient, GVec& weights, double learningRate, double biasRate);
+	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
@@ -1338,7 +1447,6 @@ public:
 	virtual void backProp(const GVec& weights) override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
@@ -1441,11 +1549,13 @@ public:
 	void backProp(const GVec& weights);
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	/// (Assumes the error has already been computed and deactivated.)
 	void updateGradient(GVec& weights, GVec& gradient);
 
+	/// Updates the gradient using only the sign of the inputs.
+	void updateGradientNormalized(GVec& weights, GVec& gradient);
+
 	/// Adds the gradient scaled by the learningRate to the weights.
-	void step(const GVec& gradient, GVec& weights, double learningRate, double biasRate);
+	void step(GVec& gradient, GVec& weights, double learningRate, double momentum);
 
 	/// Puts a 1 in elements that correspond with bias weights and a 0 in all other elements.
 	void biasMask(GVec& mask);
@@ -1529,10 +1639,10 @@ public:
 	const GLayer& outputLayer() const { return *m_layers[m_layers.size() - 1]; }
 
 	/// Returns a string representation of this object
-	virtual std::string to_str() const override;
+	virtual std::string to_str(const GVec* pWeights = nullptr) const override;
 
 	/// Same as to_str, but it lets the use specify a string to prepend to each line
-	std::string to_str(const std::string& line_prefix) const;
+	std::string to_str(const std::string& line_prefix, const GVec* pWeights = nullptr) const;
 
 	/// Returns the number of inputs this layer consumes
 	virtual size_t inputs() const override { return m_layers[0]->inputs(); }
@@ -1577,10 +1687,11 @@ public:
 	/// Updates the gradient vector
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
 
-	using GBlock::step;
+	/// Update the gradient using only the sign of the input, ignoring the magnitude of the input.
+	virtual void updateGradientNormalized(GVec& weights, GVec& gradient) override;
 
 	/// Adds the gradient scaled by the learning rate to the weights
-	virtual void step(const GVec& gradient, GVec& weights, double learningRate, double biasRate);
+	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum) override;
 
 	/// Returns a mathematical expression of this neural network.
 	/// (Currently only supports linear, tanh, and scalarProduct blocks in one-block layers.)
@@ -1588,6 +1699,9 @@ public:
 
 	/// Puts a 1 in elements that correspond with bias weights and a 0 in all other elements.
 	virtual void biasMask(GVec& mask);
+
+	/// Returns the index of the first weight associated with the specified layer.
+	size_t layerStart(size_t layer);
 
 #ifndef MIN_PREDICT
 	static void test();

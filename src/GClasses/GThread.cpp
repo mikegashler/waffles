@@ -70,6 +70,28 @@ THREAD_HANDLE GThread::spawnThread(unsigned int (*pFunc)(void*), void* pData)
 #endif
 }
 
+unsigned int GThread::startThread(void* pObj)
+{
+	GThread* pThread = (GThread*)pObj;
+	pThread->m_finished = false;
+	pThread->m_started = true;
+	pThread->run();
+	pThread->m_finished = true;
+	return 0;
+}
+
+THREAD_HANDLE GThread::spawn()
+{
+	m_finished = false;
+	m_started = false;
+	return GThread::spawnThread(GThread::startThread, this);
+}
+
+void GThread::join(size_t miliseconds)
+{
+	while(!m_finished)
+		GThread::sleep(miliseconds);
+}
 
 
 
@@ -112,7 +134,7 @@ void GSpinLock::lock(const char* szWhoHoldsTheLock)
 #ifdef WINDOWS
 	while(testAndSet(&m_dwLocked))
 #else
-	while(0!=pthread_mutex_trylock(&m_mutex))
+	while(pthread_mutex_trylock(&m_mutex) != 0)
 #endif
 	{
 #ifdef _DEBUG

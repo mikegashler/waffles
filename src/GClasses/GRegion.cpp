@@ -69,14 +69,6 @@ struct GRegionEdge
 	}
 };
 
-struct GRegion
-{
-	int m_nPixels;
-	int m_nSumRed;
-	int m_nSumGreen;
-	int m_nSumBlue;
-	struct GRegionEdge* m_pNeighbors;
-};
 
 
 

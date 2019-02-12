@@ -242,13 +242,12 @@ void GSGDOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 	m_model.forwardProp(m_weights, feat);
 	m_model.computeBlame(lab);
 	m_model.backpropagate(m_weights);
-	m_gradient *= m_momentum;
 	m_model.updateGradient(m_weights, m_gradient);
 }
 
 void GSGDOptimizer::descendGradient(double learningRate)
 {
-	m_model.step(m_gradient, m_weights, learningRate);
+	m_model.step(m_gradient, m_weights, learningRate, m_momentum);
 }
 
 #ifdef GCUDA
@@ -321,7 +320,7 @@ void GAdamOptimizer::descendGradient(double learningRate)
 	double alpha2 = 1.0 / (1.0 - m_correct2);
 	for(size_t i = 0; i < m_gradient.size(); i++)
 		m_gradient[i] = alpha1 * m_deltas[i] / (std::sqrt(alpha2 * m_sqdeltas[i]) + m_epsilon);
-	m_model.step(m_gradient, m_weights, learningRate);
+	m_model.step(m_gradient, m_weights, learningRate, 0.0);
 }
 
 #ifdef GCUDA
@@ -367,7 +366,6 @@ void GRMSPropOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 	m_model.forwardProp(m_weights, feat);
 	m_model.computeBlame(lab);
 	m_model.backpropagate(m_weights);
-	m_gradient *= m_momentum;
 	m_model.updateGradient(m_weights, m_gradient);
 }
 
@@ -379,7 +377,7 @@ void GRMSPropOptimizer::descendGradient(double learningRate)
 		m_meanSquare[i] += (1.0 - m_gamma) * m_gradient[i] * m_gradient[i];
 		m_gradient[i] /= sqrt(m_meanSquare[i]) + m_epsilon;
 	}
-	m_model.step(m_gradient, m_weights, learningRate);
+	m_model.step(m_gradient, m_weights, learningRate, 0.0);
 }
 
 #ifdef GCUDA

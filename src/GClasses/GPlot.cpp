@@ -26,6 +26,7 @@
 #include <string>
 #include <sstream>
 #include <cmath>
+#include <fstream>
 
 using std::string;
 using std::ostringstream;
@@ -523,6 +524,21 @@ void GSVG::print(std::ostream& stream)
 
 	// Print it
 	stream << m_ss.str();
+}
+
+void GSVG::save(const char* szFilename)
+{
+	std::ofstream os;
+	os.exceptions(std::ios::badbit | std::ios::failbit);
+	try
+	{
+		os.open(szFilename, std::ios::binary);
+	}
+	catch(const std::exception&)
+	{
+		throw Ex("Error while trying to create the file, ", szFilename, ". ", strerror(errno));
+	}
+	print(os);
 }
 
 double GSVG::horizLabelPos()

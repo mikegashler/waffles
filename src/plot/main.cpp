@@ -178,7 +178,7 @@ void loadDataWithSwitches(GMatrix& data, GArgReader& args, size_t* pLabelDims)
 			cerr << to_str(i) << ") " << parser.report(i) << "\n";
 	}
 	else
-		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename);
 
 	// Parse params
 	vector<size_t> ignore;
@@ -258,7 +258,7 @@ GMatrix* loadData(const char* szFilename)
 			cerr << to_str(i) << ") " << parser.report(i) << "\n";
 	}
 	else
-		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename);
 
 	return hM.release();
 }

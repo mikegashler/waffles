@@ -1,5 +1,7 @@
+<!doctype html>
 <html>
 <head>
+	<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
 	<style>
 		.code {
 			margin-left: 30px;
@@ -51,7 +53,6 @@
 <p>Logistic regression is fitting your data with a single layer of logistic units. Here are the #includes that we are going to need for this example:</p>
 
 <pre class="code">
-	#include &lt;GClasses/GActivation.h&gt;
 	#include &lt;GClasses/GMatrix.h&gt;
 	#include &lt;GClasses/GNeuralNet.h&gt;
 	#include &lt;GClasses/GRand.h&gt;
@@ -252,7 +253,6 @@ And, here is some code that trains a neural network with this data:</p>
 #include &lt;GClasses/GApp.h&gt;
 #include &lt;GClasses/GError.h&gt;
 #include &lt;GClasses/GNeuralNet.h&gt;
-#include &lt;GClasses/GActivation.h&gt;
 #include &lt;GClasses/GTransform.h&gt;
 #include &lt;GClasses/GTime.h&gt;
 #include &lt;GClasses/GVec.h&gt;
@@ -337,20 +337,145 @@ int main(int argc, char *argv[])
 @ATTRIBUTE misclassification_rate real
 @ATTRIBUTE elapsed_time real
 @DATA
-0.9243,0.4613778591156
-0.0622,10.968685865402
-0.0509,21.50560092926
-0.0422,32.133005857468
-0.0406,42.690910816193
-0.043,53.197825908661
-0.0337,63.745694875717
-0.037,74.263633966446
-0.0367,85.197949886322
-0.0338,95.829666852951
+0.9243,0.33908700942993
+0.0622,6.8041210174561
+0.0509,13.201755046844
+0.0422,19.536917924881
+0.0406,25.910009860992
+0.043,32.283365011215
+0.0337,38.758503913879
+0.037,45.176832914352
+0.0367,51.467288017273
+0.0338,57.70737695694
 </pre>
 
 <p>The left-most column shows that we get 338/10000 misclassifications in just 96 seconds of training on a modest computer.
 You can get much better accuracy using bigger layers, but then training will take longer too.</p>
+
+<br><br>
+<h3>More explicit version</h3>
+
+<p>If you want more fine-grained control, you can train your neural network manually, instead of using one of the pre-built optimizers.
+Here's a version that uses more explicit calls. (The results are the same):</p>
+
+<pre class="code">
+#include &lt;iostream&gt;
+#include &lt;cmath&gt;
+#include &lt;GClasses/GApp.h&gt;
+#include &lt;GClasses/GError.h&gt;
+#include &lt;GClasses/GNeuralNet.h&gt;
+#include &lt;GClasses/GTransform.h&gt;
+#include &lt;GClasses/GTime.h&gt;
+#include &lt;GClasses/GVec.h&gt;
+
+using namespace GClasses;
+using std::cerr;
+using std::cout;
+
+class Model
+{
+public:
+	GRand&amp; m_rand;
+	GNeuralNet m_nn;
+	GVec m_weights;
+	GVec m_grad;
+	double m_learningRate;
+	double m_momentum;
+
+	Model(GRand&amp; rand)
+	: m_rand(rand), m_learningRate(0.01), m_momentum(0.0)
+	{
+		m_nn.add(new GBlockLinear(28 * 28, 80), new GBlockTanh(80));
+		m_nn.add(new GBlockLinear(80, 30), new GBlockTanh(30));
+		m_nn.add(new GBlockLinear(30, 10), new GBlockTanh(10));
+		m_weights.resize(m_nn.weightCount());
+		m_nn.initWeights(m_rand, m_weights);
+		m_grad.resize(m_nn.gradCount());
+		m_grad.fill(0.0);
+	}
+
+	virtual ~Model()
+	{
+	}
+	
+	void refine(const GVec&amp; feat, GVec&amp; lab)
+	{
+		m_nn.forwardProp(m_weights, feat);
+		m_nn.computeBlame(lab);
+		m_nn.backpropagate(m_weights);
+		m_nn.updateGradient(m_weights, m_grad);
+		m_nn.step(m_grad, m_weights, m_learningRate, m_momentum);
+	}
+
+	void test(GMatrix&amp; testFeatures, GMatrix&amp; testLabels, double starttime)
+	{
+		double mis = m_nn.measureLoss(m_weights, testFeatures, testLabels);
+		cout &lt;&lt; to_str((double)mis / testFeatures.rows()) &lt;&lt; "," &lt;&lt; to_str(GTime::seconds() - starttime) &lt;&lt; "\n";
+		cout.flush();
+	}
+
+	void train(GMatrix&amp; trainFeatures, GMatrix&amp; trainLabels, GMatrix&amp; testFeatures, GMatrix&amp; testLabels)
+	{
+		GRandomIndexIterator ii(trainFeatures.rows(), m_rand);
+		double starttime = GTime::seconds();
+		size_t index;
+		for(size_t i = 0; i &lt; 10; i++)
+		{
+			test(testFeatures, testLabels, starttime);
+			ii.reset();
+			while(ii.next(index))
+				refine(trainFeatures[index], trainLabels[index]);
+		}
+		test(testFeatures, testLabels, starttime);
+	}
+};
+
+int main(int argc, char *argv[])
+{
+	// Load the data
+	cout &lt;&lt; "Loading data...\n";
+	cout.flush();
+	GMatrix train;
+	train.loadArff("/home/mike/data/mnist/train.arff");
+	GMatrix test;
+	test.loadArff("/home/mike/data/mnist/test.arff");
+	GMatrix rawTestLabels(test, 0, test.cols() - 1, test.rows(), 1);
+
+	// Preprocess the data
+	GDataPreprocessor dpFeat(train,
+		0, 0, // rowStart, colStart
+		train.rows(), train.cols() - 1, // rowCount, colCount
+		false, false, true, // allowMissing, allowNominal, allowContinuous
+		-1.0, 1.0); // minVal, maxVal
+	dpFeat.add(test, 0, 0, test.rows(), test.cols() - 1);
+	GDataPreprocessor dpLab(train,
+		0, train.cols() - 1, // rowStart, colStart
+		train.rows(), 1, // rowCount, colCount
+		false, false, true, // allowMissing, allowNominal, allowContinuous
+		-1.0, 1.0); // minVal, maxVal
+	dpLab.add(test, 0, test.cols() - 1, test.rows(), 1);
+	GMatrix&amp; trainFeatures = dpFeat.get(0);
+	GMatrix&amp; trainLabels = dpLab.get(0);
+	GMatrix&amp; testFeatures = dpFeat.get(1);
+
+	// Train
+	GRand rand(0);
+	Model m(rand);
+	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
+	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
+	cout &lt;&lt; "% Topology:\n";
+	cout &lt;&lt; m.m_nn.to_str("% ") &lt;&lt; "\n";
+	cout &lt;&lt; "@RELATION neural_net_training\n";
+	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
+	cout &lt;&lt; "@ATTRIBUTE elapsed_time real\n";
+	cout &lt;&lt; "@DATA\n";
+	m.train(trainFeatures, trainLabels, testFeatures, rawTestLabels);
+}
+</pre>
+
+
+
+
 
 <p>If you want better results, and you are willing to wait for days to get your results, you can use a neural network with a bigger topology:</p>
 
@@ -405,47 +530,6 @@ You can get much better accuracy using bigger layers, but then training will tak
 0.0035,92888.616713047
 </pre>
 
-
-
-<br><br>
-<h3>Training more directly</h3>
-
-<p>If you want more fine-grained control, you can train your neural network manually, instead of using one of the pre-built optimizers.
-Here are some changes to the training section of the previous example to train the neural network with more direct calls:</p>
-
-<pre class="code">
-	// Train
-	GRand rand(0);
-	<font color="red">GVec weights(nn.weightCount());
-	GVec grad(nn.gradCount());
-	grad.fill(0.0);
-	nn.initWeights(rand, weights);
-	double learningRate = 0.01;
-	double momentum = 0.0;
-	GRandomIndexIterator ii(trainFeatures.rows(), rand);</font>
-	double starttime = GTime::seconds();
-	for(size_t epoch = 0; epoch &lt; 10; epoch++)
-	{
-		double mis = nn.measureLoss(<font color="red">weights</font>, testFeatures, rawTestLabels);
-		cout &lt;&lt; to_str((double)mis / testFeatures.rows()) &lt;&lt; "," &lt;&lt; to_str(GTime::seconds() - starttime) &lt;&lt; "\n";
-		cout.flush();
-		<font color="red">ii.reset();
-		size_t index;
-		while(ii.next(index))
-		{
-			nn.forwardProp(weights, trainFeatures[index]);
-			nn.computeBlame(trainLabels[index]);
-			nn.backpropagate(weights);
-			grad *= momentum;
-			nn.updateGradient(weights, grad);
-			nn.step(grad, weights, learningRate);
-		}</font>
-	}
-	return 0;
-</pre>
-
-<p>If you want to get more direct than that, you will probably have to start digging into the code itself.
-I have worked hard to keep the code clean and easy to read, but I would welcome suggestions for improving it.</p>
 
 
 

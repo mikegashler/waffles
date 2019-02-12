@@ -1835,6 +1835,12 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-out [train_filename] [test_filename]", "Specify the filenames for the training and test portions of the data. The default values are train.arff and test.arff.");
 	}
 	{
+		UsageNode* pSplitVal = pRoot->add("splitval [dataset] [attr] [val]", "Divides a dataset into 2 parts named less_than.arff and greater_or_equal.arff.");
+		pSplitVal->add("[dataset]=data.arff", "The filename of a datset.");
+		pSplitVal->add("[attr]=0", "The (zero-based) index of the column to divide on.");
+		pSplitVal->add("[val]=0.0", "The value to divide on.");
+	}
+	{
 		UsageNode* pSD = pRoot->add("squareddistance [a] [b]", "Computesthe sum and mean squared distance between dataset [a] and [b]. ([a] and [b] are each the names of files in .arff format. They must have the same dimensions.)");
 		pSD->add("[a]=a.arff", "The filename of a dataset.");
 		pSD->add("[b]=b.arff", "The filename of a dataset.");

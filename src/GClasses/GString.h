@@ -30,9 +30,11 @@ namespace GClasses {
 /// Returns the length of the new string.
 size_t safe_strcpy(char* szDest, const char* szSrc, size_t nDestBufferSize);
 
-/// Prepends however many pad_char characters are needed to make src_string have a
-/// length of final_length, and returns the results.
-std::string pre_pad(size_t final_length, char pad_char, const std::string& src_string);
+/// Converts a size_t to a string of fixed size padded in front with 'pad' as necessary
+std::string to_fixed_str(size_t val, size_t chars, char pad);
+
+/// Converts a double to a string of fixed size padded in front with 'pad' as necessary
+std::string to_fixed_str(double val, size_t chars, char pad);
 
 /// This class chops a big string at word breaks so you can display it intelligently
 /// on multiple lines
@@ -56,6 +58,9 @@ public:
 	/// Returns NULL when there are no more lines left
 	const char* next();
 };
+
+
+
 
 } // namespace GClasses
 

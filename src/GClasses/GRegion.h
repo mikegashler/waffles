@@ -31,6 +31,17 @@ class GRect;
 struct GRegionEdge;
 struct GRegion;
 
+
+struct GRegion
+{
+	int m_nPixels;
+	int m_nSumRed;
+	int m_nSumGreen;
+	int m_nSumBlue;
+	struct GRegionEdge* m_pNeighbors;
+};
+
+
 /// The base class for region ajacency graphs. These are useful
 /// for breaking down an image into patches of similar color.
 class GRegionAjacencyGraph
@@ -50,6 +61,9 @@ public:
 	/// Returns the number of regions so far
 	size_t regionCount();
 
+    /// Get a region
+	struct GRegion& region(size_t i) { return *m_regions[i]; }
+
 	/// Returns the average pixel color in the specified region
 	void averageColor(size_t nRegion, float* pRed, float* pGreen, float* pBlue);
 
@@ -66,6 +80,8 @@ public:
 	/// Returns the two regions that are ajacent
 	void ajacency(size_t nEdge, size_t* pRegion1, size_t* pRegion2);
 };
+
+
 
 /// Implements a region adjacency graph for 2D images, and lets
 /// you merge similar regions to create a hierarchical breakdown

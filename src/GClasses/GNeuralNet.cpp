@@ -132,17 +132,36 @@ void GBlock::computeBlame(const GVec& target)
 	outBlame -= output;
 }
 
-std::string GBlock::to_str() const
+std::string GBlock::to_str(const GVec* pWeights) const
 {
 	std::ostringstream os;
 	os << "[" << name() << ": ";
 	os << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << ", Weights=" << GClasses::to_str(weightCount()) << "]";
+	if(pWeights)
+		os << "(" << pWeights->to_str() << ")";
 	return os.str();
 }
 
 void GBlock::biasMask(GVec& mask)
 {
 	mask.fill(0.0);
+}
+
+void GBlock::step(GVec& gradient, GVec& weights, double learningRate, double momentum)
+{
+	// Classic Momentum
+	GAssert(weights.size() == gradient.size());
+	for(size_t i = 0; i < gradient.size(); i++)
+	{
+		weights[i] += learningRate * gradient[i];
+		gradient[i] *= momentum;
+	}
+
+/*
+	// Nesterov's Accelerated Gradient could be implemented here
+	// (See "On the importance of initialization and momentum in deep learning" by Sutskever, Martens, Dahl, and Hinton.)
+	// (See https://jlmelville.github.io/mize/nesterov.html)
+*/
 }
 
 
@@ -372,6 +391,52 @@ GBlockLinear::GBlockLinear(GDomNode* pNode)
 : GBlock(pNode)
 {}
 
+std::string GBlockLinear::to_str(const GVec* pWeights) const
+{
+	std::ostringstream os;
+	os << "[" << name() << ": ";
+	os << GClasses::to_str(inputs()) << "->" << GClasses::to_str(outputs()) << ", Weights=" << GClasses::to_str(weightCount()) << "]";
+	if(pWeights)
+	{
+		os << "\n";
+		os << "    Bias: ";
+		for(size_t i = 0; i < outputCount; i++)
+		{
+			if(i > 0)
+				os << ",";
+			os << to_fixed_str((*pWeights)[i], 8, ' ');
+		}
+		os << "\n";
+		os << "          ";
+		for(size_t i = 0; i < outputCount; i++)
+		{
+			std::string s = GClasses::to_str(i);
+			os << "Out ";
+			os << s;
+			os << std::string(5 - s.length(), ' ');
+		}
+		os << "\n";
+		size_t pos = outputCount;
+		for(size_t i = 0; i < inputCount; i++)
+		{
+			std::string ss = GClasses::to_str(i);
+			os << std::string(5 - ss.length(), ' ');
+			os << "In ";
+			os << GClasses::to_str(ss);
+			os << ": ";
+			for(size_t j = 0; j < outputCount; j++)
+			{
+				if(j > 0)
+					os << ",";
+				os << to_fixed_str((*pWeights)[pos++], 8, ' ');
+			}
+			os << "\n";
+		}
+		os << "\n";
+	}
+	return os.str();
+}
+
 void GBlockLinear::forwardProp(const GVec& weights)
 {
 	// Start with the bias
@@ -412,10 +477,17 @@ void GBlockLinear::updateGradient(GVec& weights, GVec& gradient)
 	}
 }
 
-void GBlockLinear::step(const GVec& gradient, GVec& weights, double learningRate, double biasRate)
+void GBlockLinear::updateGradientNormalized(GVec& weights, GVec& gradient)
 {
-	weights.addScaled(biasRate, gradient, 0, outputCount);
-	weights.addScaled(outputCount, learningRate, gradient, outputCount);
+	size_t pos = 0;
+	for(size_t j = 0; j < outputCount; j++)
+		gradient[pos++] += outBlame[j];
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		double act = input[i];
+		for(size_t j = 0; j < outputCount; j++)
+			gradient[pos++] += outBlame[j] * (std::signbit(act) ? -1.0 : 1.0);
+	}
 }
 
 size_t GBlockLinear::weightCount() const
@@ -505,6 +577,137 @@ void GBlockLinear::biasMask(GVec& mask)
 	mask.fill(1.0, 0, outputCount);
 	mask.fill(0.0, outputCount, mask.size());
 }
+
+
+
+
+
+
+
+GBlockRunningNormalizer::GBlockRunningNormalizer(size_t units, double effective_batch_size)
+: GBlock(units, units), batch_size(effective_batch_size), inv_bs(1.0 / batch_size), decay_scalar(1.0 - inv_bs), epsilon(1e-8)
+{
+}
+
+GBlockRunningNormalizer::GBlockRunningNormalizer(GDomNode* pNode)
+: GBlock(pNode)
+{}
+
+void GBlockRunningNormalizer::forwardProp(const GVec& weights)
+{
+	size_t pos = 0;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double running_mean = weights[pos++] * inv_bs;
+		double running_var = weights[pos++] * inv_bs - (running_mean * running_mean);
+		double x_hat = (input[i] - running_mean) / std::sqrt(running_var + epsilon);
+		double gamma = weights[pos++];
+		double beta = weights[pos++];
+		output[i] = gamma * x_hat + beta;
+	}
+	GAssert(pos == outputCount * 4);
+}
+
+void GBlockRunningNormalizer::backProp(const GVec& weights)
+{
+/*
+	size_t pos = 0;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double running_mean = weights[pos++] * inv_bs;
+		double running_var = weights[pos++] * inv_bs - (running_mean * running_mean);
+		double gamma = weights[pos++];
+		pos++;
+		var_blame += inBlame[i] * gamma * (input[i] - running_mean) * (-0.5) * std::pow(running_var + epsilon, -1.5);
+	}
+*/
+
+
+	size_t pos = 0;
+	double var_blame = 0.0;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double running_mean = weights[pos++] * inv_bs;
+		double running_var = weights[pos++] * inv_bs - (running_mean * running_mean);
+		double gamma = weights[pos++];
+		pos++;
+		var_blame += outBlame[i] * gamma * (input[i] - running_mean) * (-0.5) * std::pow(running_var + epsilon, -1.5);
+	}
+	pos = 0;
+	double a = 0.0;
+	double b = 0.0;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double running_mean = weights[pos++] * inv_bs;
+		double running_var = weights[pos++] * inv_bs - (running_mean * running_mean);
+		double gamma = weights[pos++];
+		pos++;
+		a += outBlame[i] * gamma * (-1.0 / std::sqrt(running_var + epsilon));
+		b += (input[i] - running_mean);
+	}
+	pos = 0;
+	double mean_blame = a + var_blame * (-2.0 * b / outputCount);
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double running_mean = weights[pos++] * inv_bs;
+		double running_var = weights[pos++] * inv_bs - (running_mean * running_mean);
+		double gamma = weights[pos++];
+		pos++;
+		inBlame[i] = outBlame[i] * gamma / std::sqrt(running_var + epsilon) + (var_blame * 2.0 * (input[i] - running_mean) + mean_blame) / outputCount;
+	}
+}
+
+void GBlockRunningNormalizer::updateGradient(GVec& weights, GVec& gradient)
+{
+	if(gradient.size() != outputCount)
+		throw Ex("gradient has unexpected size");
+	size_t pos = 0;
+	for(size_t i = 0; i < outputCount; i++)
+		gradient[pos++] += outBlame[i];
+}
+
+void GBlockRunningNormalizer::step(GVec& gradient, GVec& weights, double learningRate, double momentum)
+{
+	GAssert(gradient.size() == outputCount);
+	GAssert(weights.size() == 4 * outputCount);
+	size_t pos = 0;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double running_mean = weights[pos] * inv_bs;
+		weights[pos] *= decay_scalar;
+		weights[pos++] += input[i];
+		double running_var = weights[pos] * inv_bs - (running_mean * running_mean);
+		double x_hat = (input[i] - running_mean) / std::sqrt(running_var + epsilon);
+		weights[pos] *= decay_scalar;
+		weights[pos++] += (input[i] * input[i]);
+		weights[pos++] += outBlame[i] * x_hat;
+		weights[pos++] += outBlame[i];
+	}
+}
+
+size_t GBlockRunningNormalizer::weightCount() const
+{
+	return outputCount * 4;
+}
+
+size_t GBlockRunningNormalizer::gradCount() const
+{
+	return outputCount;
+}
+void GBlockRunningNormalizer::initWeights(GRand& rand, GVec& weights)
+{
+	GAssert(weights.size() == 4 * outputCount);
+	size_t pos = 0;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		weights[pos++] = 0.0;
+		weights[pos++] = batch_size;
+		weights[pos++] = 1.0;
+		weights[pos++] = 0.0;
+	}
+}
+
+
 
 
 
@@ -1044,16 +1247,29 @@ void GBlockHinge::updateGradient(GVec& weights, GVec& gradient)
 {
 	for(size_t i = 0; i < outputCount; i++)
 	{
-		weights[i] = std::max(-1.0, std::min(1.0, weights[i]));
 		double beta = weights[outputCount + i];
 		gradient[i] += outBlame[i] * (std::sqrt(input[i] * input[i] + beta * beta) - beta);
 	}
 	for(size_t i = 0; i < outputCount; i++)
 	{
-		weights[outputCount + i] = std::max(0.0, weights[outputCount + i]);
 		double alpha = weights[i];
 		double beta = weights[outputCount + i];
 		gradient[outputCount + i] += outBlame[i] * alpha * (beta / std::sqrt(input[i] * input[i] + beta * beta) - 1.0);
+	}
+}
+
+void GBlockHinge::step(GVec& gradient, GVec& weights, double learningRate, double momentum)
+{
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		weights[i] = std::max(-1.0, std::min(1.0, weights[i] + learningRate * gradient[i]));
+		gradient[i] *= momentum;
+	}
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		size_t index = outputCount + i;
+		weights[index] = std::max(0.0, weights[index] + learningRate * gradient[index]);
+		gradient[index] *= momentum;
 	}
 }
 
@@ -1069,6 +1285,69 @@ void GBlockHinge::initWeights(GRand& rand, GVec& weights)
 		weights[i] = 0.0;
 		weights[outputCount + i] = 0.1;
 	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+GBlockLeakyTanh::GBlockLeakyTanh(size_t size)
+: GBlock(size, size)
+{
+}
+
+GBlockLeakyTanh::GBlockLeakyTanh(GDomNode* pNode)
+: GBlock(pNode)
+{}
+
+void GBlockLeakyTanh::forwardProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		output[i] = (1.0 - weights[i]) * input[i] + weights[i] * tanh(input[i]);
+	}
+}
+
+void GBlockLeakyTanh::backProp(const GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double t = tanh(input[i]);
+		inBlame[i] += (1.0 - weights[i]) + weights[i] * (1.0 - t * t);
+	}
+}
+
+void GBlockLeakyTanh::updateGradient(GVec& weights, GVec& gradient)
+{
+	for(size_t i = 0; i < outputCount; i++)
+		gradient[i] += tanh(input[i]) - input[i];
+}
+
+void GBlockLeakyTanh::step(GVec& gradient, GVec& weights, double learningRate, double momentum)
+{
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		weights[i] = std::max(0.0, std::min(1.0, weights[i] + learningRate * gradient[i]));
+		gradient[i] *= momentum;
+	}
+}
+
+size_t GBlockLeakyTanh::weightCount() const
+{
+	return outputCount;
+}
+
+void GBlockLeakyTanh::initWeights(GRand& rand, GVec& weights)
+{
+	for(size_t i = 0; i < outputCount; i++)
+		weights[i] = 0.0;
 }
 
 
@@ -1439,10 +1718,15 @@ void GBlockCatIn::updateGradient(GVec& weights, GVec& gradient)
 	gradient.copy(outBlame);
 }
 
-void GBlockCatIn::step(const GVec& gradient, GVec& weights, double learningRate, double biasRate)
+void GBlockCatIn::step(GVec& gradient, GVec& weights, double learningRate, double momentum)
 {
-	size_t i = std::min(m_valueCount - 1, (size_t)input[0]);
-	weights.addScaled(outputCount * i, gradient);
+	size_t n = std::min(m_valueCount - 1, (size_t)input[0]);
+	size_t start = outputCount * n;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		weights[start + i] += learningRate * gradient[i];
+		gradient[i] = 0.0; // Momentum is ignored for this layer because the gradient is specific to this input
+	}
 }
 
 size_t GBlockCatIn::weightCount() const
@@ -2041,7 +2325,26 @@ void GLayer::updateGradient(GVec& weights, GVec& gradient)
 	GAssert(posGrad == gradient.size());
 }
 
-void GLayer::step(const GVec& gradient, GVec& weights, double learningRate, double biasRate)
+void GLayer::updateGradientNormalized(GVec& weights, GVec& gradient)
+{
+	size_t posWeights = 0;
+	size_t posGrad = 0;
+	for(size_t i = 0; i < blockCount(); i++)
+	{
+		GBlock& b = block(i);
+		size_t wc = b.weightCount();
+		size_t gc = b.gradCount();
+		GVecWrapper w(weights, posWeights, wc);
+		GVecWrapper g(gradient, posGrad, gc);
+		posWeights += wc;
+		posGrad += gc;
+		b.updateGradientNormalized(w, g);
+	}
+	GAssert(posWeights == weights.size());
+	GAssert(posGrad == gradient.size());
+}
+
+void GLayer::step(GVec& gradient, GVec& weights, double learningRate, double momentum)
 {
 	size_t posWeights = 0;
 	size_t posGrad = 0;
@@ -2054,7 +2357,7 @@ void GLayer::step(const GVec& gradient, GVec& weights, double learningRate, doub
 		GConstVecWrapper g(gradient, posGrad, gc);
 		posWeights += wc;
 		posGrad += gc;
-		b.step(g, w, learningRate, biasRate);
+		b.step(g, w, learningRate, momentum);
 	}
 	GAssert(posWeights == weights.size());
 	GAssert(posGrad == gradient.size());
@@ -2181,20 +2484,26 @@ GDomNode* GNeuralNet::serialize(GDom* pDoc, const GVec& weights) const
 	return pNode;
 }
 
-std::string GNeuralNet::to_str(const std::string& line_prefix) const
+std::string GNeuralNet::to_str(const std::string& line_prefix, const GVec* pWeights) const
 {
 	std::ostringstream oss;
 	oss << line_prefix << "[GNeuralNet: " << inputs() << "->" << outputs() << ", Weights=" << GClasses::to_str(weightCount()) << "\n";
+	size_t pos = 0;
+	GConstVecWrapper vw;
 	for(size_t i = 0; i < m_layers.size(); i++)
 	{
-		oss << line_prefix << "  " << pre_pad(2, ' ', GClasses::to_str(i)) << ") ";
+		oss << line_prefix << "  " << to_fixed_str(i, 2, ' ') << ") ";
 		for(size_t j = 0; j < m_layers[i]->blockCount(); j++)
 		{
 			GBlock& b = m_layers[i]->block(j);
+			size_t wc = b.weightCount();
+			if(pWeights)
+				vw.setData(*pWeights, pos, wc);
+			pos += wc;
 			if(b.type() == block_neuralnet)
 				oss << "[GNeuralNet (contents not shown):" << b.inputs() << "->" << b.outputs() << ", Weights=" << GClasses::to_str(b.weightCount()) << "\n";
 			else
-				oss << b.to_str();
+				oss << b.to_str(pWeights ? &vw : nullptr);
 		}
 		oss << "\n";
 	}
@@ -2202,9 +2511,9 @@ std::string GNeuralNet::to_str(const std::string& line_prefix) const
 	return oss.str();
 }
 
-std::string GNeuralNet::to_str() const
+std::string GNeuralNet::to_str(const GVec* pWeights) const
 {
-	return to_str("");
+	return to_str("", pWeights);
 }
 
 GBlock* GNeuralNet::add(GBlock* pBlock)
@@ -2342,7 +2651,28 @@ void GNeuralNet::updateGradient(GVec& weights, GVec& gradient)
 	GAssert(posGrad == gradient.size());
 }
 
-void GNeuralNet::step(const GVec& gradient, GVec& weights, double learningRate, double biasRate)
+void GNeuralNet::updateGradientNormalized(GVec& weights, GVec& gradient)
+{
+	size_t posWeights = 0;
+	size_t posGrad = 0;
+	GVecWrapper w;
+	GVecWrapper g;
+	for(size_t i = 0; i < m_layers.size(); i++)
+	{
+		GLayer& lay = *m_layers[i];
+		size_t wc = lay.weightCount();
+		size_t gc = lay.gradCount();
+		w.setData(weights, posWeights, wc);
+		g.setData(gradient, posGrad, gc);
+		posWeights += wc;
+		posGrad += gc;
+		lay.updateGradientNormalized(w, g);
+	}
+	GAssert(posWeights == weights.size());
+	GAssert(posGrad == gradient.size());
+}
+
+void GNeuralNet::step(GVec& gradient, GVec& weights, double learningRate, double momentum)
 {
 	size_t posWeights = 0;
 	size_t posGrad = 0;
@@ -2357,7 +2687,7 @@ void GNeuralNet::step(const GVec& gradient, GVec& weights, double learningRate, 
 		g.setData(gradient, posGrad, gc);
 		posWeights += wc;
 		posGrad += gc;
-		lay.step(g, w, learningRate, biasRate);
+		lay.step(g, w, learningRate, momentum);
 	}
 	GAssert(posWeights == weights.size());
 	GAssert(posGrad == gradient.size());
@@ -2549,6 +2879,19 @@ void GNeuralNet::biasMask(GVec& mask)
 	GAssert(posWeights == mask.size());
 }
 
+size_t GNeuralNet::layerStart(size_t layer)
+{
+	size_t posWeights = 0;
+	for(size_t i = 0; i < m_layers.size(); i++)
+	{
+        if(i == layer)
+            return posWeights;
+		GLayer& lay = *m_layers[i];
+		size_t wc = lay.weightCount();
+		posWeights += wc;
+	}
+	throw Ex("Layer index out of range");
+}
 
 
 /*
@@ -2907,7 +3250,7 @@ std::string GNeuralNet::to_str(const std::string& line_prefix) const
 	oss << line_prefix << "[GNeuralNet: " << inputs() << "->" << outputs() << ", Weights=" << GClasses::to_str(weightCount()) << "\n";
 	for(size_t i = 0; i < m_layers.size(); i++)
 	{
-		oss << line_prefix << "  " << pre_pad(2, ' ', GClasses::to_str(i)) << ") ";
+		oss << line_prefix << "  " << to_fixed_str(i, 2, ' ') << ") ";
 		for(size_t j = 0; j < m_layers[i]->blockCount(); j++)
 		{
 			GBlock& b = m_layers[i]->block(j);
