@@ -480,7 +480,6 @@ double GOptimizer::searchUntil(size_t nBurnInIterations, size_t nIterations, dou
 	return dError;
 }
 
-#ifndef MIN_PREDICT
 void GOptimizer::basicTest(double minAccuracy, double warnRange)
 {
 	double d = searchUntil(5, 100, 0.001);
@@ -489,7 +488,6 @@ void GOptimizer::basicTest(double minAccuracy, double warnRange)
 	if(d < minAccuracy - warnRange)
 		std::cout << "Accuracy is much better than expected. Expected " << to_str(minAccuracy) << ". Got " << to_str(d) << ". Please tighten the expected accuracy for this test.\n";
 }
-#endif
 
 
 

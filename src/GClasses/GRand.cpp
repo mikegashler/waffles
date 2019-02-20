@@ -81,15 +81,11 @@
 #include <math.h>
 #include "GError.h"
 #include <stdlib.h>
-#ifndef MIN_PREDICT
 #include "GHistogram.h"
 #include "GTime.h"
 #include "GMath.h"
-#endif // MIN_PREDICT
 #include "GVec.h"
-#ifndef MIN_PREDICT
 #include "GReverseBits.h"
-#endif // MIN_PREDICT
 #include <cmath>
 #include <ctime>
 #ifdef WINDOWS
@@ -320,7 +316,7 @@ void GRand_sumToOne(double* pVector, size_t size)
 	GConstVecWrapper vw(pVector, size);
 	double sum = vw.sum();
 	if(sum == 0)
-		GVec::setAll(pVector, 1.0 / size, size);
+		vw.fill(1.0 / size);
 	else
 	{
 		double scale = 1.0 / sum;
@@ -398,7 +394,6 @@ double GRand::beta(double alphaVal, double betaVal)
 	return r / (r + gamma(betaVal));
 }
 
-#ifndef MIN_PREDICT
 #define TEST_BIT_HIST_ITERS 100000
 void GRand_testBitHistogram()
 {
@@ -504,7 +499,6 @@ void GRand::test()
 	//GRand_testSpeed();
 	// todo: add a test for correlations
 }
-#endif // MIN_PREDICT
 
 
 /* initializes mt[NN] with a seed */
@@ -573,7 +567,6 @@ void GRandMersenneTwister::init_by_array64(uint64_t init_key[],
 
 
 
-#ifndef MIN_PREDICT
 namespace{
 	///The expected values produced by the integer portion of the test
 	///code included with the original mersenne twister code.  There are
@@ -1152,6 +1145,5 @@ void GRandMersenneTwister::test()
 
 }
 
-#endif // !MIN_PREDICT
 
 } // namespace GClasses

@@ -1703,9 +1703,8 @@ public:
 	/// Returns the index of the first weight associated with the specified layer.
 	size_t layerStart(size_t layer);
 
-#ifndef MIN_PREDICT
+	/// Run unit tests for this class
 	static void test();
-#endif
 
 protected:
 
@@ -1748,13 +1747,11 @@ public:
 	virtual void trainIncremental(const GVec &in, const GVec &out) override;
 	virtual void trainSparse(GSparseMatrix &features, GMatrix &labels) override;
 
-#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
 
 	/// Saves the model to a text file.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
-#endif // MIN_PREDICT
 
 	/// See the comment for GSupervisedLearner::clear
 	virtual void clear() override;
@@ -1762,10 +1759,8 @@ public:
 	/// See the comment for GSupervisedLearner::predict
 	virtual void predict(const GVec& in, GVec& out) override;
 
-#ifndef MIN_PREDICT
 	/// See the comment for GSupervisedLearner::predictDistribution
 	virtual void predictDistribution(const GVec& in, GPrediction* pOut) override;
-#endif // MIN_PREDICT
 
 	/// See the comment for GTransducer::canImplicitlyHandleNominalFeatures
 	virtual bool canImplicitlyHandleNominalFeatures() override { return false; }

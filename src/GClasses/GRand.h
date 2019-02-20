@@ -275,10 +275,8 @@ public:
 	/// Returns a random value from a Weibull distribution with lambda=1.
 	virtual double weibull(double gamma);
 
-#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // !MIN_PREDICT
 };
 
 /// \brief A 64-bit pseudo-random number generator based on the
@@ -433,11 +431,9 @@ public:
 		return uniform()*(max-min)+min;
 	}
 
-#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there
 	/// is a failure.
 	static void test();
-#endif // !MIN_PREDICT
 };
 
 

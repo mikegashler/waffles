@@ -34,6 +34,7 @@ class GImage;
 class GDomListIterator;
 class GVecWrapper;
 class GConstVecWrapper;
+class GTokenizer;
 
 /// Represents a mathematical vector of doubles
 class GVec
@@ -58,9 +59,6 @@ public:
 	/// Unmarshaling constructor
 	GVec(GDomNode* pNode);
 
-	/// Copy constructor. Copies all the values in orig.
-	GVec(const GVec& orig);
-
 	/// Destructor
 	virtual ~GVec();
 
@@ -75,7 +73,7 @@ public:
 	void resizePreserve(size_t n);
 
 	/// Sets all the elements in this vector to val.
-	void fill(const double val, size_t startPos = 0, size_t endPos = (size_t)-1);
+	void fill(const double val, size_t startPos = 0, size_t elements = (size_t)-1);
 
 	/// \brief Returns a reference to the specified element.
 	inline double& operator [](size_t index)
@@ -277,31 +275,8 @@ private:
 	GVec(double d);
 
 public:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // MIN_PREDICT
-
-	/// Sets all the elements to the specified value
-	static void setAll(double* pVector, double value, size_t dims);
-	static void fill(double* pVector, double value, size_t dims);
-
-	/// Adds Gaussian noise with the specified deviation to each element in the vector
-	static void perturb(double* pDest, double deviation, size_t dims, GRand& rand);
 };
 
 
@@ -571,10 +546,8 @@ public:
 	GCoordVectorIterator(std::vector<size_t>& ranges);
 	~GCoordVectorIterator();
 
-#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if any problems are found.
 	static void test();
-#endif // MIN_PREDICT
 
 	/// Sets the coordinate vector to all zeros.
 	void reset();
@@ -630,20 +603,29 @@ public:
 class GTensor : public GVecWrapper
 {
 public:
-	GIndexVec dims;
+	GIndexVec shape; // Specifies the dimensions of the tensor.
+	GVec* pHolder; // A vector to delete when this object is deleted. (Typically the same vector this wraps.)
 
 	/// General-purpose constructor. Example:
-	/// GTensor t(v, {5, 7, 3});
-	GTensor(GVec& vals, const std::initializer_list<size_t>& list);
+	/// GTensor t({5, 7, 3});
+	GTensor(const std::initializer_list<size_t>& list, bool ownBuffer = true, GVec* pBuffer = nullptr);
 
-	/// Copy constructor. Copies the dimensions. Wraps the same vector.
+	/// Copy constructor. Copies the dimensions. Wraps the same buffer.
 	GTensor(const GTensor& copyMe);
-
-	/// Constructor for an arbitrary number of dimensions
-	GTensor(double* buf, const GIndexVec& dims);
 
 	/// Special constructor for initializing the dimensions from a Json node
 	GTensor(GDomNode* pNode);
+
+	virtual ~GTensor();
+
+	/// Sets out to wrap the specified portion of this tensor
+	void get(GVecWrapper& out, size_t index);
+
+	/// Loads a 2D tensor from an ARFF file
+	void loadArff(const char* szFilename);
+
+	/// Loads a 2D tensor from an ARFF file
+	void parseArff(GTokenizer& tok);
 
 	/// The result is added to the existing contents of out. It does not replace the existing contents of out.
 	/// Padding is computed as necessary to fill the the out tensor.

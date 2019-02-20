@@ -598,7 +598,8 @@ public:
 	{
 		m_dims = dims;
 		m_pOffset = new double[dims];
-		GVec::setAll(m_pOffset, 0.0, dims);
+		GVecWrapper vw(m_pOffset, dims);
+		vw.fill(0.0);
 		m_minDist = 0;
 	}
 

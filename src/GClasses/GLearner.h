@@ -39,7 +39,6 @@ class GCollaborativeFilter;
 class GNeuralNetLearner;
 class GLearnerLoader;
 
-#ifndef MIN_PREDICT
 /// This class is used to represent the predicted distribution made by a supervised learning algorithm.
 /// (It is just a shallow wrapper around GDistribution.) It is used in conjunction with calls
 /// to GSupervisedLearner::predictDistribution. The predicted distributions will be either
@@ -88,7 +87,6 @@ public:
 	/// Returns the current distribution. Throws if it is not a normal distribution
 	GNormalDistribution* asNormal();
 };
-#endif // MIN_PREDICT
 
 
 
@@ -125,7 +123,6 @@ public:
 		throw Ex("This object is not intended to be copied by value");
 	}
 
-#ifndef MIN_PREDICT
 
 	/// Returns false because semi-supervised learners have no internal
 	/// model, so they can't evaluate previously unseen rows.
@@ -161,7 +158,6 @@ public:
 	/// to use however you want. It doesn't affect this method.
 	/// if pOutSAE is not NULL, the sum absolute error will be placed there.
 	double repValidate(const GMatrix& features, const GMatrix& labels, size_t reps, size_t nFolds, double* pOutSAE = NULL, RepValidateCallback pCB = NULL, void* pThis = NULL);
-#endif // MIN_PREDICT
 
 	/// Returns a reference to the random number generator associated with this object.
 	/// For example, you could use it to change the random seed, to make this algorithm behave differently.
@@ -206,10 +202,8 @@ public:
 	virtual bool supportedLabelRange(double* pOutMin, double* pOutMax) { return true; }
 
 protected:
-#ifndef MIN_PREDICT
 	/// This is the algorithm's implementation of transduction. (It is called by the transduce method.)
 	virtual std::unique_ptr<GMatrix> transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2) = 0;
-#endif // MIN_PREDICT
 };
 
 
@@ -232,11 +226,9 @@ public:
 	/// Destructor
 	virtual ~GSupervisedLearner();
 
-#ifndef MIN_PREDICT
 	/// Marshal this object into a DOM that can be converted to a variety
 	/// of formats. (Implementations of this method should use baseDomNode.)
 	virtual GDomNode* serialize(GDom* pDoc) const = 0;
-#endif // MIN_PREDICT
 
 	/// Returns true because fully supervised learners have an internal
 	/// model that allows them to generalize previously unseen rows.
@@ -251,11 +243,9 @@ public:
 	/// Returns false
 	virtual bool isFilter() { return false; }
 
-#ifndef MIN_PREDICT
 	/// Call this method to train the model.
 	void train(const GMatrix& features, const GMatrix& labels);
 
-#endif // MIN_PREDICT
 
 	/// Evaluate pIn to compute a prediction for pOut. The model must be trained
 	/// (by calling train) before the first time that this method is called.
@@ -264,14 +254,12 @@ public:
 	/// method.
 	virtual void predict(const GVec& in, GVec& out) = 0;
 
-#ifndef MIN_PREDICT
 	/// Evaluate pIn and compute a prediction for pOut. pOut is expected
 	/// to point to an array of GPrediction objects which have already been
 	/// allocated. There should be labelDims() elements in this array.
 	/// The distributions will be more accurate if the model is calibrated
 	/// before the first time that this method is called.
 	virtual void predictDistribution(const GVec& in, GPrediction* pOut) = 0;
-#endif // MIN_PREDICT
 
 	/// Discards all training for the purpose of freeing memory.
 	/// If you call this method, you must train before making any predictions.
@@ -280,7 +268,6 @@ public:
 	/// a comparable model.
 	virtual void clear() = 0;
 
-#ifndef MIN_PREDICT
 	/// Generates a confusion matrix containing the total counts of the number of times
 	/// each value was expected and predicted. (Rows represent target values, and columns
 	/// represent predicted values.) stats should be an empty vector. This method will
@@ -303,15 +290,12 @@ public:
 
 	/// Trains and tests this learner. Returns sum-squared-error.
 	virtual double trainAndTest(const GMatrix& trainFeatures, const GMatrix& trainLabels, const GMatrix& testFeatures, const GMatrix& testLabels, double* pOutSAE = NULL);
-#endif // MIN_PREDICT
 
-#ifndef MIN_PREDICT
 	/// This is a helper method used by the unit tests of several model learners
 	void basicTest(double minAccuracy1, double minAccuracy2, double deviation = 1e-6, bool printAccuracy = false, double warnRange = 0.035);
 
 	/// Runs some unit tests related to supervised learning. Throws an exception if any problems are found.
 	static void test();
-#endif // MIN_PREDICT
 protected:
 	/// Adds the function pIn to pOut after interpolating pIn to be the same size as pOut.
 	/// (This is a helper-function used by precisionRecall.)
@@ -320,15 +304,12 @@ protected:
 	/// This is the implementation of the model's training algorithm. (This method is called by train).
 	virtual void trainInner(const GMatrix& features, const GMatrix& labels) = 0;
 
-#ifndef MIN_PREDICT
 	/// See GTransducer::transduce
 	virtual std::unique_ptr<GMatrix> transduceInner(const GMatrix& features1, const GMatrix& labels1, const GMatrix& features2);
-#endif // MIN_PREDICT
 
 	/// This method determines which data filters (normalize, discretize,
 	/// and/or nominal-to-cat) are needed and trains them.
 	void setupFilters(const GMatrix& features, const GMatrix& labels);
-#ifndef MIN_PREDICT
 
 	/// This is a helper method used by precisionRecall.
 	size_t precisionRecallNominal(GPrediction* pOutput, double* pFunc, GMatrix& trainFeatures, GMatrix& trainLabels, GMatrix& testFeatures, GMatrix& testLabels, size_t label, int value);
@@ -338,7 +319,6 @@ protected:
 
 	/// Child classes should use this in their implementation of serialize
 	GDomNode* baseDomNode(GDom* pDoc, const char* szClassName) const;
-#endif // MIN_PREDICT
 };
 
 ///\brief Converts a GSupervisedLearner to a string
@@ -385,14 +365,12 @@ public:
 	/// Pass a single input row and the corresponding label to incrementally train this model.
 	virtual void trainIncremental(const GVec& in, const GVec& out) = 0;
 
-#ifndef MIN_PREDICT
 	/// Train using a sparse feature matrix. (A Typical implementation of this
 	/// method will first call beginIncrementalLearning, then it will
 	/// iterate over all of the feature rows, and for each row it
 	/// will convert the sparse row to a dense row, call trainIncremental
 	/// using the dense row, then discard the dense row and proceed to the next row.)
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels) = 0;
-#endif // MIN_PREDICT
 
 protected:
 	/// Prepare the model for incremental learning.
@@ -438,10 +416,8 @@ public:
 	/// Loads a learning algorithm from a DOM.
 	virtual GSupervisedLearner* loadLearner(const GDomNode* pNode);
 
-#ifndef MIN_PREDICT
 	/// Loads a collaborative filtering algorithm from a DOM.
 	virtual GCollaborativeFilter* loadCollaborativeFilter(const GDomNode* pNode);
-#endif // MIN_PREDICT
 };
 
 
@@ -502,10 +478,8 @@ public:
 
 	/// Returns a pointer to the base larner
 	GSupervisedLearner* baseLearner() { return m_pOriginal; }
-#ifndef MIN_PREDICT
 	/// Throws an exception
 	virtual void trainSparse(GSparseMatrix& features, GMatrix& labels);
-#endif // MIN_PREDICT
 };
 
 
@@ -687,9 +661,8 @@ public:
 	/// Destructor
 	virtual ~GBaselineLearner();
 
-#ifndef MIN_PREDICT
+	/// Run unit tests for this class.
 	static void test();
-#endif // MIN_PREDICT
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;

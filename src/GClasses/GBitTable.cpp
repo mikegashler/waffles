@@ -142,7 +142,6 @@ bool GBitTable::areAllClear(size_t count)
 	return true;
 }
 
-#ifndef MIN_PREDICT
 #define TEST_SIZE 2080
 // static
 void GBitTable::test()
@@ -187,4 +186,3 @@ void GBitTable::test()
 	if(!bt2.areAllSet(81))
 		throw Ex("failed");
 }
-#endif  // MIN_PREDICT

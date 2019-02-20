@@ -1422,7 +1422,8 @@ void makeHistogram(GArgReader& args)
 	{
 		size_t buckets = pData->relation().valueCount(attr);
 		GTEMPBUF(double, hist, buckets);
-		GVec::setAll(hist, 0.0, buckets);
+		GVecWrapper vw(hist, buckets);
+		vw.fill(0.0);
 		for(size_t i = 0; i < pData->rows(); i++)
 		{
 			int b = (int)pData->row(i)[attr];

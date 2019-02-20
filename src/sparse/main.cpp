@@ -383,7 +383,8 @@ void test(GArgReader& args)
 	GVec prediction(labels.cols());
 	GVec pFullRow(pData->cols());
 	GTEMPBUF(double, results, labels.cols());
-	GVec::setAll(results, 0.0, labels.cols());
+	GVecWrapper vw2(results, labels.cols());
+	vw2.fill(0.0);
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
 		pData->fullRow(pFullRow, i);

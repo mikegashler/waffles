@@ -20,10 +20,8 @@
 #include "GTokenizer.h"
 #include "GError.h"
 #include "GHolders.h"
-#ifndef MIN_PREDICT
 #include "GFile.h"
 #include "GString.h"
-#endif // MIN_PREDICT
 #include "GBitTable.h"
 #include <stdio.h>
 #include <string.h>

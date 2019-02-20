@@ -118,7 +118,8 @@ double GMixtureOfGaussians::iterate()
 	int i;
 	double x, d;
 	double likelihood = 0;
-	GVec::setAll(m_pTemp, 0.0, 3 * m_nKernelCount);
+	GVecWrapper vw(m_pTemp, 3 * m_nKernelCount);
+	vw.fill(0.0);
 	for(size_t j = 0; j < m_pData->rows(); j++)
 	{
 		x = m_pData->row(j)[m_nAttribute];

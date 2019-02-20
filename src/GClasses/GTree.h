@@ -734,9 +734,7 @@ public:
 	}
 };
 
-#ifndef MIN_PREDICT
 void GRelationalTable_test();
-#endif // !MIN_PREDICT
 
 } // namespace GClasses
 

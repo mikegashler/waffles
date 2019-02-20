@@ -44,90 +44,6 @@
 namespace GClasses {
 
 
-///\brief The class of all exceptions thrown by this library
-/// A simple exception object that wraps a string message
-class Ex : public std::exception
-{
-protected:
-	std::string m_message;
-
-public:
-	typedef std::string s;
-	Ex(s a) { setMessage(a); }
-	Ex(s a, s b) { setMessage(a + b); }
-	Ex(s a, s b, s c) { setMessage(a + b + c); }
-	Ex(s a, s b, s c, s d) { setMessage(a + b + c + d); }
-	Ex(s a, s b, s c, s d, s e) { setMessage(a + b + c + d + e); }
-	Ex(s a, s b, s c, s d, s e, s f) { setMessage(a + b + c + d + e + f); }
-	Ex(s a, s b, s c, s d, s e, s f, s g) { setMessage(a + b + c + d + e + f + g); }
-	Ex(s a, s b, s c, s d, s e, s f, s g, s h) { setMessage(a + b + c + d + e + f + g + h); }
-	Ex(s a, s b, s c, s d, s e, s f, s g, s h, s i) { setMessage(a + b + c + d + e + f + g + h + i); }
-	Ex(s a, s b, s c, s d, s e, s f, s g, s h, s i, s j) { setMessage(a + b + c + d + e + f + g + h + i + j); }
-
-	virtual ~Ex() throw()
-	{
-	}
-
-	/// Sets the message on the exception. (This method is called by all constructors of this object.)
-	void setMessage(std::string message);
-
-	/// Returns the error message corresponding to this exception
-	virtual const char* what() const throw();
-};
-
-
-#define INVALID_INDEX ((size_t)-1)
-
-
-void GAssertFailed(const char* filename, int line);
-void GAssertFailed(const char* filename, int line, const char* message);
-
-#ifdef _DEBUG
-#define GASSERT_HELPER1(x)\
-	{\
-		if(!(x))\
-			GAssertFailed(__FILE__, __LINE__);\
-	}
-#define GASSERT_HELPER2(x, msg)\
-	{\
-		if(!(x))\
-			GAssertFailed(__FILE__, __LINE__, msg);\
-	}
-#else // _DEBUG
-#define GASSERT_HELPER1(x) ((void)0)
-#define GASSERT_HELPER2(x, msg) ((void)0)
-#endif // else _DEBUG
-
-#define COUNT_GASSERT_ARGS_IMPL2(_1, _2, count, ...) \
-   count
-#define COUNT_GASSERT_ARGS_IMPL(args) \
-   COUNT_GASSERT_ARGS_IMPL2 args
-#define COUNT_GASSERT_ARGS(...) \
-   COUNT_GASSERT_ARGS_IMPL((__VA_ARGS__, 2, 1, 0))
- /* Pick the right helper macro to invoke. */
-#define GASSERT_CHOOSE_HELPER2(count) GASSERT_HELPER##count
-#define GASSERT_CHOOSE_HELPER1(count) GASSERT_CHOOSE_HELPER2(count)
-#define GASSERT_CHOOSE_HELPER(count) GASSERT_CHOOSE_HELPER1(count)
- /* The actual macro. */
-#define GASSERT_GLUE(x, y) x y
-#define GAssert(...) \
-   GASSERT_GLUE(GASSERT_CHOOSE_HELPER(COUNT_GASSERT_ARGS(__VA_ARGS__)), \
-               (__VA_ARGS__))
-
-
-
-///\brief Instantiating an object of this class specifies that any exceptions thrown
-/// during the life of this object should be treated as "expected".
-class GExpectException
-{
-protected:
-	bool m_prev;
-
-public:
-	GExpectException();
-	~GExpectException();
-};
-
 
 
 ///\brief Convert another type that has a stream-insertion operator <<
@@ -253,11 +169,91 @@ std::string to_str(const std::map<Key, T>& v){
   return to_str(v.begin(), v.end(),"map");
 }
 
-#ifndef MIN_PREDICT
-///\brief Run unit tests for the to_str functions.  Throws an
-///       exception if it detects an error
-void test_to_str();
-#endif // MIN_PREDICT
+
+///\brief The class of all exceptions thrown by this library
+/// A simple exception object that wraps a string message
+class Ex : public std::exception
+{
+protected:
+	std::string m_message;
+
+public:
+	typedef std::string s;
+	Ex(s a) { setMessage(a); }
+	Ex(s a, s b) { setMessage(a + b); }
+	Ex(s a, s b, s c) { setMessage(a + b + c); }
+	Ex(s a, s b, s c, s d) { setMessage(a + b + c + d); }
+	Ex(s a, s b, s c, s d, s e) { setMessage(a + b + c + d + e); }
+	Ex(s a, s b, s c, s d, s e, s f) { setMessage(a + b + c + d + e + f); }
+	Ex(s a, s b, s c, s d, s e, s f, s g) { setMessage(a + b + c + d + e + f + g); }
+	Ex(s a, s b, s c, s d, s e, s f, s g, s h) { setMessage(a + b + c + d + e + f + g + h); }
+	Ex(s a, s b, s c, s d, s e, s f, s g, s h, s i) { setMessage(a + b + c + d + e + f + g + h + i); }
+	Ex(s a, s b, s c, s d, s e, s f, s g, s h, s i, s j) { setMessage(a + b + c + d + e + f + g + h + i + j); }
+
+	virtual ~Ex() throw()
+	{
+	}
+
+	/// Sets the message on the exception. (This method is called by all constructors of this object.)
+	void setMessage(std::string message);
+
+	/// Returns the error message corresponding to this exception
+	virtual const char* what() const throw();
+};
+
+
+#define INVALID_INDEX ((size_t)-1)
+
+
+void GAssertFailed(const char* filename, int line);
+void GAssertFailed(const char* filename, int line, const char* message);
+
+#ifdef _DEBUG
+#define GASSERT_HELPER1(x)\
+	{\
+		if(!(x))\
+			GAssertFailed(__FILE__, __LINE__);\
+	}
+#define GASSERT_HELPER2(x, msg)\
+	{\
+		if(!(x))\
+			GAssertFailed(__FILE__, __LINE__, msg);\
+	}
+#else // _DEBUG
+#define GASSERT_HELPER1(x) ((void)0)
+#define GASSERT_HELPER2(x, msg) ((void)0)
+#endif // else _DEBUG
+
+#define COUNT_GASSERT_ARGS_IMPL2(_1, _2, count, ...) \
+   count
+#define COUNT_GASSERT_ARGS_IMPL(args) \
+   COUNT_GASSERT_ARGS_IMPL2 args
+#define COUNT_GASSERT_ARGS(...) \
+   COUNT_GASSERT_ARGS_IMPL((__VA_ARGS__, 2, 1, 0))
+ /* Pick the right helper macro to invoke. */
+#define GASSERT_CHOOSE_HELPER2(count) GASSERT_HELPER##count
+#define GASSERT_CHOOSE_HELPER1(count) GASSERT_CHOOSE_HELPER2(count)
+#define GASSERT_CHOOSE_HELPER(count) GASSERT_CHOOSE_HELPER1(count)
+ /* The actual macro. */
+#define GASSERT_GLUE(x, y) x y
+#define GAssert(...) \
+   GASSERT_GLUE(GASSERT_CHOOSE_HELPER(COUNT_GASSERT_ARGS(__VA_ARGS__)), \
+               (__VA_ARGS__))
+
+
+
+///\brief Instantiating an object of this class specifies that any exceptions thrown
+/// during the life of this object should be treated as "expected".
+class GExpectException
+{
+protected:
+	bool m_prev;
+
+public:
+	GExpectException();
+	~GExpectException();
+};
+
 
 
 
@@ -300,7 +296,8 @@ long filelength(int filedes);
 ///                  understand why it was written and have some help
 ///                  in diagnosing the bug.
 template<class T1, class T2>
-void TestEqual(const T1& expected, const T2& got, std::string test_descr){
+void TestEqual(const T1& expected, const T2& got, std::string test_descr)
+{
 	using std::endl;
 	if(!(expected == got)){
 		std::cerr

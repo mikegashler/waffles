@@ -2233,7 +2233,8 @@ void GContentBoostedCF::train(GMatrix& data)
 	GIndexVec::setAll(m_ratingCounts, 0, m_userMap.size());
 
 	m_pseudoRatingSum = new double[m_userMap.size()];
-	GVec::setAll(m_pseudoRatingSum, 0.0, m_userMap.size());
+	GVecWrapper vw(m_pseudoRatingSum, m_userMap.size());
+	vw.fill(0.0);
 
 	for(size_t i = 0; i < pClone->rows(); i++)
 		{

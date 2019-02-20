@@ -19,16 +19,14 @@
 
 #include "GMatrix.h"
 #include "GError.h"
-#ifndef MIN_PREDICT
-#	include "GAssignment.h"
-#	include "GMath.h"
-#	include "GDistribution.h"
-#	include "GFile.h"
-#	include "GHashTable.h"
-#	include "GBits.h"
-#	include "GNeighborFinder.h"
-#	include "GDistance.h"
-#endif // MIN_PREDICT
+#include "GAssignment.h"
+#include "GMath.h"
+#include "GDistribution.h"
+#include "GFile.h"
+#include "GHashTable.h"
+#include "GBits.h"
+#include "GNeighborFinder.h"
+#include "GDistance.h"
 #include "GVec.h"
 #include "GHeap.h"
 #include "GDom.h"
@@ -198,7 +196,6 @@ void GRelation::printRow(ostream& stream, const double* pRow, char separator, co
 	stream << "\n";
 }
 
-#ifndef MIN_PREDICT
 void GRelation::save(const GMatrix* pData, const char* szFilename) const
 {
 	std::ofstream stream;
@@ -218,7 +215,6 @@ void GRelation::save(const GMatrix* pData, const char* szFilename) const
 void GRelation::test()
 {
 }
-#endif // MIN_PREDICT
 
 
 
@@ -814,12 +810,10 @@ const char* GArffRelation::attrName(size_t nAttr) const
 	return m_attrs[nAttr].m_name.c_str();
 }
 
-#ifndef MIN_PREDICT
 void GArffRelation::setAttrName(size_t attr, const char* szNewName)
 {
 	m_attrs[attr].m_name = szNewName;
 }
-#endif // MIN_PREDICT
 
 int GArffRelation::addAttrValue(size_t nAttr, const char* szValue)
 {
@@ -903,7 +897,6 @@ double GArffRelation::parseValue(size_t attr, const char* val)
 	}
 }
 
-#ifndef MIN_PREDICT
 void GArffRelation::dropValue(size_t attr, int val)
 {
 	size_t valCount = valueCount(attr);
@@ -917,7 +910,6 @@ void GArffRelation::dropValue(size_t attr, int val)
 	}
 	GMixedRelation::setAttrValueCount(attr, valCount - 1);
 }
-#endif // MIN_PREDICT
 
 // ------------------------------------------------------------------
 
@@ -1006,7 +998,7 @@ bool GMatrix::operator==(const GMatrix& other) const{
 
 void GMatrix::setRelation(GRelation* pRelation)
 {
-	if(pRelation && rows() > 0 && pRelation->size() != m_pRelation->size())
+	if(pRelation && rows() > 0 && m_pRelation && pRelation->size() != m_pRelation->size())
 		throw Ex("Existing data incompatible with new relation");
 	if(m_pRelation != pRelation)
 	{
@@ -1088,7 +1080,6 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 		throw Ex("Unexpected attribute type, ", to_str(vals));
 }
 
-#ifndef MIN_PREDICT
 void GMatrix::parseArff(GArffTokenizer& tok, size_t maxRows)
 {
 	// Parse the meta data
@@ -1319,7 +1310,6 @@ GDomNode* GMatrix::serialize(GDom* pDoc) const
 	return pData;
 }
 
-#endif // MIN_PREDICT
 
 void GMatrix::col(size_t index, double* pOutVector)
 {
@@ -1357,7 +1347,6 @@ void GMatrix::add(const GMatrix* pThat, bool transposeThat, double scalar)
 	}
 }
 
-#ifndef MIN_PREDICT
 void GMatrix::dropValue(size_t attr, int val)
 {
 	if(attr >= cols())
@@ -1385,7 +1374,6 @@ void GMatrix::dropValue(size_t attr, int val)
 			r[attr] = UNKNOWN_DISCRETE_VALUE;
 	}
 }
-#endif // MIN_PREDICT
 
 void GMatrix::subtract(const GMatrix* pThat, bool transposeThat)
 {
@@ -2526,7 +2514,12 @@ void GMatrix::newColumns(size_t n)
 {
 	size_t oldSize = m_pRelation->size();
 	if(m_pRelation->type() == GRelation::UNIFORM)
-		setRelation(new GUniformRelation(m_pRelation->size() + n, m_pRelation->valueCount(0)));
+	{
+		size_t newSize = m_pRelation->size() + n;
+		size_t vals = m_pRelation->valueCount(0);
+		setRelation(nullptr);
+		setRelation(new GUniformRelation(newSize, vals));
+	}
 	else
 	{
 		for(size_t i = 0; i < n; i++)
@@ -2585,7 +2578,7 @@ void GMatrix::fill(double val, size_t colStart, size_t colCount)
 {
 	size_t count = std::min(cols() - colStart, colCount);
 	for(size_t i = 0; i < rows(); i++)
-		row(i).fill(val, colStart, colStart + count);
+		row(i).fill(val, colStart, count);
 }
 
 void GMatrix::fillUniform(GRand& rand, double min, double max)
@@ -3033,7 +3026,6 @@ double GMatrix::columnMean(size_t nAttribute, const GVec* pWeights, bool throwIf
 	}
 }
 
-#ifndef MIN_PREDICT
 double GMatrix::columnMedian(size_t nAttribute, bool throwIfEmpty) const
 {
 	if(nAttribute >= cols())
@@ -3067,7 +3059,6 @@ double GMatrix::columnMedian(size_t nAttribute, bool throwIfEmpty) const
 		return 0.5 * (*a + *b);
 	}
 }
-#endif // MIN_PREDICT
 
 void GMatrix::centroid(GVec& outCentroid, const GVec* pWeights) const
 {
@@ -4140,7 +4131,6 @@ GVec* GMatrix::swapRow(size_t i, GVec* pNewRow)
 	return pRow;
 }
 
-#ifndef MIN_PREDICT
 //static
 GSimpleAssignment GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMetric& metric)
 {
@@ -4156,10 +4146,8 @@ GSimpleAssignment GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMe
 	}
 	return linearAssignment(costs);
 }
-#endif // MIN_PREDICT
 
 
-#ifndef MIN_PREDICT
 void GMatrix_testParsing()
 {
 	const char* file =
@@ -4780,7 +4768,6 @@ void GMatrix::test()
 	GMatrix_testBoundingSphere(prng);
 	GMatrix_testImport();
 }
-#endif // !MIN_PREDICT
 
 std::string to_str(const GMatrix& m){
   std::stringstream out;

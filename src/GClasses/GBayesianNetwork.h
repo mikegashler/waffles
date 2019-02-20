@@ -724,10 +724,9 @@ public:
 	GBayesNet(size_t seed = 0);
 	~GBayesNet();
 
-#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if any tests fail.
 	static void test();
-#endif
+
 	/// Returns a reference to the pseudo-random number generator used by this network.
 	/// You might use this, for example, to change the random seed.
 	GRand& rand() { return m_rand; }

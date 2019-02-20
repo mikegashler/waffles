@@ -870,7 +870,8 @@ void GBrandesBetweennessCentrality::compute()
 		double* sigma = new double[2 * m_nodeCount];
 		std::unique_ptr<double[]> hSigma(sigma);
 		double* d = sigma + m_nodeCount;
-		GVec::setAll(sigma, 0.0, m_nodeCount);
+		GVecWrapper vw(sigma, m_nodeCount);
+		vw.fill(0.0);
 		sigma[s] = 1.0;
 
 		// Initialize distances
@@ -908,7 +909,8 @@ void GBrandesBetweennessCentrality::compute()
 		}
 
 		// Update the betweenness values
-		GVec::setAll(d, 0.0, m_nodeCount);
+		GVecWrapper vw2(d, m_nodeCount);
+		vw2.fill(0.0);
 		while(stack.size() > 0)
 		{
 			size_t w = stack.back();

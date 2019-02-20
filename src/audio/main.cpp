@@ -240,7 +240,8 @@ void makeSilence(GArgReader& args)
 	for(GWaveIterator it(w); it.remaining() > 0; it.advance())
 	{
 		double* pSample = it.current();
-		GVec::setAll(pSample, 0.0, channels);
+		GVecWrapper vw(pSample, channels);
+		vw.fill(0.0);
 		it.set(pSample);
 	}
 	w.save(filename);

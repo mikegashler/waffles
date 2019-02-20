@@ -22,6 +22,7 @@
 
 #include "GError.h"
 #include "GHeap.h"
+#include "GString.h"
 #include <iostream>
 
 namespace GClasses {
@@ -327,10 +328,8 @@ public:
 	GDom();
 	~GDom();
 
-#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // MIN_PREDICT
 
 	/// Clears the DOM.
 	void clear();

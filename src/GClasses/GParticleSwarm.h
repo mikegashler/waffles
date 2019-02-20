@@ -73,9 +73,7 @@ public:
 	GBouncyBalls(GTargetFunction* pCritic, size_t population, GRand& rand, double probTeleport = 0.01);
 	virtual ~GBouncyBalls();
 
-#ifndef MIN_PREDICT
 	static void test();
-#endif
 
 	virtual double iterate();
 	virtual const GVec& currentVector() { return m_positions[m_bestIndex]; }

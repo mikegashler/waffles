@@ -57,13 +57,11 @@ public:
 	GIncrementalTransform(const GDomNode* pNode);
 	virtual ~GIncrementalTransform();
 
-#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const = 0;
-#endif // MIN_PREDICT
 
 	/// Trains the transform on the data in pData. (This method may be a no-op
 	/// for transformations that always behave in the same manner.)
@@ -119,11 +117,9 @@ public:
 	/// This method may throw an exception if this transformation cannot be undone or approximately undone.
 	virtual void untransform(const GVec& in, GVec& out) = 0;
 
-#ifndef MIN_PREDICT
 	/// Similar to untransform, except it produces a distribution instead of just a vector.
 	/// This method may not be implemented in all classes, so it may throw an exception.
 	virtual void untransformToDistribution(const GVec& in, GPrediction* pOut) = 0;
-#endif // MIN_PREDICT
 
 	/// This assumes train was previously called, and untransforms all the rows in pIn and returns the results.
 	virtual std::unique_ptr<GMatrix> untransformBatch(const GMatrix& in);
@@ -204,10 +200,8 @@ public:
 	/// If pA or pB is nullptr, returns the other one, else chains them together.
 	static GIncrementalTransform* chain(GIncrementalTransform* pA, GIncrementalTransform* pB);
 	
-#ifndef MIN_PREDICT
 	/// See the comment for GIncrementalTransform::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
-#endif // MIN_PREDICT
 
 	/// See the comment for GIncrementalTransform::train
 	virtual void transform(const GVec& in, GVec& out);
@@ -215,10 +209,8 @@ public:
 	/// See the comment for GIncrementalTransform::untransform
 	virtual void untransform(const GVec& in, GVec& out);
 
-#ifndef MIN_PREDICT
 	/// See the comment for GIncrementalTransform::untransformToDistribution
 	virtual void untransformToDistribution(const GVec& in, GPrediction* pOut);
-#endif // MIN_PREDICT
 
 protected:
 	/// See the comment for GIncrementalTransform::train
@@ -253,10 +245,8 @@ public:
 
 	virtual ~GPCA();
 
-#ifndef MIN_PREDICT
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
-#endif // MIN_PREDICT
 
 	/// Specify to compute the eigenvalues during training. This
 	/// method must be called before train is called.
@@ -406,10 +396,8 @@ public:
 
 	virtual ~GDataAugmenter();
 
-#ifndef MIN_PREDICT
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
-#endif // MIN_PREDICT
 
 	/// See the comment for GIncrementalTransform::transform
 	virtual void transform(const GVec& in, GVec& out);
@@ -429,7 +417,6 @@ protected:
 };
 
 
-#ifndef MIN_PREDICT
 /// Generates subsets of data that contain only the most relevant features for predicting the labels.
 /// The train method of this class produces a ranked ordering of the feature attributes by training
 /// a single-layer neural network, and deselecting the weakest attribute until all attributes have been
@@ -486,7 +473,6 @@ protected:
 	/// Throws an exception (because this transform cannot be trained without data)
 	virtual GRelation* trainInner(const GRelation& relation);
 };
-#endif // MIN_PREDICT
 
 
 /// This is sort-of the opposite of discretize. It converts each nominal attribute to a categorical
@@ -520,10 +506,8 @@ public:
 	/// See the comment for GIncrementalTransform::untransform
 	virtual void untransform(const GVec& in, GVec& out);
 
-#ifndef MIN_PREDICT
 	/// See the comment for GIncrementalTransform::untransformToDistribution
 	virtual void untransformToDistribution(const GVec& in, GPrediction* pOut);
-#endif // MIN_PREDICT
 
 	/// Makes a mapping from the post-transform attribute indexes to the pre-transform attribute indexes
 	void reverseAttrMap(std::vector<size_t>& rmap);
@@ -630,7 +614,6 @@ protected:
 
 
 
-#ifndef MIN_PREDICT
 class GImputeMissingVals : public GIncrementalTransform
 {
 protected:
@@ -683,7 +666,6 @@ protected:
 	/// Throws an exception (because this transform cannot be trained without data)
 	virtual GRelation* trainInner(const GRelation& relation);
 };
-#endif // MIN_PREDICT
 
 
 /// This transform converts continuous values into logarithmic space.

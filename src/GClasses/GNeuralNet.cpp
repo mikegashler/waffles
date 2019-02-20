@@ -18,23 +18,17 @@
 */
 
 #include "GNeuralNet.h"
-#ifndef MIN_PREDICT
 #include "GMath.h"
 #include "GDistribution.h"
-#endif // MIN_PREDICT
 #include "GError.h"
 #include "GRand.h"
 #include "GVec.h"
 #include "GDom.h"
-#ifndef MIN_PREDICT
 #include "GHillClimber.h"
-#endif  // MIN_PREDICT
 #include "GTransform.h"
-#ifndef MIN_PREDICT
 #include "GSparseMatrix.h"
 #include "GDistance.h"
 #include "GAssignment.h"
-#endif // MIN_PREDICT
 #include "GHolders.h"
 #include "GBits.h"
 #include "GFourier.h"
@@ -575,7 +569,7 @@ void GBlockLinear::adjustInputRange(GVec& weights, size_t inputIndex, double old
 void GBlockLinear::biasMask(GVec& mask)
 {
 	mask.fill(1.0, 0, outputCount);
-	mask.fill(0.0, outputCount, mask.size());
+	mask.fill(0.0, outputCount, mask.size() - outputCount);
 }
 
 
@@ -811,34 +805,34 @@ void GBlockTemperedLinear::initWeights(GRand& rand, GVec& weights)
 
 
 
-size_t GBlockConv_countElements(const std::initializer_list<size_t>& dims)
+size_t GBlockConv_countElements(const std::initializer_list<size_t>& shape)
 {
 	size_t n = 1;
-	for(const size_t* it = begin(dims); it != end(dims); ++it)
+	for(const size_t* it = begin(shape); it != end(shape); ++it)
 		n *= *it;
 	return n;
 }
 
-GBlockConv::GBlockConv(const std::initializer_list<size_t>& inputDims, const std::initializer_list<size_t>& filterDims, const std::initializer_list<size_t>& outputDims)
-: GBlock(GBlockConv_countElements(inputDims), GBlockConv_countElements(outputDims)),
-filterSize(GBlockConv_countElements(filterDims)),
-tensorInput(nullptr, inputDims),
-tensorFilter(nullptr, filterDims),
-tensorOutput(nullptr, outputDims)
+GBlockConv::GBlockConv(const std::initializer_list<size_t>& inputShape, const std::initializer_list<size_t>& filterShape, const std::initializer_list<size_t>& outputShape)
+: GBlock(GBlockConv_countElements(inputShape), GBlockConv_countElements(outputShape)),
+filterSize(GBlockConv_countElements(filterShape)),
+tensorInput(inputShape, false),
+tensorFilter(filterShape, false),
+tensorOutput(outputShape, false)
 {
 	// Iterate over all of the shape values
 	filterCount = 1;
 	outputsPerFilter = 1;
-	const size_t* itIn = begin(inputDims);
-	const size_t* itFilt = begin(filterDims);
-	const size_t* itOut = begin(outputDims);
+	const size_t* itIn = begin(inputShape);
+	const size_t* itFilt = begin(filterShape);
+	const size_t* itOut = begin(outputShape);
 	while(true)
 	{
-		if(itIn != end(inputDims)) // If there are more input dimensions...
+		if(itIn != end(inputShape)) // If there are more input dimensions...
 		{
 			++itIn;
 			++itFilt;
-			if(itOut != end(outputDims)) // If there are more output dimensions...
+			if(itOut != end(outputShape)) // If there are more output dimensions...
 			{
 				outputsPerFilter *= *itOut;
 				++itOut;
@@ -846,7 +840,7 @@ tensorOutput(nullptr, outputDims)
 		}
 		else
 		{
-			if(itFilt == end(filterDims)) // If there are more filter dimensions...
+			if(itFilt == end(filterShape)) // If there are more filter dimensions...
 				break;
 			filterCount *= *itFilt;
 			++itFilt;
@@ -855,16 +849,16 @@ tensorOutput(nullptr, outputDims)
 	filterSize /= filterCount;
 	if(filterCount * outputsPerFilter != outputCount)
 		throw Ex("output dimensions do not work with input and filter dimensions");
-	while(tensorFilter.dims.size() > tensorInput.dims.size())
-		tensorFilter.dims.erase(tensorFilter.dims.size() - 1);
-	while(tensorOutput.dims.size() > tensorInput.dims.size())
-		tensorOutput.dims.erase(tensorOutput.dims.size() - 1);
-	if(tensorOutput.dims.size() < tensorFilter.dims.size())
+	while(tensorFilter.shape.size() > tensorInput.shape.size())
+		tensorFilter.shape.erase(tensorFilter.shape.size() - 1);
+	while(tensorOutput.shape.size() > tensorInput.shape.size())
+		tensorOutput.shape.erase(tensorOutput.shape.size() - 1);
+	if(tensorOutput.shape.size() < tensorFilter.shape.size())
 	{
-		size_t old = tensorOutput.dims.size();
-		tensorOutput.dims.append(tensorFilter.dims.size() - tensorOutput.dims.size());
-		for(size_t i = old; i < tensorFilter.dims.size(); i++)
-			tensorOutput.dims[i] = 1;
+		size_t old = tensorOutput.shape.size();
+		tensorOutput.shape.append(tensorFilter.shape.size() - tensorOutput.shape.size());
+		for(size_t i = old; i < tensorFilter.shape.size(); i++)
+			tensorOutput.shape[i] = 1;
 	}
 }
 
@@ -879,23 +873,23 @@ outputsPerFilter(that.outputsPerFilter)
 {
 }
 
-size_t GBlockConv_countTensorSize(const GIndexVec& dims)
+size_t GBlockConv_countTensorSize(const GIndexVec& shape)
 {
 	size_t n = 1;
-	for(size_t i = 0; i < dims.size(); i++)
-		n *= dims[i];
+	for(size_t i = 0; i < shape.size(); i++)
+		n *= shape[i];
 	return n;
 }
 
 GBlockConv::GBlockConv(GDomNode* pNode)
 : GBlock(pNode),
-tensorInput(pNode->get("inputDims")),
-tensorFilter(pNode->get("filterDims")),
-tensorOutput(pNode->get("outputDims")),
+tensorInput(pNode->get("inputShape")),
+tensorFilter(pNode->get("filterShape")),
+tensorOutput(pNode->get("outputShape")),
 filterCount(pNode->getInt("filterCount")),
 outputsPerFilter(outputCount / filterCount)
 {
-	filterSize = GBlockConv_countTensorSize(tensorFilter.dims) / filterCount;
+	filterSize = GBlockConv_countTensorSize(tensorFilter.shape) / filterCount;
 	if(filterCount * outputsPerFilter != outputCount)
 		throw Ex("output dimensions do not work with input and filter dimensions");
 }
@@ -904,9 +898,9 @@ GDomNode* GBlockConv::serialize(GDom* pDoc) const
 {
 	GDomNode* pNode = baseDomNode(pDoc);
 	pNode->add(pDoc, "filterCount", filterCount);
-	pNode->add(pDoc, "inputDims", tensorInput.dims.serialize(pDoc));
-	pNode->add(pDoc, "filterDims", tensorFilter.dims.serialize(pDoc));
-	pNode->add(pDoc, "outputDims", tensorOutput.dims.serialize(pDoc));
+	pNode->add(pDoc, "inputShape", tensorInput.shape.serialize(pDoc));
+	pNode->add(pDoc, "filterShape", tensorFilter.shape.serialize(pDoc));
+	pNode->add(pDoc, "outputShape", tensorOutput.shape.serialize(pDoc));
 	return pNode;
 }
 
@@ -2941,7 +2935,6 @@ void GNeuralNet::prune(GVec& weights)
 	}
 }
 */
-#ifndef MIN_PREDICT
 void GNeuralNet_finiteDifferencingTest(GNeuralNet& nn, GVec& weights, GVec& x)
 {
 	size_t outputCount = nn.outputs();
@@ -3086,7 +3079,6 @@ void GNeuralNet::test()
 	GNeuralNet_testSerializationRoundTrip();
 }
 
-#endif // MIN_PREDICT
 
 
 
@@ -3488,7 +3480,6 @@ void GNeuralNet::splitNode(size_t lay, size_t index, GRand& rand)
 	}
 }
 
-#ifndef MIN_PREDICT
 void GNeuralNet::align(const GNeuralNet& that)
 {
 	if(layerCount() != that.layerCount())
@@ -3566,7 +3557,6 @@ void GNeuralNet::align(const GNeuralNet& that)
 			throw Ex("I don't know how to align this type of layer");
 	}
 }
-#endif // MIN_PREDICT
 
 GMatrix* GNeuralNet::compressFeatures(GMatrix& features)
 {
@@ -3766,7 +3756,6 @@ GNeuralNetOptimizer& GNeuralNetLearner::optimizer()
 	return *m_pOptimizer;
 }
 
-#ifndef MIN_PREDICT
 // virtual
 GDomNode* GNeuralNetLearner::serialize(GDom* pDoc) const
 {
@@ -3774,7 +3763,6 @@ GDomNode* GNeuralNetLearner::serialize(GDom* pDoc) const
 	pNode->add(pDoc, "nn", m_nn.serialize(pDoc));
 	return pNode;
 }
-#endif // MIN_PREDICT
 
 void GNeuralNetLearner::trainIncremental(const GVec &in, const GVec &out)
 {
@@ -3823,13 +3811,11 @@ bool GNeuralNetLearner::supportedLabelRange(double* pOutMin, double* pOutMax)
 	return false;
 }
 
-#ifndef MIN_PREDICT
 // virtual
 void GNeuralNetLearner::predictDistribution(const GVec& in, GPrediction* pOut)
 {
 	throw Ex("Sorry, this model does not predict a distribution");
 }
-#endif // MIN_PREDICT
 
 // virtual
 void GNeuralNetLearner::predict(const GVec& in, GVec& out)
@@ -3853,7 +3839,6 @@ void GNeuralNetLearner::beginIncrementalLearningInner(const GRelation& featureRe
 }
 
 
-#ifndef MIN_PREDICT
 void GNeuralNet_testMath()
 {
 	GMatrix features(0, 2);
@@ -3941,7 +3926,6 @@ void GNeuralNetLearner::test()
 	GNeuralNet_testMath();
 }
 
-#endif // MIN_PREDICT
 
 
 

@@ -458,7 +458,8 @@ void blendEmbeddings(GArgReader& args)
 	size_t startPoint = (size_t)prng.next(pDataA->rows());
 	double* pRatios = new double[pDataA->rows()];
 	ArrayHolder<double> hRatios(pRatios);
-	GVec::setAll(pRatios, 0.5, pDataA->rows());
+	GVecWrapper vw(pRatios, pDataA->rows());
+	vw.fill(0.5);
 	GMatrix* pDataC = GManifold::blendEmbeddings(pDataA, pRatios, pDataB, neighborCount, (GNeighborGraph*)pNF, startPoint);
 	Holder<GMatrix> hDataC(pDataC);
 	pDataC->print(cout);

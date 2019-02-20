@@ -149,7 +149,6 @@ double GBouncyBalls::iterate()
 	return m_errors[m_bestIndex];
 }
 
-#ifndef MIN_PREDICT
 // static
 void GBouncyBalls::test()
 {
@@ -158,7 +157,6 @@ void GBouncyBalls::test()
 	GBouncyBalls opt(&target, 10, rand, 0.01);
 	opt.basicTest(0.002);
 }
-#endif
 
 
 

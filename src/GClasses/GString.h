@@ -25,6 +25,13 @@
 
 namespace GClasses {
 
+
+///\brief Run unit tests for the to_str functions.  Throws an
+///       exception if it detects an error
+void test_to_str();
+
+
+
 /// This is similar to strncpy, but it always makes sure that
 /// there is a null-terminating '\0' at the end of the new string.
 /// Returns the length of the new string.

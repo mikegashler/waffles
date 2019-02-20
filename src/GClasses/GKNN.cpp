@@ -725,7 +725,8 @@ std::unique_ptr<GMatrix> GNeighborTransducer::transduceInner(const GMatrix& feat
 				GVec& row = labelList.row(i);
 				size_t index = (size_t)row[0];
 				pNF->findNearest(m_friendCount, index);
-				GVec::setAll(tallys, 0.0, labelValues);
+				GVecWrapper vw2(tallys, labelValues);
+				vw2.fill(0.0);
 				for(size_t j = 0; j < m_friendCount; j++)
 				{
 					if(pNF->neighbor(j) >= features2.rows())

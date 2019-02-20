@@ -1059,7 +1059,6 @@ void GBayesNet::sample()
 		(*it)->sample(&m_rand);
 }
 
-#ifndef MIN_PREDICT
 void GBayesNet_simpleTest()
 {
 	GBayesNet bn;
@@ -1190,5 +1189,4 @@ void GBayesNet::test()
 	GBayesNet_threeTest();
 	GBayesNet_alarmTest();
 }
-#endif
 

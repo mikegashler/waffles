@@ -271,7 +271,6 @@ public:
 };
 
 
-#ifndef MIN_PREDICT
 class GOptimizerBasicTestTargetFunction : public GTargetFunction
 {
 public:
@@ -279,7 +278,6 @@ public:
 
 	virtual double computeError(const GVec& vector);
 };
-#endif // MIN_PREDICT
 
 
 /// This is the base class of all search algorithms
@@ -313,10 +311,8 @@ public:
 	/// stable, then the value of nIterations should be large.
 	double searchUntil(size_t nBurnInIterations, size_t nIterations, double dImprovement);
 
-#ifndef MIN_PREDICT
 	/// This is a helper method used by the unit tests of several model learners
 	void basicTest(double minAccuracy, double warnRange = 0.001);
-#endif // MIN_PREDICT
 
 };
 

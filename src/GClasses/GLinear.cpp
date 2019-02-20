@@ -685,7 +685,8 @@ bool GLinearProgramming::simplexMethod(GMatrix* pA, const double* pB, int leCons
 	// Extract the results
 	if(icase)
 		return false; // No solution. (icase gives an error code)
-	GVec::setAll(pOutX, 0.0, pA->cols());
+	GVecWrapper vw(pOutX, pA->cols());
+	vw.fill(0.0);
 	for(size_t i = 1; i <= pA->rows(); i++)
 	{
 		int index = iposv[i];
