@@ -297,10 +297,8 @@ public:
 	/// Disconnect from the specified client.
 	void disconnect(GPackageConnection* pConn);
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // !NO_TEST_CODE
 
 	/// Sets some internal values that guide how it reallocates the internal
 	/// buffer. 'a' is the maximum buffer size to keep around. 'b' is the

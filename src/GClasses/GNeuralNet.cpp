@@ -458,6 +458,21 @@ void GBlockLinear::backProp(const GVec& weights)
 	}
 }
 
+double GBlockLinear::learningRateGradient(const GVec& gradient)
+{
+	double sum = 0.0;
+	size_t pos = 0;
+	for(size_t j = 0; j < outputCount; j++)
+		sum += gradient[pos++];
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		double act = input[i];
+		for(size_t j = 0; j < outputCount; j++)
+			sum += gradient[pos++] * act;
+	}
+	return sum;
+}
+
 void GBlockLinear::updateGradient(GVec& weights, GVec& gradient)
 {
 	size_t pos = 0;
@@ -966,7 +981,6 @@ void GBlockConv::initWeights(GRand& rand, GVec& weights)
 	weights.fillNormal(rand, 1.0 / filterSize);
 }
 
-#ifndef NO_TEST_CODE
 void GBlockConv::test()
 {
 	GNeuralNet nn;
@@ -1001,7 +1015,6 @@ void GBlockConv::test()
 	if(std::abs(6.0 - grad[3]) > 1e-8) throw Ex("wrong");
 */
 }
-#endif // NO_TEST_CODE
 
 
 
@@ -1709,6 +1722,7 @@ void GBlockCatIn::backProp(const GVec& weights)
 
 void GBlockCatIn::updateGradient(GVec& weights, GVec& gradient)
 {
+	GAssert(gradient.size() == outBlame.size());
 	gradient.copy(outBlame);
 }
 
@@ -2300,6 +2314,21 @@ void GLayer::backProp(const GVec& weights)
 	GAssert(pos == 0);
 }
 
+double GLayer::learningRateGradient(const GVec& gradient)
+{
+	double sum = 0.0;
+	size_t posGrad = 0;
+	for(size_t i = 0; i < blockCount(); i++)
+	{
+		GBlock& b = block(i);
+		size_t gc = b.gradCount();
+		GConstVecWrapper g(gradient, posGrad, gc);
+		posGrad += gc;
+		sum += b.learningRateGradient(g);
+	}
+	return sum;
+}
+
 void GLayer::updateGradient(GVec& weights, GVec& gradient)
 {
 	size_t posWeights = 0;
@@ -2624,6 +2653,22 @@ void GNeuralNet::backpropagate(const GVec& weights, GVec* inputBlame)
 		backPropFast(weights);
 }
 
+double GNeuralNet::learningRateGradient(const GVec& gradient)
+{
+	double sum = 0.0;
+	size_t posGrad = 0;
+	GConstVecWrapper g;
+	for(size_t i = 0; i < m_layers.size(); i++)
+	{
+		GLayer& lay = *m_layers[i];
+		size_t gc = lay.gradCount();
+		g.setData(gradient, posGrad, gc);
+		posGrad += gc;
+		sum += lay.learningRateGradient(g);
+	}
+	return sum;
+}
+
 void GNeuralNet::updateGradient(GVec& weights, GVec& gradient)
 {
 	size_t posWeights = 0;
@@ -2690,8 +2735,12 @@ void GNeuralNet::step(GVec& gradient, GVec& weights, double learningRate, double
 void GNeuralNet::recount()
 {
 	m_weightCount = 0;
+	m_gradCount = 0;
 	for(size_t i = 0; i < m_layers.size(); i++)
+	{
 		m_weightCount += m_layers[i]->weightCount();
+		m_gradCount += m_layers[i]->gradCount();
+	}
 }
 
 size_t GNeuralNet::weightCount() const
@@ -2699,6 +2748,13 @@ size_t GNeuralNet::weightCount() const
 	if(m_weightCount == 0)
 		((GNeuralNet*)this)->recount();
 	return m_weightCount;
+}
+
+size_t GNeuralNet::gradCount() const
+{
+	if(m_weightCount == 0)
+		((GNeuralNet*)this)->recount();
+	return m_gradCount;
 }
 
 void GNeuralNet::copyStructure(const GNeuralNet* pOther, GRand& rand)
@@ -2942,21 +2998,21 @@ void GNeuralNet_finiteDifferencingTest(GNeuralNet& nn, GVec& weights, GVec& x)
 	// Do it with finite differencing
 	double epsilon = 1e-6;
 	GMatrix measured(outputCount, nn.weightCount());
-	GVec predNeg;
 	GVec xx;
+	GVec predNegCopy;
 	for(size_t i = 0; i < nn.weightCount(); i++)
 	{
 		weights[i] -= epsilon / 2.0;
-		GVec predNeg(nn.forwardProp(weights, x));
+		predNegCopy.copy(nn.forwardProp(weights, x));
 		weights[i] += epsilon;
 		GVec& predPos = nn.forwardProp(weights, x);
 		weights[i] -= epsilon / 2.0;
 		for(size_t j = 0; j < outputCount; j++)
-			measured[j][i] = (predPos[j] - predNeg[j]) / epsilon;
+			measured[j][i] = (predPos[j] - predNegCopy[j]) / epsilon;
 	}
 
 	// Do it with back-prop
-	GMatrix computed(outputCount, nn.weightCount());
+	GMatrix computed(outputCount, nn.gradCount());
 	GVec& pred = nn.forwardProp(weights, x);
 	GVec targ;
 	targ.copy(pred);

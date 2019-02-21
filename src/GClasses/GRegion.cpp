@@ -994,15 +994,14 @@ void GSubImageFinder::findSubImage(int* pOutX, int* pOutY, GImage* pNeedle, GRec
 		for(x = 0; x < m_nHaystackWidth; x++)
 		{
 			d = m_pCorRed[pos].real * m_pCorGreen[pos].real * m_pCorBlue[pos].real;
-			corr.setPixel(x, y, gFromGray(MAX((int)0, (int)(d * 255 * 256 / dBest))));
+			corr.setPixel(x, y, gFromGray(std::max((int)0, (int)(d * 255 * 256 / dBest))));
 			pos++;
 		}
 	}
-	corr.savePng("correlat.png");
+	corr.savePpm("correlat.ppm");
 */
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GSubImageFinder::test()
 {
@@ -1034,9 +1033,8 @@ void GSubImageFinder::test()
 	int x, y;
 	finder.findSubImage(&x, &y, &bar, &r, &r2);
 	if(x != 13 || y != 17)
-		throw "wrong answer";
+		throw Ex("wrong answer");
 }
-#endif // NO_TEST_CODE
 
 
 
@@ -1157,7 +1155,6 @@ void GSubImageFinder2::findSubImage(int* pOutX, int* pOutY, GImage* pNeedle, GRe
 	*pOutY = (*itBest)->m_y;
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GSubImageFinder2::test()
 {
@@ -1189,9 +1186,8 @@ void GSubImageFinder2::test()
 	int x, y;
 	finder.findSubImage(&x, &y, &bar, &r);
 	if(x != 13 || y != 17)
-		throw "wrong answer";
+		throw Ex("wrong answer");
 }
-#endif // NO_TEST_CODE
 
 
 

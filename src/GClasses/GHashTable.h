@@ -127,10 +127,8 @@ public:
 	{
 	}
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // !NO_TEST_CODE
 
 	/// Computes a hash of the key
 	virtual size_t hash(const char* pKey, size_t nBucketCount)

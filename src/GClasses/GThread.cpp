@@ -163,7 +163,6 @@ void GSpinLock::unlock()
 }
 
 
-#ifndef NO_TEST_CODE
 
 #define THREAD_COUNT 3 // 100
 #define THREAD_ITERATIONS 500 // 2000
@@ -237,7 +236,7 @@ void GSpinLock::test()
 		pThreadStruct->nOne = 1;
 		THREAD_HANDLE hThread = GThread::spawnThread(TestSpinLockThread, pThreadStruct);
 		if(hThread == BAD_HANDLE)
-			throw "failed";
+			throw Ex("failed");
 	}
 
 	// wait until all the threads are done
@@ -259,10 +258,9 @@ void GSpinLock::test()
 
 	// Check the final balance
 	if(nBalance != THREAD_COUNT * THREAD_ITERATIONS)
-		throw "failed";
+		throw Ex("failed");
 }
 
-#endif // !NO_TEST_CODE
 
 
 

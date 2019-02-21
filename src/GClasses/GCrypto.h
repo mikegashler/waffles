@@ -48,9 +48,7 @@ public:
 
 	void doChunk(char* pData, size_t nDataSize);
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 };
 
 }

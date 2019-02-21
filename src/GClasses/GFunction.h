@@ -95,10 +95,8 @@ public:
 	GFunctionParser();
 	virtual ~GFunctionParser();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
 
 	/// Parses the given string and adds its contents to the set of known functions and values.
 	void add(const char* szEquations);

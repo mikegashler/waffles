@@ -30,10 +30,10 @@ class GRect;
 class GRand;
 class GDoubleRect;
 
-#define gBlue(c) ((int)((c) & 0xff))
-#define gGreen(c) ((int)(((c) >> 8) & 0xff))
-#define gRed(c) ((int)(((c) >> 16) & 0xff))
-#define gAlpha(c) ((int)(((c) >> 24) & 0xff))
+#define gBlue(c) ((c) & 0xff)
+#define gGreen(c) (((c) >> 8) & 0xff)
+#define gRed(c) (((c) >> 16) & 0xff)
+#define gAlpha(c) (((c) >> 24) & 0xff)
 #define gGray(c) (77 * gRed(c) + 150 * gGreen(c) + 29 * gBlue(c))
 #define MAX_GRAY_VALUE (255 * 256)
 
@@ -51,11 +51,6 @@ inline int ClipChan(int n)
 inline unsigned int gRGB(int r, int g, int b)
 {
 	return ((b & 0xff) | ((g & 0xff) << 8) | ((r & 0xff) << 16) | 0xff000000);
-}
-
-inline unsigned int gRGB(double r, double g, double b)
-{
-	return ((ClipChan((int)b) & 0xff) | ((ClipChan((int)g) & 0xff) << 8) | ((ClipChan((int)r) & 0xff) << 16) | 0xff000000);
 }
 
 inline unsigned int gARGB(int a, int r, int g, int b)

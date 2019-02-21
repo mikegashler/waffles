@@ -646,7 +646,6 @@ void GKNN::clear()
 	m_valueCounts.resize(0);
 }
 
-#ifndef NO_TEST_CODE
 //static
 void GKNN::test()
 {
@@ -654,7 +653,7 @@ void GKNN::test()
 	knn.setNeighborCount(3);
 	knn.basicTest(0.72, 0.92, 0.1);
 }
-#endif
+
 
 // ---------------------------------------------------------------------------------------
 
@@ -1125,7 +1124,6 @@ void GSparseInstance::clear()
 	m_pSkipRows = NULL;
 }
 
-#ifndef NO_TEST_CODE
 //static
 void GSparseInstance::test()
 {
@@ -1133,7 +1131,6 @@ void GSparseInstance::test()
 	learner.setNeighborCount(3);
 	learner.basicTest(0.0, 0.0);
 }
-#endif
 
 
 

@@ -659,7 +659,8 @@ void GVec::test()
 	GVec v1(2);
 	v1[0] = 2.0;
 	v1[1] = 7.0;
-	GVec v2(v1);
+	GVec v2;
+	v2.copy(v1);
 	if(v2.size() != 2)
 		throw Ex("failed");
 	if(v1.squaredDistance(v2) != 0.0)
@@ -1698,6 +1699,7 @@ void GTensor::test()
 		GTensor tk({3}, false, &k);
 
 		GVec out(7);
+		out.fill(0.0);
 		GTensor tout({7}, false, &out);
 
 		GTensor::convolve(tin, tk, tout, true, 1);
@@ -1730,6 +1732,7 @@ void GTensor::test()
 		GTensor tk({3, 3}, false, &k);
 
 		GVec out(9);
+		out.fill(0.0);
 		GTensor tout({3, 3}, false, &out);
 
 		GTensor::convolve(tin, tk, tout, false, 1);
@@ -1742,7 +1745,9 @@ void GTensor::test()
 			}
 		);
 		if(std::sqrt(out.squaredDistance(expected)) > 1e-10)
+		{
 			throw Ex("wrong");
+		}
 	}
 }
 

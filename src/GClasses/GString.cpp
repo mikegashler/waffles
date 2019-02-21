@@ -206,8 +206,7 @@ void test_to_str(){
 
 	TestEqual("00012", to_fixed_str((size_t)12, 5, '0'),"Failed to_fixed_str(1)");
 	TestEqual("0.333", to_fixed_str(1.0 / 3.0, 5, '0'),"Failed to_fixed_str(2)");
-	TestEqual("0.667", to_fixed_str(3.0 / 3.0, 5, '0'),"Failed to_fixed_str(3)");
-	TestEqual("1.2e29", to_fixed_str(123456789012345678901234567890.1, 6, '0'),"Failed to_fixed_str(4)");
+	TestEqual("1.2e+29", to_fixed_str(123456789012345678901234567890.1, 7, '0'),"Failed to_fixed_str(4)");
 }
 
 

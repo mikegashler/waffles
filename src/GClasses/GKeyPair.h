@@ -39,9 +39,7 @@ public:
 	GKeyPair(GDomNode* pNode);
 	virtual ~GKeyPair();
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif // !NO_TEST_CODE
 
 	// Serialize the key pair
 	GDomNode* serialize(GDom* pDoc, bool bIncludePrivateKey);

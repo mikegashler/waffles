@@ -204,7 +204,6 @@ void GLinearRegressor::autoTune(GMatrix& features, GMatrix& labels)
 	// This model has no parameters to tune
 }
 
-#ifndef NO_TEST_CODE
 void GLinearRegressor_linear_test(GRand& prng)
 {
 	// Train
@@ -257,7 +256,6 @@ void GLinearRegressor::test()
 	GAutoFilter af(new GLinearRegressor ());
 	af.basicTest(0.76, 0.93);
 }
-#endif
 
 
 
@@ -284,7 +282,6 @@ GLinearDistribution::~GLinearDistribution()
 	clear();
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GLinearDistribution::test()
 {
@@ -292,7 +289,6 @@ void GLinearDistribution::test()
 	GAutoFilter af(new GLinearDistribution());
 	af.basicTest(0.69, 0.95);
 }
-#endif
 
 // virtual
 GDomNode* GLinearDistribution::serialize(GDom* pDoc) const
@@ -697,7 +693,6 @@ bool GLinearProgramming::simplexMethod(GMatrix* pA, const double* pB, int leCons
 }
 
 
-#ifndef NO_TEST_CODE
 // static
 void GLinearProgramming::test()
 {
@@ -720,7 +715,6 @@ void GLinearProgramming::test()
 	if(std::abs(0.95 - x[3]) > 1e-6)
 		throw Ex("failed");
 }
-#endif
 
 
 

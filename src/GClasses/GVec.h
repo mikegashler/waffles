@@ -274,6 +274,9 @@ private:
 	/// This method is deliberately private, so calling it will trigger a compiler error. Call "fill" instead.
 	GVec(double d);
 
+	/// This method is deliberately private, so calling it will trigger a compiler error. Call "copy" instead.
+	GVec(const GVec& copyme) { throw Ex("This is not a copy constructor. Use the 'copy' method instead."); }
+
 public:
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();

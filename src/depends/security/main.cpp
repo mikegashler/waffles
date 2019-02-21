@@ -1440,7 +1440,7 @@ public:
 		m_nMagicPos = 0;
 		m_pLogFile = fopen(szFilename, "a");
 		if(!m_pLogFile)
-			throw "Failed to open log file\n";
+			throw Ex("Failed to open log file");
 		fprintf(m_pLogFile, "\n== Begin at %s ==\n", GTime::asciiTime(time_buf, 64, false));
 		m_pKeyboard = new GKeyboard(KeyStrokeHandler, this);
 		m_lastKeyTime = GTime::seconds();

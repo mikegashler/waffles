@@ -219,10 +219,8 @@ public:
 	GSubImageFinder(GImage* pHaystack);
 	~GSubImageFinder();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // NO_TEST_CODE
 
 	/// The width and height of pNeedleRect must be powers of 2 and less than
 	/// the dimensions of pHaystack. pNeedleRect specifies the portion of pNeedle
@@ -244,10 +242,8 @@ public:
 	GSubImageFinder2(GImage* pHaystack);
 	~GSubImageFinder2();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // NO_TEST_CODE
 
 	/// Finds the best x and y positions of pNeedle within pHaystack. It is assumed that the
 	/// needle fits entirely within the haystack. There are no restrictions on image sizes.

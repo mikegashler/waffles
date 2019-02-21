@@ -258,7 +258,6 @@ void GHashTableBase::_Remove(const char* pKey)
 	}
 }
 
-#ifndef NO_TEST_CODE
 
 #define TEST_HASH_TABLE_ELEMENTS 32000
 
@@ -305,7 +304,6 @@ void GHashTable::test()
 		}
 	}
 }
-#endif // !NO_TEST_CODE
 
 // ------------------------------------------------------------------------------
 

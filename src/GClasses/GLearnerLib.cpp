@@ -353,39 +353,6 @@ GBayesianModelCombination* GLearnerLib::InstantiateBMC(GArgReader& args, GMatrix
 	return pEnsemble;
 }
 
-GBomb* GLearnerLib::InstantiateBomb(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
-{
-	GBomb* pEnsemble = new GBomb();
-	size_t samples = 100;
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-samples"))
-			samples = args.pop_uint();
-		else
-			throw Ex("Invalid option: ", args.peek());
-	}
-	pEnsemble->setSamples(samples);
-	while(args.size() > 0)
-	{
-		if(args.if_pop("end"))
-			break;
-		int instance_count = args.pop_uint();
-		int arg_pos = args.get_pos();
-		for(int i = 0; i < instance_count; i++)
-		{
-			args.set_pos(arg_pos);
-			GTransducer* pLearner = InstantiateAlgorithm(args, pFeatures, pLabels);
-			if(!pLearner->canGeneralize())
-			{
-				delete(pLearner);
-				throw Ex("Bomb does not support algorithms that cannot generalize.");
-			}
-			pEnsemble->addLearner((GSupervisedLearner*)pLearner);
-		}
-	}
-	return pEnsemble;
-}
-
 GResamplingAdaBoost* GLearnerLib::InstantiateBoost(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	double trainingSizeRatio = 1;
@@ -834,8 +801,6 @@ GTransducer* GLearnerLib::InstantiateAlgorithm(GArgReader& args, GMatrix* pFeatu
 			pAlg = InstantiateBMA(args, pFeatures, pLabels);
 		else if(args.if_pop("bmc"))
 			pAlg = InstantiateBMC(args, pFeatures, pLabels);
-		else if(args.if_pop("bomb"))
-			pAlg = InstantiateBomb(args, pFeatures, pLabels);
 		else if(args.if_pop("boost"))
 			pAlg = InstantiateBoost(args, pFeatures, pLabels);
 		else if(args.if_pop("bucket"))

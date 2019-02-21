@@ -783,10 +783,8 @@ public:
 
   virtual ~GSelfOrganizingMap();
 
-#ifndef NO_TEST_CODE
   /// Performs unit tests for this class. Throws an exception if there is a failure.
   static void test();
-#endif
 
   /// Transforms pIn after training on it
   virtual GMatrix* reduce(const GMatrix& in) override;

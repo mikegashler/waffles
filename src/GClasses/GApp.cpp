@@ -170,7 +170,7 @@ void GPipe::toFile(const char* szFilename)
 	// Fork the first time
 	int firstPid = fork();
 	if(firstPid < 0)
-		throw "Error forking off the child process in GApp::LaunchDaemon";
+		throw Ex("Error forking off the child process in GApp::LaunchDaemon");
 	if(firstPid) // If I am the parent process...
 	{
 		int status;

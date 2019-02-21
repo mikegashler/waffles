@@ -492,9 +492,7 @@ public:
 		return out;
 	}
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 };
 
 } // namespace GClasses

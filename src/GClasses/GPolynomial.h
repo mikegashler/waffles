@@ -56,10 +56,8 @@ public:
 	/// the provided data.
 	void autoTune(GMatrix& features, GMatrix& labels);
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // NO_TEST_CODE
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;

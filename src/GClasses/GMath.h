@@ -228,10 +228,8 @@ public:
 	/// nxor(x, y) = fuzzy(x, y, 0.5).
 	static double fuzzy(double x, double y, double alpha);
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // !NO_TEST_CODE
 };
 
 

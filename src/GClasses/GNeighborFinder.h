@@ -301,10 +301,8 @@ public:
 	GKdTree(const GMatrix* pData, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
 	virtual ~GKdTree();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
 
 	/// Rebuilds the tree to improve subsequent performance. This should be called after
 	/// a significant number of point-vectors are added to or released from the internal set.
@@ -372,10 +370,8 @@ public:
 	GBallTree(const GMatrix* pData, GDistanceMetric* pMetric = NULL, bool ownMetric = false);
 	virtual ~GBallTree();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
 
 	/// Rebuilds the tree to improve subsequent performance. This should be called after
 	/// a significant number of point-vectors are added to or released from the internal set.
@@ -445,10 +441,8 @@ public:
 	GShortcutPruner(size_t* pNeighborhoods, size_t n, size_t k);
 	~GShortcutPruner();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // NO_TEST_CODE
 
 	/// Sets the cycle-length threshold. (The default is 14.)
 	void setCycleThreshold(size_t cycleThresh) { m_cycleThresh = cycleThresh; }
@@ -496,10 +490,8 @@ public:
 	GCycleCut(GNeighborGraph* pNeighborGraph, const GMatrix* pPoints, size_t k);
 	~GCycleCut();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // NO_TEST_CODE
 
 	/// Sets the cycle-length threshold. (The default is 14.)
 	void setCycleThreshold(size_t cycleThresh) { m_cycleThresh = cycleThresh; }

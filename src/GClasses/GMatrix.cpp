@@ -4874,6 +4874,8 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* szFilename)
 	size_t nLen;
 	char* szFile = GFile::loadFile(szFilename, &nLen);
 	std::unique_ptr<char[]> hFile(szFile);
+	if(nLen < 1)
+		throw Ex("Empty file");
 	parse(outMatrix, szFile, nLen);
 }
 

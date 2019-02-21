@@ -313,7 +313,6 @@ void GNaiveInstance::predict(const GVec& pIn, GVec& pOut)
 		pOut[i] = m_pValueSums[i] / m_pWeightSums[i];
 }
 
-#ifndef NO_TEST_CODE
 //static
 void GNaiveInstance::test()
 {
@@ -323,6 +322,5 @@ void GNaiveInstance::test()
 	pNI->setNeighbors(8);
 	af.basicTest(0.72, 0.44, 0.02);
 }
-#endif
 
 } // namespace GClasses

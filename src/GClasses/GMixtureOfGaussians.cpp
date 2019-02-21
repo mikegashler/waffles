@@ -153,7 +153,6 @@ void GMixtureOfGaussians::params(int nKernel, double* pMean, double* pVariance, 
 	*pWeight = m_pArrMeanVarWeight[3 * nKernel + 2];
 }
 
-#ifndef NO_TEST_CODE
 
 #define KERNEL_COUNT 2
 #define SAMPLE_COUNT 10000
@@ -216,4 +215,3 @@ void GMixtureOfGaussians::test()
 			throw Ex("Failed");
 	}
 }
-#endif // !NO_TEST_CODE

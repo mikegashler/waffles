@@ -45,10 +45,8 @@ public:
 	GMixtureOfGaussians(int nKernelCount, GMatrix* pData, int nAttribute, double minVariance, GRand* pRand);
 	virtual ~GMixtureOfGaussians();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // !NO_TEST_CODE
 
 	/// This tries to fit the data from several random starting points, and returns the best model it finds
 	static GMixtureOfGaussians* stochasticHammer(int nMinKernelCount, int nMaxKernelCount, int nItters, int nTrials, GMatrix* pData, int nAttribute, double minVariance, GRand* pRand);

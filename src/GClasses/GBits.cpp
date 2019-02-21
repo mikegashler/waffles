@@ -98,7 +98,6 @@ unsigned char GBits::reverse_bits(unsigned char n)
 	return bit_reverse_table[n];
 }
 
-#ifndef NO_TEST_CODE
 size_t count_trailing_zeros(size_t n)
 {
 	size_t count = 0;
@@ -141,4 +140,3 @@ void GBits::test()
 	test_boundingShift();
 	test_countTrailingZeros();
 }
-#endif // NO_TEST_CODE

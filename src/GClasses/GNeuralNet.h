@@ -162,6 +162,8 @@ public:
 	/// (Assumes computeBlame has already been called.)
 	virtual void backProp(const GVec& weights) = 0;
 
+virtual double learningRateGradient(const GVec& gradient) { return 0.0; } // EXPERIMENTAL. REMOVE ME
+
 	/// Evaluate the input and outBlame, update the gradient of the weights.
 	/// (Assumes backProp has already been called.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) = 0;
@@ -710,6 +712,8 @@ public:
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
 	virtual void backProp(const GVec& weights) override;
 
+virtual double learningRateGradient(const GVec& gradient); // EXPERIMENTAL. REMOVE ME
+
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes backProp has already been called.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
@@ -905,9 +909,7 @@ public:
 	/// Initialize the weights with small random values.
 	virtual void initWeights(GRand& rand, GVec& weights) override;
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif // NO_TEST_CODE
 };
 
 
@@ -1548,6 +1550,8 @@ public:
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
 	void backProp(const GVec& weights);
 
+double learningRateGradient(const GVec& gradient); // TODO: REMOVE ME
+
 	/// Updates the gradient for updating the weights by gradient descent.
 	void updateGradient(GVec& weights, GVec& gradient);
 
@@ -1576,6 +1580,7 @@ class GNeuralNet : public GBlock
 friend class GNeuralNetOptimizer;
 protected:
 	size_t m_weightCount;
+	size_t m_gradCount;
 	std::vector<GLayer*> m_layers;
 
 public:
@@ -1656,6 +1661,9 @@ public:
 	/// Returns the number of weights.
 	virtual size_t weightCount() const override;
 
+	/// Returns the number of elements in the gradient.
+	virtual size_t gradCount() const override;
+
 	/// Makes this object into a deep copy of pOther, including layers, nodes, settings and weights.
 	void copyStructure(const GNeuralNet* pOther, GRand& rand);
 
@@ -1683,6 +1691,8 @@ public:
 
 	/// Backpropagates the error. If inputBlame is non-null, the blame for the inputs will also be computed.
 	void backpropagate(const GVec& weights, GVec* inputBlame = nullptr);
+
+virtual double learningRateGradient(const GVec& gradient); // EXPERIMENTAL. REMOVE ME
 
 	/// Updates the gradient vector
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;

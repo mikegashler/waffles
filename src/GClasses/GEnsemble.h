@@ -157,9 +157,7 @@ public:
 
 	virtual ~GBag();
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -191,46 +189,6 @@ protected:
 };
 
 
-/// An experimental ensemble technique
-class GBomb : public GBag
-{
-protected:
-	size_t m_samples;
-
-public:
-	/// General-purpose constructor. See also the comment for GSupervisedLearner::GSupervisedLearner.
-	GBomb() : GBag(), m_samples(100) {}
-
-	/// Deserializing constructor.
-	GBomb(const GDomNode* pNode, GLearnerLoader& ll);
-
-	virtual ~GBomb() {}
-
-#ifndef NO_TEST_CODE
-	static void test();
-#endif
-
-	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
-	virtual GDomNode* serialize(GDom* pDoc) const override;
-
-	/// Returns the number of samples from which to estimate the combination weights
-	size_t samples() { return m_samples; }
-
-	/// Sets the number of samples to use to estimate the combination weights
-	void setSamples(size_t n) { m_samples = n; }
-
-protected:
-	/// See the comment for GLearner::canImplicitlyHandleContinuousLabels
-	virtual bool canImplicitlyHandleContinuousLabels() override {
-	  return false;
-	}
-
-	/// Determines the weights in the manner of Bayesian model averaging,
-	/// with the assumption of uniform priors.
-	virtual void determineWeights(const GMatrix& features, const GMatrix& labels) override;
-};
-
-
 /// This is an ensemble that uses the bagging approach for training, and Bayesian
 /// Model Averaging to combine the models. That is, it trains each model with data
 /// drawn randomly with replacement from the original training data. It combines
@@ -247,9 +205,7 @@ public:
 
 	virtual ~GBayesianModelAveraging() {}
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
@@ -282,9 +238,7 @@ public:
 
 	virtual ~GBayesianModelCombination() {}
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const override;
@@ -297,8 +251,9 @@ public:
 
 protected:
 	/// See the comment for GLearner::canImplicitlyHandleContinuousLabels
-	virtual bool canImplicitlyHandleContinuousLabels() override {
-	  return false;
+	virtual bool canImplicitlyHandleContinuousLabels() override
+	{
+		return false;
 	}
 
 	/// Determines the weights in the manner of Bayesian model averaging,
@@ -336,9 +291,7 @@ public:
 
 	virtual ~GResamplingAdaBoost();
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -346,8 +299,58 @@ public:
 	/// Deletes all of the models in this ensemble, and calls clear on the base learner.
 	virtual void clear();
 
-	/// Specify the size of the drawn set to train with (as a factor of the training
+	/// Specify the size of the drawn set to train with (as a portion of the training
 	/// set). The default is 1.0.
+	void setTrainSize(double d) { m_trainSize = d; }
+
+	/// Specify the maximum number of learners to ensemble. The default is 30.
+	void setSize(size_t n) { m_ensembleSize = n; }
+
+protected:
+	/// See the comment for GLearner::canImplicitlyHandleContinuousLabels
+	virtual bool canImplicitlyHandleContinuousLabels() { return false; }
+
+	/// See the comment for GEnsemble::trainInnerInner
+	virtual void trainInnerInner(const GMatrix& features, const GMatrix& labels);
+};
+
+
+
+class GGradBoost : public GEnsemble
+{
+protected:
+	GSupervisedLearner* m_pLearner;
+	bool m_ownLearner;
+	GLearnerLoader* m_pLoader;
+	double m_trainSize;
+	size_t m_ensembleSize;
+	GVec m_labelCentroid;
+
+public:
+	/// General purpose constructor. pLearner is the learning algorithm
+	/// that you wish to boost. If ownLearner is true, then this object
+	/// will delete pLearner when it is deleted.
+	/// pLoader is a GLearnerLoader that can load the model you wish to boost.
+	/// (If it is a custom model, then you also need to make a class that inherits
+	/// from GLearnerLoader that can load your custom class.) Takes ownership
+	/// of pLoader (meaning this object will delete pLoader when it is deleted).
+	GGradBoost(GSupervisedLearner* pLearner, bool ownLearner, GLearnerLoader* pLoader);
+
+	/// Deserializing constructor
+	GGradBoost(const GDomNode* pNode, GLearnerLoader& ll);
+
+	virtual ~GGradBoost();
+
+	// todo: this method does not yet benefit from multiple threads
+	virtual void predict(const GVec& in, GVec& out);
+
+	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
+	virtual GDomNode* serialize(GDom* pDoc) const;
+
+	/// Deletes all of the models in this ensemble, and calls clear on the base learner.
+	virtual void clear();
+
+	/// Specify the portion of the training set to be used for training each model. The default is 1.0.
 	void setTrainSize(double d) { m_trainSize = d; }
 
 	/// Specify the maximum number of learners to ensemble. The default is 30.
@@ -380,9 +383,7 @@ public:
 
 	virtual ~GBucket();
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;

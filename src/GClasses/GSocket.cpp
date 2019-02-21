@@ -961,7 +961,6 @@ char* GPackageServer::receive(size_t* pOutLen, GPackageConnection** pOutConn)
 }
 
 
-#ifndef NO_TEST_CODE
 #define TEST_PORT 7251
 #define CLIENT_COUNT 5
 #define TEST_LEN 1000
@@ -1059,7 +1058,6 @@ void GPackageServer::test()
 	//GPackageServer_threaded_test();
 }
 
-#endif // !NO_TEST_CODE
 
 
 

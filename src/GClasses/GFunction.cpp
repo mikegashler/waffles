@@ -761,7 +761,6 @@ void GFunctionParser::parseFunctionList(vector<string>& tokens)
 	functions.push_back(parseFunction(tokens, start, (int)tokens.size() - start));
 }
 
-#ifndef NO_TEST_CODE
 
 // static
 void GFunctionParser::test()
@@ -795,4 +794,3 @@ void GFunctionParser::test()
 	}
 }
 
-#endif //NO_TEST_CODE

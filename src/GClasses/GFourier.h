@@ -71,10 +71,8 @@ public:
 	/// not to ajust the pixel values to use their full range.
 	static void fftArrayToImage(struct ComplexNumber* pArray, int nArrayWidth, int nOneThirdHeight, GImage* pImage, bool normalize);
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // NO_TEST_CODE
 };
 
 
@@ -90,9 +88,7 @@ public:
 	GWavelet();
 	~GWavelet();
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 
 	void transform(double* x, size_t n);
 	void inverse(double* x, size_t n);

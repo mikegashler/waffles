@@ -98,10 +98,8 @@ public:
 	GSpinLock();
 	virtual ~GSpinLock();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // !NO_TEST_CODE
 
 	void lock(const char* szWhoHoldsTheLock);
 	void unlock();

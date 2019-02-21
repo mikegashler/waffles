@@ -846,7 +846,6 @@ void GSparseMatrix::resize(size_t rows, size_t cols)
 	m_rows.resize(rows);	
 }
 
-#ifndef NO_TEST_CODE
 bool GSparseMatrix_testHelper(GSparseMatrix& sm)
 {
 	GMatrix* fm = sm.toFullMatrix();
@@ -900,7 +899,6 @@ void GSparseMatrix::test()
 	if(failures > tolerance)
 		throw Ex("failed");
 }
-#endif
 
 
 

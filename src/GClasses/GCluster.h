@@ -113,10 +113,8 @@ public:
 	GAgglomerativeClusterer(size_t nClusterCount);
 	virtual ~GAgglomerativeClusterer();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // !NO_TEST_CODE
 
 	/// Performs clustering
 	virtual void cluster(const GMatrix* pData);

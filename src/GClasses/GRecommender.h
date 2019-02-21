@@ -127,10 +127,8 @@ public:
 	/// Returns a reference to the pseudo-random number generator associated with this object.
 	GRand& rand() { return m_rand; }
 
-#ifndef NO_TEST_CODE
 	/// Performs a basic unit test on this collaborative filter
 	void basicTest(double minMSE);
-#endif
 
 protected:
 	/// Child classes should use this in their implementation of serialize
@@ -169,10 +167,8 @@ public:
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
 	static void test();
-#endif
 };
 
 
@@ -235,10 +231,8 @@ public:
 	/// Get the rating of an item for a user
 	double getRating(size_t user, size_t item); //{ return m_pData->get(user, item); }
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
 	static void test();
-#endif
 };
 
 
@@ -275,10 +269,8 @@ public:
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
 	static void test();
-#endif
 };
 
 
@@ -321,10 +313,8 @@ public:
 	/// the fuzzifier value on it.
 	void setFuzzifier(double d);
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
 	static void test();
-#endif
 };
 
 
@@ -415,10 +405,8 @@ public:
 	/// Set the rate to decay the learning rate
 	void setDecayRate(double d) { m_decayRate = d; }
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
 	static void test();
-#endif
 
 protected:
 	/// Returns the sum-squared error for the specified set of ratings
@@ -518,10 +506,8 @@ public:
 	/// Set the regularization value
 	void setRegularizer(double d) { m_regularizer = d; }
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
 	static void test();
-#endif
 
 protected:
 	/// Returns the sum-squared error for the specified set of ratings
@@ -613,10 +599,8 @@ public:
 	/// See the comment for GCollaborativeFilter::serialize
 	virtual GDomNode* serialize(GDom* pDoc) const;
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests. Throws if a failure occurs. Returns if successful.
 	static void test();
-#endif
 };
 
 class GContentBasedFilter : public GCollaborativeFilter

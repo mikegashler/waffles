@@ -165,9 +165,7 @@ public:
 	/// Uncompress pIn. You are responsible to delete[] pOut.
 	static unsigned char* uncompress(unsigned char* pIn, unsigned int len, unsigned int* pOutUncompressedLen);
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 };
 
 

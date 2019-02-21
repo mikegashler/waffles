@@ -983,7 +983,6 @@ unsigned char* GCompressor::uncompress(unsigned char* pIn, unsigned int len, uns
 		return hCur.release();
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GCompressor::test()
 {
@@ -1002,4 +1001,4 @@ void GCompressor::test()
 	if(memcmp(szTest, pFinal, len) != 0)
 		throw Ex("not the same");
 }
-#endif
+

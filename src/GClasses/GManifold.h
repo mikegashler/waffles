@@ -61,9 +61,7 @@ public:
 	/// distances, rather than normal Euclidean distances.
 	static GMatrix* multiDimensionalScaling(GMatrix* pDistances, size_t targetDims, GRand* pRand, bool useSquaredDistances);
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 };
 
 
