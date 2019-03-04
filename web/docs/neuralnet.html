@@ -289,9 +289,9 @@ int main(int argc, char *argv[])
 
 	// Make a neural network
 	GNeuralNet nn;
-	nn.add(new GBlockLinear(28 * 28, 80), new GBlockTanh(80),
-		new GBlockLinear(80, 30), new GBlockTanh(30),
-		new GBlockLinear(30, 10), new GBlockTanh(10));
+	nn.add(new GBlockLinear(28 * 28, 80), new GBlockEl(80),
+		new GBlockLinear(80, 30), new GBlockEl(30),
+		new GBlockLinear(30, 10), new GBlockEl(10));
 
 	// Print some info
 	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
@@ -337,16 +337,16 @@ int main(int argc, char *argv[])
 @ATTRIBUTE misclassification_rate real
 @ATTRIBUTE elapsed_time real
 @DATA
-0.9243,0.33908700942993
-0.0622,6.8041210174561
-0.0509,13.201755046844
-0.0422,19.536917924881
-0.0406,25.910009860992
-0.043,32.283365011215
-0.0337,38.758503913879
-0.037,45.176832914352
-0.0367,51.467288017273
-0.0338,57.70737695694
+0.9018,0.24400901794434
+0.0559,5.2212989330292
+0.0459,10.292666912079
+0.0381,15.356490850449
+0.0356,20.460818052292
+0.0336,25.637934923172
+0.0305,30.76237487793
+0.0285,35.871225833893
+0.0283,41.018748998642
+0.0275,46.180090904236
 </pre>
 
 <p>The left-most column shows that we get 338/10000 misclassifications in just 96 seconds of training on a modest computer.
@@ -385,9 +385,9 @@ public:
 	Model(GRand&amp; rand)
 	: m_rand(rand), m_learningRate(0.01), m_momentum(0.0)
 	{
-		m_nn.add(new GBlockLinear(28 * 28, 80), new GBlockTanh(80));
-		m_nn.add(new GBlockLinear(80, 30), new GBlockTanh(30));
-		m_nn.add(new GBlockLinear(30, 10), new GBlockTanh(10));
+		m_nn.add(new GBlockLinear(28 * 28, 80), new GBlockEl(80));
+		m_nn.add(new GBlockLinear(80, 30), new GBlockEl(30));
+		m_nn.add(new GBlockLinear(30, 10), new GBlockEl(10));
 		m_weights.resize(m_nn.weightCount());
 		m_nn.initWeights(m_rand, m_weights);
 		m_grad.resize(m_nn.gradCount());
@@ -397,7 +397,7 @@ public:
 	virtual ~Model()
 	{
 	}
-	
+
 	void refine(const GVec&amp; feat, GVec&amp; lab)
 	{
 		m_nn.forwardProp(m_weights, feat);

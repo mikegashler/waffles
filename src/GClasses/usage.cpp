@@ -248,6 +248,15 @@ UsageNode* makeAlgorithmUsageTree()
 		pPoly->add("[order]=3", "The order of the polynomial.");
 	}
 	{
+		UsageNode* pGB = pRoot->add("gradboost <options> [algorithm]", "Uses GradBoost to create an ensemble that boosts the accuracy of an underlying model by computing residual models that add together to make a prediction.");
+		UsageNode* pOpts = pGB->add("<options>");
+		pOpts->add
+		  ("-trainratio [value]=1.0", "When approximating the weighted training set by resampling, use a sample of size [value]*training_set_size");
+		pOpts->add
+		  ("-size [n]=30", "The number of base learners to use in "
+		   "the ensemble.");
+	}
+	{
 		UsageNode* pGCT = pRoot->add("graphcuttransducer <options>", "This is a model-free transduction algorithm. It uses a min-cut/max-flow graph-cut algorithm to separate each label from all of the others.");
 		UsageNode* pOpts = pGCT->add("<options>");
 		pOpts->add("-autotune", "Automatically determine a good set of parameters for this model with the current data.");

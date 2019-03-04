@@ -132,24 +132,11 @@ public:
 		return 1u << boundingShift(n);
 	}
 
-	/// Returns the sign (-1, 0, +1) of an integer
-	static inline int sign(int n)
+	/// Returns the sign (-1, 0, +1) of an integer, float, or double
+	template <typename T>
+	static int sign(T val)
 	{
-		if(n > 0)
-			return 1;
-		if(n < 0)
-			return -1;
-		return 0;
-	}
-
-	/// Returns the sign of d
-	static inline int sign(double d)
-	{
-		if(d > 0)
-			return 1;
-		if(d < 0)
-			return -1;
-		return 0;
+		return (T(0) < val) - (val < T(0));
 	}
 
 	/// Reverses the bits in an unsigned char

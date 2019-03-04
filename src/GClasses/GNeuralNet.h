@@ -65,6 +65,7 @@ public:
 		block_tanh,
 		block_scaledtanh,
 		block_logistic,
+		block_el,
 		block_bentidentity,
 		block_sigexp,
 		block_gaussian,
@@ -81,6 +82,7 @@ public:
 		block_temperedlinear,
 		block_pal,
 		block_hinge,
+		block_elbow,
 		block_softexp,
 		block_hypercubeedges,
 		block_catin,
@@ -135,7 +137,7 @@ public:
 	size_t inPos() const { return m_inPos; }
 
 	/// Sets the starting offset in the previous layer's output where values will be fed as input to this block.
-	void setInPos(size_t n, GLayer* pPrevLayer);
+	void setInPos(size_t n);
 
 	/// Returns the number of inputs this block consumes
 	virtual size_t inputs() const { return inputCount; }
@@ -162,8 +164,6 @@ public:
 	/// (Assumes computeBlame has already been called.)
 	virtual void backProp(const GVec& weights) = 0;
 
-virtual double learningRateGradient(const GVec& gradient) { return 0.0; } // EXPERIMENTAL. REMOVE ME
-
 	/// Evaluate the input and outBlame, update the gradient of the weights.
 	/// (Assumes backProp has already been called.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) = 0;
@@ -188,8 +188,31 @@ virtual double learningRateGradient(const GVec& gradient) { return 0.0; } // EXP
 	/// Initialize the weights, usually with small random values.
 	virtual void initWeights(GRand& rand, GVec& weights) = 0;
 
+	/// Blocks that support this method will initialize the weights in a manner that causes the
+	/// block to implement the identity function. For all other blocks with weights, this will throw an exception.
+	virtual void init_identity(GVec& weights);
+
+	/// Return true iff the weights for this block make it implement identity.
+	virtual bool is_identity(GVec& weights);
+
+	/// Returns the number of weights this layer would have if its input and output sizes were adjusted by the given values.
+	/// Throws an exception for blocks that do not implement this method.
+	virtual size_t adjustedWeightCount(int inAdjustment, int outAdjustment);
+
+	/// Add newInputs units to the input and newOutput units to the output of this block.
+	/// The weights in weightsAft will be set to reflect the adjustments.
+	virtual void addUnits(size_t newInputs, size_t newOutputs, const GVec& weightsBef, GVec& weightsAft, GRand& rand);
+
+	/// If input is not INVALID_INDEX, then the specified input will be dropped.
+	/// If output is not INVALID_INDEX, then the specified output will be dropped.
+	/// The weights in weightsAft will be set to reflect the adjustments.
+	virtual void dropUnit(size_t input, size_t output, const GVec& weightsBef, GVec& weightsAft);
+
 	/// Puts a 1 in elements that correspond with bias weights and a 0 in all other elements.
 	virtual void biasMask(GVec& mask);
+
+	/// Returns the index of the first input that this layer completely ignores, or INVALID_INDEX if there are none.
+	virtual size_t firstIgnoredInput(const GVec& weights);
 
 protected:
 	GDomNode* baseDomNode(GDom* pDoc) const;
@@ -372,6 +395,26 @@ public:
 	virtual double derivative(double x, double f_x) const override { return f_x * (1.0 - f_x); }
 	virtual double inverse(double y) const override { return std::log(y / (1.0 - y)); }
 };
+
+
+
+
+/// An exponential-linear unit
+class GBlockEl : public GBlockActivation
+{
+public:
+	GBlockEl(size_t size) : GBlockActivation(size) {}
+	GBlockEl(const GBlockEl& that) : GBlockActivation(that) {}
+	GBlockEl(const GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual ~GBlockEl() {}
+	virtual BlockType type() const override { return block_el; }
+	virtual std::string name() const override { return "GBlockEl"; }
+	virtual GBlockEl* clone() const override { return new GBlockEl(*this); }
+	virtual double eval(double x) const override { return x < 0 ? std::exp(x) - 1.0 : x; }
+	virtual double derivative(double x, double f_x) const override { return x < 0 ? std::exp(x) : 1.0; }
+	virtual double inverse(double y) const override { return y < 0 ? std::log(y + 1) : y; }
+};
+
 
 
 
@@ -712,8 +755,6 @@ public:
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
 	virtual void backProp(const GVec& weights) override;
 
-virtual double learningRateGradient(const GVec& gradient); // EXPERIMENTAL. REMOVE ME
-
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes backProp has already been called.)
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;
@@ -734,8 +775,36 @@ virtual double learningRateGradient(const GVec& gradient); // EXPERIMENTAL. REMO
 	/// Warning: the gradient is still scaled by the input values, so this is NOT equivalent for training.
 	void adjustInputRange(GVec& weights, size_t inputIndex, double oldMin, double oldMax, double newMin, double newMax);
 
+	/// Initializes weights to implement the identity function
+	virtual void init_identity(GVec& weights) override;
+
 	/// Puts a 1 in elements that correspond with bias weights and a 0 in all other elements.
-	virtual void biasMask(GVec& mask);
+	virtual void biasMask(GVec& mask) override;
+
+	/// Returns the number of weights this layer would have if its input and output sizes were adjusted by the given values.
+	virtual size_t adjustedWeightCount(int inAdjustment, int outAdjustment) override;
+
+	/// Returns the index of the first input that this layer completely ignores, or INVALID_INDEX if there are none.
+	virtual size_t firstIgnoredInput(const GVec& weights) override;
+
+	/// Add newInputs units to the input and newOutput units to the output of this block.
+	/// The weights in weightsAft will be set to reflect the adjustments.
+	virtual void addUnits(size_t newInputs, size_t newOutputs, const GVec& weightsBef, GVec& weightsAft, GRand& rand) override;
+
+	/// If input is not INVALID_INDEX, then the specified input will be dropped.
+	/// If output is not INVALID_INDEX, then the specified output will be dropped.
+	/// The weights in weightsAft will be set to reflect the adjustments.
+	virtual void dropUnit(size_t input, size_t output, const GVec& weightsBef, GVec& weightsAft) override;
+
+	/// Pass in two linear layers with their corresponding weights.
+	/// The weights will be combined into a single layer that performs the function of both layers.
+	/// If targetA is true, the fused weights will be placed in a. Otherwise they will be placed in b.
+	/// The non-target layer must have the same number of inputs and outputs
+	/// (to ensure that it doesn't change the weights size).
+	static void fuseLayers(GBlockLinear& aa, GVec& a, GBlockLinear& bb, GVec& b, bool targetA);
+
+	/// An experimental regularizer that promotes anti-symmetric weights and layers that mirror each other.
+	void regularize_square(double lambda, GVec& weights, const GVec* pWeightsNext);
 };
 
 
@@ -1077,13 +1146,14 @@ public:
 
 
 /// A parameterized activation function (a.k.a. adaptive transfer function).
-/// When alpha is 0, this activation function always approximates identity. When alpha is positive, it bends upward. When alpha is negative, it bends downward.
+/// When alpha is 0, this activation function implements identity.
+/// When alpha is positive, it bends upward. When alpha is negative, it bends downward.
 /// Beta specifies approximately how big the bending curve is. When beta is 0, it bends on a point.
 class GBlockHinge : public GBlock
 {
 public:
 	/// General-purpose constructor
-/// Size specifies the number of units in this layer.
+	/// Size specifies the number of units in this layer.
 	GBlockHinge(size_t size);
 
 	/// Copy constructor
@@ -1121,6 +1191,94 @@ public:
 
 	/// Initialize the weights with small random values.
 	virtual void initWeights(GRand& rand, GVec& weights) override;
+
+	/// Initialize the weights to implement the identity function.
+	virtual void init_identity(GVec& weights) override;
+
+	/// Return true iff the weights for this block make it implement identity.
+	virtual bool is_identity(GVec& weights) override;
+
+	/// Returns the number of weights this layer would have if its input and output sizes were adjusted by the given values.
+	virtual size_t adjustedWeightCount(int inAdjustment, int outAdjustment) override;
+
+	/// Add newInputs units to the input and newOutput units to the output of this block.
+	/// The weights in weightsAft will be set to reflect the adjustments.
+	virtual void addUnits(size_t newInputs, size_t newOutputs, const GVec& weightsBef, GVec& weightsAft, GRand& rand) override;
+
+	/// If input is not INVALID_INDEX, then the specified input will be dropped.
+	/// If output is not INVALID_INDEX, then the specified output will be dropped.
+	/// The weights in weightsAft will be set to reflect the adjustments.
+	virtual void dropUnit(size_t input, size_t output, const GVec& weightsBef, GVec& weightsAft) override;
+};
+
+
+
+
+
+/// A parameterized activation function (a.k.a. adaptive transfer function).
+/// When alpha is 0, this activation function implements identity.
+/// When alpha is 1, it implements eponential-linear.
+/// When alpha is -1, it implements the anty-symmetric exponetial-linear.
+class GBlockElbow : public GBlock
+{
+public:
+	/// General-purpose constructor
+	/// Size specifies the number of units in this layer.
+	GBlockElbow(size_t size);
+
+	/// Copy constructor
+	GBlockElbow(const GBlockElbow& that) : GBlock(that) {}
+
+	GBlockElbow(GDomNode* pNode);
+
+	/// Destructor
+	virtual ~GBlockElbow() {}
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_elbow; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockElbow"; }
+
+	/// Returns a copy of this block
+	virtual GBlockElbow* clone() const override { return new GBlockElbow(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp(const GVec& weights) override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp(const GVec& weights) override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+
+	/// Updates the weights
+	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum) override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand, GVec& weights) override;
+
+	/// Initialize the weights to implement the identity function.
+	virtual void init_identity(GVec& weights) override;
+
+	/// Return true iff the weights for this block make it implement identity.
+	virtual bool is_identity(GVec& weights) override;
+
+	/// Returns the number of weights this layer would have if its input and output sizes were adjusted by the given values.
+	virtual size_t adjustedWeightCount(int inAdjustment, int outAdjustment) override;
+
+	/// Add newInputs units to the input and newOutput units to the output of this block.
+	/// The weights in weightsAft will be set to reflect the adjustments.
+	virtual void addUnits(size_t newInputs, size_t newOutputs, const GVec& weightsBef, GVec& weightsAft, GRand& rand) override;
+
+	/// If input is not INVALID_INDEX, then the specified input will be dropped.
+	/// If output is not INVALID_INDEX, then the specified output will be dropped.
+	/// The weights in weightsAft will be set to reflect the adjustments.
+	virtual void dropUnit(size_t input, size_t output, const GVec& weightsBef, GVec& weightsAft) override;
 };
 
 
@@ -1508,7 +1666,10 @@ public:
 
 	/// Adds a block of network units (artificial neurons) to this layer.
 	/// inPos specifies the index of the first output from the previous layer that will feed into this block of units.
-	void add(GBlock* pBlock, GLayer* pPrevLayer, size_t inPos);
+	void add(GBlock* pBlock, size_t inPos);
+
+	/// Attaches all the blocks in this layer to pPrevLayer and allocates the buffer for the next layer.
+	void attach(GLayer* pPrevLayer);
 
 	/// Recounts the number of inputs, outputs, and weights in this layer.
 	void recount();
@@ -1549,8 +1710,6 @@ public:
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
 	void backProp(const GVec& weights);
-
-double learningRateGradient(const GVec& gradient); // TODO: REMOVE ME
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	void updateGradient(GVec& weights, GVec& gradient);
@@ -1631,6 +1790,34 @@ public:
 	/// (inPos specifies the starting position of the inputs into this block.)
 	GBlock* concat(GBlock* pBlock, size_t inPos);
 
+	/// Inserts a block into a new layer at the specified position.
+	/// Requires the current weights and returns a new weight vector (which may be the
+	/// same vector if pBlock has no weights). New weights will be initialized to identity for a linear layer.
+	/// The caller is still responsible to delete pOldWeights (if it is not equal to the returned value)
+	/// and initialize a new gradient vector.
+	GVec* insert(size_t position, GBlock* pBlock, GVec* pOldWeights, GRand& rand);
+
+	/// Drops a layer from this neural network. The layer must have the same number of inputs and outputs,
+	/// and it cannot be the output layer. 
+	/// Requires the current weights and returns a new weight vector (which may be the
+	/// same vector if pBlock has no weights).
+	/// The caller is still responsible to delete pOldWeights (if it is not equal to the returned value)
+	/// and initialize a new gradient vector.
+	GVec* drop(size_t layer, GVec* pOldWeights);
+
+	/// Adds a unit to each hidden layer.
+	/// startLayer and layerCount specify which layers will be adjusted.
+	/// Assumes all specified layers have the same size.
+	GVec* increaseWidth(size_t newUnitsPerLayer, GVec* pWeights, size_t startLayer, size_t layerCount, GRand& rand);
+
+	/// If each linear layer ignores at least one unit that feeds into it,
+	/// then this removes an ignored unit from every layer to make the whole network
+	/// thinner by one unit. If this condition is not met, then it returns nullptr.
+	GVec* decrementWidth(GVec* pWeights, size_t startLayer, size_t layerCount);
+
+	/// An experimental regularization method that promotes anti-symmetry and mirroring in square linear layers
+	void regularize_square(double lambda, GVec& weights);
+
 	/// Returns the number of layers in this neural net.
 	/// (Layers within neural networks embedded within this one are not counted.)
 	size_t layerCount() const { return m_layers.size(); }
@@ -1664,8 +1851,8 @@ public:
 	/// Returns the number of elements in the gradient.
 	virtual size_t gradCount() const override;
 
-	/// Makes this object into a deep copy of pOther, including layers, nodes, settings and weights.
-	void copyStructure(const GNeuralNet* pOther, GRand& rand);
+	/// Copies all the layers from other.
+	void copyTopology(const GNeuralNet& other);
 
 	/// Initialize the weights, usually with small random values.
 	virtual void initWeights(GRand& rand, GVec& weights) override;
@@ -1691,8 +1878,6 @@ public:
 
 	/// Backpropagates the error. If inputBlame is non-null, the blame for the inputs will also be computed.
 	void backpropagate(const GVec& weights, GVec* inputBlame = nullptr);
-
-virtual double learningRateGradient(const GVec& gradient); // EXPERIMENTAL. REMOVE ME
 
 	/// Updates the gradient vector
 	virtual void updateGradient(GVec& weights, GVec& gradient) override;

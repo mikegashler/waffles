@@ -1236,7 +1236,7 @@ GTensor::GTensor(const std::initializer_list<size_t>& list, bool ownBuffer, GVec
 	// Populate the shape
 	size_t i = 0;
 	size_t tot = 1;
-	for(const size_t* it = begin(list); it != end(list); ++it)
+	for(const size_t* it = list.begin(); it != list.end(); ++it)
 	{
 		shape[i++] = *it;
 		tot *= *it;
@@ -1745,9 +1745,7 @@ void GTensor::test()
 			}
 		);
 		if(std::sqrt(out.squaredDistance(expected)) > 1e-10)
-		{
 			throw Ex("wrong");
-		}
 	}
 }
 

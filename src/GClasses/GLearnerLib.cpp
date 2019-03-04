@@ -279,6 +279,41 @@ GBag* GLearnerLib::InstantiateBag(GArgReader& args, GMatrix* pFeatures, GMatrix*
 	return pEnsemble;
 }
 
+GGradBoost* GLearnerLib::InstantiateGradBoost(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+{
+	double trainingSizeRatio = 1;
+	size_t ensembleSize = 30;
+
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-trainratio"))
+		{
+			trainingSizeRatio = args.pop_double();
+		}
+		else if(args.if_pop("-size"))
+		{
+			ensembleSize = args.pop_uint();
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	GTransducer* pLearner = InstantiateAlgorithm(args, pFeatures, pLabels);
+	if(!pLearner->canGeneralize())
+	{
+		delete(pLearner);
+		throw Ex("gradboost does not support algorithms that cannot generalize.");
+	}
+
+	GGradBoost* pEnsemble = new GGradBoost((GSupervisedLearner*)pLearner, true, new GLearnerLoader());
+	pEnsemble->setTrainSize(trainingSizeRatio);
+	pEnsemble->setSize(ensembleSize);
+
+	return pEnsemble;
+}
+
 GBaselineLearner* GLearnerLib::InstantiateBaseline(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	GBaselineLearner* pModel = new GBaselineLearner();
@@ -811,6 +846,8 @@ GTransducer* GLearnerLib::InstantiateAlgorithm(GArgReader& args, GMatrix* pFeatu
 			pAlg = InstantiateDecisionTree(args, pFeatures, pLabels);
 		else if(args.if_pop("gaussianprocess"))
 			pAlg = InstantiateGaussianProcess(args, pFeatures, pLabels);
+		else if(args.if_pop("gradboost"))
+			pAlg = InstantiateGradBoost(args, pFeatures, pLabels);
 		else if(args.if_pop("graphcuttransducer"))
 			pAlg = InstantiateGraphCutTransducer(args, pFeatures, pLabels);
 		else if(args.if_pop("hodgepodge"))
