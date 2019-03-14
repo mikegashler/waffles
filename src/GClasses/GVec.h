@@ -267,7 +267,65 @@ public:
 	/// Swaps the contents of this vector with that vector.
 	void swapContents(GVec& that);
 
+
+
+
+	class iterator
+	{
+	public:
+		double* cur;
+
+		iterator(double* pData) : cur(pData) {}
+		double& operator*() { return *cur; }
+		double* operator->() { return cur; }
+		bool operator==(const iterator& other) { return cur == other.cur; }
+		bool operator!=(const iterator& other) { return cur != other.cur; }
+		iterator operator+(size_t n) const { return iterator(cur + n); }
+		iterator& operator++() { ++cur; return *this; }
+
+		// Prefix incrementer (commented out to discourage use)
+		/*iterator operator++(int)
+		{
+			iterator it = *this;
+			++cur;
+			return it;
+		}*/
+	};
+
+	iterator begin() { return iterator(m_data); }
+	iterator end() { return iterator(m_data + m_size); }
+
+	class const_iterator
+	{
+	public:
+		const double* cur;
+		
+		const_iterator(const double* pData) : cur(pData) {}
+		const double& operator*() { return *cur; }
+		const double* operator->() { return cur; }
+		bool operator==(const const_iterator& other) { return cur == other.cur; }
+		bool operator!=(const const_iterator& other) { return cur != other.cur; }
+		const_iterator operator+(size_t n) const { return const_iterator(cur + n); }
+		const_iterator& operator++() { ++cur; return *this; }
+
+		// Prefix incrementer (commented out to discourage use)
+		/*const_iterator operator++(int)
+		{
+			const_iterator it = *this;
+			++cur;
+			return it;
+		}*/
+	};
+
+	const_iterator begin() const { return const_iterator(m_data); }
+	const_iterator end() const { return const_iterator(m_data + m_size); }
+
+
 private:
+	/// Throws an exception if this vector has a size other than 0 or n.
+	/// Then resizes this vector to give it a size of n.
+	void resize_implicit(size_t n);
+
 	/// This method is deliberately private, so calling it will trigger a compiler error. Call "copy" instead.
 	GVec& operator=(const GVec& orig);
 

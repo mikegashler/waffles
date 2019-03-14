@@ -12,6 +12,7 @@
 #else
 #	include <png.h>
 #	include <zlib.h>
+#	include <string.h>
 #endif
 #include <GClasses/GError.h>
 #include <GClasses/GImage.h>

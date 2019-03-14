@@ -65,7 +65,7 @@ GVec::GVec(const std::initializer_list<double>& list)
 	else
 		m_data = new double[list.size()];
 	size_t i = 0;
-	for(const double* it = begin(list); it != end(list); ++it)
+	for(const double* it = list.begin(); it != list.end(); ++it)
 	{
 		m_data[i++] = *it;
 	}
@@ -89,7 +89,7 @@ GVec::~GVec()
 
 GVec& GVec::operator=(const GVec& orig)
 {
-	resize(orig.m_size);
+	resize_implicit(orig.m_size);
 	for(size_t i = 0; i < m_size; i++)
 		m_data[i] = orig.m_data[i];
 	return *this;
@@ -100,6 +100,17 @@ void GVec::resize(size_t n)
 	if(m_size == n)
 		return;
 	delete[] m_data;
+	m_data = nullptr;
+	m_size = 0;
+	resize_implicit(n);
+}
+
+void GVec::resize_implicit(size_t n)
+{
+	if(m_size == n)
+		return;
+	if(m_size != 0)
+		throw Ex("Implicit resizing from non-empty vector is not allowed. Call resize to make it explicit.");
 	m_size = n;
 	if(n == 0)
 		m_data = NULL;
@@ -205,14 +216,14 @@ void GVec::copy(const GVec& orig, size_t start, size_t size)
 {
 	GAssert(start <= orig.size());
 	size = std::min(size, orig.size() - start);
-	resize(size);
+	resize_implicit(size);
 	for(size_t i = 0; i < size; i++)
 		m_data[i] = orig[start + i];
 }
 
 void GVec::copy(const double* pSource, size_t n)
 {
-	resize(n);
+	resize_implicit(n);
 	for(size_t i = 0; i < n; i++)
 		(*this)[i] = *(pSource++);
 }
@@ -418,7 +429,7 @@ GDomNode* GVec::serialize(GDom* pDoc) const
 void GVec::deserialize(const GDomNode* pNode)
 {
 	GDomListIterator it(pNode);
-	resize(it.remaining());
+	resize_implicit(it.remaining());
 	for(size_t i = 0; it.current(); i++)
 	{
 		(*this)[i] = it.currentDouble();
@@ -593,7 +604,7 @@ void GVec::toImage(GImage* pImage, int width, int height, int channels, double r
 
 void GVec::fromImage(GImage* pImage, int width, int height, int channels, double range)
 {
-	resize(width * height * channels);
+	resize_implicit(width * height * channels);
 	unsigned int* pix = pImage->pixels();
 	if(channels == 3)
 	{
@@ -750,7 +761,7 @@ GIndexVec::GIndexVec(const std::initializer_list<size_t>& list)
 	else
 		m_data = new size_t[list.size()];
 	size_t i = 0;
-	for(const size_t* it = begin(list); it != end(list); ++it)
+	for(const size_t* it = list.begin(); it != list.end(); ++it)
 	{
 		m_data[i++] = *it;
 	}

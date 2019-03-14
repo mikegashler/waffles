@@ -1031,8 +1031,8 @@ GSupervisedLearner* GLearnerLoader::loadLearner(const GDomNode* pNode)
 						return new GNaiveBayes(pNode);
 					else if(strcmp(szClass, "GNaiveInstance") == 0)
 						return new GNaiveInstance(pNode);
-					else if(strcmp(szClass, "GNeuralNetLearner") == 0)
-						return new GNeuralNetLearner(pNode);
+//					else if(strcmp(szClass, "GNeuralNetLearner") == 0)
+//						return new GNeuralNetLearner(pNode);
 				}
 				else
 				{

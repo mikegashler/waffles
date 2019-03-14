@@ -175,7 +175,7 @@ void GNeuralNetOptimizer::optimizeWithValidation(const GMatrix &features, const 
 		if(k >= m_windowSize)
 		{
 			k = 0;
-			currentError = m_model.measureLoss(m_weights, validationFeat, validationLab);
+			currentError = m_model.measureLoss(validationFeat, validationLab);
 			if(1.0 - currentError / bestError >= m_minImprovement)
 			{
 				if(currentError < bestError)
@@ -221,10 +221,7 @@ GSGDOptimizer::GSGDOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTra
 
 void GSGDOptimizer::init()
 {
-	m_weights.resize(m_model.weightCount());
-	m_model.initWeights(m_rand, m_weights);
-	m_gradient.resize(m_model.gradCount());
-	m_gradient.fill(0.0);
+	m_model.init(m_weights, m_gradient, &m_rand);
 #ifdef GCUDA
 	if(m_useGPU)
 	{
@@ -239,15 +236,15 @@ void GSGDOptimizer::init()
 
 void GSGDOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 {
-	m_model.forwardProp(m_weights, feat);
+	m_model.forwardProp(feat);
 	m_model.computeBlame(lab);
-	m_model.backpropagate(m_weights);
-	m_model.updateGradient(m_weights, m_gradient);
+	m_model.backpropagate();
+	m_model.updateGradient();
 }
 
 void GSGDOptimizer::descendGradient(double learningRate)
 {
-	m_model.step(m_gradient, m_weights, learningRate, m_momentum);
+	m_model.step(learningRate, m_momentum);
 }
 
 #ifdef GCUDA
@@ -286,23 +283,20 @@ GAdamOptimizer::GAdamOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pT
 
 void GAdamOptimizer::init()
 {
-	m_weights.resize(m_model.weightCount());
-	m_model.initWeights(m_rand, m_weights);
-	m_gradient.resize(m_model.gradCount());
+	m_model.init(m_weights, m_gradient, &m_rand);
 	m_deltas.resize(m_gradient.size());
 	m_sqdeltas.resize(m_gradient.size());
-	m_gradient.fill(0.0);
 	m_deltas.fill(0.0);
 	m_sqdeltas.fill(0.0);
 }
 
 void GAdamOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 {
-	m_model.forwardProp(m_weights, feat);
+	m_model.forwardProp(feat);
 	m_model.computeBlame(lab);
-	m_model.backpropagate(m_weights);
+	m_model.backpropagate();
 	m_gradient.fill(0.0);
-	m_model.updateGradient(m_weights, m_gradient);
+	m_model.updateGradient();
 	m_correct1 *= m_beta1;
 	m_correct2 *= m_beta2;
 	for(size_t i = 0; i < m_gradient.size(); i++)
@@ -320,7 +314,7 @@ void GAdamOptimizer::descendGradient(double learningRate)
 	double alpha2 = 1.0 / (1.0 - m_correct2);
 	for(size_t i = 0; i < m_gradient.size(); i++)
 		m_gradient[i] = alpha1 * m_deltas[i] / (std::sqrt(alpha2 * m_sqdeltas[i]) + m_epsilon);
-	m_model.step(m_gradient, m_weights, learningRate, 0.0);
+	m_model.step(learningRate, 0.0);
 }
 
 #ifdef GCUDA
@@ -353,20 +347,17 @@ GRMSPropOptimizer::GRMSPropOptimizer(GNeuralNet& model, GRand& rand, const GMatr
 
 void GRMSPropOptimizer::init()
 {
-	m_weights.resize(m_model.weightCount());
-	m_model.initWeights(m_rand, m_weights);
-	m_gradient.resize(m_model.gradCount());
+	m_model.init(m_weights, m_gradient, &m_rand);
 	m_meanSquare.resize(m_gradient.size());
-	m_gradient.fill(0.0);
 	m_meanSquare.fill(0.0);
 }
 
 void GRMSPropOptimizer::computeGradient(const GVec& feat, const GVec& lab)
 {
-	m_model.forwardProp(m_weights, feat);
+	m_model.forwardProp(feat);
 	m_model.computeBlame(lab);
-	m_model.backpropagate(m_weights);
-	m_model.updateGradient(m_weights, m_gradient);
+	m_model.backpropagate();
+	m_model.updateGradient();
 }
 
 void GRMSPropOptimizer::descendGradient(double learningRate)
@@ -377,7 +368,7 @@ void GRMSPropOptimizer::descendGradient(double learningRate)
 		m_meanSquare[i] += (1.0 - m_gamma) * m_gradient[i] * m_gradient[i];
 		m_gradient[i] /= sqrt(m_meanSquare[i]) + m_epsilon;
 	}
-	m_model.step(m_gradient, m_weights, learningRate, 0.0);
+	m_model.step( learningRate, 0.0);
 }
 
 #ifdef GCUDA

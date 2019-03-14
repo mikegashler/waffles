@@ -51,10 +51,14 @@ protected:
 	size_t m_inPos;
 
 public:
+	GVec outputBuf;
+	GVec outBlameBuf;
 	GConstVecWrapper input;
 	GVecWrapper output;
 	GVecWrapper outBlame;
 	GVecWrapper inBlame;
+	GVecWrapper weights;
+	GVecWrapper gradient;
 
 	enum BlockType
 	{
@@ -110,7 +114,7 @@ public:
 	GBlock(size_t inputs, size_t outputs);
 	GBlock(const GBlock& that);
 	GBlock(const GDomNode* pNode);
-	virtual ~GBlock() {}
+	virtual ~GBlock();
 
 	/// Returns the type of this block
 	virtual BlockType type() const = 0;
@@ -119,7 +123,7 @@ public:
 	virtual std::string name() const = 0;
 
 	/// Returns a string representation of this block
-	virtual std::string to_str(const GVec* pWeights = nullptr) const;
+	virtual std::string to_str(bool includeWeights = false) const;
 
 	/// Returns true iff this block is recurrent
 	virtual bool isRecurrent() const { return false; }
@@ -133,6 +137,11 @@ public:
 	/// Returns a copy of this block
 	virtual GBlock* clone() const = 0;
 
+	/// Attaches this block to the buffers it will operate on.
+	/// If pOutput or pOutBlame are nullptr, it allocates its own buffers for these.
+	/// If pInput or pInBlame are nullptr, it just leaves them unbound.
+	virtual void bind(const GVec* pInput, GVec* pOutput, GVec* pOutBlame, GVec* pInBlame, GVec& _weights, GVec& _gradient);
+
 	/// Returns the offset in the previous layer's output where values are fed as input to this block.
 	size_t inPos() const { return m_inPos; }
 
@@ -145,8 +154,8 @@ public:
 	/// Returns the number of outputs this block produces
 	virtual size_t outputs() const { return outputCount; }
 
-	/// Evaluate the input, compute the output.
-	virtual void forwardProp(const GVec& weights) = 0;
+	/// Evaluate the input, compute the output. (Assumes bind has already been called.)
+	virtual void forwardProp() = 0;
 
 	/// Computes the blame on the output of this block.
 	/// The default implementation computes it for SSE, but specialty blocks such as SoftMax may override it as needed.
@@ -162,19 +171,22 @@ public:
 	/// Evaluate outBlame, update inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
 	/// (Assumes computeBlame has already been called.)
-	virtual void backProp(const GVec& weights) = 0;
+	virtual void backProp() = 0;
 
 	/// Evaluate the input and outBlame, update the gradient of the weights.
 	/// (Assumes backProp has already been called.)
-	virtual void updateGradient(GVec& weights, GVec& gradient) = 0;
+	virtual void updateGradient() = 0;
 
 	/// By default, just calls updateGradient. Blocks that implement this method
 	/// update the gradient using only the sign of the input, ignoring the magnitude of the input.
-	virtual void updateGradientNormalized(GVec& weights, GVec& gradient) { updateGradient(weights, gradient); }
+	virtual void updateGradientNormalized() { updateGradient(); }
 
 	/// Adds the gradient scaled by the learning rate to the weights.
 	/// (Assumes updateGradient has already been called.)
-	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum);
+	virtual void step(double learningRate, double momentum);
+
+	/// Same as step, but also adds random noise proportional by jitter to the gradient magnitude to the step.
+	virtual void step_jitter(double learningRate, double momentum, double jitter, GRand& rand);
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const = 0;
@@ -186,7 +198,7 @@ public:
 	}
 
 	/// Initialize the weights, usually with small random values.
-	virtual void initWeights(GRand& rand, GVec& weights) = 0;
+	virtual void initWeights(GRand& rand) = 0;
 
 	/// Blocks that support this method will initialize the weights in a manner that causes the
 	/// block to implement the identity function. For all other blocks with weights, this will throw an exception.
@@ -234,9 +246,9 @@ public:
 	virtual ~GBlockWeightless() {}
 
 	virtual size_t weightCount() const override { return 0; }
-	virtual void initWeights(GRand& rand, GVec& weights) override {}
-	virtual void updateGradient(GVec& weights, GVec& gradient) override {}
-	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum) override {}
+	virtual void initWeights(GRand& rand) override {}
+	virtual void updateGradient() override {}
+	virtual void step(double learningRate, double momentum) override {}
 };
 
 
@@ -251,11 +263,11 @@ public:
 	virtual ~GBlockActivation() {}
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 
 	/// Computes the input that would produce the specified output.
 	/// (May throw an exception if this activation function is not invertible.)
@@ -477,7 +489,7 @@ public:
 	virtual std::string name() const override { return "GBlockGaussian"; }
 	virtual GBlockGaussian* clone() const override { return new GBlockGaussian(*this); }
 	virtual double eval(double x) const override { return std::exp(-(x * x)); }
-	virtual double derivative(double x, double f_x) const override { return -2.0 * x * std::exp(-(x * x)); }
+	virtual double derivative(double x, double f_x) const override { return -2.0 * x * f_x; }
 };
 
 
@@ -620,14 +632,14 @@ public:
 	virtual GBlockSoftMax* clone() const override { return new GBlockSoftMax(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Computes the blame with cross-entropy
 	virtual void computeBlame(const GVec& target) override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 };
 
 
@@ -656,11 +668,11 @@ public:
 	virtual GDomNode* serialize(GDom* pDoc) const override;
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 };
 
 
@@ -680,11 +692,11 @@ public:
 	virtual GBlockRepeater* clone() const override { return new GBlockRepeater(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 };
 
 
@@ -709,11 +721,11 @@ public:
 	virtual GBlockSpreader* clone() const override { return new GBlockSpreader(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 };
 
 
@@ -746,27 +758,27 @@ public:
 	virtual GBlockLinear* clone() const override { return new GBlockLinear(*this); }
 
 	/// Returns a string representation of this block
-	virtual std::string to_str(const GVec* pWeights = nullptr) const;
+	virtual std::string to_str(bool includeWeights = false) const;
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes backProp has already been called.)
-	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+	virtual void updateGradient() override;
 
 	/// Updates the gradient using only the sign of the input, ignoring the magnitude of the input.
-	virtual void updateGradientNormalized(GVec& weights, GVec& gradient) override;
+	virtual void updateGradientNormalized() override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
 
 	/// Initialize the weights with small random values.
-	virtual void initWeights(GRand& rand, GVec& weights) override;
+	virtual void initWeights(GRand& rand) override;
 
 	/// Computes weights using Ordinary Least Squares
 	void ordinaryLeastSquares(const GMatrix& features, const GMatrix& labels, GVec& outWeights);
@@ -804,7 +816,7 @@ public:
 	static void fuseLayers(GBlockLinear& aa, GVec& a, GBlockLinear& bb, GVec& b, bool targetA);
 
 	/// An experimental regularizer that promotes anti-symmetric weights and layers that mirror each other.
-	void regularize_square(double lambda, GVec& weights, const GVec* pWeightsNext);
+	void regularize_square(double lambda, const GVec* pWeightsNext);
 };
 
 
@@ -844,18 +856,18 @@ public:
 	virtual GBlockRunningNormalizer* clone() const override { return new GBlockRunningNormalizer(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes backProp has already been called.)
-	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+	virtual void updateGradient() override;
 
 	/// Updates the weights
-	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum) override;
+	virtual void step(double learningRate, double momentum) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
@@ -864,7 +876,7 @@ public:
 	virtual size_t gradCount() const override;
 
 	/// Initialize the weights with small random values.
-	virtual void initWeights(GRand& rand, GVec& weights) override;
+	virtual void initWeights(GRand& rand) override;
 };
 
 
@@ -903,21 +915,21 @@ public:
 	virtual GBlockTemperedLinear* clone() const override { return new GBlockTemperedLinear(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes backProp has already been called.)
-	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+	virtual void updateGradient() override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
 
 	/// Initialize the weights with small random values.
-	virtual void initWeights(GRand& rand, GVec& weights) override;
+	virtual void initWeights(GRand& rand) override;
 };
 
 
@@ -962,21 +974,21 @@ public:
 	virtual GBlockConv* clone() const override { return new GBlockConv(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
 	/// (Assumes backProp has already been called.)
-	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+	virtual void updateGradient() override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
 
 	/// Initialize the weights with small random values.
-	virtual void initWeights(GRand& rand, GVec& weights) override;
+	virtual void initWeights(GRand& rand) override;
 
 	static void test();
 };
@@ -1016,11 +1028,11 @@ public:
 	virtual GBlockMaxPooling2D* clone() const override { return new GBlockMaxPooling2D(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 };
 
 
@@ -1053,11 +1065,11 @@ public:
 	virtual GBlockScalarSum* clone() const override { return new GBlockScalarSum(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 };
 
 
@@ -1091,11 +1103,11 @@ public:
 	virtual GBlockScalarProduct* clone() const override { return new GBlockScalarProduct(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 };
 
 
@@ -1131,11 +1143,11 @@ public:
 	virtual GBlockSwitch* clone() const override { return new GBlockSwitch(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 };
 
 
@@ -1174,23 +1186,23 @@ public:
 	virtual GBlockHinge* clone() const override { return new GBlockHinge(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+	virtual void updateGradient() override;
 
 	/// Updates the weights
-	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum) override;
+	virtual void step(double learningRate, double momentum) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
 
 	/// Initialize the weights with small random values.
-	virtual void initWeights(GRand& rand, GVec& weights) override;
+	virtual void initWeights(GRand& rand) override;
 
 	/// Initialize the weights to implement the identity function.
 	virtual void init_identity(GVec& weights) override;
@@ -1244,23 +1256,23 @@ public:
 	virtual GBlockElbow* clone() const override { return new GBlockElbow(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+	virtual void updateGradient() override;
 
 	/// Updates the weights
-	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum) override;
+	virtual void step(double learningRate, double momentum) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
 
 	/// Initialize the weights with small random values.
-	virtual void initWeights(GRand& rand, GVec& weights) override;
+	virtual void initWeights(GRand& rand) override;
 
 	/// Initialize the weights to implement the identity function.
 	virtual void init_identity(GVec& weights) override;
@@ -1313,23 +1325,23 @@ public:
 	virtual GBlockLeakyTanh* clone() const override { return new GBlockLeakyTanh(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+	virtual void updateGradient() override;
 
 	/// Updates the weights
-	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum) override;
+	virtual void step(double learningRate, double momentum) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
 
 	/// Initialize the weights with small random values.
-	virtual void initWeights(GRand& rand, GVec& weights) override;
+	virtual void initWeights(GRand& rand) override;
 };
 
 
@@ -1369,20 +1381,20 @@ public:
 	virtual GBlockSoftExp* clone() const override { return new GBlockSoftExp(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+	virtual void updateGradient() override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
 
 	/// Initialize the weights with small random values.
-	virtual void initWeights(GRand& rand, GVec& weights) override;
+	virtual void initWeights(GRand& rand) override;
 };
 
 
@@ -1425,20 +1437,20 @@ public:
 	virtual GBlockPAL* clone() const override { return new GBlockPAL(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+	virtual void updateGradient() override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
 
 	/// Initialize the weights with small random values.
-	virtual void initWeights(GRand& rand, GVec& weights) override;
+	virtual void initWeights(GRand& rand) override;
 };
 
 
@@ -1475,20 +1487,20 @@ public:
 	virtual GBlockHypercubeEdges* clone() const override { return new GBlockHypercubeEdges(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+	virtual void updateGradient() override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
 
 	/// Initialize the weights with small random values.
-	virtual void initWeights(GRand& rand, GVec& weights) override;
+	virtual void initWeights(GRand& rand) override;
 };
 
 
@@ -1528,17 +1540,17 @@ public:
 	virtual GBlockCatIn* clone() const override { return new GBlockCatIn(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+	virtual void updateGradient() override;
 
 	/// Updates the weights
-	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum) override;
+	virtual void step(double learningRate, double momentum) override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
@@ -1547,14 +1559,33 @@ public:
 	virtual size_t gradCount() const override;
 
 	/// Initialize the weights with small random values.
-	virtual void initWeights(GRand& rand, GVec& weights) override;
+	virtual void initWeights(GRand& rand) override;
 };
 
 
 
 
 
-
+//  Here is a diagram of this LSTM unit.
+//  C_t and h-t feed into this same block in the next time step.
+//  x_t comes from the previous layer.
+//  y_t feeds into the next layer.
+//
+//  C_t-1 ----(*)--------(+)----------------------> C_t
+//             ^          ^                 |
+//             |          |               [tanh]
+//             +-->(1-)->(*)                |
+//             |          |                 v
+//             f          t        o------>(*)
+//             ^          ^        ^        |   y_t (output)
+//             |          |        |        |    ^
+//        [logistic]   [tanh]  [logistic]   |    |
+//             |          |        |        |    |
+//  h_t-1 --------------------------        -------> h_t
+//          ^
+//          |
+//         x_t (input)
+//
 /// A Long-short-term-memory block
 class GBlockLSTM : public GBlock
 {
@@ -1594,7 +1625,7 @@ public:
 	virtual GBlockLSTM* clone() const override { return new GBlockLSTM(*this); }
 
 	/// Evaluate the input, set the output.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Advances through time
 	virtual void resetState() override;
@@ -1604,16 +1635,16 @@ public:
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+	virtual void updateGradient() override;
 
 	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
 	virtual size_t weightCount() const override;
 
 	/// Initialize the weights with small random values.
-	virtual void initWeights(GRand& rand, GVec& weights) override;
+	virtual void initWeights(GRand& rand) override;
 
 protected:
 	void stepInTime();
@@ -1632,6 +1663,22 @@ protected:
 
 
 
+//
+//
+//
+//
+//
+//
+//
+//				Layer
+//
+//
+//
+//
+//
+//
+//
+
 /// GNeuralNet contains GLayers stacked upon each other.
 /// GLayer contains GBlocks concatenated beside each other. (GNeuralNet is a type of GBlock.)
 /// Each GBlock is an array of differentiable network units (artificial neurons).
@@ -1646,12 +1693,14 @@ protected:
 	std::vector<GBlock*> m_blocks;
 
 public:
-	GVec output;
-	GVec outBlame;
+	GVec outputBuf;
+	GVec outBlameBuf;
+	GVecWrapper output;
+	GVecWrapper outBlame;
 
 	GLayer();
 	GLayer(const GLayer& that, GLayer* pPrevLayer);
-	GLayer(GDomNode* pNode, GLayer* pPrevLayer, GRand& rand);
+	GLayer(GDomNode* pNode, GRand& rand);
 	virtual ~GLayer();
 
 	/// Marshal this object into a dom node.
@@ -1668,9 +1717,6 @@ public:
 	/// inPos specifies the index of the first output from the previous layer that will feed into this block of units.
 	void add(GBlock* pBlock, size_t inPos);
 
-	/// Attaches all the blocks in this layer to pPrevLayer and allocates the buffer for the next layer.
-	void attach(GLayer* pPrevLayer);
-
 	/// Recounts the number of inputs, outputs, and weights in this layer.
 	void recount();
 
@@ -1680,14 +1726,17 @@ public:
 	/// Returns the number of outputs that this layer produces.
 	size_t outputs() const;
 
-	/// Hooks up an input vector to this layer
-	void setInput(const GVec& in);
+	/// Allocates output and outBlame buffers and binds each block to the appropriate parts of all these buffers.
+	void bind(const GVec* pInput, GVec* pOutput, GVec* pOutBlame, GVec* pInBlame, GVec& _weights, GVec& _gradient);
 
-	/// Hooks up an input vector to this layer
-	void setInBlame(GVec& inBlame);
+	/// Binds to the specified input buffer
+	void bindInput(const GVec& _input);
+
+	/// Binds to the speicified inBlame buffer
+	void bindInBlame(GVec& _inBlame);
 
 	/// Resets the weights in all of the blocks in this layer
-	void initWeights(GRand& rand, GVec& weights);
+	void initWeights(GRand& rand);
 
 	/// Returns the total number of weights in this layer
 	size_t weightCount() const;
@@ -1696,7 +1745,7 @@ public:
 	size_t gradCount() const;
 
 	/// Evaluate the input, set the output.
-	void forwardProp(const GVec& weights);
+	void forwardProp();
 
 	/// Computes the out blame for all of the blocks in this layer
 	void computeBlame(const GVec& target);
@@ -1709,16 +1758,19 @@ public:
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
-	void backProp(const GVec& weights);
+	void backProp();
 
 	/// Updates the gradient for updating the weights by gradient descent.
-	void updateGradient(GVec& weights, GVec& gradient);
+	void updateGradient();
 
 	/// Updates the gradient using only the sign of the inputs.
-	void updateGradientNormalized(GVec& weights, GVec& gradient);
+	void updateGradientNormalized();
 
 	/// Adds the gradient scaled by the learningRate to the weights.
-	void step(GVec& gradient, GVec& weights, double learningRate, double momentum);
+	void step(double learningRate, double momentum);
+
+	/// Adds the gradient scaled by the learningRate to the weights and also jitters it.
+	void step_jitter(double learningRate, double momentum, double jitter, GRand& rand);
 
 	/// Puts a 1 in elements that correspond with bias weights and a 0 in all other elements.
 	void biasMask(GVec& mask);
@@ -1728,6 +1780,22 @@ public:
 
 
 
+
+//
+//
+//
+//
+//
+//
+//
+//				NeuralNet
+//
+//
+//
+//
+//
+//
+//
 
 /// GNeuralNet contains GLayers stacked upon each other.
 /// GLayer contains GBlocks concatenated beside each other.
@@ -1750,7 +1818,7 @@ public:
 	GNeuralNet(const GNeuralNet& that);
 
 	/// Deserializing constructor
-	GNeuralNet(GDomNode* pNode, GRand& rand, GVec* pOutWeights = nullptr);
+	GNeuralNet(GDomNode* pNode, GRand& rand, GVec& weights, GVec& gradient);
 
 	/// Destructor
 	virtual ~GNeuralNet();
@@ -1770,9 +1838,6 @@ public:
 	/// Marshal this object into a dom node.
 	GDomNode* serialize(GDom* pDoc) const override;
 
-	/// Marshal this object into a dom node. Also attaches a weights vector.
-	GDomNode* serialize(GDom* pDoc, const GVec& weights) const;
-
 	/// Adds a block as a new layer to this neural network.
 	GBlock* add(GBlock* pBlock);
 	void add(GBlock* a, GBlock* b) { add(a); add(b); }
@@ -1786,10 +1851,13 @@ public:
 	void add(GBlock* a, GBlock* b, GBlock* c, GBlock* d, GBlock* e, GBlock* f, GBlock* g, GBlock* h, GBlock* i, GBlock* j) { add(a); add(b, c, d, e, f, g, h, i, j); }
 	void add(GBlock* a, GBlock* b, GBlock* c, GBlock* d, GBlock* e, GBlock* f, GBlock* g, GBlock* h, GBlock* i, GBlock* j, GBlock* k) { add(a); add(b, c, d, e, f, g, h, i, j, k); }
 
+	/// Attaches this neural network to the relevant buffers for it to operate on.
+	virtual void bind(const GVec* pInput, GVec* pOutput, GVec* pOutBlame, GVec* pInBlame, GVec& _weights, GVec& _gradient) override;
+
 	/// Concatenates a block to the last (output-most) layer in this neural network.
 	/// (inPos specifies the starting position of the inputs into this block.)
 	GBlock* concat(GBlock* pBlock, size_t inPos);
-
+/*
 	/// Inserts a block into a new layer at the specified position.
 	/// Requires the current weights and returns a new weight vector (which may be the
 	/// same vector if pBlock has no weights). New weights will be initialized to identity for a linear layer.
@@ -1814,9 +1882,9 @@ public:
 	/// then this removes an ignored unit from every layer to make the whole network
 	/// thinner by one unit. If this condition is not met, then it returns nullptr.
 	GVec* decrementWidth(GVec* pWeights, size_t startLayer, size_t layerCount);
-
+*/
 	/// An experimental regularization method that promotes anti-symmetry and mirroring in square linear layers
-	void regularize_square(double lambda, GVec& weights);
+	void regularize_square(double lambda);
 
 	/// Returns the number of layers in this neural net.
 	/// (Layers within neural networks embedded within this one are not counted.)
@@ -1831,10 +1899,10 @@ public:
 	const GLayer& outputLayer() const { return *m_layers[m_layers.size() - 1]; }
 
 	/// Returns a string representation of this object
-	virtual std::string to_str(const GVec* pWeights = nullptr) const override;
+	virtual std::string to_str(bool includeWeights = false) const override;
 
-	/// Same as to_str, but it lets the use specify a string to prepend to each line
-	std::string to_str(const std::string& line_prefix, const GVec* pWeights = nullptr) const;
+	/// Same as to_str, but it lets the use specify a string to prepend to each line, and optionally includes the weights
+	std::string to_str(const std::string& line_prefix, bool includeWeights = false) const;
 
 	/// Returns the number of inputs this layer consumes
 	virtual size_t inputs() const override { return m_layers[0]->inputs(); }
@@ -1854,18 +1922,23 @@ public:
 	/// Copies all the layers from other.
 	void copyTopology(const GNeuralNet& other);
 
-	/// Initialize the weights, usually with small random values.
-	virtual void initWeights(GRand& rand, GVec& weights) override;
+	/// Initialize the weights. (This is called by init.)
+	virtual void initWeights(GRand& rand) override;
+
+	/// Binds all the layers together to prepare this neural net for training.
+	/// Resizes weights and gradient to the appropriate sizes,
+	/// and if pRand is non-null, initializes the weights with random values for training,
+	void init(GVec& weights, GVec& gradient, GRand* pRand = nullptr);
 
 	/// Measures the loss with respect to some data. Returns sum-squared error.
 	/// if pOutSAE is not nullptr, then sum-absolute error will be storead where it points.
 	/// As a special case, if labels have exactly one categorical column, then it will be assumed
 	/// that the maximum output unit of this neural network represents a categorical prediction,
 	/// and sum hamming loss will be returned.
-	double measureLoss(const GVec& weights, const GMatrix& features, const GMatrix& labels, double* pOutSAE = nullptr);
+	double measureLoss(const GMatrix& features, const GMatrix& labels, double* pOutSAE = nullptr);
 
 	/// Evaluates the input vector. Returns an output vector.
-	GVec& forwardProp(const GVec& weights, const GVec& input);
+	GVec& forwardProp(const GVec& input);
 
 	/// Computes blame on the output of this neural network.
 	virtual void computeBlame(const GVec& target) override;
@@ -1877,20 +1950,23 @@ public:
 	virtual GBlock* advanceState(size_t unfoldedInstances) override;
 
 	/// Backpropagates the error. If inputBlame is non-null, the blame for the inputs will also be computed.
-	void backpropagate(const GVec& weights, GVec* inputBlame = nullptr);
+	void backpropagate(GVec* inputBlame = nullptr);
 
 	/// Updates the gradient vector
-	virtual void updateGradient(GVec& weights, GVec& gradient) override;
+	virtual void updateGradient() override;
 
 	/// Update the gradient using only the sign of the input, ignoring the magnitude of the input.
-	virtual void updateGradientNormalized(GVec& weights, GVec& gradient) override;
+	virtual void updateGradientNormalized() override;
 
 	/// Adds the gradient scaled by the learning rate to the weights
-	virtual void step(GVec& gradient, GVec& weights, double learningRate, double momentum) override;
+	virtual void step(double learningRate, double momentum) override;
+
+	/// Adds the gradient scaled by the learningRate to the weights and also jitters it.
+	virtual void step_jitter(double learningRate, double momentum, double jitter, GRand& rand);
 
 	/// Returns a mathematical expression of this neural network.
 	/// (Currently only supports linear, tanh, and scalarProduct blocks in one-block layers.)
-	std::string toEquation(const GVec& weights);
+	std::string toEquation();
 
 	/// Puts a 1 in elements that correspond with bias weights and a 0 in all other elements.
 	virtual void biasMask(GVec& mask);
@@ -1904,13 +1980,13 @@ public:
 protected:
 
 	/// Internal method to forward propagate. Assumes the input and output have already been hooked up.
-	virtual void forwardProp(const GVec& weights) override;
+	virtual void forwardProp() override;
 
 	/// Internal method to backpropate error. Assumes inBlame and outBlame have already been hooked up.
-	virtual void backProp(const GVec& weights) override;
+	virtual void backProp() override;
 
 	/// Like backProp, but it doesn't compute blame on the inputs.
-	void backPropFast(const GVec& weights);
+	void backPropFast();
 };
 
 
@@ -1930,7 +2006,7 @@ protected:
 
 public:
 	GNeuralNetLearner();
-	GNeuralNetLearner(const GDomNode* pNode);
+	//GNeuralNetLearner(const GDomNode* pNode);
 	virtual ~GNeuralNetLearner();
 
 	/// Returns a reference to the neural net that this class wraps
@@ -1982,7 +2058,7 @@ protected:
 
 
 
-
+/*
 /// A class that facilitates training a neural network with an arbitrary optimization algorithm
 class GNeuralNetTargetFunction : public GTargetFunction
 {
@@ -2005,7 +2081,7 @@ public:
 	virtual void initVector(GVec& vector)
 	{
 		GRand rand(0);
-		m_nn.initWeights(m_rand, vector);
+		vector.copy(m_nn.weights);
 	}
 
 	/// Copies the vector into the neural network and measures sum-squared error.
@@ -2014,7 +2090,7 @@ public:
 		return m_nn.measureLoss(vec, m_features, m_labels);
 	}
 };
-
+*/
 
 
 
