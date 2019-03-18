@@ -1,0 +1,55 @@
+<script type="text/javascript" src="/tools/browse.js"></script>
+
+Path: <input type="text" id="path" size="60" disabled="disabled">
+<table>
+	<tr><td width=200px>Folders:</td><td width=400px>Files:</td></tr>
+	<tr>
+		<td>
+			<select id="folders" size="12" onclick="closeDetails(0)" ondblclick="onfolderchange()" style="width:100%">
+			</select>
+		</td>
+		<td>
+			<select id="files" size="12" onclick="closeDetails(0)" style="width:100%">
+			</select>
+		</td>
+	</tr>
+	<tr>
+		<td valign=top>
+
+			<!--  Folder buttons  -->
+			<details id="d1" onclick="onclickd1()"><summary><button class="btn">Delete folder</button></summary>
+				Are you sure? Everything inside it will be deleted too. <input type="submit" value="Yes, delete it">
+			</details><br>
+			<details id="d2" onclick="onclickd2()"><summary><button class="btn">New folder</button></summary>
+				Name: <input type="text" id="newfoldername"><input type="button" onclick="newfolder()" value="Create" class="btn">
+			</details>
+
+		</td>
+		<td valign=top>
+			<table><tr>
+				<td valign="top">
+
+					<!--  File buttons, column 1  -->
+					<button onclick="viewpage()" class="btn">View page</button><br><br>
+					<button onclick="previewpage()" class="btn">Preview in frame</button><br><br>
+					<button onclick="editgui()" href="#" class="btn">Edit (graphical)</button><br><br>
+					<button onclick="edittext()" href="#" class="btn">Edit (source)</button><br><br>
+
+				</td>
+				<td valign="top">
+
+					<!--  File buttons, column 2  -->
+					<button onclick="history()" href="#" class="btn">History</button><br><br>
+					<details id="d3" onclick="onclickd3()"><summary><button class="btn">Delete file</button></summary>
+						Are you sure? <input type="submit" value="Yes, delete it">
+					</details><br>
+					<details id="d4" onclick="onclickd4()"><summary><button class="btn">New page</button></summary>
+						<form action="/tools/newpage">Name: <input type="text" name="pagename"><input type="submit" value="Create"></form>
+					</details>
+
+				</td>
+			</tr></table>
+		</td>
+	</tr>
+</table>
+<br><br>
