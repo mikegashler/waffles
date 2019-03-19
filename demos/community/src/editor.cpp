@@ -107,7 +107,7 @@ string goUpOneDirectory(string& dir)
 		return dir.substr(0, lastSlash);
 	}
 }
-/*
+
 void ensureFolderExists(string& folderName)
 {
 	bool ok;
@@ -121,7 +121,7 @@ void ensureFolderExists(string& folderName)
 		//throw Ex("Failed to make directory: ", folderName);
 	}
 }
-*/
+
 string Editor::userFolder(Server* pServer, Account* pAccount)
 {
 	string foldername = pServer->m_basePath.c_str();
@@ -134,7 +134,7 @@ void Editor::ajaxFilelist(Server* pServer, GDynamicPageSession* pSession, const 
 	Account* pAccount = getAccount(pSession);
 	string foldername = pServer->m_basePath.c_str();
 	foldername += "users";
-	//ensureFolderExists(foldername);
+	ensureFolderExists(foldername);
 #ifdef _DEBUG
 	cout << "Making file list for " << foldername.c_str() << "\n";
 #endif

@@ -926,7 +926,8 @@ void Survey::pageNewSurveyItem(Server* pServer, GDynamicPageSession* pSession, o
 double Survey::computeVariance(double* pCentroid, Topic& topic, size_t topicId, User** pUsers, size_t accCount)
 {
 	// Compute the centroid
-	GVec::setAll(pCentroid, 0.0, topic.size());
+	GVecWrapper vw(pCentroid, topic.size());
+	vw.fill(0.0);
 	User** pUs = pUsers;
 	for(size_t j = 0; j < accCount; j++)
 	{
