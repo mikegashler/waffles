@@ -221,7 +221,7 @@ GSGDOptimizer::GSGDOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTra
 
 void GSGDOptimizer::init()
 {
-	m_model.init(m_weights, m_gradient, &m_rand);
+	m_model.init(m_rand);
 #ifdef GCUDA
 	if(m_useGPU)
 	{
@@ -283,7 +283,7 @@ GAdamOptimizer::GAdamOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pT
 
 void GAdamOptimizer::init()
 {
-	m_model.init(m_weights, m_gradient, &m_rand);
+	m_model.init(m_rand);
 	m_deltas.resize(m_gradient.size());
 	m_sqdeltas.resize(m_gradient.size());
 	m_deltas.fill(0.0);
@@ -347,7 +347,7 @@ GRMSPropOptimizer::GRMSPropOptimizer(GNeuralNet& model, GRand& rand, const GMatr
 
 void GRMSPropOptimizer::init()
 {
-	m_model.init(m_weights, m_gradient, &m_rand);
+	m_model.init(m_rand);
 	m_meanSquare.resize(m_gradient.size());
 	m_meanSquare.fill(0.0);
 }

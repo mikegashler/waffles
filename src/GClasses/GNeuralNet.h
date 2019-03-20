@@ -53,6 +53,8 @@ protected:
 public:
 	GVec outputBuf;
 	GVec outBlameBuf;
+	GVec weightsBuf;
+	GVec gradientBuf;
 	GConstVecWrapper input;
 	GVecWrapper output;
 	GVecWrapper outBlame;
@@ -88,8 +90,9 @@ public:
 		block_hinge,
 		block_elbow,
 		block_softexp,
-		block_hypercubeedges,
+		block_hypercube,
 		block_catin,
+		block_weight_digester,
 
 		// weightless transfer
 		block_scalarsum,
@@ -123,7 +126,7 @@ public:
 	virtual std::string name() const = 0;
 
 	/// Returns a string representation of this block
-	virtual std::string to_str(bool includeWeights = false) const;
+	virtual std::string to_str(bool includeWeights = false, bool includeActivations = false) const;
 
 	/// Returns true iff this block is recurrent
 	virtual bool isRecurrent() const { return false; }
@@ -138,9 +141,9 @@ public:
 	virtual GBlock* clone() const = 0;
 
 	/// Attaches this block to the buffers it will operate on.
-	/// If pOutput or pOutBlame are nullptr, it allocates its own buffers for these.
+	/// If any of pOutput, pOutBlame, pWeights, or pGradient are nullptr, it allocates its own buffers for these.
 	/// If pInput or pInBlame are nullptr, it just leaves them unbound.
-	virtual void bind(const GVec* pInput, GVec* pOutput, GVec* pOutBlame, GVec* pInBlame, GVec& _weights, GVec& _gradient);
+	virtual void bind(const GVec* pInput, GVec* pOutput, GVec* pOutBlame, GVec* pInBlame, GVec* pWeights, GVec* pGradient);
 
 	/// Returns the offset in the previous layer's output where values are fed as input to this block.
 	size_t inPos() const { return m_inPos; }
@@ -225,6 +228,10 @@ public:
 
 	/// Returns the index of the first input that this layer completely ignores, or INVALID_INDEX if there are none.
 	virtual size_t firstIgnoredInput(const GVec& weights);
+
+	/// Uses central differencing to test that backProp and updateGradient are implemented correctly.
+	/// Throws an exception if a problem is found.
+	void finiteDifferencingTest(double tolerance = 0.0005);
 
 protected:
 	GDomNode* baseDomNode(GDom* pDoc) const;
@@ -758,7 +765,7 @@ public:
 	virtual GBlockLinear* clone() const override { return new GBlockLinear(*this); }
 
 	/// Returns a string representation of this block
-	virtual std::string to_str(bool includeWeights = false) const;
+	virtual std::string to_str(bool includeWeights = false, bool includeActivations = false) const;
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp() override;
@@ -874,6 +881,55 @@ public:
 
 	/// Returns the number of gradient elements
 	virtual size_t gradCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand) override;
+};
+
+
+
+
+
+class GBlockWeightDigester : public GBlock
+{
+protected:
+	GBlock* m_pDigestMyWeights;
+
+public:
+	/// General-purpose constructor
+	GBlockWeightDigester(GBlock* pDigestMyWeights, size_t extraInputs, size_t outputs);
+
+	/// Copy constructor
+	GBlockWeightDigester(const GBlockWeightDigester& that) : GBlock(that) {}
+
+	/// Unmarshalling constructor
+	GBlockWeightDigester(GDomNode* pNode);
+
+	/// Destructor
+	virtual ~GBlockWeightDigester() {}
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_weight_digester; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockWeightDigester"; }
+
+	/// Returns a copy of this block
+	virtual GBlockWeightDigester* clone() const override { return new GBlockWeightDigester(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp() override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp() override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes backProp has already been called.)
+	virtual void updateGradient() override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
 
 	/// Initialize the weights with small random values.
 	virtual void initWeights(GRand& rand) override;
@@ -1460,31 +1516,37 @@ public:
 
 
 
-/// Connects units represented by edges in a hypercube.
-/// The larger of the inputs and outputs is used to determine the total number of connections, and wrapping is used to resolve differences.
-class GBlockHypercubeEdges : public GBlock
+/// Number of inputs: 2^dims * vertexSizeIn.
+/// Number of outputs: 2^dims * vertexSizeOut.
+/// Each vertex is fully connected to all the vertices indicated by the edges of a hypercube.
+class GBlockHypercube : public GBlock
 {
+protected:
+	size_t m_dims;
+	size_t m_vertexSizeIn;
+	size_t m_vertexSizeOut;
+
 public:
 	/// General-purpose constructor
-	GBlockHypercubeEdges(size_t inputs, size_t outputs);
+	GBlockHypercube(size_t dims, size_t vertexSizeIn, size_t vertexSizeOut);
 
 	/// Copy constructor
-	GBlockHypercubeEdges(const GBlockHypercubeEdges& that) : GBlock(that) {}
+	GBlockHypercube(const GBlockHypercube& that) : GBlock(that) {}
 
 	/// Unmarshalling constructor
-	GBlockHypercubeEdges(GDomNode* pNode);
+	GBlockHypercube(GDomNode* pNode);
 
 	/// Destructor
-	virtual ~GBlockHypercubeEdges() {}
+	virtual ~GBlockHypercube() {}
 
 	/// Returns the type of this block
-	virtual BlockType type() const override { return block_hypercubeedges; }
+	virtual BlockType type() const override { return block_hypercube; }
 
 	/// Returns the name of this block
-	virtual std::string name() const override { return "GBlockHypercubeEdges"; }
+	virtual std::string name() const override { return "GBlockHypercube"; }
 
 	/// Returns a copy of this block
-	virtual GBlockHypercubeEdges* clone() const override { return new GBlockHypercubeEdges(*this); }
+	virtual GBlockHypercube* clone() const override { return new GBlockHypercube(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp() override;
@@ -1670,7 +1732,7 @@ protected:
 //
 //
 //
-//				Layer
+//              Layer
 //
 //
 //
@@ -1788,7 +1850,7 @@ public:
 //
 //
 //
-//				NeuralNet
+//             NeuralNet
 //
 //
 //
@@ -1818,7 +1880,7 @@ public:
 	GNeuralNet(const GNeuralNet& that);
 
 	/// Deserializing constructor
-	GNeuralNet(GDomNode* pNode, GRand& rand, GVec& weights, GVec& gradient);
+	GNeuralNet(GDomNode* pNode, GRand& rand);
 
 	/// Destructor
 	virtual ~GNeuralNet();
@@ -1852,7 +1914,7 @@ public:
 	void add(GBlock* a, GBlock* b, GBlock* c, GBlock* d, GBlock* e, GBlock* f, GBlock* g, GBlock* h, GBlock* i, GBlock* j, GBlock* k) { add(a); add(b, c, d, e, f, g, h, i, j, k); }
 
 	/// Attaches this neural network to the relevant buffers for it to operate on.
-	virtual void bind(const GVec* pInput, GVec* pOutput, GVec* pOutBlame, GVec* pInBlame, GVec& _weights, GVec& _gradient) override;
+	virtual void bind(const GVec* pInput, GVec* pOutput, GVec* pOutBlame, GVec* pInBlame, GVec* pWeights, GVec* pGradient) override;
 
 	/// Concatenates a block to the last (output-most) layer in this neural network.
 	/// (inPos specifies the starting position of the inputs into this block.)
@@ -1899,10 +1961,10 @@ public:
 	const GLayer& outputLayer() const { return *m_layers[m_layers.size() - 1]; }
 
 	/// Returns a string representation of this object
-	virtual std::string to_str(bool includeWeights = false) const override;
+	virtual std::string to_str(bool includeWeights = false, bool includeActivations = false) const override;
 
 	/// Same as to_str, but it lets the use specify a string to prepend to each line, and optionally includes the weights
-	std::string to_str(const std::string& line_prefix, bool includeWeights = false) const;
+	std::string to_str(const std::string& line_prefix, bool includeWeights = false, bool includeActivations = false) const;
 
 	/// Returns the number of inputs this layer consumes
 	virtual size_t inputs() const override { return m_layers[0]->inputs(); }
@@ -1925,10 +1987,13 @@ public:
 	/// Initialize the weights. (This is called by init.)
 	virtual void initWeights(GRand& rand) override;
 
-	/// Binds all the layers together to prepare this neural net for training.
-	/// Resizes weights and gradient to the appropriate sizes,
-	/// and if pRand is non-null, initializes the weights with random values for training,
-	void init(GVec& weights, GVec& gradient, GRand* pRand = nullptr);
+	/// Allocates buffers needed for training, binds all the layers to these buffers,
+	/// and to each other, initializes the weights with small random values, and
+	/// initializes the gradient vector with zeros.
+	void init(GRand& rand);
+
+	/// Initializes with pre-trained weights
+	void init(GVec& weights);
 
 	/// Measures the loss with respect to some data. Returns sum-squared error.
 	/// if pOutSAE is not nullptr, then sum-absolute error will be storead where it points.

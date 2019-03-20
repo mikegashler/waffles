@@ -1782,6 +1782,7 @@ public:
 class GraphServer : public GDynamicPageServer
 {
 protected:
+	bool m_keepGoing;
 	vector<UsageNode*> m_globals;
 	int m_port;
 
@@ -1803,6 +1804,7 @@ public:
 
 GraphServer::GraphServer(int port, GRand* pRand) : GDynamicPageServer(port, pRand), m_port(port)
 {
+	m_keepGoing = true;
 	char buf[300];
 	GApp::appPath(buf, 256, true);
 	strcat(buf, "web/");
@@ -1819,7 +1821,7 @@ void GraphServer::pump()
 {
 	double dLastActivity = GTime::seconds();
 	GSignalHandler sh;
-	while(m_bKeepGoing && sh.check() == 0)
+	while(m_keepGoing && sh.check() == 0)
 	{
 		if(process())
 			dLastActivity = GTime::seconds();
@@ -1828,7 +1830,7 @@ void GraphServer::pump()
 			if(GTime::seconds() - dLastActivity > 1800) // 30 minutes
 			{
 				cout << "Shutting down due to inactivity for 30 minutes.\n";
-				m_bKeepGoing = false;
+				m_keepGoing = false;
 			}
 			else
 				GThread::sleep(100);

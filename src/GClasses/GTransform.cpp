@@ -819,7 +819,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		size_t pos = 0;
 		double weakest = 1e308;
 		size_t weakestIndex = 0;
-		GVec& weights = optimizer.weights();
+		GVec& weights = optimizer.model().weights;
 		for(size_t i = 0; i < curDims; i++)
 		{
 			double w = 0;

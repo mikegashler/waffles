@@ -150,7 +150,6 @@ class GDynamicPageServer : public GHttpServer
 {
 protected:
 	GRand* m_pRand;
-	bool m_bKeepGoing;
 	std::map<unsigned long long, GDynamicPageSession*> m_sessions;
 	char* m_szMyAddress;
 	char m_daemonSalt[16];
@@ -160,16 +159,11 @@ public:
 	GDynamicPageServer(int port, GRand* pRand);
 	virtual ~GDynamicPageServer();
 
-	virtual void onStateChange() {}
-	virtual void onEverySixHours() {}
-	virtual void onShutDown() {}
 	virtual GDynamicPageSessionExtension* deserializeSessionExtension(const GDomNode* pNode)
 	{
 		throw Ex("deserializeSessionExtension has not be overridden");
 	}
 
-	void go();
-	void shutDown();
 	void flushSessions();
 
 	/// Returns the session with the specified id. If no session is found with that id, returns NULL.

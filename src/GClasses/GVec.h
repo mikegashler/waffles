@@ -171,10 +171,10 @@ public:
 	void fillSimplex(GRand& rand);
 
 	/// Prints a representation of this vector to the specified stream.
-	void print(std::ostream& stream = std::cout, char separator = ',') const;
+	void print(std::ostream& stream = std::cout, char separator = ',', size_t max_elements_per_line = INVALID_INDEX) const;
 
 	/// Returns a string representation of this vector
-	std::string to_str(char separator = ',') const;
+	std::string to_str(char separator = ',', size_t max_elements_per_line = INVALID_INDEX) const;
 
 	/// Returns the sum of the elements in this vector
 	double sum() const;

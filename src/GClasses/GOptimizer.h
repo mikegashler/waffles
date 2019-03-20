@@ -40,8 +40,6 @@ class GNeuralNetOptimizer
 {
 protected:
 	GNeuralNet& m_model;
-	GVec m_weights;
-	GVec m_gradient;
 
 	const GMatrix* m_pTrainingFeatures;
 	const GMatrix* m_pTrainingLabels;
@@ -63,15 +61,12 @@ public:
 	GNeuralNetOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTrainingFeatures = nullptr, const GMatrix* pTrainingLabels = nullptr);
 	virtual ~GNeuralNetOptimizer();
 
-	GVec& weights() { return m_weights; }
-	GVec& gradient() { return m_gradient; }
-
 	/// Prepare for optimization (i.e. allocate delta vectors).
 	virtual void init() = 0;
-	
+
 	/// Evaluate feat and lab, and update the model's gradient.
 	virtual void computeGradient(const GVec &feat, const GVec &lab) = 0;
-	
+
 	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
 	virtual void descendGradient(double learningRate) = 0;
 

@@ -333,20 +333,25 @@ void GVec::fillSimplex(GRand& rand)
 	(*this) *= (1.0 / sum());
 }
 
-void GVec::print(std::ostream& stream, char separator) const
+void GVec::print(std::ostream& stream, char separator, size_t max_elements_per_line) const
 {
 	std::streamsize oldPrecision = stream.precision(14);
 	if(m_size > 0)
 		stream << (*this)[0];
 	for(size_t i = 1; i < m_size; i++)
-		stream << separator << (*this)[i];
+	{
+		stream << separator;
+		if(i % max_elements_per_line == 0)
+			stream << "\n";
+		stream << (*this)[i];
+	}
 	stream.precision(oldPrecision);
 }
 
-std::string GVec::to_str(char separator) const
+std::string GVec::to_str(char separator, size_t max_elements_per_line) const
 {
 	std::ostringstream ss;
-	print(ss, separator);
+	print(ss, separator, max_elements_per_line);
 	return ss.str();
 }
 

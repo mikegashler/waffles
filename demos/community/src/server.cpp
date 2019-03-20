@@ -36,6 +36,7 @@ Server::Server(int port, GRand* pRand)
 : GDynamicPageServer(port, pRand),
 m_recommender(*pRand)
 {
+	m_keepGoing = true;
 	char buf[300];
 	GApp::appPath(buf, 256, true);
 	GFile::condensePath(buf);
@@ -145,7 +146,7 @@ void Server::saveState()
 }
 
 // virtual
-void Server::onEverySixHours()
+void Server::doSomeRecommenderTraining()
 {
 	try
 	{
@@ -162,7 +163,7 @@ void Server::onEverySixHours()
 	}
 	catch(std::exception& e)
 	{
-		cerr << "An error occurred: " << e.what() << " in method onEverySixHours\n";
+		cerr << "An error occurred: " << e.what() << " in method doSomeRecommenderTraining\n";
 	}
 }
 
@@ -256,6 +257,7 @@ void Server::deserializeState(const GDomNode* pNode)
 	m_recommender.deserialize(pNode->get("recommender"));
 }
 
+// virtual
 GDynamicPageSessionExtension* Server::deserializeSessionExtension(const GDomNode* pNode)
 {
 	return new Terminal(pNode, this);
@@ -506,7 +508,7 @@ const char* Connection::processParams(GDynamicPageSession* pSession)
 				{
 					cout << "An admin has directed the server to shut down\n";
 					cout.flush();
-					m_pServer->shutDown();
+					((Server*)m_pServer)->m_keepGoing = false;
 				}
 				else
 					szParamsMessage = "Sorry, only an administrator may perform that action";

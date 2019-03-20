@@ -288,8 +288,6 @@ const char* GDynamicPageConnection::extensionToMimeType(const char* szFilename)
 GDynamicPageServer::GDynamicPageServer(int port, GRand* pRand)
 : GHttpServer(port), m_pRand(pRand)
 {
-	m_bKeepGoing = true;
-
 	// Init captcha salt
 	int i;
 	for(i = 0; i < 14; i++)
@@ -362,43 +360,6 @@ void GDynamicPageServer::printSessionIds(std::ostream& stream)
 		stream << "	" << it->first << "\n";
 	}
 	stream.flush();
-}
-
-void GDynamicPageServer::go()
-{
-	double dLastMaintenance = GTime::seconds();
-	GSignalHandler sh;
-	while(m_bKeepGoing)
-	{
-		int sig = sh.check();
-		if(sig != 0)
-		{
-			cout << "Received signal " << to_str(sig) << "(" << sh.to_str(sig) << "). Shutting down.\n";
-			cout.flush();
-			break;
-		}
-		if(!process())
-		{
-			if(GTime::seconds() - dLastMaintenance > 14400)	// 4 hours
-			{
-				doMaintenance();
-				dLastMaintenance = GTime::seconds();
-			}
-			else
-				GThread::sleep(100);
-		}
-	}
-	onShutDown();
-}
-
-void GDynamicPageServer::shutDown()
-{
-	m_bKeepGoing = false;
-}
-
-void GDynamicPageServer::doMaintenance()
-{
-	onEverySixHours();
 }
 
 const char* GDynamicPageServer::myAddress()

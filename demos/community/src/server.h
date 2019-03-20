@@ -38,13 +38,14 @@ protected:
 	GFileCache m_fileCache;
 
 public:
+	bool m_keepGoing;
 	std::string m_basePath;
 
 	Server(int port, GRand* pRand);
 	virtual ~Server();
 	Recommender& recommender() { return m_recommender; }
 	void saveState();
-	virtual void onEverySixHours();
+	void doSomeRecommenderTraining();
 	virtual void onStateChange();
 	virtual void onShutDown();
 	bool isUsernameTaken(const char* szUsername);

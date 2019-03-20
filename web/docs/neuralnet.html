@@ -367,6 +367,7 @@ Here's a version that uses more explicit calls. (The results are the same):</p>
 #include &lt;GClasses/GTransform.h&gt;
 #include &lt;GClasses/GTime.h&gt;
 #include &lt;GClasses/GVec.h&gt;
+#include &lt;GClasses/GString.h&gt;
 
 using namespace GClasses;
 using std::cerr;
@@ -377,21 +378,18 @@ class Model
 public:
 	GRand&amp; m_rand;
 	GNeuralNet m_nn;
-	GVec m_weights;
-	GVec m_grad;
 	double m_learningRate;
 	double m_momentum;
 
 	Model(GRand&amp; rand)
 	: m_rand(rand), m_learningRate(0.01), m_momentum(0.0)
 	{
-		m_nn.add(new GBlockLinear(28 * 28, 80), new GBlockEl(80));
-		m_nn.add(new GBlockLinear(80, 30), new GBlockEl(30));
+		m_nn.add(new GBlockLinear(28 * 28, 80));
+		m_nn.add(new GBlockEl(80));
+		m_nn.add(new GBlockLinear(80, 30));
+		m_nn.add(new GBlockEl(30));
 		m_nn.add(new GBlockLinear(30, 10), new GBlockEl(10));
-		m_weights.resize(m_nn.weightCount());
-		m_nn.initWeights(m_rand, m_weights);
-		m_grad.resize(m_nn.gradCount());
-		m_grad.fill(0.0);
+		m_nn.init(m_rand);
 	}
 
 	virtual ~Model()
@@ -400,16 +398,16 @@ public:
 
 	void refine(const GVec&amp; feat, GVec&amp; lab)
 	{
-		m_nn.forwardProp(m_weights, feat);
+		m_nn.forwardProp(feat);
 		m_nn.computeBlame(lab);
-		m_nn.backpropagate(m_weights);
-		m_nn.updateGradient(m_weights, m_grad);
-		m_nn.step(m_grad, m_weights, m_learningRate, m_momentum);
+		m_nn.backpropagate();
+		m_nn.updateGradient();
+		m_nn.step(m_learningRate, m_momentum);
 	}
 
 	void test(GMatrix&amp; testFeatures, GMatrix&amp; testLabels, double starttime)
 	{
-		double mis = m_nn.measureLoss(m_weights, testFeatures, testLabels);
+		double mis = m_nn.measureLoss(testFeatures, testLabels);
 		cout &lt;&lt; to_str((double)mis / testFeatures.rows()) &lt;&lt; "," &lt;&lt; to_str(GTime::seconds() - starttime) &lt;&lt; "\n";
 		cout.flush();
 	}
@@ -464,7 +462,7 @@ int main(int argc, char *argv[])
 	cout &lt;&lt; "% Training patterns: " &lt;&lt; to_str(trainFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Testing patterns: " &lt;&lt; to_str(testFeatures.rows()) &lt;&lt; "\n";
 	cout &lt;&lt; "% Topology:\n";
-	cout &lt;&lt; m.m_nn.to_str("% ") &lt;&lt; "\n";
+	cout &lt;&lt; m.m_nn.to_str("% ", false, false) &lt;&lt; "\n";
 	cout &lt;&lt; "@RELATION neural_net_training\n";
 	cout &lt;&lt; "@ATTRIBUTE misclassification_rate real\n";
 	cout &lt;&lt; "@ATTRIBUTE elapsed_time real\n";
