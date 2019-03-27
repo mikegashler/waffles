@@ -2060,6 +2060,18 @@ protected:
 
 
 
+class GBlockResidual : public GNeuralNet
+{
+	virtual void forwardProp() override;
+
+	virtual void backProp() override;
+};
+
+
+
+
+
+
 
 
 /// A thin wrapper around a GNeuralNet that implements the GIncrementalLearner interface.

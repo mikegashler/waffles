@@ -4490,6 +4490,39 @@ void GNeuralNet::align(const GNeuralNet& that)
 
 
 
+void GBlockResidual::forwardProp()
+{
+	GNeuralNet::forwardProp();
+	size_t j = 0;
+	for(size_t i = 0; i < output.size(); i++)
+	{
+		output[i++] += input[j++];
+		if(j >= input.size())
+			j = 0;
+	}
+}
+
+void GBlockResidual::backProp()
+{
+	GNeuralNet::backProp();
+	size_t j = 0;
+	for(size_t i = 0; i < outBlame.size(); i++)
+	{
+		inBlame[i++] += outBlame[j++];
+		if(j >= inBlame.size())
+			j = 0;
+	}
+}
+
+
+
+
+
+
+
+
+
+
 GNeuralNetLearner::GNeuralNetLearner()
 : GIncrementalLearner(), m_pOptimizer(nullptr)
 {}
