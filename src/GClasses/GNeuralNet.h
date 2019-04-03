@@ -72,6 +72,7 @@ public:
 		block_scaledtanh,
 		block_logistic,
 		block_el,
+		block_elpos,
 		block_bentidentity,
 		block_sigexp,
 		block_gaussian,
@@ -84,6 +85,7 @@ public:
 
 		// weights transfer
 		block_linear,
+		block_fanout,
 		block_conv,
 		block_temperedlinear,
 		block_pal,
@@ -92,7 +94,9 @@ public:
 		block_softexp,
 		block_hypercube,
 		block_catin,
+		block_catout,
 		block_weight_digester,
+		block_optional,
 
 		// weightless transfer
 		block_scalarsum,
@@ -432,6 +436,26 @@ public:
 	virtual double eval(double x) const override { return x < 0 ? std::exp(x) - 1.0 : x; }
 	virtual double derivative(double x, double f_x) const override { return x < 0 ? std::exp(x) : 1.0; }
 	virtual double inverse(double y) const override { return y < 0 ? std::log(y + 1) : y; }
+};
+
+
+
+
+/// An exponential-linear unit.
+/// As a special case, this block passes UNKNOWN_REAL_VALUE straight through.
+class GBlockElPos : public GBlockActivation
+{
+public:
+	GBlockElPos(size_t size) : GBlockActivation(size) {}
+	GBlockElPos(const GBlockElPos& that) : GBlockActivation(that) {}
+	GBlockElPos(const GDomNode* pNode) : GBlockActivation(pNode) {}
+	virtual ~GBlockElPos() {}
+	virtual BlockType type() const override { return block_elpos; }
+	virtual std::string name() const override { return "GBlockElPos"; }
+	virtual GBlockElPos* clone() const override { return new GBlockElPos(*this); }
+	virtual double eval(double x) const override { return x == UNKNOWN_REAL_VALUE ? UNKNOWN_REAL_VALUE : (x < 0 ? std::exp(x) : x + 1); }
+	virtual double derivative(double x, double f_x) const override { return x == UNKNOWN_REAL_VALUE ? 0.0 : (x < 0 ? std::exp(x) : 1.0); }
+	virtual double inverse(double y) const override { return y = UNKNOWN_REAL_VALUE ? UNKNOWN_REAL_VALUE : (y < 0 ? std::log(y) : y + 1); }
 };
 
 
@@ -824,6 +848,54 @@ public:
 
 	/// An experimental regularizer that promotes anti-symmetric weights and layers that mirror each other.
 	void regularize_square(double lambda, const GVec* pWeightsNext);
+};
+
+
+
+
+
+/// For each input, produces n outputs, where each output is a linear function of one input.
+/// As a special case, inputs with a value of UNKNOWN_REAL_VALUE are replicated in the output.
+class GBlockFanOut : public GBlock
+{
+public:
+	/// General-purpose constructor
+	GBlockFanOut(size_t inputs, size_t outputs);
+
+	/// Copy constructor
+	GBlockFanOut(const GBlockFanOut& that) : GBlock(that) {}
+
+	/// Unmarshalling constructor
+	GBlockFanOut(GDomNode* pNode);
+
+	/// Destructor
+	virtual ~GBlockFanOut() {}
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_fanout; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockFanOut"; }
+
+	/// Returns a copy of this block
+	virtual GBlockFanOut* clone() const override { return new GBlockFanOut(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp() override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp() override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	/// (Assumes backProp has already been called.)
+	virtual void updateGradient() override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand) override;
 };
 
 
@@ -1570,6 +1642,53 @@ public:
 
 
 
+
+class GBlockOptional : public GBlock
+{
+public:
+	/// General-purpose constructor
+	GBlockOptional(size_t inputs, size_t outputs);
+
+	/// Copy constructor
+	GBlockOptional(const GBlockOptional& that) : GBlock(that) {}
+
+	/// Unmarshalling constructor
+	GBlockOptional(GDomNode* pNode);
+
+	/// Destructor
+	virtual ~GBlockOptional() {}
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_optional; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockOptional"; }
+
+	/// Returns a copy of this block
+	virtual GBlockOptional* clone() const override { return new GBlockOptional(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp() override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp() override;
+
+	/// Updates the gradient for updating the weights by gradient descent.
+	virtual void updateGradient() override;
+
+	/// Returns the number of double-precision elements necessary to serialize the weights of this block into a vector.
+	virtual size_t weightCount() const override;
+
+	/// Initialize the weights with small random values.
+	virtual void initWeights(GRand& rand) override;
+};
+
+
+
+
+
+
 /// A special block that expects one categorical input value (encoded as a zero-indexed int casted as a double).
 /// It learns the best encoding for each input value using each of its units.
 /// It dynamically adjusts to accomodate input values not previously seen.
@@ -1622,6 +1741,37 @@ public:
 
 	/// Initialize the weights with small random values.
 	virtual void initWeights(GRand& rand) override;
+};
+
+
+
+
+/// A special block that uses a one-hot encoding to predict categorical outputs.
+/// It trains to predict the most probably category by at least a specified margin.
+class GBlockCatOut : public GBlockWeightless
+{
+protected:
+	double m_margin;
+
+public:
+	GBlockCatOut(size_t categories, double margin = 0.3);
+	GBlockCatOut(const GBlockCatOut& that) : GBlockWeightless(that), m_margin(that.m_margin) {}
+	GBlockCatOut(const GDomNode* pNode);
+	virtual ~GBlockCatOut() {}
+
+	virtual BlockType type() const override { return block_catout; }
+	virtual std::string name() const override { return "GBlockCatOut"; }
+	virtual GBlockCatOut* clone() const override { return new GBlockCatOut(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp() override;
+
+	/// Computes blame for this layer. (Assumes target is a one-dimensional index value casted as a double)
+	virtual void computeBlame(const GVec& target);
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp() override;
 };
 
 
@@ -1990,7 +2140,7 @@ public:
 	/// Allocates buffers needed for training, binds all the layers to these buffers,
 	/// and to each other, initializes the weights with small random values, and
 	/// initializes the gradient vector with zeros.
-	void init(GRand& rand);
+	void init(GRand& rand, GNeuralNet* pBase = nullptr);
 
 	/// Initializes with pre-trained weights
 	void init(GVec& weights);

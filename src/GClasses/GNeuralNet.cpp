@@ -998,6 +998,101 @@ void GBlockLinear::regularize_square(double lambda, const GVec* pWeightsNext)
 
 
 
+GBlockFanOut::GBlockFanOut(size_t inputs, size_t outputsPerInput)
+: GBlock(inputs, outputsPerInput * inputs)
+{
+}
+
+GBlockFanOut::GBlockFanOut(GDomNode* pNode)
+: GBlock(pNode)
+{}
+
+void GBlockFanOut::forwardProp()
+{
+	size_t outputsPerInput = outputCount / inputCount;
+	size_t outpos = 0;
+	size_t weightpos = 0;
+	for(size_t j = 0; j < outputsPerInput; j++)
+	{
+		for(size_t i = 0; i < inputCount; i++)
+		{
+			if(input[i] == UNKNOWN_REAL_VALUE)
+				output[outpos] = UNKNOWN_REAL_VALUE;
+			else
+				output[outpos] = weights[weightpos] + weights[weightpos + 1] * input[i];
+			++outpos;
+			weightpos += 2;
+		}
+	}
+	GAssert(outpos == output.size());
+	GAssert(weightpos == weights.size());
+}
+
+void GBlockFanOut::backProp()
+{
+	size_t outputsPerInput = outputCount / inputCount;
+	size_t outpos = 0;
+	size_t weightpos = 0;
+	for(size_t j = 0; j < outputsPerInput; j++)
+	{
+		for(size_t i = 0; i < inputCount; i++)
+		{
+			++weightpos; // skip the bias
+			if(input[i] != UNKNOWN_REAL_VALUE)
+				inBlame[i] += outBlame[outpos] * weights[weightpos];
+			++outpos;
+			++weightpos;
+		}
+	}
+	GAssert(outpos == output.size());
+	GAssert(weightpos == weights.size());
+}
+
+void GBlockFanOut::updateGradient()
+{
+	size_t outputsPerInput = outputCount / inputCount;
+	size_t outpos = 0;
+	size_t weightpos = 0;
+	for(size_t j = 0; j < outputsPerInput; j++)
+	{
+		for(size_t i = 0; i < inputCount; i++)
+		{
+			if(input[i] == UNKNOWN_REAL_VALUE)
+			{
+				++weightpos;
+				++weightpos;
+				++outpos;
+			}
+			else
+			{
+				gradient[weightpos++] += outBlame[outpos];
+				gradient[weightpos++] += outBlame[outpos++] * input[i];
+			}
+		}
+	}
+	GAssert(outpos == output.size());
+	GAssert(weightpos == weights.size());
+}
+
+size_t GBlockFanOut::weightCount() const
+{
+	return 2 * outputCount;
+}
+
+void GBlockFanOut::initWeights(GRand& rand)
+{
+	weights.fillNormal(rand);
+}
+
+
+
+
+
+
+
+
+
+
 GBlockRunningNormalizer::GBlockRunningNormalizer(size_t units, double effective_batch_size)
 : GBlock(units, units), batch_size(effective_batch_size), inv_bs(1.0 / batch_size), decay_scalar(1.0 - inv_bs), epsilon(1e-8)
 {
@@ -2281,11 +2376,11 @@ void GBlockHypercube::forwardProp()
 
 	// Connections
 	size_t vertices = 1 << m_dims;
-	size_t outPos = 0;
 	size_t pos = outputCount;
-	for(size_t outputVertex = 0; outputVertex < vertices; outputVertex++) // For each output vertex
+	for(size_t n = 1; n < vertices; n <<= 1) // For each input vertex
 	{
-		for(size_t n = 1; n < vertices; n <<= 1) // For each input vertex
+		size_t outPos = 0;
+		for(size_t outputVertex = 0; outputVertex < vertices; outputVertex++) // For each output vertex
 		{
 			size_t inputVertex = outputVertex ^ n; // Toggle one bit
 			size_t inPos = inputVertex * m_vertexSizeIn;
@@ -2298,8 +2393,8 @@ void GBlockHypercube::forwardProp()
 					d += input[inPos + j] * weights[pos++];
 				output[outPos + i] += d;
 			}
+			outPos += m_vertexSizeOut;
 		}
-		outPos += m_vertexSizeOut;
 	}
 	GAssert(pos == weights.size());
 }
@@ -2307,11 +2402,11 @@ void GBlockHypercube::forwardProp()
 void GBlockHypercube::backProp()
 {
 	size_t vertices = 1 << m_dims;
-	size_t outPos = 0;
 	size_t pos = outputCount;
-	for(size_t outputVertex = 0; outputVertex < vertices; outputVertex++) // For each output vertex
+	for(size_t n = 1; n < vertices; n <<= 1) // For each input vertex
 	{
-		for(size_t n = 1; n < vertices; n <<= 1) // For each input vertex
+		size_t outPos = 0;
+		for(size_t outputVertex = 0; outputVertex < vertices; outputVertex++) // For each output vertex
 		{
 			size_t inputVertex = outputVertex ^ n; // Toggle one bit
 			size_t inPos = inputVertex * m_vertexSizeIn;
@@ -2320,8 +2415,8 @@ void GBlockHypercube::backProp()
 				inBlame.addScaled(inPos, outBlame[outPos + i], weights, pos, m_vertexSizeIn);
 				pos += m_vertexSizeIn;
 			}
+			outPos += m_vertexSizeOut;
 		}
-		outPos += m_vertexSizeOut;
 	}
 	GAssert(pos == weights.size());
 }
@@ -2338,10 +2433,10 @@ void GBlockHypercube::updateGradient()
 
 	// Connections
 	size_t vertices = 1 << m_dims;
-	size_t outPos = 0;
-	for(size_t outputVertex = 0; outputVertex < vertices; outputVertex++) // For each output vertex
+	for(size_t n = 1; n < vertices; n <<= 1) // For each input vertex
 	{
-		for(size_t n = 1; n < vertices; n <<= 1) // For each input vertex
+		size_t outPos = 0;
+		for(size_t outputVertex = 0; outputVertex < vertices; outputVertex++) // For each output vertex
 		{
 			size_t inputVertex = outputVertex ^ n; // Toggle one bit
 			size_t inPos = inputVertex * m_vertexSizeIn;
@@ -2350,8 +2445,8 @@ void GBlockHypercube::updateGradient()
 				for(size_t j = 0; j < m_vertexSizeIn; j++)
 					gradient[pos++] += outBlame[outPos + i] * input[inPos + j];
 			}
+			outPos += m_vertexSizeOut;
 		}
-		outPos += m_vertexSizeOut;
 	}
 	GAssert(pos == weights.size());
 }
@@ -2364,6 +2459,172 @@ size_t GBlockHypercube::weightCount() const
 void GBlockHypercube::initWeights(GRand& rand)
 {
 	weights.fillNormal(rand, 1.0 / std::max((size_t)1, m_vertexSizeIn * m_dims));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+GBlockOptional::GBlockOptional(size_t inputs, size_t outputs)
+: GBlock(inputs, outputs)
+{
+}
+
+GBlockOptional::GBlockOptional(GDomNode* pNode)
+: GBlock(pNode)
+{
+}
+
+void GBlockOptional::forwardProp()
+{
+	size_t pos = 0;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		double sumWeightedVals = 0.0;
+		double sumWeights = 1e-8;
+		for(size_t j = 0; j < inputCount; j++)
+		{
+			if(input[j] == UNKNOWN_REAL_VALUE)
+			{
+				pos += 4;
+				continue;
+			}
+			double v = weights[pos + 0] + input[j] * weights[pos + 1];
+			double w = weights[pos + 2] + input[j] * weights[pos + 3];
+			if(w < 0)
+				w = std::exp(w);
+			else
+				w += 1.0;
+			pos += 4;
+			sumWeightedVals += (v * w);
+			sumWeights += w;
+		}
+		output[i] = sumWeightedVals / sumWeights;
+	}
+	GAssert(pos == weights.size());
+}
+
+void GBlockOptional::backProp()
+{
+	size_t pos = 0;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		// Redo the forward pass (because we didn't bother to store all the values we would need)
+		double sumWeightedVals = 0.0;
+		double sumWeights = 1e-8;
+		double restoreme = pos;
+		for(size_t j = 0; j < inputCount; j++)
+		{
+			if(input[j] == UNKNOWN_REAL_VALUE)
+			{
+				pos += 4;
+				continue;
+			}
+			double v = weights[pos + 0] + input[j] * weights[pos + 1];
+			double w = weights[pos + 2] + input[j] * weights[pos + 3];
+			if(w < 0)
+				w = std::exp(w);
+			else
+				w += 1.0;
+			pos += 4;
+			sumWeightedVals += (v * w);
+			sumWeights += w;
+		}
+		pos = restoreme;
+
+		// Compute the gradients
+		for(size_t j = 0; j < inputCount; j++)
+		{
+			if(input[j] == UNKNOWN_REAL_VALUE)
+			{
+				pos += 4;
+				continue;
+			}
+			double v = weights[pos + 0] + input[j] * weights[pos + 1];
+			double w = weights[pos + 2] + input[j] * weights[pos + 3];
+			if(w < 0)
+				w = std::exp(w);
+			else
+				w += 1.0;
+			double vBlame = outBlame[i] * (w / sumWeights) + 0.1 * (output[i] - v);
+			inBlame[j] += vBlame * weights[pos + 1];
+			double wBlame = outBlame[i] * (w < 1.0 ? w : 1.0) * (v * (sumWeights - w) - (sumWeightedVals - (v * w))) / (sumWeights * sumWeights);
+			inBlame[j] += wBlame * weights[pos + 3];
+			pos += 4;
+		}
+	}
+	GAssert(pos == weights.size());
+}
+
+void GBlockOptional::updateGradient()
+{
+	size_t pos = 0;
+	for(size_t i = 0; i < outputCount; i++)
+	{
+		// Redo the forward pass (because we didn't bother to store all the values we would need)
+		double sumWeightedVals = 0.0;
+		double sumWeights = 1e-8;
+		double restoreme = pos;
+		for(size_t j = 0; j < inputCount; j++)
+		{
+			if(input[j] == UNKNOWN_REAL_VALUE)
+			{
+				pos += 4;
+				continue;
+			}
+			double v = weights[pos + 0] + input[j] * weights[pos + 1];
+			double w = weights[pos + 2] + input[j] * weights[pos + 3];
+			if(w < 0)
+				w = std::exp(w);
+			else
+				w += 1.0;
+			pos += 4;
+			sumWeightedVals += (v * w);
+			sumWeights += w;
+		}
+		pos = restoreme;
+
+		// Compute the gradients
+		for(size_t j = 0; j < inputCount; j++)
+		{
+			if(input[j] == UNKNOWN_REAL_VALUE)
+			{
+				pos += 4;
+				continue;
+			}
+			double v = weights[pos + 0] + input[j] * weights[pos + 1];
+			double w = weights[pos + 2] + input[j] * weights[pos + 3];
+			if(w < 0)
+				w = std::exp(w);
+			else
+				w += 1.0;
+			double vBlame = outBlame[i] * (w / sumWeights) + 0.1 * (output[i] - v);
+			gradient[pos + 0] += vBlame;
+			gradient[pos + 1] += vBlame * input[j];
+			double wBlame = outBlame[i] * (w < 1.0 ? w : 1.0) * (v * (sumWeights - w) - (sumWeightedVals - (v * w))) / (sumWeights * sumWeights);
+			gradient[pos + 2] += wBlame;
+			gradient[pos + 3] += wBlame * input[j];
+			pos += 4;
+		}
+	}
+	GAssert(pos == weights.size());
+}
+
+size_t GBlockOptional::weightCount() const
+{
+	return 4 * inputCount * outputCount;
+}
+
+void GBlockOptional::initWeights(GRand& rand)
+{
+	weights.fillNormal(rand, 1.0 / std::max((size_t)1, 4 * inputCount));
 }
 
 
@@ -2432,6 +2693,47 @@ void GBlockCatIn::initWeights(GRand& rand)
 }
 
 
+
+
+
+
+
+
+
+
+GBlockCatOut::GBlockCatOut(size_t categories, double margin)
+: GBlockWeightless(categories, 1), m_margin(margin)
+{
+}
+
+void GBlockCatOut::forwardProp()
+{
+	output[0] = (double)input.indexOfMax();
+}
+
+void GBlockCatOut::computeBlame(const GVec& target)
+{
+	// We just store the target. backProp will use this value to compute a meaningful blame for each of the inputs.
+	outBlame[0] = target[0];
+}
+
+void GBlockCatOut::backProp()
+{
+	size_t targ = (size_t)outBlame[0];
+	size_t pred = (size_t)output[0];
+	for(size_t i = 0; i < inputCount; i++)
+	{
+		if(i == targ)
+		{
+			if(targ == pred)
+				inBlame[i] = std::max(0.0, m_margin - input[i]);
+			else
+				inBlame[i] = 1.0 - input[i];
+		}
+		else
+			inBlame[i] = std::min(0.0, std::max(0.0, input[targ] - m_margin) - input[i]);
+	}
+}
 
 
 
@@ -3647,9 +3949,12 @@ void GNeuralNet::initWeights(GRand& rand)
 	}
 }
 
-void GNeuralNet::init(GRand& rand)
+void GNeuralNet::init(GRand& rand, GNeuralNet* pBase)
 {
-	bind(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+	if(pBase)
+		bind(&pBase->output, nullptr, nullptr, &pBase->outBlame, nullptr, nullptr);
+	else
+		bind(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
 	initWeights(rand);
 	gradient.fill(0.0);
 }
@@ -3671,25 +3976,43 @@ double GNeuralNet::measureLoss(const GMatrix& features, const GMatrix& labels, d
 	double sse = 0.0;
 	if(labels.cols() == outputs())
 	{
-		// Regression. Compute SSE and SAE.
-		for(size_t i = 0; i < features.rows(); i++)
+		if(labels.cols() == 1 && labels.relation().valueCount(0) > 0)
 		{
-			GVec& prediction = forwardProp(features[i]);
-			const GVec& targ = labels[i];
-			for(size_t j = 0; j < prediction.size(); j++)
+			// Classification with a GBlockCatOut on the output. Count misclassifications.
+			for(size_t i = 0; i < features.rows(); i++)
 			{
-				if(targ[j] != UNKNOWN_REAL_VALUE)
+				GVec& prediction = forwardProp(features[i]);
+				const GVec& targ = labels[i];
+				if(targ[0] >= 0.0)
 				{
-					double d = targ[j] - prediction[j];
-					sse += (d * d);
-					sae += std::abs(d);
+					if((size_t)prediction[0] != (size_t)targ[0])
+						sse++;
+				}
+			}
+			sae = sse;
+		}
+		else
+		{
+			// Regression. Compute SSE and SAE.
+			for(size_t i = 0; i < features.rows(); i++)
+			{
+				GVec& prediction = forwardProp(features[i]);
+				const GVec& targ = labels[i];
+				for(size_t j = 0; j < prediction.size(); j++)
+				{
+					if(targ[j] != UNKNOWN_REAL_VALUE)
+					{
+						double d = targ[j] - prediction[j];
+						sse += (d * d);
+						sae += std::abs(d);
+					}
 				}
 			}
 		}
 	}
 	else if(labels.cols() == 1 && labels.relation().valueCount(0) == outputs())
 	{
-		// Classification. Count misclassifications.
+		// Classification with 1-hot output. Count misclassifications.
 		for(size_t i = 0; i < features.rows(); i++)
 		{
 			GVec& prediction = forwardProp(features[i]);

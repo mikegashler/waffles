@@ -142,6 +142,12 @@ public:
 	/// Reverses the bits in an unsigned char
 	unsigned char reverse_bits(unsigned char n);
 
+	/// Returns the number of characters needed to encode the specified number of bytes into base64
+	static size_t base64Size(size_t inSize);
+
+	/// Encodes pIn into base64. (Assumes pOut is already the correct size, as determined by calling base64Size.)
+	static void toBase64(unsigned char* pIn, size_t inSize, char* pOut);
+
 	/// Converts two hexadecimal digits to a byte. lsn is least significant
 	/// nybble. msn is most significant nybble.
 	static inline unsigned char hexToByte(char lsn, char msn)

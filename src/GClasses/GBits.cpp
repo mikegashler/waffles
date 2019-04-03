@@ -98,6 +98,54 @@ unsigned char GBits::reverse_bits(unsigned char n)
 	return bit_reverse_table[n];
 }
 
+size_t GBits::base64Size(size_t inSize)
+{
+	return ((inSize + 2) / 3) * 4;
+}
+
+void GBits::toBase64(unsigned char* pIn, size_t inSize, char* pOut)
+{
+	static const char* base64Table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+	while(inSize >= 3)
+	{
+		unsigned char c1 = (pIn[0] & 252) >> 2;
+		unsigned char c2 = ((pIn[0] & 3) << 4) | (pIn[1] >> 4);
+		unsigned char c3 = ((pIn[1] & 15) << 2) | (pIn[2] >> 6);
+		unsigned char c4 = (pIn[2] & 63);
+		pIn += 3;
+		inSize -= 3;
+		pOut[0] = base64Table[c1];
+		pOut[1] = base64Table[c2];
+		pOut[2] = base64Table[c3];
+		pOut[3] = base64Table[c4];
+		pOut += 4;
+	}
+	if(inSize > 0)
+	{
+		if(inSize == 2)
+		{
+			unsigned char c1 = (pIn[0] & 252) >> 2;
+			unsigned char c2 = ((pIn[0] & 3) << 4) | (pIn[1] >> 4);
+			unsigned char c3 = ((pIn[1] & 15) << 2);
+			pOut[0] = base64Table[c1];
+			pOut[1] = base64Table[c2];
+			pOut[2] = base64Table[c3];
+			pOut[3] = '=';
+		}
+		else
+		{
+			GAssert(inSize == 1);
+			unsigned char c1 = (pIn[0] & 252) >> 2;
+			unsigned char c2 = (pIn[0] & 3) << 4;
+			pOut[0] = base64Table[c1];
+			pOut[1] = base64Table[c2];
+			pOut[2] = '=';
+			pOut[3] = '=';
+		}
+	}
+}
+
 size_t count_trailing_zeros(size_t n)
 {
 	size_t count = 0;

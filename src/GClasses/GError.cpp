@@ -140,6 +140,7 @@ void GAssertFailed(const char* filename, int line)
 	cerr.flush();
 	raise(SIGINT);
 }
+
 void GAssertFailed(const char* filename, int line, const char* message)
 {
 	cerr << "Debug Assert Failed in " << filename << ":" << line << std::endl;
