@@ -170,16 +170,21 @@ void GBlock::setInPos(size_t n)
 	m_inPos = n;
 }
 
-void GBlock::computeBlame(const GVec& target)
+double GBlock::computeBlame(const GVec& target)
 {
 	GAssert(target.size() == outBlame.size());
+	double sse = 0.0;
 	for(size_t i = 0; i < target.size(); i++)
 	{
 		if(target[i] == UNKNOWN_REAL_VALUE)
 			outBlame[i] = 0.0;
 		else
+		{
 			outBlame[i] = target[i] - output[i];
+			sse += outBlame[i] * outBlame[i];
+		}
 	}
+	return sse;
 }
 
 std::string GBlock::to_str(bool includeWeights, bool includeActivations) const
@@ -450,13 +455,16 @@ void GBlockSoftMax::forwardProp()
 		output[i] *= scalar;
 }
 
-void GBlockSoftMax::computeBlame(const GVec& target)
+double GBlockSoftMax::computeBlame(const GVec& target)
 {
+	double sse = 0.0;
 	for(size_t i = 0; i < outputCount; i++)
 	{
 		GAssert(target[i] >= 0.0 && target[i] <= 1.0);
 		outBlame[i] = target[i] - output[i];
+		sse += outBlame[i] * outBlame[i];
 	}
+	return sse;
 }
 
 void GBlockSoftMax::backProp()
@@ -2711,10 +2719,11 @@ void GBlockCatOut::forwardProp()
 	output[0] = (double)input.indexOfMax();
 }
 
-void GBlockCatOut::computeBlame(const GVec& target)
+double GBlockCatOut::computeBlame(const GVec& target)
 {
 	// We just store the target. backProp will use this value to compute a meaningful blame for each of the inputs.
 	outBlame[0] = target[0];
+	return 0.0;
 }
 
 void GBlockCatOut::backProp()
@@ -3368,9 +3377,10 @@ void GLayer::advanceState(size_t unfoldedInstances)
 	}
 }
 
-void GLayer::computeBlame(const GVec& target)
+double GLayer::computeBlame(const GVec& target)
 {
 	GAssert(target.size() == outBlame.size());
+	double sse = 0.0;
 	size_t pos = 0;
 	for(size_t i = 0; i < blockCount(); i++)
 	{
@@ -3378,8 +3388,9 @@ void GLayer::computeBlame(const GVec& target)
 		size_t n = b.outputs();
 		const GConstVecWrapper t(target, pos, n);
 		pos += n;
-		b.computeBlame(t);
+		sse += b.computeBlame(t);
 	}
+	return sse;
 }
 
 void GLayer::biasMask(GVec& mask)
@@ -3815,9 +3826,9 @@ GVec& GNeuralNet::forwardProp(const GVec& in)
 	return output;
 }
 
-void GNeuralNet::computeBlame(const GVec& target)
+double GNeuralNet::computeBlame(const GVec& target)
 {
-	outputLayer().computeBlame(target);
+	return outputLayer().computeBlame(target);
 }
 
 void GNeuralNet::backProp()

@@ -165,9 +165,9 @@ public:
 	virtual void forwardProp() = 0;
 
 	/// Computes the blame on the output of this block.
-	/// The default implementation computes it for SSE, but specialty blocks such as SoftMax may override it as needed.
+	/// Returns the SSE. Some blocks, such as SoftMax, may override it for comparable behavior.
 	/// (Assumes forwardProp has already been called.)
-	virtual void computeBlame(const GVec& target);
+	virtual double computeBlame(const GVec& target);
 
 	/// Resets the state in any recurrent connections.
 	virtual void resetState() {}
@@ -666,7 +666,7 @@ public:
 	virtual void forwardProp() override;
 
 	/// Computes the blame with cross-entropy
-	virtual void computeBlame(const GVec& target) override;
+	virtual double computeBlame(const GVec& target) override;
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
@@ -1767,7 +1767,7 @@ public:
 	virtual void forwardProp() override;
 
 	/// Computes blame for this layer. (Assumes target is a one-dimensional index value casted as a double)
-	virtual void computeBlame(const GVec& target);
+	virtual double computeBlame(const GVec& target);
 
 	/// Evaluates outBlame, and adds to inBlame.
 	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
@@ -1960,7 +1960,7 @@ public:
 	void forwardProp();
 
 	/// Computes the out blame for all of the blocks in this layer
-	void computeBlame(const GVec& target);
+	double computeBlame(const GVec& target);
 
 	/// Resets the state in any recurrent connections
 	void resetState();
@@ -2156,7 +2156,7 @@ public:
 	GVec& forwardProp(const GVec& input);
 
 	/// Computes blame on the output of this neural network.
-	virtual void computeBlame(const GVec& target) override;
+	virtual double computeBlame(const GVec& target) override;
 
 	/// Resets the state in any recurrent connections
 	virtual void resetState() override;
