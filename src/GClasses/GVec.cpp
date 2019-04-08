@@ -518,7 +518,7 @@ void GVec::addScaled(size_t startPos, double scalar, const GVec& that, size_t st
 
 void GVec::regularize(double amount)
 {
-	(*this) *= (1.0 - amount);
+	regularizeL2(amount);
 	regularizeL1(0.2 * amount);
 }
 
@@ -531,6 +531,11 @@ void GVec::regularizeL1(double amount)
 		else
 			(*this)[i] = std::max(0.0, (*this)[i] - amount);
 	}
+}
+
+void GVec::regularizeL2(double amount)
+{
+	(*this) *= (1.0 - amount);
 }
 
 void GVec::erase(size_t start, size_t count)

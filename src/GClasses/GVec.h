@@ -237,6 +237,9 @@ public:
 	/// Applies L1 regularization to this vector.
 	void regularizeL1(double amount);
 
+	/// Applies L2 regularization to this vector.
+	void regularizeL2(double amount);
+
 	/// Erases the specified elements. The remaining elements are shifted over.
 	/// The size of the vector is decreased, but the buffer is not reallocated
 	/// (so this operation wastes some memory to save a little time).
