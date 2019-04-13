@@ -1,0 +1,127 @@
+<!doctype html><html><head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" charset="UTF-8">
+	<title></title>
+</head><body>
+
+<table align=center id="options">
+	<tr><td align="right">Option 1</td><td><input type="checkbox" id="op1" onclick="onCheckboxClick()"></td><td><canvas width="300" height="20" style="border:1px solid #cccccc;"></canvas></td>
+	<tr><td align="right">Some Option 2</td><td><input type="checkbox" id="op2" onclick="onCheckboxClick()"></td><td><canvas width="300" height="20" style="border:1px solid #cccccc;"></canvas></td>
+	<tr><td align="right">Option 3</td><td><input type="checkbox" id="op3" onclick="onCheckboxClick()"></td><td><canvas width="300" height="20" style="border:1px solid #cccccc;"></canvas></td>
+</table>
+
+<script type="text/javascript" src="/tools/tools.js"></script>
+
+<script type="text/javascript">
+
+// Returns the first descendant of "tag" named "tagname", searching to a maximum depth of "depth".
+function find_descendant(tag, tagname, depth)
+{
+	if(tag.tagName == tagname)
+		return tag;
+	if(depth == 0)
+		return null;
+	for(let i = 0; i < tag.childNodes.length; i++)
+	{
+		let tmp = find_descendant(tag.childNodes[i], tagname, depth - 1);
+		if(tmp != null)
+			return tmp;
+	}
+	return null;
+}
+
+function onServerConfirmsVote(response)
+{
+	alert("The back-end server replied: " + response);
+
+	// Parse the JSON
+	let ob = JSON.parse(response);
+}
+
+function onServerProvidesStats(response)
+{
+	alert("The back-end server replied: " + response);
+
+	// Parse the JSON
+	let ob = JSON.parse(response);
+
+	let options = document.getElementById("options");
+	for(let i = 0; i < options.rows.length; i++)
+	{
+		// Count the votes and see if my box should be checked
+		let count = 0;
+		let checked = false;
+		for(let j = 0; j < ob.people.length; j++)
+		{
+			let ballot = ob.people[j];
+			if(ballot.length > i && ballot[i])
+			{
+				count++;
+				if(ballot.name == tools.username())
+					checked = true;
+			}
+		}
+		let barWidth = 0;
+		if(ob.votes.length > 0)
+			barWidth = count * ctx.canvas.clientWidth / ob.votes.length;
+
+		// Draw the bar and check or uncheck the box if necessary
+		let row = options.rows[i];
+		let cb = find_descendant(row, "INPUT", 5);
+		let canv = find_descendant(row, "CANVAS", 5);
+		var ctx=canv.getContext("2d");
+		ctx.fillRect(0, 0, barWidth, ctx.canvas.clientHeight);
+		if(checked)
+		{
+			if(!cb.checked)
+				cb.checked = true;
+		}
+		else
+		{
+			if(cb.checked)
+				cb.checked = false;
+		}
+	}
+}
+
+function getCheckboxIndex(id)
+{
+	let options = document.getElementById("options");
+	for(let i = 0; i < options.rows.length; i++)
+	{
+		let row = options.rows[i];
+		let cb = find_descendant(row, "INPUT", 5);
+		if(cb.id == id)
+			return i;
+	}
+	alert("failed to find checkbox");
+	return -1;
+}
+
+function onCheckboxClick(cb)
+{
+	let jaad = 
+	{
+		"file" : "/" + tools.username() + "/test.json",
+		"auth" : "secret",
+		"cmd"  : ".people[.name==\"" + tools.username() + "\"].votes[" + getCheckboxIndex(op.id) + "]=" + (cb.checked ? "true" : "false");
+	}
+	let json_string = JSON.stringify(ob);
+	tools.httpPost("/tools/ajax", json_string, onServerConfirmsVote);
+}
+
+function getStats()
+{
+	let jaad = 
+	{
+		"file" : "/" + tools.username() + "/test.json",
+		"auth" : "secret",
+		"cmd"  : ".votes[.name==\"" + tools.username() + "\"]";
+	}
+	let json_string = JSON.stringify(ob);
+	tools.httpPost("/tools/ajax", json_string, onServerProvidesStats);
+}
+
+getStats();
+</script>
+
+</body></html>
