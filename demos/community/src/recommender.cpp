@@ -42,15 +42,13 @@ using std::pair;
 User::User(string username, GRand& rand)
 : m_username(username)
 {
-	m_personality.resize(PERSONALITY_DIMS);
-	for(size_t i = 0; i < PERSONALITY_DIMS; i++)
+	m_personality.resize(USER_PROFILE_SIZE);
+	for(size_t i = 0; i < USER_PROFILE_SIZE; i++)
 		m_personality[i] = LEARNING_RATE * rand.normal();
 }
 
 User::~User()
 {
-	for(size_t i = 0; i < m_ratings.size(); i++)
-		delete(m_ratings[i]);
 }
 
 // static
@@ -64,29 +62,23 @@ User* User::fromDom(GDomNode* pNode, GRand& rand)
 	{
 		GDomListIterator it(pPersonality);
 		size_t i;
-		for(i = 0; i < (size_t)PERSONALITY_DIMS && it.current(); i++)
+		for(i = 0; i < (size_t)USER_PROFILE_SIZE && it.current(); i++)
 		{
 			pUser->m_personality[i] = std::max(-1.0, std::min(1.0, it.currentDouble()));
 			it.advance();
 		}
-		for( ; i < PERSONALITY_DIMS; i++)
+		for( ; i < USER_PROFILE_SIZE; i++)
 			pUser->m_personality[i] = 0.02 * rand.normal();
 	}
 
 	// Deserialize the ratings
 	GDomNode* pRatings = pNode->get("ratings");
-	size_t topic = 0;
 	for(GDomListIterator it(pRatings); it.current(); it.advance())
 	{
 		ptrdiff_t j = (ptrdiff_t)it.currentInt();
-		if(j < 0)
-			topic = (size_t)(-j - 1);
-		else
-		{
-			it.advance();
-			if(it.current())
-				pUser->addRating(topic, (size_t)j, (float)it.currentDouble());
-		}
+		it.advance();
+		if(it.current())
+			pUser->addRating((size_t)j, (float)it.currentDouble());
 	}
 	return pUser;
 }
@@ -98,77 +90,25 @@ GDomNode* User::toDom(GDom* pDoc)
 
 	// Serialize the personality vector
 	GDomNode* pPersonality = pUser->add(pDoc, "pers", pDoc->newList());
-	for(size_t i = 0; i < PERSONALITY_DIMS; i++)
+	for(size_t i = 0; i < USER_PROFILE_SIZE; i++)
 		pPersonality->add(pDoc, m_personality[i]);
 
 	// Serialize the ratings
 	size_t count = 0;
-	for(vector<Ratings*>::iterator i = m_ratings.begin(); i != m_ratings.end(); i++)
-	{
-		map<size_t, float>& map = (*i)->m_map;
-		if(map.size() > 0)
-			count += (1 + 2 * map.size());
-	}
+	count += 2 * m_map.size();
 	GDomNode* pRatings = pUser->add(pDoc, "ratings", pDoc->newList());
-	size_t j = 0;
-	for(vector<Ratings*>::iterator i = m_ratings.begin(); i != m_ratings.end(); i++)
+	for(std::map<size_t, float>::iterator it = m_map.begin(); it != m_map.end(); it++)
 	{
-		map<size_t, float>& m = (*i)->m_map;
-		if(m.size() > 0)
-		{
-			ptrdiff_t r = -1;
-			r -= (j++);
-			GAssert(r < 0);
-			pRatings->add(pDoc, (long long)r);
-			for(map<size_t,float>::iterator it = m.begin(); it != m.end(); it++)
-			{
-				pRatings->add(pDoc, it->first);
-				pRatings->add(pDoc, it->second);
-			}
-		}
+		pRatings->add(pDoc, it->first);
+		pRatings->add(pDoc, it->second);
 	}
 
 	return pUser;
 }
 
-void User::addRating(size_t topic, size_t itemId, float rating)
+bool User::getRating(size_t itemId, float* pOutRating)
 {
-	GAssert(rating >= -1.0f && rating <= 1.0f);
-	while(topic >= m_ratings.size())
-		m_ratings.push_back(new Ratings());
-	m_ratings[topic]->addRating(itemId, rating);
-}
-
-void User::updateRating(size_t topic, size_t itemId, float rating)
-{
-	GAssert(rating >= -1.0f && rating <= 1.0f);
-	while(topic >= m_ratings.size())
-		m_ratings.push_back(new Ratings());
-	m_ratings[topic]->updateRating(itemId, rating);
-}
-
-void User::withdrawRating(size_t topic, size_t itemId)
-{
-	if(topic < m_ratings.size())
-		m_ratings[topic]->withdrawRating(itemId);
-}
-
-void User::swapItems(size_t topic, size_t a, size_t b)
-{
-	if(topic < m_ratings.size())
-		m_ratings[topic]->swapItems(a, b);
-}
-
-float User::predictRating(Item& item)
-{
-	return item.predictRating(m_personality);
-}
-
-bool User::getRating(size_t topic, size_t itemId, float* pOutRating)
-{
-	if(topic >= m_ratings.size())
-		return false;
-	map<size_t, float>& m = m_ratings[topic]->m_map;
+	map<size_t, float>& m = m_map;
 	map<size_t, float>::iterator it = m.find(itemId);
 	if(it == m.end())
 		return false;
@@ -176,224 +116,16 @@ bool User::getRating(size_t topic, size_t itemId, float* pOutRating)
 	return true;
 }
 
-
-
-
-
-
-
-
-
-
-
-Item::Item(const char* szLeft, const char* szRight, const char* szSubmitter, time_t date, GRand* pRand)
+void User::addRating(size_t itemId, float rating)
 {
-	m_left = szLeft;
-	m_right = szRight;
-	m_submitter = szSubmitter;
-	m_date = date;
-	m_weights.resize(PERSONALITY_DIMS);
-	for(size_t i = 0; i < PERSONALITY_DIMS; i++)
-		m_weights[i] = 0.01 * pRand->normal();
-}
-
-Item::Item(GDomNode* pNode, GRand* pRand)
-{
-	m_left = pNode->getString("left");
-	m_right = pNode->getString("right");
-	m_submitter = pNode->getString("subm");
-	m_date = (time_t)pNode->getInt("date");
-	m_weights.resize(PERSONALITY_DIMS);
-	GDomNode* pWeights = pNode->get("weights");
-	GDomListIterator it(pWeights);
-	size_t i;
-	for(i = 0; i < (size_t)PERSONALITY_DIMS && it.current(); i++)
-	{
-		m_weights[i] = it.currentDouble();
-		it.advance();
-	}
-	for( ; i < PERSONALITY_DIMS; i++)
-		m_weights[i] = LEARNING_RATE * pRand->normal();
-}
-
-GDomNode* Item::toDom(GDom* pDoc)
-{
-	GDomNode* pNode = pDoc->newObj();
-	pNode->add(pDoc, "left", m_left.c_str());
-	pNode->add(pDoc, "right", m_right.c_str());
-	pNode->add(pDoc, "subm", m_submitter.c_str());
-	pNode->add(pDoc, "date", (long long)m_date);
-	GDomNode* pWeights = pNode->add(pDoc, "weights", pDoc->newList());
-	for(size_t i = 0; i < PERSONALITY_DIMS; i++)
-		pWeights->add(pDoc, m_weights[i]);
-	return pNode;
-}
-
-double Item::predictRating(const vector<double>& personality) const
-{
-	vector<double>::const_iterator itW = m_weights.begin();
-	vector<double>::const_iterator itP = personality.begin();
-
-	// Add the bias weights
-	double d = *(itW++) + *(itP++);
-
-	// Multiply the weight vector by the personality vector
-	while(itW != m_weights.end())
-		d += *(itW++) * *(itP++);
-
-	return d;
-}
-
-// This method adjusts the weights in the opposite direction of the gradient of
-// the squared-error with respect to the weights.
-void Item::trainWeights(double target, double learningRate, const vector<double>& personality)
-{
-	GAssert(target >= -1.0 && target <= 1.0);
-	double prediction = predictRating(personality);
-	double err = learningRate * (target - prediction);
-	vector<double>::iterator itW = m_weights.begin();
-	vector<double>::const_iterator itP = personality.begin();
-
-	// Update the bias weight
-	itP++;
-	*(itW++) += err;
-
-	// Update the other weights
-	while(itW != m_weights.end())
-	{
-		//*itW = std::max(-8.0, std::min(8.0, *itW + err * *(itP++)));
-		*itW += err * *(itP++);
-		itW++;
-	}
-#ifdef _DEBUG
-	double postpred = predictRating(personality);
-	GAssert(std::abs(target - postpred) < std::abs(target - prediction) || std::abs(target - postpred) < 0.001);
-#endif
-}
-
-// This method adjusts the personality vector in the opposite direction of the gradient of
-// the squared-error with respect to the personality vector.
-void Item::trainPersonality(double target, double learningRate, vector<double>& personality) const
-{
-	GAssert(target >= -1.0 && target <= 1.0);
-	double prediction = predictRating(personality);
-	double err = learningRate * (target - prediction);
-	vector<double>::const_iterator itW = m_weights.begin();
-	vector<double>::iterator itP = personality.begin();
-
-	// Update the bias
-	itW++;
-	*(itP) += err;
-	itP++;
-
-	// Update the personality vector
-	while(itW != m_weights.end())
-	{
-		//*itP = std::max(-1.0, std::min(1.0, *itP + err * *itW));
-		*itP += err * *itW;
-		itW++;
-		itP++;
-	}
-#ifdef _DEBUG
-	double postpred = predictRating(personality);
-	GAssert(std::abs(target - postpred) <= std::abs(target - prediction) || std::abs(target - postpred) < 0.001);
-#endif
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-Topic::Topic(const char* szDescr)
-: m_descr(szDescr)
-{
-}
-
-Topic::~Topic()
-{
-	flushItems();
-}
-
-void Topic::flushItems()
-{
-	for(size_t i = 0; i < m_items.size(); i++)
-		delete(m_items[i]);
-	m_items.clear();
-}
-
-Item& Topic::item(size_t id)
-{
-	GAssert(id < m_items.size());
-	GAssert(m_items[id] != NULL);
-	return *m_items[id];
-}
-
-void Topic::addItem(const char* szLeft, const char* szRight, const char* szUsername, time_t date, GRand* pRand)
-{
-	m_items.push_back(new Item(szLeft, szRight, szUsername, date, pRand));
-}
-
-GDomNode* Topic::toDom(GDom* pDoc)
-{
-	GDomNode* pNode = pDoc->newObj();
-	pNode->add(pDoc, "descr", m_descr.c_str());
-	GDomNode* pItems = pNode->add(pDoc, "items", pDoc->newList());
-	for(size_t i = 0; i < m_items.size(); i++)
-		pItems->add(pDoc, m_items[i]->toDom(pDoc));
-	return pNode;
-}
-
-// static
-Topic* Topic::fromDom(GDomNode* pNode, GRand* pRand)
-{
-	const char* szDescr = pNode->getString("descr");
-	Topic* pNewTopic = new Topic(szDescr);
-	GDomNode* pItems = pNode->get("items");
-	GDomListIterator it(pItems);
-	pNewTopic->m_items.reserve(it.remaining());
-	for( ; it.current(); it.advance())
-		pNewTopic->m_items.push_back(new Item(it.current(), pRand));
-	return pNewTopic;
-}
-
-void Topic::deleteItemAndSwapInLast(size_t itemId)
-{
-	delete(m_items[itemId]);
-	m_items[itemId] = m_items[m_items.size() - 1];
-	m_items.pop_back();
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void Ratings::addRating(size_t itemId, float rating)
-{
+	GAssert(rating >= -1.0f && rating <= 1.0f);
 	m_map[itemId] = rating;
 	m_vec.push_back(std::make_pair(itemId, rating));
 }
 
-void Ratings::updateRating(size_t itemId, float rating)
+void User::updateRating(size_t itemId, float rating)
 {
+	GAssert(rating >= -1.0f && rating <= 1.0f);
 	if(m_map.find(itemId) == m_map.end())
 		addRating(itemId, rating);
 	else
@@ -410,7 +142,7 @@ void Ratings::updateRating(size_t itemId, float rating)
 	}
 }
 
-void Ratings::withdrawRating(size_t itemId)
+void User::withdrawRating(size_t itemId)
 {
 	if(m_map.find(itemId) != m_map.end())
 	{
@@ -428,7 +160,7 @@ void Ratings::withdrawRating(size_t itemId)
 	}
 }
 
-void Ratings::swapItems(size_t a, size_t b)
+void User::swapItems(size_t a, size_t b)
 {
 	std::map<size_t, float>::iterator itA = m_map.find(a);
 	std::map<size_t, float>::iterator itB = m_map.find(b);
@@ -464,69 +196,229 @@ void Ratings::swapItems(size_t a, size_t b)
 
 
 
-
-
-
-Recommender::Recommender(GRand& rand)
-: m_rand(rand)
+Item::Item(const char* szLeft, const char* szRight, const char* szSubmitter, time_t date, GRand* pRand)
 {
+	m_left = szLeft;
+	m_right = szRight;
+	m_submitter = szSubmitter;
+	m_date = date;
+	m_weights.resize(ITEM_PROFILE_SIZE);
+	for(size_t i = 0; i < ITEM_PROFILE_SIZE; i++)
+		m_weights[i] = 0.01 * pRand->normal();
 }
 
-Recommender::~Recommender()
+Item::Item(GDomNode* pNode, GRand* pRand)
+{
+	m_left = pNode->getString("left");
+	m_right = pNode->getString("right");
+	m_submitter = pNode->getString("subm");
+	m_date = (time_t)pNode->getInt("date");
+	m_weights.resize(ITEM_PROFILE_SIZE);
+	GDomNode* pWeights = pNode->get("weights");
+	GDomListIterator it(pWeights);
+	size_t i;
+	for(i = 0; i < (size_t)ITEM_PROFILE_SIZE && it.current(); i++)
+	{
+		m_weights[i] = it.currentDouble();
+		it.advance();
+	}
+	for( ; i < ITEM_PROFILE_SIZE; i++)
+		m_weights[i] = LEARNING_RATE * pRand->normal();
+}
+
+GDomNode* Item::toDom(GDom* pDoc)
+{
+	GDomNode* pNode = pDoc->newObj();
+	pNode->add(pDoc, "left", m_left.c_str());
+	pNode->add(pDoc, "right", m_right.c_str());
+	pNode->add(pDoc, "subm", m_submitter.c_str());
+	pNode->add(pDoc, "date", (long long)m_date);
+	GDomNode* pWeights = pNode->add(pDoc, "weights", pDoc->newList());
+	for(size_t i = 0; i < ITEM_PROFILE_SIZE; i++)
+		pWeights->add(pDoc, m_weights[i]);
+	return pNode;
+}
+
+
+
+
+
+
+
+
+class Sample
+{
+public:
+	size_t user;
+	size_t item;
+	float rating;
+
+	Sample(size_t _user, size_t _item, float _rating)
+	: user(_user), item(_item), rating(_rating)
+	{
+	}
+
+	Sample(const Sample& other)
+	: user(other.user), item(other.item), rating(other.rating)
+	{
+	}
+
+	virtual ~Sample()
+	{
+	}
+
+};
+
+
+
+NeuralRecommender::NeuralRecommender(GRand& _rand)
+: rand(_rand), input_buf(USER_PROFILE_SIZE + ITEM_PROFILE_SIZE)
+{
+	nn.add(new GBlockLinear(USER_PROFILE_SIZE, COMMON_SIZE));
+	nn.concat(new GBlockLinear(ITEM_PROFILE_SIZE, COMMON_SIZE), USER_PROFILE_SIZE);
+	nn.add(new GBlockEl(2 * COMMON_SIZE));
+	nn.add(new GBlockBiasProduct(COMMON_SIZE));
+	nn.add(new GBlockLinear(COMMON_SIZE, PREDICT_SIZE));
+	nn.init(rand);
+}
+
+NeuralRecommender::~NeuralRecommender()
 {
 	flush();
 }
 
-void Recommender::flush()
+void NeuralRecommender::flush()
 {
 	for(vector<User*>::iterator it = m_users.begin(); it != m_users.end(); it++)
 		delete(*it);
 	m_users.clear();
 	m_userMap.clear();
-	for(size_t i = 0; i < m_topics.size(); i++)
-		delete(m_topics[i]);
-	m_topics.clear();
+	for(size_t i = 0; i < m_items.size(); i++)
+		delete(m_items[i]);
+	m_items.clear();
 }
 
-GDomNode* Recommender::serialize(GDom* pDoc)
+GDomNode* NeuralRecommender::serialize(GDom* pDoc)
 {
 	GDomNode* pNode = pDoc->newObj();
-
-	// Save the topcs
-	GDomNode* pTopics = pNode->add(pDoc, "topics", pDoc->newList());
-	for(size_t i = 0; i < m_topics.size(); i++)
-		pTopics->add(pDoc, m_topics[i]->toDom(pDoc));
 
 	// Save the users
 	GDomNode* pUsers = pNode->add(pDoc, "users", pDoc->newList());
 	for(vector<User*>::iterator it = m_users.begin(); it != m_users.end(); it++)
 		pUsers->add(pDoc, (*it)->toDom(pDoc));
 
+	// Save the items
+	GDomNode* pItems = pNode->add(pDoc, "items", pDoc->newList());
+	for(size_t i = 0; i < m_items.size(); i++)
+		pItems->add(pDoc, m_items[i]->toDom(pDoc));
+
+	// Save the model
+	pNode->add(pDoc, "model", nn.serialize(pDoc));
+
 	return pNode;
 }
 
-void Recommender::deserialize(const GDomNode* pNode)
+void NeuralRecommender::deserialize(const GDomNode* pNode)
 {
 	flush();
-
-	// Load the topics
-	GDomNode* pTopics = pNode->get("topics");
-	for(GDomListIterator it(pTopics); it.current(); it.advance())
-	{
-		Topic* pTopic = Topic::fromDom(it.current(), &m_rand);
-		m_topics.push_back(pTopic);
-	}
 
 	// Load the users
 	GDomNode* pUsers = pNode->get("users");
 	for(GDomListIterator it(pUsers); it.current(); it.advance())
 	{
-		User* pUser = User::fromDom(it.current(), m_rand);
+		User* pUser = User::fromDom(it.current(), rand);
 		addUser(pUser);
+	}
+
+	// Load the items
+	GDomNode* pItems = pNode->get("items");
+	GDomListIterator it(pItems);
+	m_items.reserve(it.remaining());
+	for( ; it.current(); it.advance())
+		m_items.push_back(new Item(it.current(), &rand));
+
+	// Load the model
+	nn.deserialize(pNode->get("model"), rand);
+}
+
+void NeuralRecommender::refine(size_t iters)
+{
+	// Gather samples from all the users
+	std::vector<Sample> samples;
+	samples.reserve(1000);
+	for(size_t i = 0; i < m_users.size(); i++)
+	{
+		User* pUser = m_users[i];
+		for(size_t j = 0; j < pUser->m_vec.size(); j++)
+		{
+			std::pair<size_t, float>& p = pUser->m_vec[j];
+			samples.push_back(Sample(i, p.first, p.second));
+		}
+	}
+
+	// Train
+	GVec target(1);
+	GVec inputBlame(USER_PROFILE_SIZE + ITEM_PROFILE_SIZE);
+	for(size_t i = 0; i < iters; i++)
+	{
+		size_t index = rand.next(samples.size());
+		Sample& samp = samples[index];
+		User* pUser = m_users[samp.user];
+		Item& itm = item(samp.item);
+		input_buf.copy(0, pUser->personality());
+		input_buf.copy(USER_PROFILE_SIZE, itm.weights());
+		nn.forwardProp(input_buf);
+		target[0] = samp.rating;
+		nn.computeBlame(target);
+		nn.backpropagate(&inputBlame);
+		nn.updateGradient();
+		nn.step(LEARNING_RATE, 0.0);
+		pUser->personality().addScaled(LEARNING_RATE, inputBlame, 0, USER_PROFILE_SIZE);
+		itm.weights().addScaled(LEARNING_RATE, inputBlame, USER_PROFILE_SIZE, ITEM_PROFILE_SIZE);
 	}
 }
 
-User* Recommender::findUser(const char* szUsername)
+void NeuralRecommender::refineUserOnly(User* pUser, size_t iters)
+{
+	// Gather samples from the user
+	std::vector<Sample> samples;
+	samples.reserve(pUser->m_vec.size());
+	for(size_t j = 0; j < pUser->m_vec.size(); j++)
+	{
+		std::pair<size_t, float>& p = pUser->m_vec[j];
+		samples.push_back(Sample(0, p.first, p.second));
+	}
+
+	// Train
+	GVec target(1);
+	GVec inputBlame(USER_PROFILE_SIZE + ITEM_PROFILE_SIZE);
+	for(size_t i = 0; i < iters; i++)
+	{
+		size_t index = rand.next(samples.size());
+		Sample& samp = samples[index];
+		Item& itm = item(samp.item);
+		input_buf.copy(0, pUser->personality());
+		input_buf.copy(USER_PROFILE_SIZE, itm.weights());
+		nn.forwardProp(input_buf);
+		target[0] = samp.rating;
+		nn.computeBlame(target);
+		nn.backpropagate(&inputBlame);
+		//nn.updateGradient();
+		//nn.step(LEARNING_RATE, 0.0);
+		pUser->personality().addScaled(LEARNING_RATE, inputBlame, 0, USER_PROFILE_SIZE);
+		//itm.weights().addScaled(LEARNING_RATE, inputBlame, USER_PROFILE_SIZE, ITEM_PROFILE_SIZE);
+	}
+}
+
+double NeuralRecommender::predictRating(User& user, Item& item)
+{
+	input_buf.copy(0, user.personality());
+	input_buf.copy(USER_PROFILE_SIZE, item.weights());
+	GVec& pred = nn.forwardProp(input_buf);
+	return pred[0];
+}
+
+User* NeuralRecommender::findUser(const char* szUsername)
 {
 	map<string,User*>::iterator it = m_userMap.find(szUsername);
 	if(it == m_userMap.end())
@@ -535,91 +427,40 @@ User* Recommender::findUser(const char* szUsername)
 	return pUser;
 }
 
-User* Recommender::findOrMakeUser(const char* szUsername)
+User* NeuralRecommender::findOrMakeUser(const char* szUsername)
 {
 	User* pUser = findUser(szUsername);
 	if(!pUser)
 	{
-		pUser = new User(szUsername, m_rand);
+		pUser = new User(szUsername, rand);
 		addUser(pUser);
 	}
 	return pUser;
 }
 
-void Recommender::addUser(User* pUser)
+void NeuralRecommender::addUser(User* pUser)
 {
 	m_users.push_back(pUser);
 	m_userMap.insert(std::pair<string,User*>(pUser->username(),pUser));
 }
 
-void Recommender::addItem(size_t topic, const char* szLeft, const char* szRight, const char* szUsername)
+void NeuralRecommender::addItem(const char* szLeft, const char* szRight, const char* szUsername)
 {
-	if(topic >= m_topics.size())
-	{
-		cerr << "Topic ID out of range\n";
-		return;
-	}
-	m_topics[topic]->addItem(szLeft, szRight, szUsername, time(NULL), &m_rand);
+	m_items.push_back(new Item(szLeft, szRight, szUsername, time(NULL), &rand));
 }
 
-void Recommender::proposeTopic(const char* username, const char* szDescr)
+Item& NeuralRecommender::item(size_t id)
 {
-	cout << "The following new topic was proposed by " << username << "\n";
-	cout << "	" << szDescr << "\n";
+	GAssert(id < m_items.size());
+	GAssert(m_items[id] != NULL);
+	return *m_items[id];
 }
 
-void Recommender::newTopic(const char* szDescr)
+void NeuralRecommender::deleteItemAndSwapInLast(size_t itemId)
 {
-	m_topics.push_back(new Topic(szDescr));
-}
-
-void Recommender::refineModel(size_t topic, size_t iters)
-{
-	if(m_users.size() < 1)
-		return;
-
-	// Do some training
-	Topic* pCurrentTopic = m_topics[topic];
-	for(size_t i = 0; i < iters; i++)
-	{
-		User* pRandomUser = m_users[m_rand.next(m_users.size())];
-		if(pRandomUser->ratings().size() > topic)
-		{
-			std::vector<std::pair<size_t, float> >& v = pRandomUser->ratings()[topic]->m_vec;
-			if(v.size() > 0)
-			{
-				vector<double>& personality = pRandomUser->personality();
-				size_t index = (size_t)m_rand.next(v.size());
-				Item& item = pCurrentTopic->item(v[index].first);
-				double target = (double)v[index].second;
-				GAssert(target >= -1.0 && target <= 1.0);
-				for(size_t j = 0; j < item.weights().size(); j++)
-					item.weights()[j] *= (1.0 - LEARNING_RATE * REGULARIZATION_TERM);
-				for(size_t j = 0; j < personality.size(); j++)
-					personality[j] *= (1.0 - LEARNING_RATE * REGULARIZATION_TERM);
-				item.trainWeights(target, LEARNING_RATE, personality);
-				item.trainPersonality(target, LEARNING_RATE, personality);
-			}
-		}
-	}
-}
-
-void Recommender::refinePersonality(User* pUser, size_t topic, size_t iters)
-{
-	// Train the personality a little bit
-	if(topic >= pUser->ratings().size() || topic >= m_topics.size())
-		return;
-	Topic* pCurrentTopic = m_topics[topic];
-	std::vector<std::pair<size_t, float> >& v = pUser->ratings()[topic]->m_vec;
-	if(v.size() > 0)
-	{
-		for(size_t i = 0; i < iters; i++)
-		{
-			size_t index = (size_t)m_rand.next(v.size());
-			Item& item = pCurrentTopic->item(v[index].first);
-			item.trainPersonality((double)v[index].second, LEARNING_RATE, pUser->personality());
-		}
-	}
+	delete(m_items[itemId]);
+	m_items[itemId] = m_items[m_items.size() - 1];
+	m_items.pop_back();
 }
 
 
@@ -631,7 +472,8 @@ void Recommender::refinePersonality(User* pUser, size_t topic, size_t iters)
 
 
 
-void Survey::makeSliderScript(ostream& response)
+
+void Submit::makeSliderScript(ostream& response)
 {
 	response << "<script language=\"JavaScript\" src=\"/tools/style/slider.js\"></script>\n";
 	response << "<script language=\"JavaScript\">\n";
@@ -639,19 +481,15 @@ void Survey::makeSliderScript(ostream& response)
 	response << "</script>\n";
 }
 
-void Survey::makeUrlSlider(Server* pServer, Account* pAccount, size_t itemId, ostream& response)
+void Submit::makeUrlSlider(Server* pServer, Account* pAccount, size_t itemId, ostream& response)
 {
 	// Compute the rating (or predicted rating if this item has not been rated)
-	size_t currentTopic = pAccount->currentTopic();
-	Topic* pCurrentTopic = pServer->recommender().topics()[currentTopic];
-	Item& item = pCurrentTopic->item(itemId);
+	NeuralRecommender& rec = pServer->recommender();
+	Item& item = rec.item(itemId);
 	float score;
 	User* pUser = pAccount->getUser(pServer->recommender());
-	if(!pUser->getRating(currentTopic, itemId, &score))
-		score = pUser->predictRating(item);
-/*	score *= 500.0;
-	score += 500.0;
-	score = 0.1 * floor(score);*/
+	if(!pUser->getRating(itemId, &score))
+		score = rec.predictRating(*pUser, item);
 
 	// Display the slider
 	response << "<table cellpadding=0 cellspacing=0><tr><td width=300>\n	";
@@ -669,261 +507,244 @@ void Survey::makeUrlSlider(Server* pServer, Account* pAccount, size_t itemId, os
 	response << "</td></tr></table>\n";
 }
 
+void Submit::pageFaq(Server* pServer, GDynamicPageSession* pSession, ostream& response)
+{
+	response << pServer->cache("faq.html");
+}
 
-void Survey::pageSurvey(Server* pServer, GDynamicPageSession* pSession, ostream& response)
+void Submit::pageSurvey(Server* pServer, GDynamicPageSession* pSession, ostream& response)
 {
 	Account* pAccount = getAccount(pSession);
-	User* pUser = pAccount->getUser(pServer->recommender());
-	size_t currentTopic = pAccount->currentTopic();
+	NeuralRecommender& rec = pServer->recommender();
+	User* pUser = pAccount->getUser(rec);
 	if(pSession->paramsLen() > 0)
 	{
-		// Get the topic
-		GHttpParamParser params(pSession->params());
-		const char* szTopic = params.find("topic");
-		if(szTopic)
-		{
-			const vector<Topic*>& topics = pServer->recommender().topics();
-#ifdef WINDOWS
-			size_t i = (size_t)_strtoui64(szTopic, NULL, 10);
-#else
-			size_t i = (size_t)strtoull(szTopic, NULL, 10);
-#endif
-			if(i < topics.size())
-				pAccount->setCurrentTopic(i);
-			else
-				pAccount->setCurrentTopic((size_t)-1);
-			currentTopic = pAccount->currentTopic();
-		}
-
-		// Check for topic proposals
-		const char* szProposal = NULL;
-		if(pAccount->doesHavePassword())
-			szProposal = params.find("proposal");
-		if(szProposal)
-			pServer->recommender().proposeTopic(pAccount->username(), szProposal);
-
 		// Do the action
-		if(currentTopic < pServer->recommender().topics().size())
+		GHttpParamParser params(pSession->params());
+		const char* szAction = params.find("action");
+		if(!szAction)
 		{
-			const char* szAction = params.find("action");
-			if(!szAction)
+		}
+		else if(_stricmp(szAction, "add") == 0)
+		{
+			const char* szLeft = params.find("pearl");
+			if(!szLeft)
 			{
+				response << "[You're supposed to type something before you press 'Submit'.]<br>\n";
+				response << params.to_str(true);
 			}
-			else if(_stricmp(szAction, "add") == 0)
+			else
 			{
-				const char* szLeft = params.find("left");
-				const char* szRight = params.find("right");
-				if(!szLeft || !szRight)
-					response << "[invalid params]<br>\n";
+				rec.addItem(szLeft, "", pAccount->username());
+				cout << pAccount->username() << " added this pearl: " << szLeft << "\n";
+				pServer->saveState();
+				response << "Thank you for the pearl! I'll try to rebut it as soon as I find the time. If you'd like, you may evaluate these pearls and my rebuttals.<br>\n";
+			}
+		}
+		else if(_stricmp(szAction, "rate") == 0)
+		{
+			// Make an set of all the checked ids
+			set<size_t> checks;
+			map<const char*, const char*, strComp>& paramMap = params.map();
+			for(map<const char*, const char*, strComp>::iterator it = paramMap.begin(); it != paramMap.end(); it++)
+			{
+				const char* szName = it->first;
+				if(_strnicmp(szName, "check_slider", 12) == 0)
+				{
+#ifdef WINDOWS
+					size_t itemId = (size_t)_strtoui64(szName + 12, NULL, 10);
+#else
+					size_t itemId = (size_t)strtoull(szName + 12, NULL, 10);
+#endif
+					checks.insert(itemId);
+				}
+			}
+
+			// find the corresponding scores for each topic id, and add the rating
+			for(map<const char*, const char*, strComp>::iterator it = paramMap.begin(); it != paramMap.end(); it++)
+			{
+				const char* szName = it->first;
+				if(_strnicmp(szName, "slider", 6) == 0)
+				{
+#ifdef WINDOWS
+					size_t itemId = (size_t)_strtoui64(szName + 6, NULL, 10);
+#else
+					size_t itemId = (size_t)strtoull(szName + 6, NULL, 10);
+#endif
+					set<size_t>::iterator tmp = checks.find(itemId);
+					if(tmp != checks.end())
+					{
+						float score = (float)atof(it->second);
+						if(score >= -1.0f && score <= 1.0f)
+						{
+							pUser->updateRating(itemId, score);
+							response << "[Rating recorded. Thank you.]<br>\n";
+						}
+						else
+							response << "[the rating of " << score << " is out of range.]<br>\n";
+					}
+				}
+			}
+
+			// Do some training
+			rec.refineUserOnly(pUser, ON_RATE_TRAINING_ITERS); // trains just personalities
+			rec.refine(ON_RATE_TRAINING_ITERS); // trains both personalities and weights
+			pServer->saveState();
+		}
+	}
+
+	// Display the topic
+	makeSliderScript(response);
+	response << "<h2>Pearls</h2>\n";
+	response << "<form name=\"formname\" method=\"post\">\n";
+	response << "	<input type=\"hidden\" name=\"action\" value=\"rate\" />\n";
+
+	// Random picks
+	size_t* pIndexes = new size_t[rec.items().size()];
+	Holder<size_t> hIndexes(pIndexes);
+	GIndexVec::makeIndexVec(pIndexes, rec.items().size());
+	GIndexVec::shuffle(pIndexes, rec.items().size(), pServer->prng());
+	size_t sliderCount = 0;
+	for(size_t i = 0; i < rec.items().size(); i++)
+	{
+		if(sliderCount >= 8)
+			break;
+		size_t itemId = pIndexes[i];
+		float rating;
+		if(pUser->getRating(itemId, &rating))
+			continue;
+		if(sliderCount == 0)
+		{
+			response << "<h3>A few statements for your evaluation:</h3>\n";
+			response << "<p>It is okay to skip statements you find ambiguous, invasive, or uninteresting. For your convenience, the sliders have been set to reflect predictions of your opinions. As you express more opinions, these predictions should improve.</p>\n";
+		}
+		makeUrlSlider(pServer, pAccount, itemId, response);
+		response << "<br><br>\n";
+		sliderCount++;
+	}
+
+	// The update ratings button
+	if(sliderCount > 0)
+	{
+		response << "<br><table><tr><td width=330></td><td>";
+		response << "<input type=\"submit\" value=\"Update opinions\">";
+		response << "</td></tr><tr><td></td><td>";
+		response << "(Only checked items will be updated.)";
+		response << "</td></tr></table>\n";
+	}
+	else
+	{
+		response << "Thank you. You have rated all ";
+		response << to_str(rec.items().size());
+		response << " pearls that have been submitted so far.<br><br>\n";
+	}
+
+	response << "</form><br><br>\n\n";
+
+	// The choices links at the bottom of the page
+	response << "<a href=\"/tools/submit\">Submit a new statement</a>";
+	response << "&nbsp;&nbsp;&nbsp;&nbsp;";
+	response << "<a href=\"/tools/survey?topic=-1\">Change topic</a>\n";
+	response << "&nbsp;&nbsp;&nbsp;&nbsp;";
+	response << "<a href=\"/tools/update\">My opinions</a>\n";
+	response << "&nbsp;&nbsp;&nbsp;&nbsp;";
+	response << "<a href=\"/tools/stats\">Vizualize</a>\n";
+
+/*
+	response << "Stats:<br>\n";
+	response << "Total Number of users: " << pServer->accounts().size() << "<br>\n";
+	response << "Number of items in this topic: " << pCurrentTopic->size() << "<br>\n";
+	std::map<size_t, float>* pMap = currentTopic < pAccount->ratings().size() ? pAccount->ratings()[currentTopic] : NULL;
+	response << "Number of items you have rated in this topic: " << (pMap ? pMap->size() : (size_t)0) << "<br>\n<br>\n";
+*/
+}
+
+void Submit::pageRespond(Server* pServer, GDynamicPageSession* pSession, ostream& response)
+{
+	// Check access privileges
+	Account* pAccount = getAccount(pSession);
+	NeuralRecommender& rec = pServer->recommender();
+	if(!pAccount->isAdmin() && !pAccount->isAssistant())
+	{
+		response << "Sorry, you must be an admin or assistant to access this page.";
+		return;
+	}
+
+	// Process params
+	if(pSession->paramsLen() > 0)
+	{
+		GHttpParamParser params(pSession->params());
+		auto map = params.map();
+		std::map<const char*, const char*, GClasses::strComp>::iterator it = map.end();
+		while(it != map.begin())
+		{
+			it--;
+			const char* key = it->first;
+			const char* val = it->second;
+			if(strncmp(key, "del_", 4) == 0)
+			{
+				size_t index = atoi(key + 4);
+				const std::vector<User*>& users = pServer->recommender().users();
+				if(index >= rec.items().size())
+					response << "[invalid item index]<br><br>\n";
 				else
 				{
-					pServer->recommender().addItem(currentTopic, szLeft, szRight, pAccount->username());
-					cout << pAccount->username() << "added: " << szLeft << " <-----> " << szRight << "\n";
-					pServer->saveState();
-				}
-			}
-			else if(_stricmp(szAction, "rate") == 0)
-			{
-				// Make an set of all the checked ids
-				set<size_t> checks;
-				map<const char*, const char*, strComp>& paramMap = params.map();
-				for(map<const char*, const char*, strComp>::iterator it = paramMap.begin(); it != paramMap.end(); it++)
-				{
-					const char* szName = it->first;
-					if(_strnicmp(szName, "check_slider", 12) == 0)
+					cout << "Deleted pearl: " << rec.item(index).left() << " / " << rec.item(index).right() << "\n";
+					for(std::vector<User*>::const_iterator it2 = users.begin(); it2 != users.end(); it2++)
 					{
-#ifdef WINDOWS
-						size_t itemId = (size_t)_strtoui64(szName + 12, NULL, 10);
-#else
-						size_t itemId = (size_t)strtoull(szName + 12, NULL, 10);
-#endif
-						checks.insert(itemId);
+						(*it2)->withdrawRating(index);
+						(*it2)->swapItems(index, rec.items().size() - 1);
 					}
+					rec.deleteItemAndSwapInLast(index);
+					//response << "[Item successfully deleted]<br><br>\n";
 				}
-
-				// find the corresponding scores for each topic id, and add the rating
-				for(map<const char*, const char*, strComp>::iterator it = paramMap.begin(); it != paramMap.end(); it++)
+			}
+			else if(strncmp(key, "re_", 3) == 0)
+			{
+				size_t index = atoi(key + 3);
+				if(index >= rec.items().size())
+					response << "[invalid item index]<br><br>\n";
+				else
 				{
-					const char* szName = it->first;
-					if(_strnicmp(szName, "slider", 6) == 0)
-					{
-#ifdef WINDOWS
-						size_t itemId = (size_t)_strtoui64(szName + 6, NULL, 10);
-#else
-						size_t itemId = (size_t)strtoull(szName + 6, NULL, 10);
-#endif
-						set<size_t>::iterator tmp = checks.find(itemId);
-						if(tmp != checks.end())
-						{
-							float score = (float)atof(it->second);
-							if(score >= -1.0f && score <= 1.0f)
-							{
-								pUser->updateRating(currentTopic, itemId, score);
-								response << "[Rating recorded. Thank you.]<br>\n";
-							}
-							else
-								response << "[the rating of " << score << " is out of range.]<br>\n";
-						}
-					}
+					rec.item(index).setRight(val);
+					cout << "Added response: " << rec.item(index).left() << " / " << rec.item(index).right() << "\n";
 				}
-
-				// Do some training
-				pServer->recommender().refinePersonality(pUser, pAccount->currentTopic(), ON_RATE_TRAINING_ITERS); // trains just personalities
-				pServer->recommender().refineModel(currentTopic, ON_RATE_TRAINING_ITERS); // trains both personalities and weights
-				pServer->saveState();
-			}
-		}
-	}
-
-	if(currentTopic < pServer->recommender().topics().size()) // if a topic has been selected...
-	{
-		Topic* pCurrentTopic = pServer->recommender().topics()[currentTopic];
-		
-		// Display the topic
-		makeSliderScript(response);
-		response << "<h2>" << pCurrentTopic->descr() << "</h2>\n";
-		response << "<form name=\"formname\" action=\"/survey\" method=\"post\">\n";
-		response << "	<input type=\"hidden\" name=\"action\" value=\"rate\" />\n";
-
-		// Random picks
-		size_t* pIndexes = new size_t[pCurrentTopic->size()];
-		Holder<size_t> hIndexes(pIndexes);
-		GIndexVec::makeIndexVec(pIndexes, pCurrentTopic->size());
-		GIndexVec::shuffle(pIndexes, pCurrentTopic->size(), pServer->prng());
-		size_t sliderCount = 0;
-		for(size_t i = 0; i < pCurrentTopic->size(); i++)
-		{
-			if(sliderCount >= 8)
-				break;
-			size_t itemId = pIndexes[i];
-			float rating;
-			if(pUser->getRating(currentTopic, itemId, &rating))
-				continue;
-			if(sliderCount == 0)
-			{
-				response << "<h3>A few statements for your evaluation:</h3>\n";
-				response << "<p>It is okay to skip statements you find ambiguous, invasive, or uninteresting. For your convenience, the sliders have been set to reflect predictions of your opinions. As you express more opinions, these predictions should improve.</p>\n";
-			}
-			makeUrlSlider(pServer, pAccount, itemId, response);
-			response << "<br><br>\n";
-			sliderCount++;
-		}
-
-		// The update ratings button
-		if(sliderCount > 0)
-		{
-			response << "<br><table><tr><td width=330></td><td>";
-			response << "<input type=\"submit\" value=\"Update opinions\">";
-			response << "</td></tr><tr><td></td><td>";
-			response << "(Only checked items will be updated.)";
-			response << "</td></tr></table>\n";
-		}
-		else
-		{
-			if(pCurrentTopic->size() == 0)
-			{
-				response << "There are not yet any survey questions in this topic.<br><br>\n";
 			}
 			else
 			{
-				response << "Thank you. You have expressed your opinion about all ";
-				response << to_str(pCurrentTopic->size());
-				response << " survey statements in this topic.<br><br>\n";
+				response << "[unrecognized action: " << key << "]<br><br>\n";
 			}
 		}
-
-		response << "</form><br><br>\n\n";
-
-		// The choices links at the bottom of the page
-		response << "<a href=\"/submit\">Submit a new statement</a>";
-		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-		response << "<a href=\"/survey?topic=-1\">Change topic</a>\n";
-		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-		response << "<a href=\"/update\">My opinions</a>\n";
-		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-		response << "<a href=\"/stats\">Vizualize</a>\n";
-
-/*
-		response << "Stats:<br>\n";
-		response << "Total Number of users: " << pServer->accounts().size() << "<br>\n";
-		response << "Number of items in this topic: " << pCurrentTopic->size() << "<br>\n";
-		std::map<size_t, float>* pMap = currentTopic < pAccount->ratings().size() ? pAccount->ratings()[currentTopic] : NULL;
-		response << "Number of items you have rated in this topic: " << (pMap ? pMap->size() : (size_t)0) << "<br>\n<br>\n";
-*/
 	}
-	else
+
+	// Form to delete statements or respond to them
+	response << "<h2>Delete Statements</h2>\n\n";
+	response << "<form name=\"responses\" id=\"responses\" method=\"post\">";
+	response << "<table>\n";
+	for(size_t i = 0; i < rec.items().size(); i++)
 	{
-		const vector<Topic*>& topics = pServer->recommender().topics();
-		response << "<h3>Choose a topic:</h3>\n";
-		if(topics.size() > 0)
-		{
-			response << "<ul>\n";
-			size_t i = 0;
-			for(vector<Topic*>::const_iterator it = topics.begin(); it != topics.end(); it++)
-			{
-				response << "	<li><a href=\"/survey?topic=" << i << "\">" << (*it)->descr() << "</a></li>\n";
-				i++;
-			}
-			response << "</ul><br><br><br>\n";
-		}
-		else
-		{
-			response << "There are currently no topics. Please ";
-			if(!pAccount->isAdmin())
-				response << "ask the administrator to ";
-			response << "go to the <a href=\"/admin\">admin</a> page and add at least one topic.<br><br><br>";
-		}
-		response << "<br><br>\n";
-/*
-		// Make the form to propose new topics
-		if(!pAccount->isAdmin())
-		{
-			response << "<form name=\"propose\" action=\"/survey\" method=\"get\">\n";
-			response << "	<h3>Propose a new topic:</h3>\n";
-			response << "	<input type=\"text\" name=\"proposal\" size=\"55\"><input type=\"submit\" value=\"Submit\"><br>\n";
-			response << "	(Your proposed topic will be added to a log file. Hopefully, someone actually reads the log file.)\n";
-			response << "</form><br>\n\n";
-		}
-*/
+		Item& itm = rec.item(i);
+		std::string s = itm.right();
+		if(s.length() > 0)
+			continue;
+		response << "<tr><td>";
+		response << "Delete?<br><input type=\"checkbox\" name=\"del_" << to_str(i) << "\" value=\"true\">";
+		response << "</td><td>" << itm.left() << "</td><td>";
+		response << "<textarea rows=\"12\" cols=\"40\" maxlength=\"800\" id=\"re_" << to_str(i) << "\" name=\"re_" << to_str(i) << "\" form=\"responses\"></textarea>";
+		response << "</td></tr>\n";
 	}
+	response << "</table>\n";
+	response << "<br>\n";
+	response << "<input type=\"submit\" value=\"Submit\"></form>";
+	response << "</form><br><br>\n\n";
 }
 
-void Survey::pageNewSurveyItem(Server* pServer, GDynamicPageSession* pSession, ostream& response)
+void Submit::pageNewSurveyItem(Server* pServer, GDynamicPageSession* pSession, ostream& response)
 {
-	Account* pAccount = getAccount(pSession);
-	size_t currentTopic = pAccount->currentTopic();
-	if(currentTopic >= pServer->recommender().topics().size())
-	{
-		pServer->redirect(response, "/survey");
-	}
-	else
-	{
-		// Display the topic
-		Topic* pCurrentTopic = pServer->recommender().topics()[currentTopic];
-		response << "<h2>" << pCurrentTopic->descr() << "</h2>\n";
-
-		// Make the form to submit a new item
-		response << "<h3>Submit a new survey question to this topic</h3>\n";
-		response << "<form name=\"formname\" action=\"/survey\" method=\"post\">\n";
-		response << "	<input type=\"hidden\" name=\"action\" value=\"add\" />\n";
-		response << "Left Statement: <input type=\"text\" name=\"left\" size=\"40\"><br>\n";
-		response << "Opposing right Statement:<input type=\"text\" name=\"right\" size=\"40\"><br>\n";
-		response << "	<input type=\"submit\" value=\"Submit\">";
-		response << "</form><br><br>\n\n";
-
-		// The choices links at the bottom of the page
-		response << "<br>\n";
-		response << "<a href=\"/survey?topic=-1\">Change topic</a>\n";
-		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-		response << "<a href=\"/update\">My opinions</a>\n";
-		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-		response << "<a href=\"/survey\">" << "Survey</a>\n";
-		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-		response << "<a href=\"/stats\">Vizualize</a>\n";
-	}
+	response << pServer->cache("submit.html");
 }
-
-double Survey::computeVariance(double* pCentroid, Topic& topic, size_t topicId, User** pUsers, size_t accCount)
+/*
+double Submit::computeVariance(double* pCentroid, Topic& topic, User** pUsers, size_t accCount)
 {
 	// Compute the centroid
 	GVecWrapper vw(pCentroid, topic.size());
@@ -935,7 +756,7 @@ double Survey::computeVariance(double* pCentroid, Topic& topic, size_t topicId, 
 		for(size_t i = 0; i < topic.size(); i++)
 		{
 			float rating;
-			if(!(*pUs)->getRating(topicId, i, &rating))
+			if(!(*pUs)->getRating(i, &rating))
 				rating = (*pUs)->predictRating(topic.item(i));
 			(*pC) += rating;
 			pC++;
@@ -955,7 +776,7 @@ double Survey::computeVariance(double* pCentroid, Topic& topic, size_t topicId, 
 		for(size_t i = 0; i < topic.size(); i++)
 		{
 			float rating;
-			if(!(*pUs)->getRating(topicId, i, &rating))
+			if(!(*pUs)->getRating(i, &rating))
 				rating = (*pUs)->predictRating(topic.item(i));
 			double d = *pC - rating;
 			sse += (d * d);
@@ -965,16 +786,17 @@ double Survey::computeVariance(double* pCentroid, Topic& topic, size_t topicId, 
 	}
 	return sse;
 }
-
-size_t Survey::divideAccounts(Topic& topic, size_t topicId, User** pUsers, size_t accCount, size_t itm)
+*/
+size_t Submit::divideAccounts(Server* pServer, User** pUsers, size_t accCount, size_t itm)
 {
+	NeuralRecommender& rec = pServer->recommender();
 	size_t head = 0;
 	size_t tail = accCount;
 	while(tail > head)
 	{
 		float rating;
-		if(!pUsers[head]->getRating(topicId, itm, &rating))
-			rating = pUsers[head]->predictRating(topic.item(itm));
+		if(!pUsers[head]->getRating(itm, &rating))
+			rating = rec.predictRating(*pUsers[head], rec.item(itm));
 		if(rating > 0.0)
 		{
 			tail--;
@@ -997,7 +819,7 @@ protected:
 	double m_deviation;
 
 public:
-	ItemStats(size_t topicId, Item& itm, size_t itemId, User** pUsers, size_t accCount)
+	ItemStats(Item& itm, size_t itemId, User** pUsers, size_t accCount)
 	: m_item(itm), m_id(itemId), m_agree(0), m_uncertain(0), m_disagree(0), m_agg(0), m_dis(0)
 	{
 		// Compute the mean
@@ -1007,7 +829,7 @@ public:
 		size_t count = 0;
 		for(size_t i = 0; i < accCount; i++)
 		{
-			if((*Us)->getRating(topicId, itemId, &rating))
+			if((*Us)->getRating(itemId, &rating))
 			{
 				mean += rating;
 				count++;
@@ -1031,7 +853,7 @@ public:
 		double var = 0.0;
 		for(size_t i = 0; i < accCount; i++)
 		{
-			if((*Us)->getRating(topicId, itemId, &rating))
+			if((*Us)->getRating(itemId, &rating))
 			{
 				double d = mean - rating;
 				var += (d * d);
@@ -1075,19 +897,20 @@ public:
 
 
 
-void Survey::makeTree(Server* pServer, Topic& topic, size_t topicId, GBitTable& bt, User** pUsers, size_t accCount, ostream& response, vector<char>& prefix, int type)
+void Submit::makeTree(Server* pServer, GBitTable& bt, User** pUsers, size_t accCount, ostream& response, vector<char>& prefix, int type)
 {
 	// Try splitting on each of the remaining statements
 	size_t best = (size_t)-1;
 	double mostCont = 0.0;
-	double* pCentroid = new double[topic.size()];
+	NeuralRecommender& rec = pServer->recommender();
+	double* pCentroid = new double[rec.items().size()];
 	ArrayHolder<double> hCentroid(pCentroid);
 	size_t tieCount = 0;
-	for(size_t i = 0; i < topic.size(); i++)
+	for(size_t i = 0; i < rec.items().size(); i++)
 	{
 		if(bt.bit(i))
 			continue;
-		ItemStats is(topicId, topic.item(i), i, pUsers, accCount);
+		ItemStats is(rec.item(i), i, pUsers, accCount);
 		double c = is.controversy();
 		if(is.split() > 0)
 		{
@@ -1109,7 +932,7 @@ void Survey::makeTree(Server* pServer, Topic& topic, size_t topicId, GBitTable& 
 	if(best != (size_t)-1)
 	{
 		// Divide on the best statement
-		size_t firstHalfSize = divideAccounts(topic, topicId, pUsers, accCount, best);
+		size_t firstHalfSize = divideAccounts(pServer, pUsers, accCount, best);
 		bt.set(best);
 
 		// Recurse
@@ -1117,11 +940,11 @@ void Survey::makeTree(Server* pServer, Topic& topic, size_t topicId, GBitTable& 
 		if(type >= 0) prefix.push_back(' '); else prefix.push_back('|');
 		prefix.push_back(' ');
 		prefix.push_back(' ');
-		makeTree(pServer, topic, topicId, bt, pUsers, firstHalfSize, response, prefix, 1);
+		makeTree(pServer, bt, pUsers, firstHalfSize, response, prefix, 1);
 
 		for(vector<char>::iterator it = prefix.begin(); it != prefix.end(); it++)
 			response << *it;
-		response << "/ (" << topic.item(best).left() << ")\n";
+		response << "/ (" << rec.item(best).left() << ")\n";
 		prefix.pop_back(); prefix.pop_back(); prefix.pop_back(); prefix.pop_back();
 		for(vector<char>::iterator it = prefix.begin(); it != prefix.end(); it++)
 			response << *it;
@@ -1135,9 +958,9 @@ void Survey::makeTree(Server* pServer, Topic& topic, size_t topicId, GBitTable& 
 		prefix.push_back(' ');
 		for(vector<char>::iterator it = prefix.begin(); it != prefix.end(); it++)
 			response << *it;
-		response << "\\ (" << topic.item(best).right() << ")\n";
+		response << "\\ (" << rec.item(best).right() << ")\n";
 
-		makeTree(pServer, topic, topicId, bt, pUsers + firstHalfSize, accCount - firstHalfSize, response, prefix, -1);
+		makeTree(pServer, bt, pUsers + firstHalfSize, accCount - firstHalfSize, response, prefix, -1);
 		prefix.pop_back(); prefix.pop_back(); prefix.pop_back(); prefix.pop_back();
 
 		bt.unset(best);
@@ -1165,13 +988,13 @@ string to_string(double d, int decimal_places)
 }
 
 
-void Survey::makeItemBody(GDynamicPageSession* pSession, ostream& response, size_t topicId, size_t itemId, Item& item, User** pUsers, size_t accCount)
+void Submit::makeItemBody(GDynamicPageSession* pSession, ostream& response, size_t itemId, Item& item, User** pUsers, size_t accCount)
 {
 	std::multimap<double,User*> mm;
 	while(accCount > 0)
 	{
 		float rating;
-		if((*pUsers)->getRating(topicId, itemId, &rating))
+		if((*pUsers)->getRating(itemId, &rating))
 			mm.insert(std::pair<double,User*>(rating,*pUsers));
 		accCount--;
 		pUsers++;
@@ -1209,16 +1032,16 @@ void Survey::makeItemBody(GDynamicPageSession* pSession, ostream& response, size
 	response << "</table>\n";
 }
 
-void Survey::makeUserBody(GDynamicPageSession* pSession, ostream& response, User* pA, User* pB, size_t topicId, Topic& topic)
+void Submit::makeUserBody(GDynamicPageSession* pSession, ostream& response, User* pA, User* pB, NeuralRecommender& rec)
 {
 	std::multimap<float,size_t> m;
 	float rA = 0.0f;
 	float rB = 0.0f;
-	for(size_t i = 0; i < topic.size(); i++)
+	for(size_t i = 0; i < rec.items().size(); i++)
 	{
-		if(pA->getRating(topicId, i, &rA))
+		if(pA->getRating(i, &rA))
 		{
-			if(pB->getRating(topicId, i, &rB))
+			if(pB->getRating(i, &rB))
 				m.insert(std::pair<float,size_t>(-std::abs(rB - rA), i));
 		}
 	}
@@ -1230,25 +1053,23 @@ void Survey::makeUserBody(GDynamicPageSession* pSession, ostream& response, User
 	response << "<table><tr><td><u>" << pA->username() << "</u></td><td><u>" << pB->username() << "</u></td><td><u>product</u></td><td><u>Left</u></td><td><u>Right</u></td></tr>\n";
 	for(std::multimap<float,size_t>::iterator it = m.begin(); it != m.end(); it++)
 	{
-		pA->getRating(topicId, it->second, &rA);
-		pB->getRating(topicId, it->second, &rB);
-		response << "<tr><td>" << to_str(0.1 * floor(10 * rA)) << "</td><td>" << to_str(0.1 * floor(10 * rB)) << "</td><td>" << to_str(0.1 * floor(10 * rA * rB)) << "</td><td>" << topic.item(it->second).left() << "</td><td>" << topic.item(it->second).right() << "</td></tr>\n";
+		pA->getRating(it->second, &rA);
+		pB->getRating(it->second, &rB);
+		response << "<tr><td>" << to_str(0.1 * floor(10 * rA)) << "</td><td>";
+		response << to_str(0.1 * floor(10 * rB)) << "</td><td>";
+		response << to_str(0.1 * floor(10 * rA * rB)) << "</td><td>";
+		response << rec.item(it->second).left() << "</td><td>";
+		response << rec.item(it->second).right() << "</td></tr>\n";
 	}
 	response << "</table>\n";
 }
 
-void Survey::pageStats(Server* pServer, GDynamicPageSession* pSession, ostream& response)
+void Submit::pageStats(Server* pServer, GDynamicPageSession* pSession, ostream& response)
 {
 	// Get the topic
 	Account* pAccount = getAccount(pSession);
 	User* pUser = pAccount->getUser(pServer->recommender());
-	size_t currentTopic = pAccount->currentTopic();
-	if(currentTopic >= pServer->recommender().topics().size())
-	{
-		response << "Unrecognized topic.";
-		return;
-	}
-	Topic& topic = *pServer->recommender().topics()[currentTopic];
+	NeuralRecommender& rec = pServer->recommender();
 
 	// Copy the account pointers into an array
 	const std::vector<User*>& users = pServer->recommender().users();
@@ -1268,35 +1089,35 @@ void Survey::pageStats(Server* pServer, GDynamicPageSession* pSession, ostream& 
 	if(szItemId)
 	{
 		size_t itemId = atoi(szItemId);
-		makeItemBody(pSession, response, currentTopic, itemId, topic.item(itemId), pAccs, accountCount);
+		makeItemBody(pSession, response, itemId, rec.item(itemId), pAccs, accountCount);
 		return;
 	}
 	const char* szOtherUser = params.find("user");
 	if(szOtherUser)
 	{
-		User* pOther = pServer->recommender().findUser(szOtherUser);
+		User* pOther = rec.findUser(szOtherUser);
 		if(!pOther)
 			response << "[No such user]<br><br>\n";
 		else
-			makeUserBody(pSession, response, pUser, pOther, currentTopic, topic);
+			makeUserBody(pSession, response, pUser, pOther, rec);
 		return;
 	}
 
-	GBitTable bt(topic.size());
+	GBitTable bt(rec.items().size());
 	vector<char> prefix;
 	response << "This ascii-art tree was constructed by dividing on the most controversial statements within each branch.\n";
 	response << "This tree is arranged such that the ascending branches lead to the usernames of people who support the left statement, and the descending branches lead to the usernames of people who support the right statement.\n";
 	response << "(In cases lacking response, predictions were used to make any judgement calls necessary to construct this tree, so some placements may be estimated.)\n";
 	response << "<br><br>\n";
 	response << "<pre>\n";
-	makeTree(pServer, topic, currentTopic, bt, pAccs, accountCount, response, prefix, 0);
+	makeTree(pServer, bt, pAccs, accountCount, response, prefix, 0);
 	response << "</pre>\n";
 	response << "<br><br>\n";
 
 	// Make a table of items sorted by controversy
 	std::vector<ItemStats*> items;
-	for(size_t i = 0; i < topic.size(); i++)
-		items.push_back(new ItemStats(currentTopic, topic.item(i), i, pAccs, accountCount));
+	for(size_t i = 0; i < rec.items().size(); i++)
+		items.push_back(new ItemStats(rec.item(i), i, pAccs, accountCount));
 	std::sort(items.begin(), items.end(), ItemStats::comparer);
 	response << "<table><tr><td><b><i><u>Statement</u></i></b></td><td><b><i><u>Lean Left</u></i></b></td><td><b><i><u>Uncertain</u></i></b></td><td><b><i><u>Lean Right</u></i></b></td><td><b><i><u>Controversy</u></i></b></td></tr>\n";
 	for(vector<ItemStats*>::iterator it = items.begin(); it != items.end(); it++)
@@ -1322,16 +1143,14 @@ void Survey::pageStats(Server* pServer, GDynamicPageSession* pSession, ostream& 
 	response << "<img src=\"items.svg\"><br><br>\n";
 
 	// The choices links at the bottom of the page
-	response << "<a href=\"/submit\">Submit a new question</a>";
+	response << "<a href=\"/tools/submit\">Submit a new question</a>";
 	response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-	response << "<a href=\"/survey?topic=-1\">Change topic</a>\n";
+	response << "<a href=\"/tools/update\">My opinions</a>\n";
 	response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-	response << "<a href=\"/update\">My opinions</a>\n";
-	response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-	response << "<a href=\"/survey\">" << "Survey</a>\n";
+	response << "<a href=\"/tools/survey\">" << "Survey</a>\n";
 }
 
-void Survey::plotUsers(Server* pServer, GDynamicPageSession* pSession, ostream& response)
+void Submit::plotUsers(Server* pServer, GDynamicPageSession* pSession, ostream& response)
 {
 	pSession->connection()->setContentType("image/svg+xml");
 	GSVG svg(800, 800);
@@ -1344,7 +1163,7 @@ void Survey::plotUsers(Server* pServer, GDynamicPageSession* pSession, ostream& 
 	for(std::vector<User*>::const_iterator it = users.begin(); it != users.end(); it++)
 	{
 		User* pUser = *it;
-		vector<double>& profile = pUser->personality();
+		GVec& profile = pUser->personality();
 		xmin = std::min(xmin, profile[1]);
 		xmax = std::max(xmax, profile[1]);
 		ymin = std::min(ymin, profile[2]);
@@ -1364,24 +1183,17 @@ void Survey::plotUsers(Server* pServer, GDynamicPageSession* pSession, ostream& 
 	for(std::vector<User*>::const_iterator it = users.begin(); it != users.end(); it++)
 	{
 		User* pUser = *it;
-		vector<double>& profile = pUser->personality();
+		GVec& profile = pUser->personality();
 		svg.dot(profile[1], profile[2], 0.75, 0x008080);
 		svg.text(profile[1], profile[2], (*it)->username(), 0.75);
 	}
 	svg.print(response);
 }
 
-void Survey::plotItems(Server* pServer, GDynamicPageSession* pSession, ostream& response)
+void Submit::plotItems(Server* pServer, GDynamicPageSession* pSession, ostream& response)
 {
 	// Get the topic
-	Account* pAccount = getAccount(pSession);
-	size_t currentTopic = pAccount->currentTopic();
-	if(currentTopic >= pServer->recommender().topics().size())
-	{
-		response << "Unrecognized topic.";
-		return;
-	}
-	Topic& topic = *pServer->recommender().topics()[currentTopic];
+	NeuralRecommender& rec = pServer->recommender();
 
 	pSession->connection()->setContentType("image/svg+xml");
 	GSVG svg(800, 800);
@@ -1390,10 +1202,10 @@ void Survey::plotItems(Server* pServer, GDynamicPageSession* pSession, ostream& 
 	double ymin = 0;
 	double xmax = 0;
 	double ymax = 0;
-	for(size_t i = 0; i < topic.size(); i++)
+	for(size_t i = 0; i < rec.items().size(); i++)
 	{
-		Item& item = topic.item(i);
-		vector<double>& weights = item.weights();
+		Item& item = rec.item(i);
+		GVec& weights = item.weights();
 		xmin = std::min(xmin, weights[1]);
 		xmax = std::max(xmax, weights[1]);
 		ymin = std::min(ymin, weights[2]);
@@ -1410,70 +1222,53 @@ void Survey::plotItems(Server* pServer, GDynamicPageSession* pSession, ostream& 
 	if(ymax - ymin < 1e-4)
 		ymax += 1e-4;
 	svg.newChart(xmin, ymin, xmax, ymax, 0, 0, 0);
-	for(size_t i = 0; i < topic.size(); i++)
+	for(size_t i = 0; i < rec.items().size(); i++)
 	{
-		Item& item = topic.item(i);
+		Item& item = rec.item(i);
 		const char* szTitle = item.left();
-		vector<double>& weights = item.weights();
+		GVec& weights = item.weights();
 		svg.dot(weights[1], weights[2], 0.75, 0x008080);
 		svg.text(weights[1], weights[2], szTitle, 0.75);
 	}
 	svg.print(response);
 }
 
-void Survey::pageUpdateResponses(Server* pServer, GDynamicPageSession* pSession, ostream& response)
+void Submit::pageUpdateResponses(Server* pServer, GDynamicPageSession* pSession, ostream& response)
 {
 	Account* pAccount = getAccount(pSession);
 	User* pUser = pAccount->getUser(pServer->recommender());
-	size_t currentTopic = pAccount->currentTopic();
-	if(currentTopic >= pServer->recommender().topics().size())
+	makeSliderScript(response);
+
+	// Display the topic
+	response << "<h2>Pearls</h2>\n";
+
+	// Display the items you have rated
+	vector<pair<size_t, float> >& v = pUser->m_vec;
+	if(v.size() > 0)
 	{
-		pServer->redirect(response, "/survey");
+		response << "<h3>Your opinions</h3>\n";
+		response << "<form name=\"formname\" action=\"/survey\" method=\"post\">\n";
+		response << "	<input type=\"hidden\" name=\"action\" value=\"rate\" />\n";
+		UpdateComparer comparer;
+		std::sort(v.begin(), v.end(), comparer);
+		for(vector<pair<size_t, float> >::iterator it = v.begin(); it != v.end(); it++)
+			makeUrlSlider(pServer, pAccount, it->first, response);
+		response << "<br><table><tr><td width=330></td><td>";
+		response << "<input type=\"submit\" value=\"Update ratings\">";
+		response << "</td></tr><tr><td></td><td>";
+		response << "(Only checked items will be updated.)";
+		response << "</td></tr></table>\n";
+		response << "</form><br><br>\n\n";
 	}
 	else
-	{
-		makeSliderScript(response);
+		response << "You have not yet rated anything<br><br>\n";
 
-		// Display the topic
-		Topic* pCurrentTopic = pServer->recommender().topics()[currentTopic];
-		response << "<h2>" << pCurrentTopic->descr() << "</h2>\n";
-
-		// Display the items you have rated
-		if(pUser->ratings().size() > currentTopic)
-		{
-			vector<pair<size_t, float> >& v = pUser->ratings()[currentTopic]->m_vec;
-			if(v.size() > 0)
-			{
-				response << "<h3>Your opinions</h3>\n";
-				response << "<form name=\"formname\" action=\"/survey\" method=\"post\">\n";
-				response << "	<input type=\"hidden\" name=\"action\" value=\"rate\" />\n";
-				UpdateComparer comparer;
-				std::sort(v.begin(), v.end(), comparer);
-				for(vector<pair<size_t, float> >::iterator it = v.begin(); it != v.end(); it++)
-					makeUrlSlider(pServer, pAccount, it->first, response);
-				response << "<br><table><tr><td width=330></td><td>";
-				response << "<input type=\"submit\" value=\"Update ratings\">";
-				response << "</td></tr><tr><td></td><td>";
-				response << "(Only checked items will be updated.)";
-				response << "</td></tr></table>\n";
-				response << "</form><br><br>\n\n";
-			}
-			else
-				response << "You have not yet rated anything in this topic<br><br>\n";
-		}
-		else
-			response << "You have not yet rated anything in this topic<br><br>\n";
-
-		// The choices links at the bottom of the page
-		response << "<a href=\"/submit\">Submit a new item</a>";
-		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-		response << "<a href=\"/survey?topic=-1\">Change topic</a>\n";
-		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-		response << "<a href=\"/survey\">" << "Survey</a>\n";
-		response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-		response << "<a href=\"/stats\">Vizualize</a>\n";
-	}
+	// The choices links at the bottom of the page
+	response << "<a href=\"/submit\">Submit a new item</a>";
+	response << "&nbsp;&nbsp;&nbsp;&nbsp;";
+	response << "<a href=\"/survey?topic=-1\">Change topic</a>\n";
+	response << "&nbsp;&nbsp;&nbsp;&nbsp;";
+	response << "<a href=\"/survey\">" << "Survey</a>\n";
+	response << "&nbsp;&nbsp;&nbsp;&nbsp;";
+	response << "<a href=\"/stats\">Vizualize</a>\n";
 }
-
-
-

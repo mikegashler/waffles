@@ -26,81 +26,83 @@ using std::cout;
 
 void Login::pageAdmin(Server* pServer, GDynamicPageSession* pSession, ostream& response)
 {
+	// Check access privileges
 	Account* pAccount = getAccount(pSession);
+	if(!pAccount->isAdmin())
+	{
+		response << "Sorry, you must be an admin to access this page.";
+		return;
+	}
+
+	// Process params
+	std::map<std::string,Account*>& accounts = pServer->accounts();
 	if(pSession->paramsLen() > 0)
 	{
 		GHttpParamParser params(pSession->params());
-		const char* szDel = params.find("del");
-		if(szDel)
+		const char* szAction = params.find("action");
+		if(strcmp(szAction, "make_assistant") == 0)
 		{
-			size_t currentTopic = pAccount->currentTopic();
-			if(currentTopic >= pServer->recommender().topics().size())
-				response << "[invalid topic id]<br><br>\n";
-			else
+			// Remove all assistants
+			for(std::map<std::string,Account*>::iterator it = accounts.begin(); it != accounts.end(); it++)
 			{
-				size_t index = atoi(szDel);
-				const std::vector<User*>& users = pServer->recommender().users();
-				Topic& topic = *pServer->recommender().topics()[currentTopic];
-				if(index >= topic.size())
-					response << "[invalid item index]<br><br>\n";
-				else
+				Account* pUserAccount = it->second;
+				cout << "Clearing " << pUserAccount->username() << " as an assistant\n";
+				pUserAccount->makeAssistant(false);
+			}
+
+			// Make the checked users assistants
+			auto map = params.map();
+			for(std::map<const char*, const char*, GClasses::strComp>::iterator it = map.begin(); it != map.end(); it++)
+			{
+				if(strncmp(it->first, "assist_", 7) == 0)
 				{
-					cout << "Deleted item " << topic.item(index).left() << " / " << topic.item(index).right() << "\n";
-					for(std::vector<User*>::const_iterator it = users.begin(); it != users.end(); it++)
+					const char* szUsername = it->first + 7;
+					Account* pUserAccount = pServer->findAccount(szUsername);
+					if(strcmp(it->second, "true") == 0)
 					{
-						(*it)->withdrawRating(currentTopic, index);
-						(*it)->swapItems(currentTopic, index, topic.size() - 1);
+						cout << "Making " << pUserAccount->username() << " an assistant\n";
+						pUserAccount->makeAssistant(true);
 					}
-					topic.deleteItemAndSwapInLast(index);
-					response << "[Item successfully deleted]<br><br>\n";
 				}
 			}
 		}
+		else
+		{
+			response << "Sorry, unrecognized action: " << szAction << "\n";
+		}
 	}
 
-	// Form to delete a statement
-	response << "<h2>Delete Statements</h2>\n\n";
-	size_t currentTopic = pAccount->currentTopic();
-	if(currentTopic >= pServer->recommender().topics().size())
-		response << "<p>No topic has been selected. If you want to delete one or more statements, please click on \"Survey\", choose a topic, then return to here.</p>\n";
-	else
+	// Form to give users assistant privileges
+	response << "<h2>Grant user permissions</h2>\n\n";
+	response << "<form method=\"post\">";
+	response << "<input type=\"hidden\" name=\"action\" value=\"make_assistant\" />\n";
+	response << "<table>\n";
+	for(std::map<std::string,Account*>::iterator it = accounts.begin(); it != accounts.end(); it++)
 	{
-		response << "<p>If a statement can be corrected, it is courteous to submit a corrected version after you delete it. Valid reasons to delete a statement include: not controversial enough, too long-winded, confusing, difficult to negate, ambiguous, off-topic, etc.</p>";
-		Topic& topic = *pServer->recommender().topics()[currentTopic];
-		response << "<table>\n";
-		for(size_t i = 0; i < topic.size(); i++)
-		{
-			Item& itm = topic.item(i);
-			response << "<tr><td>";
-			response << "<form name=\"delitem\" action=\"/admin\" method=\"get\"><input type=\"hidden\" name=\"del\" value=\"" << to_str(i) << "\"><input type=\"submit\" value=\"Delete\"></form>";
-			response << "</td><td>" << itm.left() << " / " << itm.right() << "</td></tr>\n";
-		}
-		response << "</table>\n";
-		response << "<br>\n";
-		response << "</form><br><br>\n\n";
+		Account* pUserAccount = it->second;
+		response << "<tr><td>";
+		response << "Assistant?<br><input type=\"checkbox\" name=\"assist_" << pUserAccount->username() << "\" value=\"true\"" << (pUserAccount->isAssistant() ? " checked" : "") << ">";
+		response << "</td><td>" << pUserAccount->username() << "</td><td>";
 	}
+	response << "</table>\n";
+	response << "<br>\n";
+	response << "<input type=\"submit\" value=\"Submit\"></form>";
+	response << "</form><br><br>\n\n";
 
 	// Admin controls
 	if(pAccount->isAdmin())
 	{
 		response << "<h2>Admin controls</h2>\n\n";
 
-		// Form to add a new topic
-		response << "<form name=\"newtopicform\" action=\"/admin\" method=\"get\">\n";
-		response << "	Add a new topic:<br>\n";
-		response << "	<input type=\"hidden\" name=\"action\" value=\"newtopic\" />\n";
-		response << "	<input type=\"text\" name=\"descr\" size=\"55\"><input type=\"submit\" value=\"Add\"><br>\n";
-		response << "</form><br><br>\n\n";
-
-		// Form to shut down the server
-		response << "<form name=\"trainform\" action=\"/admin\" method=\"get\">\n";
+		// Form to train the recommender system a bit more
+		response << "<form name=\"trainform\" method=\"get\">\n";
 		response << "	Refine the recommender system:<br>\n";
 		response << "	<input type=\"hidden\" name=\"action\" value=\"train\" />\n";
 		response << "	<input type=\"submit\" value=\"Train\">\n";
 		response << "</form><br><br>\n\n";
 
 		// Form to shut down the server
-		response << "<form name=\"shutdownform\" action=\"/admin\" method=\"get\">\n";
+		response << "<form name=\"shutdownform\" method=\"get\">\n";
 		response << "	Shut down the daemon:<br>\n";
 		response << "	<input type=\"hidden\" name=\"action\" value=\"shutdown\" />\n";
 		response << "	<input type=\"submit\" value=\"Shut down now\">\n";
@@ -129,7 +131,7 @@ void Login::pageAccount(Server* pServer, GDynamicPageSession* pSession, ostream&
 			havePassword = false;
 		if(!havePassword)
 		{
-			response << "You do not yet have a password! Please set a password so you can access this account from other devices.<br>";
+			response << "If you would like, you can add a password so you can access this account from other devices.<br>";
 		}
 		response << "<form><input type=\"hidden\" name=\"action\" value=\"changepassword\">";
 		response << "<table><tr><td align=right>" << (havePassword ? "Change" : "Set") << " your password to:</td><td><input type=\"password\" name=\"newpw\"></td><td></td></tr>";
@@ -165,7 +167,7 @@ void Login::pageAccount(Server* pServer, GDynamicPageSession* pSession, ostream&
 			response << "<tr><td>";
 			Account* pAcc = pTerminal->account(i);
 			if(!reqpw)
-				response << "<a href=\"/account?action=login&name=" << pAcc->username() << "\">";
+				response << "<a href=\"/tools/account?action=login&name=" << pAcc->username() << "\">";
 			response << "<div style=\"";
 			response << "background-color:#203050;width:220px;height:60px;";
 			response << "border:1px solid #000000;border-radius:15px;";

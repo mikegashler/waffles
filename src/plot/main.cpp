@@ -679,7 +679,7 @@ public:
 			return (double)i;
 	}
 
-	void plot(GSVG& svg, double xmin, double xmax, size_t width)
+	void plot(GSVG& svg, double xmin, double xmax, size_t width, bool logx, bool logy)
 	{
 		svg.add_raw("<g><!-- ");
 		svg.add_raw(attrName().c_str());
@@ -721,6 +721,10 @@ public:
 			{
 				x = attrVal(i, m_attrX);
 				y = attrVal(i, m_attrY);
+				if(logx && x != UNKNOWN_REAL_VALUE)
+					x = std::log(x);
+				if(logy && y != UNKNOWN_REAL_VALUE)
+					y = std::log(y);
 				size_t col = 0;
 				if(m_type == Fixed)
 					col = m_color;
@@ -1125,7 +1129,7 @@ void PlotScatter(GArgReader& args)
 			else*/
 			{
 				for(size_t i = 0; i < cols.size(); i++)
-					cols[i].plot(svg, xmin, xmax, width);
+					cols[i].plot(svg, xmin, xmax, width, logx, logy);
 			}
 		}
 	}

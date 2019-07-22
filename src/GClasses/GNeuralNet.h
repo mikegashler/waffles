@@ -101,6 +101,7 @@ public:
 		// weightless transfer
 		block_scalarsum,
 		block_scalarproduct,
+		block_biasproduct,
 		block_switch,
 		block_spectral,
 		block_spreader,
@@ -300,7 +301,7 @@ public:
 
 
 
-/// Applies the [Identity function](https://en.wikipedia.org/wiki/Identity_function) element-wise to the input. 
+/// Applies the [Identity function](https://en.wikipedia.org/wiki/Identity_function) element-wise to the input.
 /// Serves as a pass-through block of units in a neural network.
 /// | Equation  | Plot
 /// | --------- | -------
@@ -326,7 +327,7 @@ public:
 
 
 
-/// Applies the [TanH function](https://en.wikipedia.org/wiki/Hyperbolic_function#Hyperbolic_tangent) element-wise to the input. 
+/// Applies the [TanH function](https://en.wikipedia.org/wiki/Hyperbolic_function#Hyperbolic_tangent) element-wise to the input.
 /// | Equation  | Plot
 /// | --------- | -------
 /// | \f[ f(x) = tanh(x) \f]   | ![](Activation_tanh.png)
@@ -362,11 +363,11 @@ public:
 
 
 
-/// Applies a scaled TanH function element-wise to the input. 
+/// Applies a scaled TanH function element-wise to the input.
 /// | Equation  |
 /// | --------- |
 /// | \f[ f(x) = tanh(x \times 0.66666667) \times  1.7159\f] |
-/// LeCun et al. suggest scale_in=2/3 and scale_out=1.7159. By carefully matching 
+/// LeCun et al. suggest scale_in=2/3 and scale_out=1.7159. By carefully matching
 /// scale_in and scale_out, the nonlinearity can also be tuned to preserve the mean and variance of its input:
 /// - scale_in=0.5, scale_out=2.4: If the input is a random normal variable, the output will have zero mean and unit variance.
 /// - scale_in=1, scale_out=1.6: Same property, but with a smaller linear regime in input space.
@@ -392,7 +393,7 @@ public:
 
 
 
-/// Applies the [Logistic function](https://en.wikipedia.org/wiki/Logistic_function) element-wise to the input. 
+/// Applies the [Logistic function](https://en.wikipedia.org/wiki/Logistic_function) element-wise to the input.
 /// | Equation  | Plot
 /// | --------- | -------
 /// | \f[ f(x) = \frac{1}{1 + e^{-x}} \f]   | ![](Activation_logistic.png)
@@ -463,7 +464,7 @@ public:
 
 #define BEND_AMOUNT 0.5
 #define BEND_SIZE 0.1
-/// Applies the Bent identity element-wise to the input. 
+/// Applies the Bent identity element-wise to the input.
 /// | Equation  | Plot
 /// | --------- | -------
 /// | \f[ f(x) = \frac{\sqrt{x^2+0.01}-0.1}{2}+x \f]   | ![](Activation_bent_identity.png)
@@ -504,7 +505,7 @@ public:
 
 
 
-/// Applies the [Gaussian function](https://en.wikipedia.org/wiki/Gaussian_function) element-wise to the input. 
+/// Applies the [Gaussian function](https://en.wikipedia.org/wiki/Gaussian_function) element-wise to the input.
 /// | Equation  | Plot
 /// | --------- | -------
 /// | \f[ f(x) = e^{-x^2} \f]   | ![](Activation_gaussian.png)
@@ -525,7 +526,7 @@ public:
 
 
 
-/// Applies the [Sinusoid](https://en.wikipedia.org/wiki/Sine_wave) element-wise to the input. 
+/// Applies the [Sinusoid](https://en.wikipedia.org/wiki/Sine_wave) element-wise to the input.
 /// | Equation  | Plot
 /// | --------- | -------
 /// | \f[ f(x) = \sin(x) \f]   | ![](Activation_sinusoid.png)
@@ -547,7 +548,7 @@ public:
 
 
 
-/// Applies the [Rectified linear unit](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)) (ReLU) element-wise to the input. 
+/// Applies the [Rectified linear unit](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)) (ReLU) element-wise to the input.
 /// | Equation  | Plot
 /// | --------- | -------
 /// | \f[ f(x) = \left \{ \begin{array}{rcl} 0 & \mbox{for} & x < 0 \\ x & \mbox{for} & x \ge 0\end{array} \right. \f]   | ![](Activation_rectified_linear.png)
@@ -569,7 +570,7 @@ public:
 
 
 
-/// Applies the Leaky rectified linear unit (Leaky ReLU) element-wise to the input. 
+/// Applies the Leaky rectified linear unit (Leaky ReLU) element-wise to the input.
 /// | Equation  | Plot
 /// | --------- | -------
 /// | \f[ f(x) = \left \{ \begin{array}{rcl} 0.01x & \mbox{for} & x < 0\\ x & \mbox{for} & x \ge 0\end{array} \right. \f]   | ![](Activation_prelu.png)
@@ -592,7 +593,7 @@ public:
 
 
 
-/// Applies the SoftPlus function element-wise to the input. 
+/// Applies the SoftPlus function element-wise to the input.
 /// | Equation  | Plot
 /// | --------- | -------
 /// | \f[ f(x)=\ln(1+e^x) \f]   | ![](Activation_softplus.png)
@@ -1229,6 +1230,45 @@ public:
 
 	/// Returns a copy of this block
 	virtual GBlockScalarProduct* clone() const override { return new GBlockScalarProduct(*this); }
+
+	/// Evaluate the input, set the output.
+	virtual void forwardProp() override;
+
+	/// Evaluates outBlame, and adds to inBlame.
+	/// (Note that it "adds to" the inBlame because multiple blocks may fork from a common source.)
+	virtual void backProp() override;
+};
+
+
+
+
+
+
+/// Like GBlockScalarProduct, except it adds the first two elements instead of multiplying them.
+/// (This is intended to be used as a substitute for matrix factorization.)
+class GBlockBiasProduct : public GBlockWeightless
+{
+public:
+	/// General-purpose constructor.
+	GBlockBiasProduct(size_t outputs);
+
+	/// Copy constructor
+	GBlockBiasProduct(const GBlockBiasProduct& that) : GBlockWeightless(that) {}
+
+	/// Deserializing constructor
+	GBlockBiasProduct(GDomNode* pNode);
+
+	/// Destructor
+	~GBlockBiasProduct();
+
+	/// Returns the type of this block
+	virtual BlockType type() const override { return block_biasproduct; }
+
+	/// Returns the name of this block
+	virtual std::string name() const override { return "GBlockBiasProduct"; }
+
+	/// Returns a copy of this block
+	virtual GBlockBiasProduct* clone() const override { return new GBlockBiasProduct(*this); }
 
 	/// Evaluate the input, set the output.
 	virtual void forwardProp() override;
@@ -2050,6 +2090,9 @@ public:
 	/// Marshal this object into a dom node.
 	GDomNode* serialize(GDom* pDoc) const override;
 
+	/// Unmarshalls this object in place from a dom node.
+	void deserialize(GDomNode* pNode, GRand& rand);
+
 	/// Adds a block as a new layer to this neural network.
 	GBlock* add(GBlock* pBlock);
 	void add(GBlock* a, GBlock* b) { add(a); add(b); }
@@ -2078,7 +2121,7 @@ public:
 	GVec* insert(size_t position, GBlock* pBlock, GVec* pOldWeights, GRand& rand);
 
 	/// Drops a layer from this neural network. The layer must have the same number of inputs and outputs,
-	/// and it cannot be the output layer. 
+	/// and it cannot be the output layer.
 	/// Requires the current weights and returns a new weight vector (which may be the
 	/// same vector if pBlock has no weights).
 	/// The caller is still responsible to delete pOldWeights (if it is not equal to the returned value)

@@ -1296,6 +1296,25 @@ const char* GHttpParamParser::find(const char* szName)
 	return it->second;
 }
 
+std::string GHttpParamParser::to_str(bool html)
+{
+	std::ostringstream os;
+	std::map<const char*, const char*, strComp>::iterator it = m_map.begin();
+	for(; it != m_map.end(); it++)
+	{
+		os << it->first;
+		os << "=";
+		std::string s = it->second;
+		if(s.length() < 32)
+			os << s;
+		else
+			os << s.substr(0, 29) << "...";
+		if(html)
+			os << "<br>";
+		os << "\n";
+	}
+	return os.str();
+}
 
 
 

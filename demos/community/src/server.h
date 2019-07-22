@@ -34,7 +34,7 @@ class Server : public GDynamicPageServer
 {
 protected:
 	std::map<std::string,Account*> m_accounts; // Mapping from username to account
-	Recommender m_recommender; // The recommender system
+	NeuralRecommender m_recommender; // The recommender system
 	GFileCache m_fileCache;
 
 public:
@@ -43,11 +43,12 @@ public:
 
 	Server(int port, GRand* pRand);
 	virtual ~Server();
-	Recommender& recommender() { return m_recommender; }
+	NeuralRecommender& recommender() { return m_recommender; }
 	void saveState();
 	void doSomeRecommenderTraining();
 	virtual void onStateChange();
 	virtual void onShutDown();
+	std::map<std::string,Account*>& accounts() { return m_accounts; }
 	bool isUsernameTaken(const char* szUsername);
 	Account* findAccount(const char* szUsername);
 	Account* newAccount(const char* szUsername, const char* szPasswordHash);
@@ -78,13 +79,13 @@ protected:
 	std::string m_username;
 	std::string m_passwordHash;
 	std::string m_path; // Within .../usercontent/username/pages/. Does not start with a slash.
-	size_t m_currentTopic;
 	User* m_pUser; // A redundant pointer to the User object that goes with this account
 	bool m_admin;
+	bool m_assistant;
 
 public:
 	Account(const char* szUsername, const char* szPasswordHash)
-	: m_username(szUsername), m_passwordHash(szPasswordHash), m_currentTopic(-1), m_pUser(nullptr), m_admin(false)
+	: m_username(szUsername), m_passwordHash(szPasswordHash), m_pUser(nullptr), m_admin(false), m_assistant(false)
 	{
 	}
 
@@ -97,9 +98,19 @@ public:
 		return m_admin;
 	}
 
+	bool isAssistant()
+	{
+		return m_assistant;
+	}
+
 	void makeAdmin(bool admin)
 	{
 		m_admin = admin;
+	}
+
+	void makeAssistant(bool assistant)
+	{
+		m_assistant = assistant;
 	}
 
 	static Account* fromDom(GDomNode* pNode, GRand& rand)
@@ -109,6 +120,8 @@ public:
 		Account* pAccount = new Account(un, pw);
 		if(pNode->getIfExists("admin"))
 			pAccount->makeAdmin(true);
+		if(pNode->getIfExists("assistant"))
+			pAccount->makeAssistant(true);
 		return pAccount;
 	}
 
@@ -119,22 +132,22 @@ public:
 		pAccount->add(pDoc, "password", m_passwordHash.c_str());
 		if(m_admin)
 			pAccount->add(pDoc, "admin", "true");
+		if(m_assistant)
+			pAccount->add(pDoc, "assistant", "true");
 		return pAccount;
 	}
 
 	std::string& path() { return m_path; }
 	const char* username() { return m_username.c_str(); }
 	const char* passwordHash() { return m_passwordHash.c_str(); }
-	size_t currentTopic() { return m_currentTopic; }
-	void setCurrentTopic(size_t topic) { m_currentTopic = topic; }
 
-	User* getUser(Recommender& recommender)
+	User* getUser(NeuralRecommender& recommender)
 	{
 		if(!m_pUser)
 			m_pUser = recommender.findOrMakeUser(m_username.c_str());
 		return m_pUser;
 	}
-	
+
 	User* user() { return m_pUser; }
 	void setUser(User* pUser) { m_pUser = pUser; }
 
@@ -224,7 +237,7 @@ public:
 			pReqList->add(pDoc, m_requirePassword[i]);
 		return pObj;
 	}
-	
+
 	/// Returns the current account, or nullptr if not logged in.
 	Account* currentAccount()
 	{
@@ -331,7 +344,7 @@ public:
 	Connection(SOCKET sock, GDynamicPageServer* pServer) : GDynamicPageConnection(sock, pServer)
 	{
 	}
-	
+
 	virtual ~Connection()
 	{
 	}

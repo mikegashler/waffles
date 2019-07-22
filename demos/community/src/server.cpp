@@ -24,6 +24,7 @@
 #include "editor.h"
 #include "login.h"
 
+
 using std::cout;
 using std::cerr;
 using std::ostream;
@@ -150,14 +151,8 @@ void Server::doSomeRecommenderTraining()
 {
 	try
 	{
-		if(recommender().topics().size() > 0)
-		{
-			for(size_t i = 0; i < 3; i++)
-			{
-				size_t topicId = m_pRand->next(recommender().topics().size());
-				recommender().refineModel(topicId, ON_TRAIN_TRAINING_ITERS);
-			}
-		}
+		for(size_t i = 0; i < 3; i++)
+			recommender().refine(ON_TRAIN_TRAINING_ITERS);
 		saveState();
 		fflush(stdout);
 	}
@@ -516,27 +511,6 @@ const char* Connection::processParams(GDynamicPageSession* pSession)
 			else
 				szParamsMessage = "You must log in to do this action";
 		}
-		else if(strcmp(szAction, "newtopic") == 0)
-		{
-			Account* pAccount = pTerminal->currentAccount();
-			if(pAccount)
-			{
-				if(pAccount->isAdmin())
-				{
-					const char* szDescr = params.find("descr");
-					if(szDescr && strlen(szDescr) > 0)
-					{
-						((Server*)m_pServer)->recommender().newTopic(szDescr);
-					}
-					else
-						szParamsMessage = "You must enter a topic description";
-				}
-				else
-					szParamsMessage = "Sorry, only an administrator may perform that action";
-			}
-			else
-				szParamsMessage = "You must log in to do this action";
-		}
 		else if(strcmp(szAction, "nukeself") == 0)
 		{
 			Account* pAccount = pTerminal->currentAccount();
@@ -546,10 +520,7 @@ const char* Connection::processParams(GDynamicPageSession* pSession)
 			pTerminal->logOut();
 		}
 		else if(strcmp(szAction, "train") == 0)
-		{
-			Account* pAccount = pTerminal->currentAccount();
-			((Server*)m_pServer)->recommender().refineModel(pAccount->currentTopic(), ON_TRAIN_TRAINING_ITERS);
-		}
+			((Server*)m_pServer)->recommender().refine(ON_TRAIN_TRAINING_ITERS);
 	}
 	return szParamsMessage;
 }
@@ -558,7 +529,7 @@ void Connection::handleTools(Server* pServer, GDynamicPageSession* pSession, ost
 {
 	const char* szParamsMessage = processParams(pSession);
 
-	// Fine a method to make the requested page
+	// Find a method to make the requested page
 	bool headers = true;
 	void (*pageMaker)(Server* pServer, GDynamicPageSession* pSession, ostream& response) = nullptr;
 	const char* szUrl = m_szUrl + 6; // Skip "/tools"
@@ -570,15 +541,15 @@ void Connection::handleTools(Server* pServer, GDynamicPageSession* pSession, ost
 	else if(check_url(szUrl, "/history")) pageMaker = &Editor::pageHistory;
 	else if(check_url(szUrl, "/newpage")) pageMaker = &Editor::pageNewPage;
 	else if(check_url(szUrl, "/preview")) pageMaker = &Editor::pagePreview;
-	else if(check_url(szUrl, "/survey")) pageMaker = &Survey::pageSurvey;
-	else if(check_url(szUrl, "/submit")) pageMaker = &Survey::pageNewSurveyItem;
-	else if(check_url(szUrl, "/stats")) pageMaker = &Survey::pageStats;
-	else if(check_url(szUrl, "/update")) pageMaker = &Survey::pageUpdateResponses;
+	else if(check_url(szUrl, "/survey")) pageMaker = &Submit::pageSurvey;
+	else if(check_url(szUrl, "/submit")) pageMaker = &Submit::pageNewSurveyItem;
+	else if(check_url(szUrl, "/stats")) pageMaker = &Submit::pageStats;
+	else if(check_url(szUrl, "/update")) pageMaker = &Submit::pageUpdateResponses;
 	else if(check_url(szUrl, "/admin")) pageMaker = &Login::pageAdmin;
 	else if(check_url(szUrl, "/newaccount")) pageMaker = &Login::pageNewAccount;
 	else if(check_url(szUrl, "/tools.js")) pageMaker = &Login::pageTools;
-	else if(check_url(szUrl, "/users.svg")) { pageMaker = &Survey::plotUsers; headers = false; }
-	else if(check_url(szUrl, "/items.svg")) { pageMaker = &Survey::plotItems; headers = false; }
+	else if(check_url(szUrl, "/users.svg")) { pageMaker = &Submit::plotUsers; headers = false; }
+	else if(check_url(szUrl, "/items.svg")) { pageMaker = &Submit::plotItems; headers = false; }
 	else headers = false;
 
 	if(pageMaker)

@@ -87,13 +87,14 @@ GBlock* GBlock::deserialize(GDomNode* pNode, GRand& rand)
 	const char* type = pNode->getString("type");
 	if(strcmp(type, "GBlockLinear") == 0) return new GBlockLinear(pNode);
 	else if(strcmp(type, "GBlockConv") == 0) return new GBlockConv(pNode);
+	else if(strcmp(type, "GBlockEl") == 0) return new GBlockEl(pNode);
 	else if(strcmp(type, "GBlockTanh") == 0) return new GBlockTanh(pNode);
 	else if(strcmp(type, "GBlockLogistic") == 0) return new GBlockLogistic(pNode);
 	else if(strcmp(type, "GBlockLeakyRectifier") == 0) return new GBlockLeakyRectifier(pNode);
 	else if(strcmp(type, "GBlockRectifier") == 0) return new GBlockRectifier(pNode);
 	else if(strcmp(type, "GBlockIdentity") == 0) return new GBlockIdentity(pNode);
 	else if(strcmp(type, "GBlockScaledTanh") == 0) return new GBlockScaledTanh(pNode);
-	else if(strcmp(type, "GBlockBentIdentity") == 0) return new GBlockBentIdentity(pNode);	
+	else if(strcmp(type, "GBlockBentIdentity") == 0) return new GBlockBentIdentity(pNode);
 	else if(strcmp(type, "GBlockSigExp") == 0) return new GBlockSigExp(pNode);
 	else if(strcmp(type, "GBlockGaussian") == 0) return new GBlockGaussian(pNode);
 	else if(strcmp(type, "GBlockSine") == 0) return new GBlockSine(pNode);
@@ -105,6 +106,7 @@ GBlock* GBlock::deserialize(GDomNode* pNode, GRand& rand)
 	else if(strcmp(type, "GBlockMaxPooling2D") == 0) return new GBlockMaxPooling2D(pNode);
 	else if(strcmp(type, "GBlockScalarSum") == 0) return new GBlockScalarSum(pNode);
 	else if(strcmp(type, "GBlockScalarProduct") == 0) return new GBlockScalarProduct(pNode);
+	else if(strcmp(type, "GBlockBiasProduct") == 0) return new GBlockBiasProduct(pNode);
 	else if(strcmp(type, "GBlockSwitch") == 0) return new GBlockSwitch(pNode);
 	else if(strcmp(type, "GBlockHinge") == 0) return new GBlockHinge(pNode);
 	else if(strcmp(type, "GBlockSoftExp") == 0) return new GBlockSoftExp(pNode);
@@ -1796,6 +1798,46 @@ void GBlockScalarProduct::backProp()
 
 
 
+GBlockBiasProduct::GBlockBiasProduct(size_t outputs)
+: GBlockWeightless(outputs * 2, outputs)
+{
+}
+
+GBlockBiasProduct::GBlockBiasProduct(GDomNode* pNode)
+: GBlockWeightless(pNode)
+{
+}
+
+GBlockBiasProduct::~GBlockBiasProduct()
+{
+}
+
+// virtual
+void GBlockBiasProduct::forwardProp()
+{
+	output[0] = input[0] + input[outputCount];
+	for(size_t i = 1; i < outputCount; i++)
+		output[i] = input[i] * input[outputCount + i];
+}
+
+void GBlockBiasProduct::backProp()
+{
+	inBlame[0] += outBlame[0];
+	inBlame[outputCount] += outBlame[0];
+	for(size_t i = 1; i < outputCount; i++)
+	{
+		inBlame[i] += outBlame[i] * input[outputCount + i];
+		inBlame[outputCount + i] += outBlame[i] * input[i];
+	}
+}
+
+
+
+
+
+
+
+
 GBlockSwitch::GBlockSwitch(size_t outputs)
 : GBlockWeightless(outputs * 3, outputs)
 {
@@ -2380,7 +2422,7 @@ GBlockHypercube::GBlockHypercube(GDomNode* pNode)
 void GBlockHypercube::forwardProp()
 {
 	// Bias values
-	output.copy(0, weights, 0, outputCount);	
+	output.copy(0, weights, 0, outputCount);
 
 	// Connections
 	size_t vertices = 1 << m_dims;
@@ -3432,18 +3474,9 @@ GNeuralNet::GNeuralNet(const GNeuralNet& that)
 }
 
 GNeuralNet::GNeuralNet(GDomNode* pNode, GRand& rand)
-: GBlock(pNode), m_weightCount(0)
+: GBlock(pNode), m_weightCount(0), m_gradCount(0)
 {
-	GDomNode* pLayers = pNode->get("layers");
-	GDomListIterator it(pLayers);
-	while(it.remaining() > 0)
-	{
-		GLayer* pNewLayer = new GLayer(it.current(), rand);
-		m_layers.push_back(pNewLayer);
-		it.advance();
-	}
-	weightsBuf.deserialize(pNode->get("weights"));
-	init(weightsBuf);
+	deserialize(pNode, rand);
 }
 
 // virtual
@@ -3458,6 +3491,7 @@ void GNeuralNet::deleteAllLayers()
 		delete(m_layers[i]);
 	m_layers.clear();
 	m_weightCount = 0;
+	m_gradCount = 0;
 }
 
 GDomNode* GNeuralNet::serialize(GDom* pDoc) const
@@ -3466,8 +3500,27 @@ GDomNode* GNeuralNet::serialize(GDom* pDoc) const
 	GDomNode* pLayers = pNode->add(pDoc, "layers", pDoc->newList());
 	for(size_t i = 0; i < m_layers.size(); i++)
 		pLayers->add(pDoc, m_layers[i]->serialize(pDoc));
+	if(weights.size() == 0)
+		throw Ex("Attempted to serialize a neural net that was never initialized");
 	pNode->add(pDoc, "weights", weights.serialize(pDoc));
 	return pNode;
+}
+
+void GNeuralNet::deserialize(GDomNode* pNode, GRand& rand)
+{
+	deleteAllLayers();
+	m_weightCount = 0;
+	m_gradCount = 0;
+	GDomNode* pLayers = pNode->get("layers");
+	GDomListIterator it(pLayers);
+	while(it.remaining() > 0)
+	{
+		GLayer* pNewLayer = new GLayer(it.current(), rand);
+		m_layers.push_back(pNewLayer);
+		it.advance();
+	}
+	weightsBuf.deserialize(pNode->get("weights"));
+	init(weightsBuf);
 }
 
 std::string GNeuralNet::to_str(const std::string& line_prefix, bool includeWeights, bool includeActivations) const
@@ -5021,7 +5074,7 @@ void GNeuralNet_testMath()
 	if(std::abs(0.97924719898884915 - b2->outBlame[0]) > tol) throw Ex("back prop problem");
 	if(std::abs(-0.0097924719898884911 - b1->outBlame[0]) > tol) throw Ex("back prop problem");
 	if(std::abs(0.029377415969665473 - b1->outBlame[1]) > tol) throw Ex("back prop problem");
-	if(std::abs(0.019584943979776982 - b1->outBlame[2]) > tol) throw Ex("back prop problem");	
+	if(std::abs(0.019584943979776982 - b1->outBlame[2]) > tol) throw Ex("back prop problem");
 	if(std::abs(-0.00978306745006032 - b0->outBlame[0]) > tol) throw Ex("back prop problem");
 	if(std::abs(0.02936050107376107 - b0->outBlame[1]) > tol) throw Ex("back prop problem");
 	if(std::abs(0.01956232122115741 - b0->outBlame[2]) > tol) throw Ex("back prop problem");

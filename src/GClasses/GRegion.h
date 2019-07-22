@@ -111,34 +111,36 @@ public:
 	/// average color of each region
 	void setMaskPixel(int x, int y, unsigned int c, size_t nRegion);
 };
-/*
-/// A 3D region adjacency graph
+
+
+
 class G3DRegionGraph : public GRegionAjacencyGraph
 {
 protected:
-	GVideo* m_pRegionMask;
+	std::vector<GImage*> m_regionMask;
 
 public:
-	G3DRegionGraph(int nWidth, int nHeight);
+	G3DRegionGraph(size_t frames, int nWidth, int nHeight);
 	virtual ~G3DRegionGraph();
 
 	/// Toboggans the gradient magnitude image of the provided image to produce a
 	/// list of watershed regions
-	void makeWatershedRegions(GVideo* pVideo);
+	void makeWatershedRegions(const std::vector<GImage*>& frames);
 
 	/// Given a G3DRegionGraph, this merges every region with its closest neighbor to
 	/// form a coarser G3DRegionGraph
 	void makeCoarserRegions(G3DRegionGraph* pFineRegions);
 
 	/// Gets a pointer to the region mask image
-	GVideo* regionMask() { return m_pRegionMask; }
+	std::vector<GImage*>& regionMask() { return m_regionMask; }
 
 	/// Specifies which region the given pixel belongs to. The color
 	/// of the pixel is also specified so it can keep track of the
-	/// average color of each region. (z is the frame number)
-	void setMaskPixel(int x, int y, int z, unsigned int c, int nRegion);
+	/// average color of each region
+	void setMaskPixel(size_t frame, int x, int y, unsigned int c, size_t nRegion);
 };
-*/
+
+
 
 /// Iterates the border of a 2D region by running around the border and reporting
 /// the coordinates of each interior border pixel and the direction to the

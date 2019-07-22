@@ -283,6 +283,9 @@ public:
 	/// Returns a map of the name/value pairs
 	std::map<const char*, const char*, strComp>& map() { return m_map; }
 
+	/// Returns a string representation of all the parameters
+	std::string to_str(bool html);
+
 protected:
 	static void scrubValue(char* value);
 };
