@@ -34,6 +34,7 @@ class GImage;
 class GDomListIterator;
 class GVecWrapper;
 class GConstVecWrapper;
+class GTokenizer;
 
 /// Represents a mathematical vector of doubles
 class GVec
@@ -58,9 +59,6 @@ public:
 	/// Unmarshaling constructor
 	GVec(GDomNode* pNode);
 
-	/// Copy constructor. Copies all the values in orig.
-	GVec(const GVec& orig);
-
 	/// Destructor
 	virtual ~GVec();
 
@@ -75,7 +73,7 @@ public:
 	void resizePreserve(size_t n);
 
 	/// Sets all the elements in this vector to val.
-	void fill(const double val, size_t startPos = 0, size_t endPos = (size_t)-1);
+	void fill(const double val, size_t startPos = 0, size_t elements = (size_t)-1);
 
 	/// \brief Returns a reference to the specified element.
 	inline double& operator [](size_t index)
@@ -173,10 +171,10 @@ public:
 	void fillSimplex(GRand& rand);
 
 	/// Prints a representation of this vector to the specified stream.
-	void print(std::ostream& stream = std::cout, char separator = ',') const;
+	void print(std::ostream& stream = std::cout, char separator = ',', size_t max_elements_per_line = INVALID_INDEX) const;
 
 	/// Returns a string representation of this vector
-	std::string to_str(char separator = ',') const;
+	std::string to_str(char separator = ',', size_t max_elements_per_line = INVALID_INDEX) const;
 
 	/// Returns the sum of the elements in this vector
 	double sum() const;
@@ -225,10 +223,22 @@ public:
 	double estimateSquaredDistanceWithUnknowns(const GVec& that) const;
 
 	/// Adds scalar * that to this vector.
+	/// start refers only to "that".
 	void addScaled(double scalar, const GVec& that, size_t start = 0, size_t length = (size_t)-1);
+
+	/// Adds scalar * that to this vector starting at startPos.
+	/// start refers only to "that".
+	void addScaled(size_t startPos, double scalar, const GVec& that, size_t start = 0, size_t length = (size_t)-1);
+
+	/// Applies ElasticNet regularization.
+	/// Multiplies this vector by (1.0 - amount), then calls regularizeL1(0.2 * amount).
+	void regularize(double amount);
 
 	/// Applies L1 regularization to this vector.
 	void regularizeL1(double amount);
+
+	/// Applies L2 regularization to this vector.
+	void regularizeL2(double amount);
 
 	/// Erases the specified elements. The remaining elements are shifted over.
 	/// The size of the vector is decreased, but the buffer is not reallocated
@@ -260,39 +270,77 @@ public:
 	/// Swaps the contents of this vector with that vector.
 	void swapContents(GVec& that);
 
+
+
+
+	class iterator
+	{
+	public:
+		double* cur;
+
+		iterator(double* pData) : cur(pData) {}
+		double& operator*() { return *cur; }
+		double* operator->() { return cur; }
+		bool operator==(const iterator& other) { return cur == other.cur; }
+		bool operator!=(const iterator& other) { return cur != other.cur; }
+		iterator operator+(size_t n) const { return iterator(cur + n); }
+		iterator& operator++() { ++cur; return *this; }
+
+		// Prefix incrementer (commented out to discourage use)
+		/*iterator operator++(int)
+		{
+			iterator it = *this;
+			++cur;
+			return it;
+		}*/
+	};
+
+	iterator begin() { return iterator(m_data); }
+	iterator end() { return iterator(m_data + m_size); }
+
+	class const_iterator
+	{
+	public:
+		const double* cur;
+		
+		const_iterator(const double* pData) : cur(pData) {}
+		const double& operator*() { return *cur; }
+		const double* operator->() { return cur; }
+		bool operator==(const const_iterator& other) { return cur == other.cur; }
+		bool operator!=(const const_iterator& other) { return cur != other.cur; }
+		const_iterator operator+(size_t n) const { return const_iterator(cur + n); }
+		const_iterator& operator++() { ++cur; return *this; }
+
+		// Prefix incrementer (commented out to discourage use)
+		/*const_iterator operator++(int)
+		{
+			const_iterator it = *this;
+			++cur;
+			return it;
+		}*/
+	};
+
+	const_iterator begin() const { return const_iterator(m_data); }
+	const_iterator end() const { return const_iterator(m_data + m_size); }
+
+
 private:
+	/// Throws an exception if this vector has a size other than 0 or n.
+	/// Then resizes this vector to give it a size of n.
+	void resize_implicit(size_t n);
+
 	/// This method is deliberately private, so calling it will trigger a compiler error. Call "copy" instead.
 	GVec& operator=(const GVec& orig);
 
 	/// This method is deliberately private, so calling it will trigger a compiler error. Call "fill" instead.
 	GVec(double d);
 
+	/// This method is deliberately private, so calling it will trigger a compiler error. Call "copy" instead.
+	GVec(const GVec& copyme) { throw Ex("This is not a copy constructor. Use the 'copy' method instead."); }
+
 public:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // MIN_PREDICT
-
-	/// Sets all the elements to the specified value
-	static void setAll(double* pVector, double value, size_t dims);
-	static void fill(double* pVector, double value, size_t dims);
-
-	/// Adds Gaussian noise with the specified deviation to each element in the vector
-	static void perturb(double* pDest, double deviation, size_t dims, GRand& rand);
 };
 
 
@@ -440,6 +488,9 @@ public:
 		return m_data[index];
 	}
 
+	/// Fills this vector with the specified value
+	void fill(size_t val);
+
 	/// Fills this vector with the values 0, 1, 2, ...
 	void fillIndexes();
 
@@ -453,6 +504,9 @@ public:
 
 	/// Appends the specified number of uninitialized elements to this vector
 	void append(size_t count);
+
+	/// Returns a pointer to the data buffer
+	size_t* data() { return m_data; }
 
 
 
@@ -556,10 +610,8 @@ public:
 	GCoordVectorIterator(std::vector<size_t>& ranges);
 	~GCoordVectorIterator();
 
-#ifndef MIN_PREDICT
 	/// Performs unit tests for this class. Throws an exception if any problems are found.
 	static void test();
-#endif // MIN_PREDICT
 
 	/// Sets the coordinate vector to all zeros.
 	void reset();
@@ -615,20 +667,29 @@ public:
 class GTensor : public GVecWrapper
 {
 public:
-	GIndexVec dims;
+	GIndexVec shape; // Specifies the dimensions of the tensor.
+	GVec* pHolder; // A vector to delete when this object is deleted. (Typically the same vector this wraps.)
 
 	/// General-purpose constructor. Example:
-	/// GTensor t(v, {5, 7, 3});
-	GTensor(GVec& vals, const std::initializer_list<size_t>& list);
+	/// GTensor t({5, 7, 3});
+	GTensor(const std::initializer_list<size_t>& list, bool ownBuffer = true, GVec* pBuffer = nullptr);
 
-	/// Copy constructor. Copies the dimensions. Wraps the same vector.
+	/// Copy constructor. Copies the dimensions. Wraps the same buffer.
 	GTensor(const GTensor& copyMe);
-
-	/// Constructor for an arbitrary number of dimensions
-	GTensor(double* buf, const GIndexVec& dims);
 
 	/// Special constructor for initializing the dimensions from a Json node
 	GTensor(GDomNode* pNode);
+
+	virtual ~GTensor();
+
+	/// Sets out to wrap the specified portion of this tensor
+	void get(GVecWrapper& out, size_t index);
+
+	/// Loads a 2D tensor from an ARFF file
+	void loadArff(const char* szFilename);
+
+	/// Loads a 2D tensor from an ARFF file
+	void parseArff(GTokenizer& tok);
 
 	/// The result is added to the existing contents of out. It does not replace the existing contents of out.
 	/// Padding is computed as necessary to fill the the out tensor.

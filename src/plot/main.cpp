@@ -178,7 +178,7 @@ void loadDataWithSwitches(GMatrix& data, GArgReader& args, size_t* pLabelDims)
 			cerr << to_str(i) << ") " << parser.report(i) << "\n";
 	}
 	else
-		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename);
 
 	// Parse params
 	vector<size_t> ignore;
@@ -258,7 +258,7 @@ GMatrix* loadData(const char* szFilename)
 			cerr << to_str(i) << ") " << parser.report(i) << "\n";
 	}
 	else
-		throw Ex("Unsupported file format: ", szFilename + pd.extStart);
+		throw Ex("Unsupported file format: ", szFilename);
 
 	return hM.release();
 }
@@ -679,7 +679,7 @@ public:
 			return (double)i;
 	}
 
-	void plot(GSVG& svg, double xmin, double xmax, size_t width)
+	void plot(GSVG& svg, double xmin, double xmax, size_t width, bool logx, bool logy)
 	{
 		svg.add_raw("<g><!-- ");
 		svg.add_raw(attrName().c_str());
@@ -721,6 +721,10 @@ public:
 			{
 				x = attrVal(i, m_attrX);
 				y = attrVal(i, m_attrY);
+				if(logx && x != UNKNOWN_REAL_VALUE)
+					x = std::log(x);
+				if(logy && y != UNKNOWN_REAL_VALUE)
+					y = std::log(y);
 				size_t col = 0;
 				if(m_type == Fixed)
 					col = m_color;
@@ -1125,7 +1129,7 @@ void PlotScatter(GArgReader& args)
 			else*/
 			{
 				for(size_t i = 0; i < cols.size(); i++)
-					cols[i].plot(svg, xmin, xmax, width);
+					cols[i].plot(svg, xmin, xmax, width, logx, logy);
 			}
 		}
 	}
@@ -1422,7 +1426,8 @@ void makeHistogram(GArgReader& args)
 	{
 		size_t buckets = pData->relation().valueCount(attr);
 		GTEMPBUF(double, hist, buckets);
-		GVec::setAll(hist, 0.0, buckets);
+		GVecWrapper vw(hist, buckets);
+		vw.fill(0.0);
 		for(size_t i = 0; i < pData->rows(); i++)
 		{
 			int b = (int)pData->row(i)[attr];
@@ -1781,6 +1786,7 @@ public:
 class GraphServer : public GDynamicPageServer
 {
 protected:
+	bool m_keepGoing;
 	vector<UsageNode*> m_globals;
 	int m_port;
 
@@ -1802,6 +1808,7 @@ public:
 
 GraphServer::GraphServer(int port, GRand* pRand) : GDynamicPageServer(port, pRand), m_port(port)
 {
+	m_keepGoing = true;
 	char buf[300];
 	GApp::appPath(buf, 256, true);
 	strcat(buf, "web/");
@@ -1818,7 +1825,7 @@ void GraphServer::pump()
 {
 	double dLastActivity = GTime::seconds();
 	GSignalHandler sh;
-	while(m_bKeepGoing && sh.check() == 0)
+	while(m_keepGoing && sh.check() == 0)
 	{
 		if(process())
 			dLastActivity = GTime::seconds();
@@ -1827,7 +1834,7 @@ void GraphServer::pump()
 			if(GTime::seconds() - dLastActivity > 1800) // 30 minutes
 			{
 				cout << "Shutting down due to inactivity for 30 minutes.\n";
-				m_bKeepGoing = false;
+				m_keepGoing = false;
 			}
 			else
 				GThread::sleep(100);

@@ -41,7 +41,7 @@ $(CLEAN_SUBDIRS): CLEAN_% :
 	$(MAKE) -C $* clean
 
 $(INSTALL_SUBDIRS): INSTALL_% :
-	$(MAKE) -j 5 -C $* install
+	$(MAKE) -j 8 -C $* install
 
 INSTALL_depends:
 	$(MAKE) -C depends install

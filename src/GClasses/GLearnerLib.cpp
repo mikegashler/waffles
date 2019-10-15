@@ -279,6 +279,41 @@ GBag* GLearnerLib::InstantiateBag(GArgReader& args, GMatrix* pFeatures, GMatrix*
 	return pEnsemble;
 }
 
+GGradBoost* GLearnerLib::InstantiateGradBoost(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
+{
+	double trainingSizeRatio = 1;
+	size_t ensembleSize = 30;
+
+	while(args.size() > 0)
+	{
+		if(args.if_pop("-trainratio"))
+		{
+			trainingSizeRatio = args.pop_double();
+		}
+		else if(args.if_pop("-size"))
+		{
+			ensembleSize = args.pop_uint();
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	GTransducer* pLearner = InstantiateAlgorithm(args, pFeatures, pLabels);
+	if(!pLearner->canGeneralize())
+	{
+		delete(pLearner);
+		throw Ex("gradboost does not support algorithms that cannot generalize.");
+	}
+
+	GGradBoost* pEnsemble = new GGradBoost((GSupervisedLearner*)pLearner, true, new GLearnerLoader());
+	pEnsemble->setTrainSize(trainingSizeRatio);
+	pEnsemble->setSize(ensembleSize);
+
+	return pEnsemble;
+}
+
 GBaselineLearner* GLearnerLib::InstantiateBaseline(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
 {
 	GBaselineLearner* pModel = new GBaselineLearner();
@@ -346,39 +381,6 @@ GBayesianModelCombination* GLearnerLib::InstantiateBMC(GArgReader& args, GMatrix
 			{
 				delete(pLearner);
 				throw Ex("BMC does not support algorithms that cannot generalize.");
-			}
-			pEnsemble->addLearner((GSupervisedLearner*)pLearner);
-		}
-	}
-	return pEnsemble;
-}
-
-GBomb* GLearnerLib::InstantiateBomb(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels)
-{
-	GBomb* pEnsemble = new GBomb();
-	size_t samples = 100;
-	while(args.next_is_flag())
-	{
-		if(args.if_pop("-samples"))
-			samples = args.pop_uint();
-		else
-			throw Ex("Invalid option: ", args.peek());
-	}
-	pEnsemble->setSamples(samples);
-	while(args.size() > 0)
-	{
-		if(args.if_pop("end"))
-			break;
-		int instance_count = args.pop_uint();
-		int arg_pos = args.get_pos();
-		for(int i = 0; i < instance_count; i++)
-		{
-			args.set_pos(arg_pos);
-			GTransducer* pLearner = InstantiateAlgorithm(args, pFeatures, pLabels);
-			if(!pLearner->canGeneralize())
-			{
-				delete(pLearner);
-				throw Ex("Bomb does not support algorithms that cannot generalize.");
 			}
 			pEnsemble->addLearner((GSupervisedLearner*)pLearner);
 		}
@@ -834,8 +836,6 @@ GTransducer* GLearnerLib::InstantiateAlgorithm(GArgReader& args, GMatrix* pFeatu
 			pAlg = InstantiateBMA(args, pFeatures, pLabels);
 		else if(args.if_pop("bmc"))
 			pAlg = InstantiateBMC(args, pFeatures, pLabels);
-		else if(args.if_pop("bomb"))
-			pAlg = InstantiateBomb(args, pFeatures, pLabels);
 		else if(args.if_pop("boost"))
 			pAlg = InstantiateBoost(args, pFeatures, pLabels);
 		else if(args.if_pop("bucket"))
@@ -846,6 +846,8 @@ GTransducer* GLearnerLib::InstantiateAlgorithm(GArgReader& args, GMatrix* pFeatu
 			pAlg = InstantiateDecisionTree(args, pFeatures, pLabels);
 		else if(args.if_pop("gaussianprocess"))
 			pAlg = InstantiateGaussianProcess(args, pFeatures, pLabels);
+		else if(args.if_pop("gradboost"))
+			pAlg = InstantiateGradBoost(args, pFeatures, pLabels);
 		else if(args.if_pop("graphcuttransducer"))
 			pAlg = InstantiateGraphCutTransducer(args, pFeatures, pLabels);
 		else if(args.if_pop("hodgepodge"))

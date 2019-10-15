@@ -229,7 +229,6 @@ void GCrypto::doChunk(char* pData, size_t nDataSize)
 	}
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GCrypto::test()
 {
@@ -262,6 +261,5 @@ void GCrypto::test()
 			throw Ex("This should have worked");
 	}
 }
-#endif // NO_TEST_CODE
 
 }

@@ -316,7 +316,6 @@ double GCollaborativeFilter::areaUnderCurve(GMatrix& data)
 	return 0.5 * (a + b);
 }
 
-#ifndef NO_TEST_CODE
 void GCF_basicTest_makeData(GMatrix& m, GRand& rand)
 {
 	// Generate perfectly linear ratings based on random preferences
@@ -361,7 +360,6 @@ void GCollaborativeFilter::basicTest(double maxMSE)
 	else if(mse + 0.085 < maxMSE)
 		std::cerr << "\nTest needs to be tightened. MSE: " << mse << ", maxMSE: " << maxMSE << "\n";
 }
-#endif
 
 
 
@@ -449,14 +447,12 @@ GDomNode* GBaselineRecommender::serialize(GDom* pDoc) const
 	return pNode;
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GBaselineRecommender::test()
 {
 	GBaselineRecommender rec;
 	rec.basicTest(1.16);
 }
-#endif
 
 
 
@@ -675,14 +671,12 @@ double GInstanceRecommender::getRating(size_t user, size_t item)
 	return m_pData->get(user, item);
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GInstanceRecommender::test()
 {
 	GInstanceRecommender rec(8);
 	rec.basicTest(0.63);
 }
-#endif
 
 
 
@@ -780,14 +774,12 @@ GDomNode* GSparseClusterRecommender::serialize(GDom* pDoc) const
 	return pNode;
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GSparseClusterRecommender::test()
 {
 	GSparseClusterRecommender rec(6);
 	rec.basicTest(1.31);
 }
-#endif
 
 
 
@@ -902,14 +894,12 @@ GDomNode* GDenseClusterRecommender::serialize(GDom* pDoc) const
 	return pNode;
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GDenseClusterRecommender::test()
 {
 	GDenseClusterRecommender rec(6);
 	rec.basicTest(0.0);
 }
-#endif
 
 
 
@@ -1333,7 +1323,6 @@ void GMatrixFactorization::impute(GVec& vec, size_t dims)
 	}
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GMatrixFactorization::test()
 {
@@ -1341,7 +1330,6 @@ void GMatrixFactorization::test()
 	rec.setRegularizer(0.002);
 	rec.basicTest(0.17);
 }
-#endif
 
 
 
@@ -1927,7 +1915,6 @@ void GNonlinearPCA::impute(GVec& vec, size_t dims)
 	throw Ex("Sorry, GNonlinearPCA::impute is not implemented yet");
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GNonlinearPCA::test()
 {
@@ -1936,7 +1923,6 @@ void GNonlinearPCA::test()
 	rec.model()->addLayer(new GLayerClassic(3, FLEXIBLE_SIZE));
 	rec.basicTest(0.18);
 }
-#endif
 */
 
 
@@ -2057,7 +2043,6 @@ GDomNode* GBagOfRecommenders::serialize(GDom* pDoc) const
 	return pNode;
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GBagOfRecommenders::test()
 {
@@ -2069,7 +2054,6 @@ void GBagOfRecommenders::test()
 //	rec.addRecommender(nlpca);
 	rec.basicTest(0.69);
 }
-#endif
 
 
 
@@ -2233,7 +2217,8 @@ void GContentBoostedCF::train(GMatrix& data)
 	GIndexVec::setAll(m_ratingCounts, 0, m_userMap.size());
 
 	m_pseudoRatingSum = new double[m_userMap.size()];
-	GVec::setAll(m_pseudoRatingSum, 0.0, m_userMap.size());
+	GVecWrapper vw(m_pseudoRatingSum, m_userMap.size());
+	vw.fill(0.0);
 
 	for(size_t i = 0; i < pClone->rows(); i++)
 		{

@@ -52,11 +52,24 @@ using std::ostringstream;
 
 
 GDynamicPageSession::GDynamicPageSession(GDynamicPageServer* pServer, unsigned long long ident)
+: m_pConnection(nullptr)
 {
 	m_id = ident;
 	m_pServer = pServer;
 	onAccess();
-	m_pExtension = NULL;
+	m_pExtension = nullptr;
+}
+
+GDynamicPageSession::GDynamicPageSession(GDynamicPageServer* pServer, GDomNode* pNode)
+: m_pConnection(nullptr)
+{
+	m_id = (unsigned long long)pNode->getInt("id");
+	m_tLastAccessed = (time_t)pNode->getInt("acc");
+	GDomNode* pExt = pNode->getIfExists("ext");
+	if(pExt)
+		m_pExtension = pServer->deserializeSessionExtension(pExt);
+	else
+		m_pExtension = nullptr;
 }
 
 // virtual
@@ -64,6 +77,11 @@ GDynamicPageSession::~GDynamicPageSession()
 {
 	if(m_pExtension)
 		m_pExtension->onDisown();
+}
+
+void GDynamicPageSession::setConnection(GDynamicPageConnection* pConn)
+{
+	m_pConnection = pConn;
 }
 
 void GDynamicPageSession::onAccess()
@@ -78,6 +96,17 @@ void GDynamicPageSession::setExtension(GDynamicPageSessionExtension* pExtension)
 		m_pExtension->onDisown();
 	m_pExtension = pExtension;
 }
+
+GDomNode* GDynamicPageSession::serialize(GDom* pDoc)
+{
+	GDomNode* pObj = pDoc->newObj();
+	pObj->add(pDoc, "id", (long long)m_id);
+	pObj->add(pDoc, "acc", (long long)m_tLastAccessed);
+	if(m_pExtension)
+		pObj->add(pDoc, "ext", m_pExtension->serialize(pDoc));
+	return pObj;
+}
+
 
 // ------------------------------------------------------
 
@@ -95,6 +124,17 @@ GDynamicPageConnection::~GDynamicPageConnection()
 bool GDynamicPageConnection::hasBeenModifiedSince(const char* szUrl, const char* szDate)
 {
 	return true;
+}
+
+string remove_cr_lf(const char* str)
+{
+	string s = str;
+	for(size_t i = 0; i < s.length(); i++)
+	{
+		if(s[i] == '\r' || s[i] == '\n')
+			s[i] = '_';
+	}
+	return s;
 }
 
 GDynamicPageSession* GDynamicPageConnection::establishSession()
@@ -116,7 +156,7 @@ GDynamicPageSession* GDynamicPageConnection::establishSession()
 			pSession = m_pServer->findSession(nSessionID);
 			if(!pSession)
 			{
-				cout << "Unrecognized session id cookie crumb from " << inet_ntoa(ipAddr()) << ": " << crumb << "\n";
+				cout << "Unrecognized session id cookie crumb from " << inet_ntoa(ipAddr()) << ": " << remove_cr_lf(crumb) << "\n";
 				cout.flush();
 			}
 		}
@@ -139,6 +179,7 @@ GDynamicPageSession* GDynamicPageConnection::establishSession()
 		setCookie(tmp.c_str(), true);
 		pSession = m_pServer->makeNewSession(nSessionID);
 	}
+	pSession->setConnection(this);
 
 	return pSession;
 }
@@ -184,6 +225,9 @@ void GDynamicPageConnection::sendFile(const char* szMimeType, const char* szFile
 
 void GDynamicPageConnection::sendFileSafe(const char* szJailPath, const char* szLocalPath, ostream& response)
 {
+	cout << "Requested file: " << szLocalPath;
+	cout.flush();
+
 	// Make sure the file is within the jail
 	size_t jailLen = strlen(szJailPath);
 	size_t localLen = strlen(szLocalPath);
@@ -192,7 +236,10 @@ void GDynamicPageConnection::sendFileSafe(const char* szJailPath, const char* sz
 	strcpy(buf + jailLen, szLocalPath);
 	GFile::condensePath(buf);
 	if(strncmp(buf, szJailPath, jailLen) != 0)
+	{
+		cout << "Denied because " << buf << " it is not within " << szJailPath << "\n";
 		return;
+	}
 
 	// Send the file
 	if(GFile::doesFileExist(buf))
@@ -201,16 +248,20 @@ void GDynamicPageConnection::sendFileSafe(const char* szJailPath, const char* sz
 		try
 		{
 			sendFile(extensionToMimeType(buf), buf, response);
+			cout << ", Sent: " << buf << "\n";
+			cout.flush();
 		}
 		catch(const char* szError)
 		{
-			cout << "Error sending file: " << buf << "\n" << szError;
+			cout << ", Error sending file: " << buf << ", " << szError << "\n";
+			cout.flush();
 			return;
 		}
 	}
 	else
 	{
-		cout << "Not found: " << szJailPath << szLocalPath << "\n";
+		cout << ", Not found: " << buf << "\n";
+		cout.flush();
 		response << "404 - not found.<br><br>\n";
 	}
 }
@@ -247,8 +298,6 @@ const char* GDynamicPageConnection::extensionToMimeType(const char* szFilename)
 GDynamicPageServer::GDynamicPageServer(int port, GRand* pRand)
 : GHttpServer(port), m_pRand(pRand)
 {
-	m_bKeepGoing = true;
-
 	// Init captcha salt
 	int i;
 	for(i = 0; i < 14; i++)
@@ -323,36 +372,6 @@ void GDynamicPageServer::printSessionIds(std::ostream& stream)
 	stream.flush();
 }
 
-void GDynamicPageServer::go()
-{
-	double dLastMaintenance = GTime::seconds();
-	GSignalHandler sh;
-	while(m_bKeepGoing && sh.check() == 0)
-	{
-		if(!process())
-		{
-			if(GTime::seconds() - dLastMaintenance > 14400)	// 4 hours
-			{
-				doMaintenance();
-				dLastMaintenance = GTime::seconds();
-			}
-			else
-				GThread::sleep(100);
-		}
-	}
-	onShutDown();
-}
-
-void GDynamicPageServer::shutDown()
-{
-	m_bKeepGoing = false;
-}
-
-void GDynamicPageServer::doMaintenance()
-{
-	onEverySixHours();
-}
-
 const char* GDynamicPageServer::myAddress()
 {
 	return m_szMyAddress;
@@ -408,3 +427,41 @@ void GDynamicPageServer::redirect(std::ostream& response, const char* szUrl)
 	r << "\">here</a>\n";
 }
 
+GDomNode* GDynamicPageServer::serialize(GDom* pDoc)
+{
+	GDomNode* pObj = pDoc->newObj();
+	pObj->add(pDoc, "daemonSalt", m_daemonSalt);
+	pObj->add(pDoc, "pwSalt", m_passwordSalt);
+	GDomNode* pSessionList = pDoc->newList();
+	pObj->add(pDoc, "sessions", pSessionList);
+	for(std::map<unsigned long long, GDynamicPageSession*>::iterator it = m_sessions.begin(); it != m_sessions.end(); it++)
+	{
+		GDynamicPageSession* pSession = it->second;
+		GDomNode* pSessionNode = pSession->serialize(pDoc);
+		pSessionList->add(pDoc, pSessionNode);
+	}
+	return pObj;
+}
+
+void GDynamicPageServer::deserialize(const GDomNode* pNode)
+{
+	const char* szDaemonSalt = pNode->getString("daemonSalt");
+	if(strlen(szDaemonSalt) > 14)
+		throw Ex("bad daemon salt size");
+	strcpy(m_daemonSalt, szDaemonSalt);
+	const char* szPasswordSalt = pNode->getString("pwSalt");
+	if(strlen(szPasswordSalt) > 14)
+		throw Ex("bad pw salt size");
+	strcpy(m_passwordSalt, szPasswordSalt);
+	flushSessions();
+	GDomNode* pSessionList = pNode->get("sessions");
+	GDomListIterator it(pSessionList);
+	while(it.remaining() > 0)
+	{
+		GDomNode* pSessionNode = it.current();
+		unsigned long long id = (unsigned long long)pSessionNode->getInt("id");
+		GDynamicPageSession* pSession = new GDynamicPageSession(this, pSessionNode);
+		m_sessions.insert(std::pair<unsigned long long, GDynamicPageSession*>(id, pSession));
+		it.advance();
+	}
+}

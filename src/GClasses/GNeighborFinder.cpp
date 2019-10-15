@@ -303,7 +303,6 @@ public:
 		return m_dists.size() >= m_neighbors ? m_dists[0] : 1e308;
 	}
 
-#ifndef NO_TEST_CODE
 #	define TEST_NEIGHBOR_COUNT 33
 	static void test()
 	{
@@ -330,7 +329,6 @@ public:
 			}
 		}
 	}
-#endif
 };
 
 // --------------------------------------------------------------------------------
@@ -598,7 +596,8 @@ public:
 	{
 		m_dims = dims;
 		m_pOffset = new double[dims];
-		GVec::setAll(m_pOffset, 0.0, dims);
+		GVecWrapper vw(m_pOffset, dims);
+		vw.fill(0.0);
 		m_minDist = 0;
 	}
 
@@ -1179,7 +1178,7 @@ double GKdTree::medianDistanceToNeighbor(GMatrix& data, size_t n)
 	}
 }
 
-#ifndef NO_TEST_CODE
+
 //#	include "GImage.h"
 
 void MeasureBounds(GMatrix* pData, GKdNode* pNode, size_t attr, double* pMin, double* pMax)
@@ -1381,7 +1380,6 @@ void GKdTree::test()
 		}
 	}
 }
-#endif // !NO_TEST_CODE
 
 // --------------------------------------------------------------------------------------------------------
 
@@ -1760,7 +1758,6 @@ void GBallTree::dropAll()
 	m_size = 0;
 }
 
-#ifndef NO_TEST_CODE
 #define TEST_BALLTREE_ITERS 100
 #define TEST_BALLTREE_ROWS 200
 #define TEST_BALLTREE_DIMS 7
@@ -1808,29 +1805,6 @@ void GBallTree::test()
 		}
 	}
 }
-#endif
-
-
-
-
-
-
-
-
-
-
-
-
-// --------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
 
 
 
@@ -2033,7 +2007,6 @@ void GShortcutPruner::onDetectBigAtomicCycle(vector<size_t>& cycle)
 		throw Ex("Failed to find the offending edge");
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GShortcutPruner::test()
 {
@@ -2079,7 +2052,6 @@ void GShortcutPruner::test()
 	if(cuts != 3)
 		throw Ex("wrong number of cuts");
 }
-#endif // NO_TEST_CODE
 
 
 
@@ -2296,14 +2268,12 @@ void GCycleCut::onDetectBigAtomicCycle(vector<size_t>& cycle)
 	}
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GCycleCut::test()
 {
 	// todo: This test was removed because I didn't want to port it when I made some API changes.
 	// I believe GCycleCut still works, but I really should write a new test to exercise it.
 }
-#endif // NO_TEST_CODE
 
 
 

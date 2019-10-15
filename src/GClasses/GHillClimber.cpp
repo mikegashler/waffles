@@ -95,7 +95,6 @@ double GMomentumGreedySearch::iterateOneDim()
 	return iterateOneDim();
 }
 
-#ifndef MIN_PREDICT
 // static
 void GMomentumGreedySearch::test()
 {
@@ -103,7 +102,6 @@ void GMomentumGreedySearch::test()
 	GMomentumGreedySearch opt(&target);
 	opt.basicTest(1e-32);
 }
-#endif
 
 // --------------------------------------------------------------------------------
 
@@ -239,7 +237,6 @@ double GHillClimber::anneal(double dev, GRand* pRand)
 	return m_dError;
 }
 
-#ifndef MIN_PREDICT
 // static
 void GHillClimber::test()
 {
@@ -247,7 +244,6 @@ void GHillClimber::test()
 	GHillClimber opt(&target);
 	opt.basicTest(1.39e-17);
 }
-#endif
 
 
 // --------------------------------------------------------------------------------
@@ -296,7 +292,6 @@ void GAnnealing::reset()
 	return m_dError;
 }
 
-#ifndef MIN_PREDICT
 // static
 void GAnnealing::test()
 {
@@ -305,7 +300,6 @@ void GAnnealing::test()
 	GAnnealing opt(&target, &rand);
 	opt.basicTest(0.00017);
 }
-#endif
 
 // --------------------------------------------------------------------------------
 
@@ -365,7 +359,6 @@ double GRandomDirectionBinarySearch::iterate()
 	return m_err;
 }
 
-#ifndef MIN_PREDICT
 // static
 void GRandomDirectionBinarySearch::test()
 {
@@ -374,7 +367,6 @@ void GRandomDirectionBinarySearch::test()
 	GRandomDirectionBinarySearch opt(&target, &rand);
 	opt.basicTest(1.92e-05);
 }
-#endif
 
 
 

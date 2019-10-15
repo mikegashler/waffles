@@ -165,6 +165,7 @@ public:
 	char m_szParams[MAX_URL_LEN];
 	char m_szDate[MAX_DATE_LEN];
 	char m_szContentType[MAX_MIME_LEN];
+	std::string m_sAllowOrigin;
 	char m_szCookieIncoming[MAX_COOKIE_SIZE];
 	char m_szCookieOutgoing[MAX_COOKIE_SIZE];
 	bool m_bPersistCookie;
@@ -184,6 +185,9 @@ public:
 
 	/// Specify the type of the content that is being sent to the client.
 	void setContentType(const char* szContentType);
+
+	/// Allow AJAX requests from the specified origin.
+	void allowOrigin(const char* szOrigin);
 
 	/// Specify a cookie to send to the client with this response.
 	void setCookie(const char* szPayload, bool bPersist);
@@ -282,6 +286,9 @@ public:
 
 	/// Returns a map of the name/value pairs
 	std::map<const char*, const char*, strComp>& map() { return m_map; }
+
+	/// Returns a string representation of all the parameters
+	std::string to_str(bool html);
 
 protected:
 	static void scrubValue(char* value);

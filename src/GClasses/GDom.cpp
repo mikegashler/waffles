@@ -21,22 +21,25 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include "GDom.h"
-#ifndef MIN_PREDICT
 #include "GFile.h"
-#endif // MIN_PREDICT
 #include "GHolders.h"
 #include <vector>
 #include <deque>
 #include <sstream>
 #include <fstream>
+#include <map>
 #include <errno.h>
 #include "GTokenizer.h"
+#include "GString.h"
 
 
 namespace GClasses {
 
 using std::vector;
 using std::deque;
+using std::map;
+using std::string;
+
 
 class GDomObjField
 {
@@ -57,24 +60,39 @@ public:
 	GDomListItem* m_pPrev;
 };
 
+class GDomArrayList
+{
+public:
+	/// Total number of elements in this list
+	size_t m_size;
+	size_t m_capacity;
+
+	/// The items in the list
+	GDomNode* m_items[2]; // 2 is a bogus value
+};
+
+
 
 GDomListIterator::GDomListIterator(const GDomNode* pNode)
 {
 	if(pNode->m_type != GDomNode::type_list)
-		throw Ex("\"", to_str(pNode), "\" is not a list type");
+		throw Ex(to_str_brief(*pNode), " is not a list type");
 	m_pList = pNode;
-	m_remaining = m_pList->reverseItemOrder();
-	m_pCurrent = m_pList->m_value.m_pLastItem;
+	m_index = 0;
 }
 
 GDomListIterator::~GDomListIterator()
 {
-	m_pList->reverseItemOrder();
 }
 
 GDomNode* GDomListIterator::current()
 {
-	return m_pCurrent ? m_pCurrent->m_pValue : NULL;
+	if(!m_pList->m_value.m_pArrayList)
+		return nullptr;
+	if(m_index < m_pList->m_value.m_pArrayList->m_size)
+		return m_pList->m_value.m_pArrayList->m_items[m_index];
+	else
+		return nullptr;
 }
 
 bool GDomListIterator::currentBool()
@@ -99,20 +117,21 @@ const char* GDomListIterator::currentString()
 
 void GDomListIterator::advance()
 {
-	m_pCurrent = m_pCurrent->m_pPrev;
-	m_remaining--;
+	m_index++;
 }
 
 size_t GDomListIterator::remaining()
 {
-	return m_remaining;
+	if(!m_pList->m_value.m_pArrayList)
+		return 0;
+	return m_pList->m_value.m_pArrayList->m_size - m_index;
 }
 
 
 GDomNode* GDomNode::getIfExists(const char* szName) const
 {
 	if(m_type != type_obj)
-		throw Ex("\"", to_str(this), "\" is not an obj");
+		throw Ex(to_str_brief(*this), " is not an obj");
 	GDomObjField* pField;
 	for(pField = m_value.m_pLastField; pField; pField = pField->m_pPrev)
 	{
@@ -139,27 +158,62 @@ size_t GDomNode::reverseFieldOrder() const
 	return count;
 }
 
-size_t GDomNode::reverseItemOrder() const
+size_t GDomNode::size() const
 {
 	GAssert(m_type == type_list);
-	size_t count = 0;
-	GDomListItem* pNewHead = NULL;
-	while(m_value.m_pLastItem)
+	if(!m_value.m_pArrayList)
+		return 0;
+	return m_value.m_pArrayList->m_size;
+}
+
+GDomNode* GDomNode::get(size_t index) const
+{
+	GAssert(m_type == type_list);
+	GAssert(index < m_value.m_pArrayList->m_size);
+	return m_value.m_pArrayList->m_items[index];
+}
+
+GDomNode* GDomNode::set(GDom* pDoc, const char* szName, GDomNode* pNode)
+{
+	if(m_type != type_obj)
+		throw Ex(to_str_brief(*this), " is not an obj");
+	GDomObjField* pField;
+	for(pField = m_value.m_pLastField; pField; pField = pField->m_pPrev)
 	{
-		GDomListItem* pTemp = m_value.m_pLastItem;
-		((GDomNode*)this)->m_value.m_pLastItem = pTemp->m_pPrev;
-		pTemp->m_pPrev = pNewHead;
-		pNewHead = pTemp;
-		count++;
+		if(strcmp(szName, pField->m_pName) == 0)
+		{
+			pField->m_pValue = pNode;
+			return pNode;
+		}
 	}
-	((GDomNode*)this)->m_value.m_pLastItem = pNewHead;
-	return count;
+	pField = pDoc->newField();
+	pField->m_pPrev = m_value.m_pLastField;
+	m_value.m_pLastField = pField;
+	GHeap* pHeap = pDoc->heap();
+	pField->m_pName = pHeap->add(szName);
+	pField->m_pValue = pNode;
+	return pNode;
+}
+
+GDomNode* GDomNode::set(GDom* pDoc, size_t index, GDomNode* pNode)
+{
+	if(m_type != type_list)
+		throw Ex(to_str_brief(*this), " is not a list");
+	if(index == m_value.m_pArrayList->m_size)
+		return add(pDoc, pNode);
+	else if(index < m_value.m_pArrayList->m_size)
+	{
+		m_value.m_pArrayList->m_items[index] = pNode;
+		return pNode;
+	}
+	else
+		throw Ex("tried to set index ", to_str(index), " in a list of size ", to_str(m_value.m_pArrayList->m_size));
 }
 
 GDomNode* GDomNode::add(GDom* pDoc, const char* szName, GDomNode* pNode)
 {
 	if(m_type != type_obj)
-		throw Ex("\"", to_str(this), "\" is not an obj");
+		throw Ex(to_str_brief(*this), " is not an obj");
 	GDomObjField* pField = pDoc->newField();
 	pField->m_pPrev = m_value.m_pLastField;
 	m_value.m_pLastField = pField;
@@ -197,11 +251,25 @@ GDomNode* GDomNode::add(GDom* pDoc, const char* szName, const char* str)
 GDomNode* GDomNode::add(GDom* pDoc, GDomNode* pNode)
 {
 	if(m_type != type_list)
-		throw Ex("\"", to_str(this), "\" is not a list");
-	GDomListItem* pItem = pDoc->newItem();
-	pItem->m_pPrev = m_value.m_pLastItem;
-	m_value.m_pLastItem = pItem;
-	pItem->m_pValue = pNode;
+		throw Ex(to_str_brief(*this), " is not a list");
+	if(!m_value.m_pArrayList || m_value.m_pArrayList->m_size >= m_value.m_pArrayList->m_capacity)
+	{
+		// Reallocate the array of node pointers
+		size_t newCapacity = std::max((size_t)4, (m_value.m_pArrayList ? m_value.m_pArrayList->m_size * 2 : 0));
+		GDomArrayList* pArrayList = (GDomArrayList*)pDoc->m_heap.allocAligned(sizeof(size_t) + sizeof(size_t) + sizeof(GDomNode*) * newCapacity);
+		if(m_value.m_pArrayList)
+		{
+			for(size_t i = 0; i < m_value.m_pArrayList->m_size; i++)
+				pArrayList->m_items[i] = m_value.m_pArrayList->m_items[i];
+			pArrayList->m_size = m_value.m_pArrayList->m_size;
+		}
+		else
+			pArrayList->m_size = 0;
+		pArrayList->m_capacity = newCapacity;
+		m_value.m_pArrayList = pArrayList;
+	}
+	m_value.m_pArrayList->m_items[m_value.m_pArrayList->m_size] = pNode;
+	m_value.m_pArrayList->m_size++;
 	return pNode;
 }
 
@@ -228,6 +296,40 @@ GDomNode* GDomNode::add(GDom* pDoc, double d)
 GDomNode* GDomNode::add(GDom* pDoc, const char* str)
 {
 	return add(pDoc, pDoc->newString(str));
+}
+
+void GDomNode::del(const char* szField)
+{
+	if(m_type != type_obj)
+		throw Ex(to_str_brief(*this), " is not an obj");
+	if(strcmp(m_value.m_pLastField->m_pName, szField) == 0)
+	{
+		m_value.m_pLastField = m_value.m_pLastField->m_pPrev;
+		return;
+	}
+	else
+	{
+		for(GDomObjField* pField = m_value.m_pLastField; pField->m_pPrev; pField = pField->m_pPrev)
+		{
+			if(strcmp(pField->m_pPrev->m_pName, szField) == 0)
+			{
+				pField->m_pPrev = pField->m_pPrev->m_pPrev;
+				return;
+			}
+		}
+		throw Ex("No field named ", szField);
+	}
+}
+
+void GDomNode::del(size_t index)
+{
+	if(m_type != type_list)
+		throw Ex(to_str_brief(*this), " is not a list");
+	if(index >= m_value.m_pArrayList->m_size)
+		throw Ex("Index out of range. Index ", to_str(index), ". Size ", to_str(m_value.m_pArrayList->m_size));
+	for(size_t i = index; i + 1 < m_value.m_pArrayList->m_size; i++)
+		m_value.m_pArrayList->m_items[i] = m_value.m_pArrayList->m_items[i + 1];
+	m_value.m_pArrayList->m_size--;
 }
 
 void writeJSONString(std::ostream& stream, const char* szString)
@@ -330,14 +432,16 @@ void GDomNode::writeJson(std::ostream& stream) const
 			break;
 		case type_list:
 			stream << "[";
-			reverseItemOrder();
-			for(GDomListItem* pItem = m_value.m_pLastItem; pItem; pItem = pItem->m_pPrev)
+			if(m_value.m_pArrayList)
 			{
-				if(pItem != m_value.m_pLastItem)
+				if(m_value.m_pArrayList->m_size > 0)
+					m_value.m_pArrayList->m_items[0]->writeJson(stream);
+				for(size_t i = 1; i < m_value.m_pArrayList->m_size; i++)
+				{
 					stream << ",";
-				pItem->m_pValue->writeJson(stream);
+					m_value.m_pArrayList->m_items[i]->writeJson(stream);
+				}
 			}
-			reverseItemOrder();
 			stream << "]";
 			break;
 		case type_bool:
@@ -390,17 +494,18 @@ void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
 			break;
 		case type_list:
 			{
-				reverseItemOrder();
-
 				// Check whether all items in the list are atomic
 				bool allAtomic = true;
-				size_t itemCount = 0;
-				for(GDomListItem* pItem = m_value.m_pLastItem; pItem && allAtomic; pItem = pItem->m_pPrev)
+				if(m_value.m_pArrayList)
 				{
-					if(pItem->m_pValue->type() == GDomNode::type_obj || pItem->m_pValue->type() == GDomNode::type_list)
+					if(m_value.m_pArrayList->m_size >= 1024)
 						allAtomic = false;
-					if(++itemCount >= 1024)
-						allAtomic = false;
+					for(size_t i = 0; i < m_value.m_pArrayList->m_size && allAtomic; i++)
+					{
+						GDomNode* pNode = m_value.m_pArrayList->m_items[i];
+						if(pNode->type() == GDomNode::type_obj || pNode->type() == GDomNode::type_list)
+							allAtomic = false;
+					}
 				}
 
 				// Print the items
@@ -408,11 +513,19 @@ void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
 				{
 					// All items are atomic, so let's put them all on one line
 					stream << "[";
-					for(GDomListItem* pItem = m_value.m_pLastItem; pItem; pItem = pItem->m_pPrev)
+					if(m_value.m_pArrayList)
 					{
-						pItem->m_pValue->writeJson(stream);
-						if(pItem->m_pPrev)
-							stream << ",";
+						for(size_t i = 0; i < m_value.m_pArrayList->m_size; i++)
+						{
+							if(i > 0)
+							{
+								stream << ",";
+								if(i % 100 == 0)
+									newLineAndIndent(stream, indents);
+							}
+							GDomNode* pNode = m_value.m_pArrayList->m_items[i];
+							pNode->writeJson(stream);
+						}
 					}
 					stream << "]";
 				}
@@ -421,17 +534,17 @@ void GDomNode::writeJsonPretty(std::ostream& stream, size_t indents) const
 					// Some items are non-atomic, so let's spread across multiple lines
 					newLineAndIndent(stream, indents);
 					stream << "[";
-					for(GDomListItem* pItem = m_value.m_pLastItem; pItem; pItem = pItem->m_pPrev)
+					for(size_t i = 0; i < m_value.m_pArrayList->m_size; i++)
 					{
+						GDomNode* pNode = m_value.m_pArrayList->m_items[i];
 						newLineAndIndent(stream, indents + 1);
-						pItem->m_pValue->writeJsonPretty(stream, indents + 1);
-						if(pItem->m_pPrev)
+						pNode->writeJsonPretty(stream, indents + 1);
+						if(i + 1 < m_value.m_pArrayList->m_size)
 							stream << ",";
 					}
 					newLineAndIndent(stream, indents);
 					stream << "]";
 				}
-				reverseItemOrder();
 			}
 			break;
 		case type_bool:
@@ -489,22 +602,23 @@ size_t GDomNode::writeJsonCpp(std::ostream& stream, size_t col) const
 		case type_list:
 			stream << "[";
 			col++;
-			reverseItemOrder();
-			for(GDomListItem* pItem = m_value.m_pLastItem; pItem; pItem = pItem->m_pPrev)
+			if(m_value.m_pArrayList)
 			{
-				if(pItem != m_value.m_pLastItem)
+				for(size_t i = 0; i < m_value.m_pArrayList->m_size; i++)
 				{
-					stream << ",";
-					col++;
+					if(i + 1 < m_value.m_pArrayList->m_size)
+					{
+						stream << ",";
+						col++;
+					}
+					if(col >= 200)
+					{
+						stream << "\"\n\"";
+						col = 0;
+					}
+					col = m_value.m_pArrayList->m_items[i]->writeJsonCpp(stream, col);
 				}
-				if(col >= 200)
-				{
-					stream << "\"\n\"";
-					col = 0;
-				}
-				col = pItem->m_pValue->writeJsonCpp(stream, col);
 			}
-			reverseItemOrder();
 			stream << "]";
 			col++;
 			break;
@@ -612,10 +726,14 @@ void GDomNode::writeXml(std::ostream& stream, const char* szLabel) const
 			return;
 		case type_list:
 			stream << "<" << szLabel << ">";
-			reverseItemOrder();
-			for(GDomListItem* pItem = m_value.m_pLastItem; pItem; pItem = pItem->m_pPrev)
-				pItem->m_pValue->writeXml(stream, "i");
-			reverseItemOrder();
+			if(m_value.m_pArrayList)
+			{
+				for(size_t i = 0; i < m_value.m_pArrayList->m_size; i++)
+				{
+					GDomNode* pNode = m_value.m_pArrayList->m_items[i];
+					pNode->writeXml(stream, "i");
+				}
+			}
 			stream << "</" << szLabel << ">";
 			return;
 		case type_bool:
@@ -648,6 +766,96 @@ void GDomNode::writeXml(std::ostream& stream, const char* szLabel) const
 	}
 }
 
+bool GDomNode::isEqual(const GDomNode* pOther) const
+{
+	switch(m_type)
+	{
+		case type_obj:
+			if(pOther->m_type != type_obj)
+				return false;
+			{
+				GDomObjField* pOth = pOther->m_value.m_pLastField;
+				for(GDomObjField* pField = m_value.m_pLastField; pField; pField = pField->m_pPrev)
+				{
+					if(pOth && strcmp(pField->m_pName, pOth->m_pName) == 0)
+					{
+						if(!pField->m_pValue->isEqual(pOth->m_pValue))
+							return false;
+					}
+					else
+					{
+						for(pOth = pOther->m_value.m_pLastField; pOth; pOth = pOth->m_pPrev)
+						{
+							if(strcmp(pField->m_pName, pOth->m_pName) == 0)
+							{
+								if(!pField->m_pValue->isEqual(pOth->m_pValue))
+									return false;
+								break;
+							}
+						}
+					}
+					if(pOth)
+						pOth = pOth->m_pPrev;
+				}
+			}
+			return true;
+
+		case type_list:
+			if(pOther->m_type != type_list)
+				return false;
+			if(size() != pOther->size())
+				return false;
+			for(size_t i = 0; i < size(); i++)
+			{
+				if(!get(i)->isEqual(pOther->get(i)))
+					return false;
+			}
+			return true;
+
+		case type_bool:
+			if(pOther->m_type != type_bool)
+				return false;
+			if(m_value.m_bool == pOther->m_value.m_bool)
+				return true;
+			else
+				return false;
+
+		case type_int:
+			if(pOther->m_type != type_int)
+				return false;
+			if(m_value.m_int == pOther->m_value.m_int)
+				return true;
+			else
+				return false;
+
+		case type_double:
+			if(pOther->m_type != type_double)
+				return false;
+			if(m_value.m_double == pOther->m_value.m_double)
+				return true;
+			else
+				return false;
+
+		case type_string:
+			if(pOther->m_type != type_string)
+				return false;
+			if(strcmp(m_value.m_string, pOther->m_value.m_string) == 0)
+				return true;
+			else
+				return false;
+
+		case type_null:
+			if(pOther->m_type != type_bool)
+				return false;
+			else
+				return true;
+
+		default:
+			throw Ex("Unrecognized node type");
+	}
+}
+
+
 // -------------------------------------------------------------------------------
 
 class GJsonTokenizer : public GTokenizer
@@ -665,7 +873,7 @@ public:
 class Bogus1
 {
 public:
-	int m_type;
+	char m_type;
 	double m_double;
 };
 
@@ -680,7 +888,7 @@ GDom::~GDom()
 
 void GDom::clear()
 {
-	m_pRoot = NULL;
+	m_pRoot = nullptr;
 	m_heap.clear();
 }
 
@@ -688,7 +896,7 @@ GDomNode* GDom::newObj()
 {
 	GDomNode* pNewObj = (GDomNode*)m_heap.allocAligned(offsetof(Bogus1, m_double) + sizeof(GDomObjField*));
 	pNewObj->m_type = GDomNode::type_obj;
-	pNewObj->m_value.m_pLastField = NULL;
+	pNewObj->m_value.m_pLastField = nullptr;
 	return pNewObj;
 }
 
@@ -696,7 +904,7 @@ GDomNode* GDom::newList()
 {
 	GDomNode* pNewList = (GDomNode*)m_heap.allocAligned(offsetof(Bogus1, m_double) + sizeof(GDomListItem*));
 	pNewList->m_type = GDomNode::type_list;
-	pNewList->m_value.m_pLastItem = NULL;
+	pNewList->m_value.m_pArrayList = nullptr;
 	return pNewList;
 }
 
@@ -758,16 +966,44 @@ GDomObjField* GDom::newField()
 	return (GDomObjField*)m_heap.allocAligned(sizeof(GDomObjField));
 }
 
-GDomListItem* GDom::newItem()
+GDomNode* GDom::clone(GDomNode* pNode)
 {
-	return (GDomListItem*)m_heap.allocAligned(sizeof(GDomListItem));
+	switch(pNode->type())
+	{
+		case GDomNode::type_obj:
+			{
+				GDomNode* pClone = newObj();
+				for(GDomObjField* pField = pNode->m_value.m_pLastField; pField; pField = pField->m_pPrev)
+				{
+					GDomObjField* pFieldClone = newField();
+					pFieldClone->m_pPrev = pClone->m_value.m_pLastField;
+					pClone->m_value.m_pLastField = pFieldClone;
+					pFieldClone->m_pName = m_heap.add(pField->m_pName);
+					pFieldClone->m_pValue = clone(pField->m_pValue);
+				}
+				return pClone;
+			}
+		case GDomNode::type_list:
+			{
+				GDomNode* pClone = newList();
+				for(size_t i = 0; i < pNode->size(); i++)
+					pClone->add(this, clone(pNode->get(i)));
+				return pClone;
+			}
+		case GDomNode::type_bool: return newBool(pNode->asBool());
+		case GDomNode::type_int: return newInt(pNode->asInt());
+		case GDomNode::type_double: return newDouble(pNode->asDouble());
+		case GDomNode::type_string: return newString(pNode->asString());
+		case GDomNode::type_null: return newNull();;
+		default: throw Ex("Unexpected type");
+	}
 }
 
 char* GDom::loadJsonString(GJsonTokenizer& tok)
 {
-	tok.expect("\"");
-	char* szTok = tok.nextUntilNotEscaped('\\', tok.m_quot);
-	tok.advance(1);
+	tok.skipExact("\"");
+	char* szTok = tok.readUntil_escaped('\\', tok.m_quot);
+	tok.skip(1);
 	size_t eat = 0;
 	char* szString = szTok;
 	while(szString[eat] != '\0')
@@ -804,24 +1040,24 @@ char* GDom::loadJsonString(GJsonTokenizer& tok)
 
 GDomNode* GDom::loadJsonObject(GJsonTokenizer& tok)
 {
-	tok.expect("{");
+	tok.skipExact("{");
 	GDomNode* pNewObj = newObj();
 	bool readyForField = true;
 	GCharSet& whitespace = tok.m_whitespace;
 	while(tok.has_more())
 	{
-		tok.skip(whitespace);
+		tok.skipWhile(whitespace);
 		char c = tok.peek();
 		if(c == '}')
 		{
-			tok.advance(1);
+			tok.skip(1);
 			break;
 		}
 		else if(c == ',')
 		{
 			if(readyForField)
 				throw Ex("Unexpected ',' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-			tok.advance(1);
+			tok.skip(1);
 			readyForField = true;
 		}
 		else if(c == '\"')
@@ -832,9 +1068,9 @@ GDomNode* GDom::loadJsonObject(GJsonTokenizer& tok)
 			pNewField->m_pPrev = pNewObj->m_value.m_pLastField;
 			pNewObj->m_value.m_pLastField = pNewField;
 			pNewField->m_pName = m_heap.add(loadJsonString(tok));
-			tok.skip(whitespace);
-			tok.expect(":");
-			tok.skip(whitespace);
+			tok.skipWhile(whitespace);
+			tok.skipExact(":");
+			tok.skipWhile(whitespace);
 			pNewField->m_pValue = loadJsonValue(tok);
 			readyForField = false;
 		}
@@ -848,23 +1084,23 @@ GDomNode* GDom::loadJsonObject(GJsonTokenizer& tok)
 
 GDomNode* GDom::loadJsonArray(GJsonTokenizer& tok)
 {
-	tok.expect("[");
+	tok.skipExact("[");
 	GDomNode* pNewList = newList();
 	bool readyForValue = true;
 	while(tok.has_more())
 	{
-		tok.skip(tok.m_whitespace);
+		tok.skipWhile(tok.m_whitespace);
 		char c = tok.peek();
 		if(c == ']')
 		{
-			tok.advance(1);
+			tok.skip(1);
 			break;
 		}
 		else if(c == ',')
 		{
 			if(readyForValue)
 				throw Ex("Unexpected ',' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-			tok.advance(1);
+			tok.skip(1);
 			readyForValue = true;
 		}
 		else if(c == '\0')
@@ -873,10 +1109,8 @@ GDomNode* GDom::loadJsonArray(GJsonTokenizer& tok)
 		{
 			if(!readyForValue)
 				throw Ex("Expected a ',' or ']' in JSON file at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-			GDomListItem* pNewItem = newItem();
-			pNewItem->m_pPrev = pNewList->m_value.m_pLastItem;
-			pNewList->m_value.m_pLastItem = pNewItem;
-			pNewItem->m_pValue = loadJsonValue(tok);
+			GDomNode* pValue = loadJsonValue(tok);
+			pNewList->add(this, pValue);
 			readyForValue = false;
 		}
 	}
@@ -885,7 +1119,7 @@ GDomNode* GDom::loadJsonArray(GJsonTokenizer& tok)
 
 GDomNode* GDom::loadJsonNumber(GJsonTokenizer& tok)
 {
-	char* szString = tok.nextWhile(tok.m_real);
+	char* szString = tok.readWhile(tok.m_real);
 	bool hasPeriod = false;
 	for(char* szChar = szString; *szChar != '\0'; szChar++)
 	{
@@ -915,17 +1149,17 @@ GDomNode* GDom::loadJsonValue(GJsonTokenizer& tok)
 		return loadJsonArray(tok);
 	else if(c == 't')
 	{
-		tok.expect("true");
+		tok.skipExact("true");
 		return newBool(true);
 	}
 	else if(c == 'f')
 	{
-		tok.expect("false");
+		tok.skipExact("false");
 		return newBool(false);
 	}
 	else if(c == 'n')
 	{
-		tok.expect("null");
+		tok.skipExact("null");
 		return newNull();
 	}
 	else if((c >= '0' && c <= '9') || c == '-')
@@ -945,14 +1179,14 @@ GDomNode* GDom::loadJsonValue(GJsonTokenizer& tok)
 void GDom::parseJson(const char* pJsonString, size_t len)
 {
 	GJsonTokenizer tok(pJsonString, len);
-	tok.skip(tok.m_whitespace);
+	tok.skipWhile(tok.m_whitespace);
 	setRoot(loadJsonValue(tok));
 }
 
 void GDom::loadJson(const char* szFilename)
 {
 	GJsonTokenizer tok(szFilename);
-	tok.skip(tok.m_whitespace);
+	tok.skipWhile(tok.m_whitespace);
 	setRoot(loadJsonValue(tok));
 }
 
@@ -1013,6 +1247,20 @@ std::string to_str(const GDomNode& node)
 	return os.str();
 }
 
+std::string to_str_brief(const GDomNode& node)
+{
+	std::ostringstream os;
+	node.writeJsonPretty(os, 0);
+	std::string s = os.str();
+	if(s.length() < 60)
+		return s;
+	std::string s2 = s.substr(0, 30);
+	s2 += " ... ";
+	s2 += s.substr(s.length() - 30, 30);
+	return s2;
+}
+
+
 std::string to_str(const GDom& doc)
 {
 	std::ostringstream os;
@@ -1020,7 +1268,6 @@ std::string to_str(const GDom& doc)
 	return os.str();
 }
 
-#ifndef MIN_PREDICT
 // static
 void GDom::test()
 {
@@ -1056,6 +1303,504 @@ void GDom::test()
 	GDom doc;
 	doc.parseJson(szTestFile, strlen(szTestFile));
 }
-#endif // MIN_PREDICT
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GJsonAsADatabase::GJsonAsADatabase(const char* szBasePath)
+: m_basePath(szBasePath)
+{
+}
+
+GJsonAsADatabase::~GJsonAsADatabase()
+{
+	flush();
+	map<string, GJaadDom*>::iterator it = m_doms.begin();
+	while(it != m_doms.end())
+	{
+		GDom* pDom = it->second;
+		delete(pDom);
+		it++;
+	}
+}
+
+void GJsonAsADatabase::flush()
+{
+	map<string, GJaadDom*>::iterator it = m_doms.begin();
+	while(it != m_doms.end())
+	{
+		const string& filename = it->first;
+		GJaadDom* pDom = it->second;
+		if(pDom->modCount() > 0)
+		{
+			string fullpath = m_basePath;
+			fullpath += filename;
+			pDom->saveJson(fullpath.c_str());
+			pDom->resetModCount();
+		}
+	}
+}
+
+// static
+size_t GJsonAsADatabase::findTok(const char* s, char tok, size_t start)
+{
+	bool q = false;
+	bool qq = false;
+	size_t esc = 0;
+	size_t brace = 0;
+	size_t brack = 0;
+	size_t i;
+	for(i = start; s[i] != '\0'; i++)
+	{
+		if(!q && !qq)
+		{
+			if(s[i] == tok && brace == 0 && brack == 0)
+				break;
+			else if(s[i] == '[')
+				brace++;
+			else if(s[i] == ']')
+				brace--;
+			else if(s[i] == '{')
+				brack++;
+			else if(s[i] == '}')
+				brack--;
+			else if(s[i] == '\'')
+				q = true;
+			else if(s[i] == '"')
+				qq = true;
+		}
+		else
+		{
+			if(esc > 0)
+				esc--;
+			else if(s[i] == '\\')
+				esc = 2;
+			else if(q && s[i] == '\'')
+				q = false;
+			else if(qq && s[i] == '"')
+				qq = false;
+		}
+	}
+	return i;
+}
+
+
+GDomNode* GJsonAsADatabase::findNode(GDom* pDoc, GDomNode* pOb, GDom* pResponseDom, const char* szCmd, char op)
+{
+	size_t pos = 0;
+	while(true)
+	{
+		// Eat whitespace
+		while(szCmd[pos] != '\0' && szCmd[pos] <= ' ')
+			pos++;
+		char c = szCmd[pos];
+		if(c == '\0')
+			break;
+
+		if(c == '.')
+		{
+			size_t i;
+			for(i = pos + 1; szCmd[i] != '\0' && szCmd[i] != '.' && szCmd[i] != '['; i++)
+			{
+			}
+			string field(szCmd + pos + 1, i - (pos + 1));
+			field = trim(field);
+			if(field.length() == 0)
+				throw Ex("Expected a field name after '.'");
+			if(pOb->type() != GDomNode::type_obj)
+				throw Ex("'.' can only be used on object types.");
+			GDomNode* pChild = pOb->getIfExists(field.c_str());
+			if(!pChild)
+			{
+				if(op == '\0')
+					throw Ex("No field named ", field);
+				else if(szCmd[i] == '.')
+					pChild = pOb->add(pDoc, field.c_str(), pDoc->newObj());
+				else if(szCmd[i] == '[')
+					pChild = pOb->add(pDoc, field.c_str(), pDoc->newList());
+				else if(op == '+')
+					pChild = pOb->add(pDoc, field.c_str(), pDoc->newList());
+				else
+					throw Ex("Cannot determine the type for missing field ", field);
+			}
+			pOb = pChild;
+			pos = i;
+		}
+		else if(c == '[')
+		{
+			if(pOb->type() != GDomNode::type_list)
+				throw Ex("'[]' can only be used with list types");
+
+			// Find the corresponding ']'
+			size_t i = findTok(szCmd, ']', pos + 1);
+			size_t indStart = pos + 1;
+			while(indStart < i && szCmd[indStart] <= ' ')
+				indStart++;
+			if(indStart == i)
+				throw Ex("Expected an index or equation after '['");
+			string sIndex(szCmd + indStart, i - indStart);
+
+			// Parse the index
+			char c = sIndex[0];
+			if(c >= '0' && c <= '9')
+			{
+				// It's a numerical index
+				std::stringstream sstream(sIndex);
+				size_t index;
+				sstream >> index;
+				if(index >= pOb->size())
+					throw Ex("index out of range. Index: ", to_str(index), ". Size: ", to_str(pOb->size()));
+				pOb = pOb->get(index);
+			}
+			else
+			{
+				// It's an equation
+				if(c != '.' && c != '[' && c != '=')
+					throw Ex("Unexpected index format");
+
+				// Find the "=="
+				size_t eq = findTok(sIndex.c_str(), '=');
+				if(eq >= sIndex.length())
+					throw Ex("Expected an '=' in an equation");
+				string pre(sIndex, 0, eq);
+				if(sIndex.length() > eq && sIndex[eq + 1] == '=')
+					eq++;
+				pResponseDom->parseJson(sIndex.c_str() + eq + 1, sIndex.length() - eq - 1);
+				GDomNode* pPost = pResponseDom->root();
+				size_t j;
+				for(j = 0; j < pOb->size(); j++)
+				{
+					GDomNode* pCand = pOb->get(j);
+					GDomNode* pComp = findNode(pDoc, pCand, pResponseDom, pre.c_str(), op);
+					if(pComp->isEqual(pPost))
+					{
+						pOb = pCand;
+						break;
+					}
+				}
+				if(j >= pOb->size())
+					throw Ex("No matching node found");
+			}
+
+			// Move past the ']'
+			pos = i;
+			if(szCmd[pos] == ']')
+				pos++;
+		}
+		else
+			throw Ex("Unexpected token: ", string(szCmd + pos, 1));
+	}
+	return pOb;
+}
+
+GDomNode* GJsonAsADatabase::findLValue(GDom* pDoc, GDomNode* pOb, GDom* pResponseDom, const char* szCmd, string* pOutField, size_t* pOutIndex)
+{
+	GDomNode* pPrevOb = nullptr;
+	size_t pos = 0;
+	while(true)
+	{
+		// Eat whitespace
+		while(szCmd[pos] != '\0' && szCmd[pos] <= ' ')
+			pos++;
+		char c = szCmd[pos];
+		if(c == '\0')
+			break;
+
+		pPrevOb = pOb;
+		if(c == '.')
+		{
+			size_t i;
+			for(i = pos + 1; szCmd[i] != '\0' && szCmd[i] != '.' && szCmd[i] != '['; i++)
+			{
+			}
+			string field(szCmd + pos + 1, i - (pos + 1));
+			if(pOutField)
+				*pOutField = field;
+			if(field.length() == 0)
+				throw Ex("Expected a field name after '.'");
+			if(pOb->type() != GDomNode::type_obj)
+				throw Ex("'.' can only be used on object types.");
+			pOb = pOb->getIfExists(field.c_str());
+			if(!pOb)
+			{
+				size_t nextPos = i;
+				while(szCmd[nextPos] != '\0' && szCmd[nextPos] <= ' ')
+					nextPos++;
+				if(szCmd[nextPos] == '.')
+					pOb = pOb->add(pDoc, field.c_str(), pDoc->newObj());
+				else if(szCmd[nextPos] == '[')
+					pOb = pOb->add(pDoc, field.c_str(), pDoc->newList());
+				else if(szCmd[nextPos] == '\0')
+					return pOb;
+				else
+					throw Ex("Unexpected token: ", string(szCmd + nextPos, 1));
+			}
+			pos = i;
+		}
+		else if(c == '[')
+		{
+			if(pOb->type() != GDomNode::type_list)
+				throw Ex("'[]' can only be used with list types");
+
+			// Find the corresponding ']'
+			size_t i = findTok(szCmd, ']', pos + 1);
+			size_t indStart = pos + 1;
+			while(indStart < i && szCmd[indStart] <= ' ')
+				indStart++;
+			if(indStart == i)
+				throw Ex("Expected an index or equation after '['");
+			string sIndex(szCmd + indStart, i - indStart);
+
+			// Parse the index
+			char c = sIndex[0];
+			if(c >= '0' && c <= '9')
+			{
+				// It's a numerical index
+				std::stringstream sstream(sIndex);
+				size_t index;
+				sstream >> index;
+				if(pOutIndex)
+					*pOutIndex = index;
+				if(index > pOb->size())
+					throw Ex("index out of range. Index: ", to_str(index), ". Size: ", to_str(pOb->size()));
+				if(index == pOb->size())
+				{
+					size_t nextPos = i;
+					if(szCmd[nextPos] == ']')
+						nextPos++;
+					while(szCmd[nextPos] != '\0' && szCmd[nextPos] <= ' ')
+						nextPos++;
+					if(szCmd[nextPos] == '.')
+						pOb = pOb->add(pDoc, pDoc->newObj());
+					else if(szCmd[nextPos] == '[')
+						pOb = pOb->add(pDoc, pDoc->newList());
+					else if(szCmd[nextPos] == '\0')
+						return pOb;
+					else
+						throw Ex("Unexpected token: ", string(szCmd + nextPos, 1));
+				}
+				pOb = pOb->get(index);
+			}
+			else
+			{
+				// It's an equation
+				if(c != '.' && c != '[' && c != '=')
+					throw Ex("Unexpected index format");
+
+				// Find the "=="
+				size_t eq = findTok(sIndex.c_str(), '=');
+				if(eq >= sIndex.length())
+					throw Ex("Expected an '=' in an equation");
+				string pre(sIndex, 0, eq);
+				if(sIndex.length() > eq && sIndex[eq + 1] == '=')
+					eq++;
+				pResponseDom->parseJson(sIndex.c_str() + eq + 1, sIndex.length() - eq - 1);
+				GDomNode* pPost = pResponseDom->root();
+				size_t j;
+				for(j = 0; j < pOb->size(); j++)
+				{
+					GDomNode* pCand = pOb->get(j);
+					GDomNode* pComp = findNode(pDoc, pCand, pResponseDom, pre.c_str(), '=');
+					if(pComp->isEqual(pPost))
+					{
+						if(pOutIndex)
+							*pOutIndex = j;
+						pOb = pCand;
+						break;
+					}
+				}
+				if(j >= pOb->size())
+					throw Ex("No matching node found");
+			}
+
+			// Move past the ']'
+			pos = i;
+			if(szCmd[pos] == ']')
+				pos++;
+		}
+		else
+			throw Ex("Unexpected token: ", string(szCmd + pos, 1));
+	}
+	return pPrevOb;
+}
+
+GJaadDom* GJsonAsADatabase::getDom(const char* szFile)
+{
+	map<string, GJaadDom*>::iterator it = m_doms.find(szFile);
+	if(it == m_doms.end())
+	{
+		// Load the DOM from file
+		GJaadDom* pDoc = new GJaadDom();
+		Holder<GJaadDom> hDoc(pDoc);
+		string filename = m_basePath;
+		filename += szFile;
+		if(GFile::doesFileExist(filename.c_str()))
+			pDoc->loadJson(filename.c_str());
+		m_doms.insert(std::pair<string, GJaadDom*>(szFile, pDoc));
+		return hDoc.release();
+	}
+	else
+		return it->second;
+}
+
+void GJsonAsADatabase::add(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb)
+{
+	if(pOb->type() == GDomNode::type_obj)
+	{
+		const char* szName = pRequest->getString("name");
+		GDomNode* pValue = pRequest->get("val");
+		pOb->add(pDoc, szName, pDoc->clone(pValue));
+	}
+	else if(pOb->type() == GDomNode::type_list)
+	{
+		GDomNode* pValue = pRequest->get("val");
+		pOb->add(pDoc, pDoc->clone(pValue));
+	}
+	else
+		throw Ex("An object or list type is needed for add");
+}
+
+void GJsonAsADatabase::del(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb)
+{
+	if(pOb->type() == GDomNode::type_obj)
+	{
+		const char* szName = pRequest->getString("name");
+		pOb->del(szName);
+	}
+	else if(pOb->type() == GDomNode::type_list)
+	{
+		size_t index = pRequest->getInt("index");
+		pOb->del(index);
+	}
+	else
+		throw Ex("An object or list type is needed for del");
+}
+
+const GDomNode* GJsonAsADatabase::apply(GDomNode* pRequest, GDom* pResponseDom)
+{
+	try
+	{
+		// Check for permission
+		const char* szFile = pRequest->getString("file");
+		const char* szAuth = pRequest->getString("auth");
+		if(!checkPermission(szFile, szAuth))
+			throw Ex("Permission denied");
+
+		// Find or load the DOM
+		GJaadDom* pDoc = getDom(szFile);
+
+		// Do the command
+		const char* szCmd = pRequest->getString("cmd");
+		size_t op = findTok(szCmd, '='); // possible bug: the '==' operator should not be detected here
+		if(szCmd[op] == '\0')
+		{
+			// No '=', so the user must be requesting an object be returned
+			GDomNode* pNode = findNode(pDoc, pDoc->root(), pResponseDom, szCmd, '\0');
+			return pNode;
+		}
+		pDoc->incModCount();
+		if(op > 0 && szCmd[op - 1] == '+')
+		{
+			// It's a "+=" operation
+			string sLeft(szCmd, op - 1);
+			GDomNode* pNode = findNode(pDoc, pDoc->root(), pResponseDom, sLeft.c_str(), '+');
+			if(pNode)
+			{
+				if(pNode->type() != GDomNode::type_list)
+					throw Ex("The left part before '+=' is not a list type");
+				GDomNode* pOldRoot = pDoc->root();
+				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+				pNode->add(pDoc, pDoc->root());
+				pDoc->setRoot(pOldRoot);
+			}
+			else
+			{
+				// Empty document. Make a root list node.
+				pNode = pDoc->newList();
+				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+				pNode->add(pDoc, pDoc->root());
+				pDoc->setRoot(pNode);
+			}
+			return pResponseDom->newBool(true);
+		}
+		else if(op > 0 && szCmd[op - 1] == '-')
+		{
+			// It's a "-=" operation
+			string sLeft(szCmd, op - 1);
+			GDomNode* pNode = findNode(pDoc, pDoc->root(), pResponseDom, sLeft.c_str(), '-');
+			if(pNode)
+			{
+				string sField;
+				size_t index;
+				GDomNode* pVal = findLValue(pDoc, pNode, pResponseDom, szCmd + op + 1, &sField, &index);
+				if(pVal->type() == GDomNode::type_list)
+				{
+					pVal->del(index);
+					return pResponseDom->newBool(true);
+				}
+				else if(pVal->type() == GDomNode::type_obj)
+				{
+					pVal->del(sField.c_str());
+					return pResponseDom->newBool(true);
+				}
+				else
+					throw Ex("Can only remove from a list or object type");
+			}
+			else
+				throw Ex("Expected a left part before '-='");
+		}
+		else
+		{
+			// It must be an "=" operation
+			string sLeft(szCmd, op);
+			string sField;
+			size_t index;
+			GDomNode* pNode = findLValue(pDoc, pDoc->root(), pResponseDom, sLeft.c_str(), &sField, &index);
+			if(!pNode)
+				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+			else if(pNode->type() == GDomNode::type_obj)
+			{
+				GDomNode* pOldRoot = pDoc->root();
+				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+				GDomNode* pVal = pDoc->root();
+				pDoc->setRoot(pOldRoot);
+				pNode->set(pDoc, sField.c_str(), pVal);
+			}
+			else if(pNode->type() == GDomNode::type_list)
+			{
+				GDomNode* pOldRoot = pDoc->root();
+				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+				GDomNode* pVal = pDoc->root();
+				pDoc->setRoot(pOldRoot);
+				pNode->set(pDoc, index, pVal);
+			}
+			else
+				throw Ex("Not an LValue");
+			return pResponseDom->newBool(true);
+		}
+	}
+	catch(const std::exception& e)
+	{
+		GDomNode* pNode = pResponseDom->newObj();
+		pNode->add(pResponseDom, "red_error", e.what());
+		return pNode;
+	}
+}
+
+
+
 
 } // namespace GClasses

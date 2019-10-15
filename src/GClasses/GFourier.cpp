@@ -362,7 +362,6 @@ void GFourier::fftArrayToImage(struct ComplexNumber* pArray, int width, int oneT
 }
 
 
-#ifndef NO_TEST_CODE
 void GFourier::test()
 {
 	struct ComplexNumber cn[4];
@@ -397,7 +396,8 @@ void GFourier::test()
 	}
 }
 
-#endif // NO_TEST_CODE
+
+
 
 
 GWavelet::GWavelet()
@@ -522,7 +522,6 @@ void GWavelet::inverse(double* x, size_t n)
   x[n-1]+=2*a*x[n-2];
 }
 
-#ifndef NO_TEST_CODE
 #include "GMatrix.h"
 // static
 void GWavelet::test()
@@ -574,4 +573,4 @@ void GWavelet::test()
 	}
 	im.savePgm("/home/mike/tmp/mike3.pgm");
 }
-#endif
+

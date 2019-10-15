@@ -23,11 +23,8 @@
 #include "GVec.h"
 #include "GHeap.h"
 #include "GDom.h"
-#ifndef MIN_PREDICT
 #include "GGaussianProcess.h"
 #include "GImage.h"
-#endif // MIN_PREDICT
-#ifndef MIN_PREDICT
 #include "GKNN.h"
 #include "GDecisionTree.h"
 #include "GNaiveInstance.h"
@@ -36,15 +33,12 @@
 #include "GNaiveBayes.h"
 #include "GEnsemble.h"
 #include "GPolynomial.h"
-#endif // MIN_PREDICT
 #include "GTransform.h"
 #include "GRand.h"
 #include "GHolders.h"
-#ifndef MIN_PREDICT
 #include "GPlot.h"
 #include "GDistribution.h"
 #include "GRecommender.h"
-#endif // MIN_PREDICT
 #include <cmath>
 #include <iostream>
 
@@ -52,7 +46,6 @@ using std::vector;
 
 namespace GClasses {
 
-#ifndef MIN_PREDICT
 GPrediction::~GPrediction()
 {
 	delete(m_pDistribution);
@@ -123,7 +116,6 @@ GNormalDistribution* GPrediction::asNormal()
 		throw Ex("The current distribution is not a normal distribution");
 	return (GNormalDistribution*)m_pDistribution;
 }
-#endif // MIN_PREDICT
 // ---------------------------------------------------------------
 
 GTransducer::GTransducer()
@@ -134,7 +126,6 @@ GTransducer::GTransducer()
 GTransducer::~GTransducer()
 {
 }
-#ifndef MIN_PREDICT
 class GTransducerTrainAndTestCleanUpper
 {
 protected:
@@ -406,7 +397,6 @@ double GTransducer::repValidate(const GMatrix& features, const GMatrix& labels, 
 	}
 	return ssse / reps;
 }
-#endif // MIN_PREDICT
 
 // ---------------------------------------------------------------
 
@@ -442,7 +432,6 @@ const GRelation& GSupervisedLearner::relLabels()
 	return *m_pRelLabels;
 }
 
-#ifndef MIN_PREDICT
 GDomNode* GSupervisedLearner::baseDomNode(GDom* pDoc, const char* szClassName) const
 {
 	if(!m_pRelLabels)
@@ -685,7 +674,8 @@ void GSupervisedLearner::precisionRecall(double* pOutPrecision, size_t nPrecisio
 	if(features.rows() != labels.rows())
 		throw Ex("Expected the features and labels to have the same number of rows");
 	size_t nFuncs = std::max((size_t)1, labels.relation().valueCount(label));
-	GVec::setAll(pOutPrecision, 0.0, nFuncs * nPrecisionSize);
+	GVecWrapper vw2(pOutPrecision, nFuncs * nPrecisionSize);
+	vw2.fill(0.0);
 	double* pFunc = new double[features.rows()];
 	std::unique_ptr<double[]> hFunc(pFunc);
 	GPrediction* out = new GPrediction[labels.cols()];
@@ -908,7 +898,6 @@ void GSupervisedLearner::basicTest(double minAccuracy1, double minAccuracy2, dou
 	GSupervisedLearner_basicTest1(this, minAccuracy1, &m_rand, warnRange, deviation, printAccuracy);
 	GSupervisedLearner_basicTest2(this, minAccuracy2, &m_rand, warnRange, deviation * 2, printAccuracy);
 }
-#endif // MIN_PREDICT
 
 // ---------------------------------------------------------------
 
@@ -942,11 +931,9 @@ GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(const GDomNode* 
 		{
 			if(szClass[1] < 'I')
 			{
-#ifndef MIN_PREDICT
 				if(strcmp(szClass, "GAttributeSelector") == 0)
 					return new GAttributeSelector(pNode);
 				else
-#endif // MIN_PREDICT
 				if(strcmp(szClass, "GDataAugmenter") == 0)
 					return new GDataAugmenter(pNode, *this);
 				else if(strcmp(szClass, "GDiscretize") == 0)
@@ -954,11 +941,9 @@ GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(const GDomNode* 
 			}
 			else
 			{
-#ifndef MIN_PREDICT
 				if(strcmp(szClass, "GImputeMissingVals") == 0)
 					return new GImputeMissingVals(pNode, *this);
 				else
-#endif // MIN_PREDICT
 				if(strcmp(szClass, "GIncrementalTransformChainer") == 0)
 					return new GIncrementalTransformChainer(pNode, *this);
 			}
@@ -991,7 +976,6 @@ GIncrementalTransform* GLearnerLoader::loadIncrementalTransform(const GDomNode* 
 // virtual
 GSupervisedLearner* GLearnerLoader::loadLearner(const GDomNode* pNode)
 {
-#ifndef MIN_PREDICT
 	const char* szClass = pNode->getString("class");
 	if(szClass[0] == 'G')
 	{
@@ -1047,8 +1031,8 @@ GSupervisedLearner* GLearnerLoader::loadLearner(const GDomNode* pNode)
 						return new GNaiveBayes(pNode);
 					else if(strcmp(szClass, "GNaiveInstance") == 0)
 						return new GNaiveInstance(pNode);
-					else if(strcmp(szClass, "GNeuralNetLearner") == 0)
-						return new GNeuralNetLearner(pNode);
+//					else if(strcmp(szClass, "GNeuralNetLearner") == 0)
+//						return new GNeuralNetLearner(pNode);
 				}
 				else
 				{
@@ -1062,13 +1046,11 @@ GSupervisedLearner* GLearnerLoader::loadLearner(const GDomNode* pNode)
 			}
 		}
 	}
-#endif // MIN_PREDICT
 	if(m_throwIfClassNotFound)
 		throw Ex("Unrecognized class: ", szClass);
 	return NULL;
 }
 
-#ifndef MIN_PREDICT
 // virtual
 GCollaborativeFilter* GLearnerLoader::loadCollaborativeFilter(const GDomNode* pNode)
 {
@@ -1191,13 +1173,11 @@ GMatrix* GFilter::prefilterLabels(const GMatrix& in)
 	return pOut;
 }
 
-#ifndef MIN_PREDICT
 // virtual
 void GFilter::trainSparse(GSparseMatrix& features, GMatrix& labels)
 {
 	throw Ex("Sorry, this method has not been implemented");
 }
-#endif // MIN_PREDICT
 
 // ---------------------------------------------------------------
 
@@ -1749,14 +1729,12 @@ void GBaselineLearner::autoTune(GMatrix& features, GMatrix& labels)
 	// This model has no parameters to tune
 }
 
-#ifndef MIN_PREDICT
 // static
 void GBaselineLearner::test()
 {
 	GBaselineLearner bl;
 	bl.basicTest(0.33, 0.33);
 }
-#endif // MIN_PREDICT
 
 // ---------------------------------------------------------------
 
@@ -1814,9 +1792,8 @@ void GIdentityFunction::predict(const GVec& in, GVec& out)
 	else
 	{
 		out.copy(0, in);
-		GVec::setAll(out.data() + m_featureDims, 0.0, m_labelDims - m_featureDims);
+		out.fill(0.0, m_featureDims, m_labelDims - m_featureDims);
 	}
 }
-#endif // MIN_PREDICT
 
 } // namespace GClasses

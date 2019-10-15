@@ -42,7 +42,7 @@ unsigned char* downloadFromWeb(const char* szAddr, size_t timeout, size_t* pOutS
 		return client.releaseData(pOutSize);
 	}
 }
-
+/*
 class CrawlEntry
 {
 public:
@@ -53,20 +53,6 @@ public:
 	: origin(szOrigin), destination(szDestination)
 	{
 	}
-};
-
-class MyHtmlParser : public GHtml
-{
-public:
-	BrokenLinkFinder* m_pCrawler;
-	CrawlEntry* m_pEntry;
-
-	MyHtmlParser(CrawlEntry* pEntry, char* pFile, size_t size, BrokenLinkFinder* pCrawler)
-	: GHtml(pFile, size), m_pCrawler(pCrawler), m_pEntry(pEntry)
-	{
-	}
-
-	virtual void onTagParam(const char* pTagName, size_t tagNameLen, const char* pParamName, size_t paramNameLen, const char* pValue, size_t valueLen);
 };
 
 class BrokenLinkFinder
@@ -102,12 +88,44 @@ public:
 		return url;
 	}
 
-	void process_html_file(CrawlEntry* pEntry, unsigned char* pFile, size_t size)
+	void process_hyperlink(GHtmlElement* pEl)
 	{
-		//cout << "Processing " << pEntry->destination << "\n";
-		MyHtmlParser parser(pEntry, (char*)pFile, size, this);
-		while(parser.parseSomeMore())
+		for(size_t i = 0; i < pEl->attrNames.size(); i++)
 		{
+			if(_stricmp(pEl->attrNames[i].c_str(), "href") == 0)
+			{
+				string& url = pEl->attrValues[i];
+				//cout << "	Links to: " << url << "\n";
+				if(url.compare(0, 1, "/") != 0 && url.compare(0, 5, "http:") != 0 && url.compare(0, 6, "https:") != 0)
+				{
+					// Expand relative URLs
+					string location = m_pEntry->destination;
+					size_t last_slash = location.find_last_of("/");
+					if(last_slash != string::npos)
+						location.erase(last_slash + 1);
+					url.insert(0, location);
+				}
+				if(url.compare(0, 1, "/") != 0 || url.compare(0, 5, "http:"))
+				{
+					CrawlEntry* pEntry = new CrawlEntry(m_pEntry->destination.c_str(), url.c_str());
+					m_pCrawler->m_q.push(pEntry);
+				}
+				else
+				{
+					cout << "Skipping " << url << "\n";
+				}
+			}
+		}
+	}
+
+	void process_html_file(GHtmlElement* pEl)
+	{
+		if(pEl->name.compare("a") == 0 || pEl->name.equals("A") == 0)
+			process_hyperlink(pEl);
+		for(size_t i = 0; i < pEl->children.size(); i++)
+		{
+			GHtmlElement* pChild = pEl->children[i];
+			process_html_file(pEntry, pEl);
 		}
 	}
 
@@ -123,7 +141,10 @@ public:
 		PathData pd;
 		GFile::parsePath(pEntry->destination.c_str(), &pd);
 		if(_stricmp(pEntry->destination.c_str() + pd.extStart, ".htm") == 0 || _stricmp(pEntry->destination.c_str() + pd.extStart, ".html") == 0)
-			process_html_file(pEntry, pFile, size);
+		{
+			GHtmlDoc doc((char*)pFile, size);
+			process_html_file(pEntry, doc.document());
+		}
 		else
 		{
 			// Just ignore unknown file types
@@ -160,37 +181,6 @@ public:
 	}
 };
 
-// virtual
-void MyHtmlParser::onTagParam(const char* pTagName, size_t tagNameLen, const char* pParamName, size_t paramNameLen, const char* pValue, size_t valueLen)
-{
-	if(tagNameLen == 1 && _strnicmp(pTagName, "a", 1) == 0)
-	{
-		if(paramNameLen == 4 && _strnicmp(pParamName, "href", 4) == 0)
-		{
-			string url(pValue, valueLen);
-			//cout << "	Links to: " << url << "\n";
-			if(url.compare(0, 1, "/") != 0 && url.compare(0, 5, "http:") != 0 && url.compare(0, 6, "https:") != 0)
-			{
-				// Expand relative URLs
-				string location = m_pEntry->destination;
-				size_t last_slash = location.find_last_of("/");
-				if(last_slash != string::npos)
-					location.erase(last_slash + 1);
-				url.insert(0, location);
-			}
-			if(url.compare(0, 1, "/") != 0 || url.compare(0, 5, "http:"))
-			{
-				CrawlEntry* pEntry = new CrawlEntry(m_pEntry->destination.c_str(), url.c_str());
-				m_pCrawler->m_q.push(pEntry);
-			}
-			else
-			{
-				cout << "Skipping " << url << "\n";
-			}
-		}
-	}
-}
-
 
 void findbrokenlinks(GArgReader& args)
 {
@@ -200,3 +190,4 @@ void findbrokenlinks(GArgReader& args)
 	BrokenLinkFinder blf(s);
 	blf.crawl(s);
 }
+*/

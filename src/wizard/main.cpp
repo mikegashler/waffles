@@ -84,6 +84,11 @@ public:
 		delete(this);
 	}
 
+	virtual GDomNode* serialize(GDom* pDoc)
+	{
+		throw Ex("This should never be called");
+	}
+
 	void onShowPage()
 	{
 		m_pageStack.push(m_pCurrentPage);
@@ -132,6 +137,7 @@ protected:
 	int m_port;
 
 public:
+	bool m_keepGoing;
 	std::string m_basePath;
 
 	Server(int port, GRand* pRand);
@@ -717,6 +723,7 @@ void MySession::doNext(const char* szParams)
 
 Server::Server(int port, GRand* pRand) : GDynamicPageServer(port, pRand), m_port(port)
 {
+	m_keepGoing = true;
 	char buf[300];
 	GApp::appPath(buf, 256, true);
 	strcat(buf, "web/");
@@ -900,7 +907,7 @@ void Connection::handleRequest(GDynamicPageSession* pDPSession, std::ostream& re
 	else if(strncmp(m_szUrl, "/shutdown", 9) == 0)
 	{
 		response << "<html><head></head><body onLoad=\"var closure=function() { window.top.opener = null; window.open('','_parent',''); window.close()}; setTimeout(closure,500)\"><h3>Goodbye!</h3></body></html>\n";
-		m_pServer->shutDown();
+		((Server*)m_pServer)->m_keepGoing = false;
 	}
 	else
 	{
@@ -913,7 +920,7 @@ void Server::pump()
 {
 	double dLastActivity = GTime::seconds();
 	GSignalHandler sh;
-	while(m_bKeepGoing && sh.check() == 0)
+	while(m_keepGoing && sh.check() == 0)
 	{
 		if(process())
 			dLastActivity = GTime::seconds();
@@ -922,7 +929,7 @@ void Server::pump()
 			if(GTime::seconds() - dLastActivity > 900)	// 15 minutes
 			{
 				cout << "Shutting down due to inactivity for 15 minutes.\n";
-				m_bKeepGoing = false;
+				m_keepGoing = false;
 			}
 			else
 				GThread::sleep(100);

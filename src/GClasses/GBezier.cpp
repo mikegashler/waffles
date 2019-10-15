@@ -40,7 +40,7 @@ struct GBezierPoint
 
 	inline void Add(GBezierPoint* pPoint)
 	{
-		point.add(&pPoint->point);
+		point.add(pPoint->point);
 		weight += pPoint->weight;
 	}
 };
@@ -234,7 +234,7 @@ void GBezier::derivativeAtZero(G3DVector* pOutPoint)
 {
 	GAssert(m_nControlPoints > 1); // undefined with only one point
 	*pOutPoint = m_pPoints[1].point;
-	pOutPoint->subtract(&m_pPoints[0].point);
+	pOutPoint->subtract(m_pPoints[0].point);
 	double d = m_pPoints[1].weight * (m_nControlPoints - 1) / m_pPoints[0].weight;
 	pOutPoint->multiply(d);
 }
@@ -245,14 +245,14 @@ double GBezier::curvatureAtZero()
 		return 0;
 
 	G3DVector vec1 = m_pPoints[1].point;
-	vec1.subtract(&m_pPoints[0].point);
+	vec1.subtract(m_pPoints[0].point);
 	double aSquared = vec1.squaredMag();
 	vec1.multiply(1.0 / sqrt(aSquared));
 
 	G3DVector vec2 = m_pPoints[2].point;
-	vec2.subtract(&m_pPoints[1].point);
+	vec2.subtract(m_pPoints[1].point);
 	double dSquared = vec2.squaredMag();
-	vec2.dotProduct(&vec1);
+	vec2.dotProduct(vec1);
 	double h = sqrt(dSquared - vec2.squaredMag());
 
 	return m_pPoints[0].weight * m_pPoints[2].weight / (m_pPoints[1].weight * m_pPoints[1].weight) * h / aSquared * (m_nControlPoints - 2) / (m_nControlPoints - 1);
@@ -337,7 +337,7 @@ void GBezier::toPolynomial(G3DVector* pOutCoefficients)
 	for(i = 1; i < m_nControlPoints; i++)
 	{
 		for(n = m_nControlPoints - 1; n >= i; n--)
-			pOutCoefficients[n].subtract(&pOutCoefficients[n - 1]);
+			pOutCoefficients[n].subtract(pOutCoefficients[n - 1]);
 	}
 	GTEMPBUF(size_t, pPascalsTriangle, m_nControlPoints);
 	GMath::pascalsTriangle(pPascalsTriangle, m_nControlPoints - 1);
@@ -345,7 +345,6 @@ void GBezier::toPolynomial(G3DVector* pOutCoefficients)
 		pOutCoefficients[n].multiply((double)pPascalsTriangle[n]);
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GBezier::test()
 {
@@ -368,13 +367,13 @@ void GBezier::test()
 	std::unique_ptr<GBezier> hCopy(pCopy);
 	pCopy->elevateDegree();
 	if(pCopy->controlPointCount() != pOrig->controlPointCount() + 1)
-		throw "wrong answer";
+		throw Ex("wrong answer");
 	for(n = 0; n < 10; n++)
 	{
 		pOrig->point((double)n / 10, &p1);
 		pCopy->point((double)n / 10, &p2);
-		if(p1.squaredDist(&p2) > .00001)
-			throw "wrong answer";
+		if(p1.squaredDist(p2) > .00001)
+			throw Ex("wrong answer");
 	}
 
 	// Test that we can segment the curve properly
@@ -387,10 +386,10 @@ void GBezier::test()
 		pOrig->point((double)n / 10, &p1);
 		pCopy->point(((double)n / 10) / .3, &p2);
 		pCopy2->point(((double)n / 10) / .7 - .3 / .7, &p3);
-		if(p1.squaredDist(&p2) > .00001)
-			throw "wrong answer";
-		if(p1.squaredDist(&p3) > .00001)
-			throw "wrong answer";
+		if(p1.squaredDist(p2) > .00001)
+			throw Ex("wrong answer");
+		if(p1.squaredDist(p3) > .00001)
+			throw Ex("wrong answer");
 	}
 
 	// Test that it round-trips through a polynomial
@@ -402,11 +401,10 @@ void GBezier::test()
 	{
 		pOrig->point((double)n / 10, &p1);
 		pAnother->point((double)n / 10, &p2);
-		if(p1.squaredDist(&p2) > .00001)
-			throw "wrong answer";
+		if(p1.squaredDist(p2) > .00001)
+			throw Ex("wrong answer");
 	}
 }
-#endif // NO_TEST_CODE
 
 // ---------------------------------------------------------------------------------------------------
 

@@ -258,7 +258,6 @@ double GProbeSearch::sample(bool greater)
 }
 
 
-#ifndef NO_TEST_CODE
 class GProbeSearchTestCritic : public GTargetFunction
 {
 public:
@@ -308,7 +307,6 @@ void GProbeSearch::test()
 	if(err >= 1e-3)
 		throw Ex("failed");
 }
-#endif // !NO_TEST_CODE
 
 } // namespace GClasses
 

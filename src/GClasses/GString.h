@@ -25,14 +25,33 @@
 
 namespace GClasses {
 
+
+///\brief Run unit tests for the to_str functions.  Throws an
+///       exception if it detects an error
+void test_to_str();
+
+
+
 /// This is similar to strncpy, but it always makes sure that
 /// there is a null-terminating '\0' at the end of the new string.
 /// Returns the length of the new string.
 size_t safe_strcpy(char* szDest, const char* szSrc, size_t nDestBufferSize);
 
-/// Prepends however many pad_char characters are needed to make src_string have a
-/// length of final_length, and returns the results.
-std::string pre_pad(size_t final_length, char pad_char, const std::string& src_string);
+/// Converts a size_t to a string of fixed size padded in front with 'pad' as necessary
+std::string to_fixed_str(size_t val, size_t chars, char pad);
+
+/// Converts a double to a string of fixed size padded in front with 'pad' as necessary
+std::string to_fixed_str(double val, size_t chars, char pad);
+
+/// Removes leading whitespace (or any other set of characters) from a string
+std::string& ltrim(std::string& str, const std::string& chars = "\t\n\v\f\r ");
+
+/// Removes trailing whitespace (or any other set of characters) from a string
+std::string& rtrim(std::string& str, const std::string& chars = "\t\n\v\f\r ");
+
+/// Removes leading and trailing whitespace (or any other set of characters) from a string
+std::string& trim(std::string& str, const std::string& chars = "\t\n\v\f\r ");
+
 
 /// This class chops a big string at word breaks so you can display it intelligently
 /// on multiple lines
@@ -56,6 +75,9 @@ public:
 	/// Returns NULL when there are no more lines left
 	const char* next();
 };
+
+
+
 
 } // namespace GClasses
 

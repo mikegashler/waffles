@@ -501,7 +501,6 @@ double GMath::fuzzy(double x, double y, double alpha)
 	return (x + alpha) * (y + alpha) / (t + 1) - t;
 }
 
-#ifndef NO_TEST_CODE
 double ComputeCosine(void* pThis, double d)
 {
 	return cos(d);
@@ -602,7 +601,7 @@ void GMath::test()
 	double dTarget = sin(M_PI / 2) - sin(-M_PI / 2);
 	double dComputed = GMath::integrate(ComputeCosine, -M_PI / 2, M_PI / 2, 500, NULL);
 	if(std::abs(dTarget - dComputed) > .00001)
-		throw "wrong answer";
+		throw Ex("wrong answer");
 
 	// Test Newton's Polynomial
 	double t0 = 23;
@@ -625,14 +624,13 @@ void GMath::test()
 	x[3] = x3;
 	GMath::newtonPolynomial(t, x, 4);
 	if(std::abs(x[0] + x[1] * t0 + x[2] * t0 * t0 + x[3] * t0 * t0 * t0 - x0) > .0000001)
-		throw "wrong answer";
+		throw Ex("wrong answer");
 	if(std::abs(x[0] + x[1] * t1 + x[2] * t1 * t1 + x[3] * t1 * t1 * t1 - x1) > .0000001)
-		throw "wrong answer";
+		throw Ex("wrong answer");
 	if(std::abs(x[0] + x[1] * t2 + x[2] * t2 * t2 + x[3] * t2 * t2 * t2 - x2) > .0000001)
-		throw "wrong answer";
+		throw Ex("wrong answer");
 	if(std::abs(x[0] + x[1] * t3 + x[2] * t3 * t3 + x[3] * t3 * t3 * t3 - x3) > .0000001)
-		throw "wrong answer";
+		throw Ex("wrong answer");
 }
-#endif // !NO_TEST_CODE
 
 }

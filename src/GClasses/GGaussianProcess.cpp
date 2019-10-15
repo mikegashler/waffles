@@ -74,7 +74,6 @@ void GRunningCovariance::decay(double gamma)
 	m_sums.multiply(gamma);
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GRunningCovariance::test()
 {
@@ -97,7 +96,6 @@ void GRunningCovariance::test()
 		}
 	}
 }
-#endif
 
 
 
@@ -132,7 +130,6 @@ GGaussianProcess::~GGaussianProcess()
 	delete(m_pKernel);
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GGaussianProcess::test()
 {
@@ -144,7 +141,6 @@ void GGaussianProcess::test()
 	GAutoFilter af2(pGP);
 	af2.basicTest(0.67, 0.92);
 }
-#endif
 
 // virtual
 GDomNode* GGaussianProcess::serialize(GDom* pDoc) const

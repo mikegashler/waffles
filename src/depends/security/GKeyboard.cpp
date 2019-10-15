@@ -69,7 +69,7 @@ GKeyboard::GKeyboard(LogKeyCallBack pLogKeyFunc, void* pParam)
 	HRESULT rval;
 	rval = DirectInputCreate(hInst, DIRECTINPUT_VERSION, &m_lpDI, NULL);
 	if(rval != DI_OK)
-		throw "failed to create direct input";
+		throw Ex("failed to create direct input");
 	rval = m_lpDI->CreateDevice(GUID_SysKeyboard, &m_lpDIDKeyboard, NULL);
 	if(rval == DI_OK)
 	{
@@ -77,7 +77,7 @@ GKeyboard::GKeyboard(LogKeyCallBack pLogKeyFunc, void* pParam)
 		m_lpDIDKeyboard->SetCooperativeLevel(NULL, DISCL_NONEXCLUSIVE | DISCL_FOREGROUND);
 		rval = m_lpDIDKeyboard->Acquire();
 		if(rval != DI_OK)
-			throw "failed to acquire keyboard";
+			throw Ex("failed to acquire keyboard");
 	}
 	m_bKeepWatching = true;
 }

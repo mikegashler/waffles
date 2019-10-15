@@ -447,7 +447,6 @@ bool GGraphCut::doesBorderTheCut(size_t nNode)
 }
 
 
-#ifndef NO_TEST_CODE
 //     2--3--4
 //   / |  |  | \        .
 // 0   |  |  |  1
@@ -470,23 +469,22 @@ void GGraphCut::test()
 	graph.addEdge(4, 7, 3);
 	graph.cut(0, 1);
 	if(!graph.isSource(0))
-		throw "got the source wrong!";
+		throw Ex("got the source wrong!");
 	if(!graph.isSource(2))
-		throw "got the sink wrong!";
+		throw Ex("got the sink wrong!");
 	if(!graph.isSource(3))
-		throw "wrong cut";
+		throw Ex("wrong cut");
 	if(!graph.isSource(5))
-		throw "wrong cut";
+		throw Ex("wrong cut");
 	if(graph.isSource(1))
-		throw "wrong cut";
+		throw Ex("wrong cut");
 	if(graph.isSource(4))
-		throw "wrong cut";
+		throw Ex("wrong cut");
 	if(graph.isSource(6))
-		throw "wrong cut";
+		throw Ex("wrong cut");
 	if(graph.isSource(7))
-		throw "wrong cut";
+		throw Ex("wrong cut");
 }
-#endif // !NO_TEST_CODE
 
 // --------------------------------------------------------------------
 
@@ -612,7 +610,6 @@ size_t GFloydWarshall::next(size_t from, size_t goal)
 	return m_pPaths[from * m_nodes + goal];
 }
 
-#ifndef NO_TEST_CODE
 #define NODE_COUNT 12
 // static
 void GFloydWarshall::test()
@@ -647,7 +644,6 @@ void GFloydWarshall::test()
 		}
 	}
 }
-#endif
 
 
 
@@ -768,7 +764,6 @@ size_t GDijkstra::previous(size_t vertex)
 	return m_pPrevious[vertex];
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GDijkstra::test()
 {
@@ -804,7 +799,6 @@ void GDijkstra::test()
 	if(g.cost(2) != 0.9) throw Ex("failed");
 	if(g.cost(3) != 0.8) throw Ex("failed");
 }
-#endif
 
 
 
@@ -870,7 +864,8 @@ void GBrandesBetweennessCentrality::compute()
 		double* sigma = new double[2 * m_nodeCount];
 		std::unique_ptr<double[]> hSigma(sigma);
 		double* d = sigma + m_nodeCount;
-		GVec::setAll(sigma, 0.0, m_nodeCount);
+		GVecWrapper vw(sigma, m_nodeCount);
+		vw.fill(0.0);
 		sigma[s] = 1.0;
 
 		// Initialize distances
@@ -908,7 +903,8 @@ void GBrandesBetweennessCentrality::compute()
 		}
 
 		// Update the betweenness values
-		GVec::setAll(d, 0.0, m_nodeCount);
+		GVecWrapper vw2(d, m_nodeCount);
+		vw2.fill(0.0);
 		while(stack.size() > 0)
 		{
 			size_t w = stack.back();
@@ -961,7 +957,6 @@ double GBrandesBetweennessCentrality::edgeBetweennessByVertex(size_t vertex1, si
 		return edgeBetweennessByNeighbor(vertex1, index);
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GBrandesBetweennessCentrality::test()
 {
@@ -993,7 +988,6 @@ void GBrandesBetweennessCentrality::test()
 	if(std::abs(graph.edgeBetweennessByNeighbor(5, 1) - 4) > 1e-5)
 		throw Ex("failed");
 }
-#endif
 
 
 
@@ -1145,7 +1139,6 @@ void GAtomicCycleFinder::compute()
 	}
 }
 
-#ifndef NO_TEST_CODE
 class GTestAtomicCycleFinder : public GAtomicCycleFinder
 {
 protected:
@@ -1200,4 +1193,4 @@ void GAtomicCycleFinder::test()
 	graph.compute();
 	graph.gotEmAll();
 }
-#endif
+

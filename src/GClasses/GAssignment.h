@@ -329,12 +329,10 @@ public:
 	///\brief A do-nothing destructor needed since there may be subclasses
 	virtual ~GSimpleAssignment(){};
 
-#ifndef  NO_TEST_CODE
 
 	///\brief Run unit tests for GSimpleAssignment - throws an exception
 	///if an error is found.
 	static void test();
-#endif //NO_TEST_CODE
 };
 
 ///\brief Return the cost of the assignment \a assign for the matrix
@@ -553,13 +551,11 @@ void LAPVJRCT(GMatrix cost, std::vector<int>& rowAssign,
 							std::vector<double>& colPotential, double& totalCost,
 							const double epsilon=1e-8);
 
-#ifndef  NO_TEST_CODE
 
 ///\brief Runs unit tests on the linear assignment code and supporting
 ///       code.  Throws an exception if it detects an error.
 void testLinearAssignment();
 
-#endif //NO_TEST_CODE
 	
 }
 #endif //  __GASSIGNMENT_H__

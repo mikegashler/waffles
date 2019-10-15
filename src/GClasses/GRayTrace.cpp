@@ -165,15 +165,15 @@ GRayTraceRay::~GRayTraceRay()
 bool GRayTraceRay::ComputeTransmissionVector(G3DVector* pDirectionVector, G3DVector* pTransmissionVector, G3DReal oldIndexOfRefraction, G3DReal newIndexOfRefraction)
 {
 	double ratio = (double)oldIndexOfRefraction / newIndexOfRefraction;
-	double comp = (double)pDirectionVector->dotProduct(&m_normalVector);
+	double comp = (double)pDirectionVector->dotProduct(m_normalVector);
 	double tmp = (double)1 - (ratio * ratio * ((double)1 - (comp * comp)));
 	if(tmp < 0)
 		return false;
-	pTransmissionVector->copy(&m_normalVector);
+	pTransmissionVector->copy(m_normalVector);
 	pTransmissionVector->multiply((G3DReal)(-ratio * comp - sqrt(tmp)));
-	G3DVector x(pDirectionVector);
+	G3DVector x(*pDirectionVector);
 	x.multiply((G3DReal)ratio);
-	pTransmissionVector->add(&x);
+	pTransmissionVector->add(x);
 	pTransmissionVector->normalize();
 	return true;
 }
@@ -185,15 +185,15 @@ void GRayTraceRay::ComputeRandomDiffuseVector(G3DVector* pOutVector)
 	if(std::abs(m_normalVector.m_vals[0]) < .5) // if N is not co-linear with (1, 0, 0)
 	{
 		v.set(1, 0, 0);
-		u.crossProduct(&m_normalVector, &v);
+		u.crossProduct(m_normalVector, v);
 	}
 	else
 	{
 		v.set(0, 1, 0);
-		u.crossProduct(&m_normalVector, &v);
+		u.crossProduct(m_normalVector, v);
 	}
 	u.normalize();
-	v.crossProduct(&u, &m_normalVector);
+	v.crossProduct(u, m_normalVector);
 	double a, b, c;
 	while(true)
 	{
@@ -205,10 +205,10 @@ void GRayTraceRay::ComputeRandomDiffuseVector(G3DVector* pOutVector)
 	c = sqrt(1.0 - (a * a + b * b));
 	u.multiply((G3DReal)a);
 	v.multiply((G3DReal)b);
-	pOutVector->copy(&m_normalVector);
+	pOutVector->copy(m_normalVector);
 	pOutVector->multiply((G3DReal)c);
-	pOutVector->add(&u);
-	pOutVector->add(&v);
+	pOutVector->add(u);
+	pOutVector->add(v);
 }
 
 void GRayTraceRay::JitterRay(G3DVector* pVector, G3DReal jitter, GRand* pRand)
@@ -232,21 +232,21 @@ void GRayTraceRay::Cast(GRayTraceScene* pScene, G3DVector* pRayOrigin, G3DVector
 	}
 
 	// Compute the collision point
-	m_collisionPoint.copy(pDirectionVector);
+	m_collisionPoint.copy(*pDirectionVector);
 	m_collisionPoint.multiply(distance);
-	m_collisionPoint.add(pRayOrigin);
+	m_collisionPoint.add(*pRayOrigin);
 
 	// Compute the normal
 	m_bHitTexture = false;
 	pClosestObject->normalVector(this);
 	if(!pClosestObject->isCulled())
 	{
-		if(pDirectionVector->dotProduct(&m_normalVector) > 0)
+		if(pDirectionVector->dotProduct(m_normalVector) > 0)
 			m_normalVector.multiply(-1);
 	}
 
 	// Compute the reflection vector
-	m_reflectionVector.reflectionVector(pDirectionVector, &m_normalVector);
+	m_reflectionVector.reflectionVector(*pDirectionVector, m_normalVector);
 
 	// Compute the color
 	GRayTraceMaterial* pMaterial = pClosestObject->material();
@@ -282,7 +282,7 @@ void GRayTraceRay::Cast(GRayTraceScene* pScene, G3DVector* pRayOrigin, G3DVector
 			if(!ComputeTransmissionVector(pDirectionVector, &transmissionVector, m_indexOfRefraction, newIndexOfRefraction))
 			{
 				// total internal reflection occurs
-				transmissionVector.copy(&m_reflectionVector);
+				transmissionVector.copy(m_reflectionVector);
 				newIndexOfRefraction = m_indexOfRefraction;
 			}
 
@@ -314,21 +314,21 @@ void GRayTraceRay::Trace(GRayTraceScene* pScene, G3DVector* pRayOrigin, G3DVecto
 	}
 
 	// Compute the collision point
-	m_collisionPoint.copy(pDirectionVector);
+	m_collisionPoint.copy(*pDirectionVector);
 	m_collisionPoint.multiply(distance);
-	m_collisionPoint.add(pRayOrigin);
+	m_collisionPoint.add(*pRayOrigin);
 
 	// Compute the normal
 	m_bHitTexture = false;
 	pClosestObject->normalVector(this);
 	if(!pClosestObject->isCulled())
 	{
-		if(pDirectionVector->dotProduct(&m_normalVector) > 0)
+		if(pDirectionVector->dotProduct(m_normalVector) > 0)
 			m_normalVector.multiply(-1);
 	}
 
 	// Compute the reflection vector
-	m_reflectionVector.reflectionVector(pDirectionVector, &m_normalVector);
+	m_reflectionVector.reflectionVector(*pDirectionVector, m_normalVector);
 
 	// Compute the color
 	GRayTraceMaterial* pMaterial = pClosestObject->material();
@@ -376,7 +376,7 @@ void GRayTraceRay::Trace(GRayTraceScene* pScene, G3DVector* pRayOrigin, G3DVecto
 				if(!ComputeTransmissionVector(pDirectionVector, &transmissionVector, m_indexOfRefraction, newIndexOfRefraction))
 				{
 					// total internal reflection occurs
-					transmissionVector.copy(&m_reflectionVector);
+					transmissionVector.copy(m_reflectionVector);
 					newIndexOfRefraction = m_indexOfRefraction;
 				}
 
@@ -642,27 +642,27 @@ void GRayTraceScene::renderBegin()
 	m_pBoundingBoxTree = GRayTraceBoundingBoxBase::makeBoundingBoxTree(this);
 
 	// Precompute vectors
-	G3DVector v(m_pCamera->viewUpVector());
-	G3DVector u(m_pCamera->viewSideVector());
+	G3DVector v(*m_pCamera->viewUpVector());
+	G3DVector u(*m_pCamera->viewSideVector());
 	G3DReal halfViewHeight = m_pCamera->halfViewHeight();
 	G3DReal halfViewWidth = halfViewHeight * nWidth / nHeight;
 	u.multiply(halfViewWidth);
 	v.multiply(halfViewHeight);
-	m_pixSide.copy(m_pCamera->lookFromPoint());
-	m_pixSide.add(m_pCamera->lookDirection());
-	m_pixSide.subtract(&u);
-	m_pixSide.subtract(&v);
-	m_pixDX.copy(&u);
+	m_pixSide.copy(*m_pCamera->lookFromPoint());
+	m_pixSide.add(*m_pCamera->lookDirection());
+	m_pixSide.subtract(u);
+	m_pixSide.subtract(v);
+	m_pixDX.copy(u);
 	m_pixDX.multiply((G3DReal)2 / nWidth);
-	m_pixDY.copy(&v);
+	m_pixDY.copy(v);
 	m_pixDY.multiply((G3DReal)2 / nHeight);
 	m_nY = nHeight - 1;
 }
 
 unsigned int GRayTraceScene::renderPixel(GRayTraceRay* pRay, G3DVector* pScreenPoint, G3DReal* pDistance)
 {
-	G3DVector directionVector(pScreenPoint);
-	directionVector.subtract(m_pCamera->lookFromPoint());
+	G3DVector directionVector(*pScreenPoint);
+	directionVector.subtract(*m_pCamera->lookFromPoint());
 	directionVector.normalize();
 	pRay->Cast(this, m_pCamera->lookFromPoint(), &directionVector, m_pCamera->maxDepth());
 	if(pDistance)
@@ -683,20 +683,20 @@ unsigned int GRayTraceScene::renderPixelAntiAliassed(GRayTraceRay* pRay, G3DVect
 	{
 		for(x = 0; x < SQRT_RAYS_PER_PIXEL; x++)
 		{
-			G3DVector directionVector(pScreenPoint);
+			G3DVector directionVector(*pScreenPoint);
 
 			// Jitter in X direction
-			jitter.copy(&m_pixDX);
+			jitter.copy(m_pixDX);
 			jitter.multiply((G3DReal)(((double)x + m_pRand->uniform()) / SQRT_RAYS_PER_PIXEL - .5));
-			directionVector.add(&jitter);
+			directionVector.add(jitter);
 
 			// Jitter in Y direction
-			jitter.copy(&m_pixDY);
+			jitter.copy(m_pixDY);
 			jitter.multiply((G3DReal)(((double)y + m_pRand->uniform()) / SQRT_RAYS_PER_PIXEL - .5));
-			directionVector.add(&jitter);
+			directionVector.add(jitter);
 
 			// Cast the ray
-			directionVector.subtract(m_pCamera->lookFromPoint());
+			directionVector.subtract(*m_pCamera->lookFromPoint());
 			if(focalDistance > 0)
 			{
 				// Use focus lens -- Start from a random point on the lens and fire at the focal point
@@ -707,17 +707,17 @@ unsigned int GRayTraceScene::renderPixelAntiAliassed(GRayTraceRay* pRay, G3DVect
 					if((r1 * r1) + (r2 * r2) <= .25)
 						break;
 				}
-				G3DVector dx(m_pCamera->viewSideVector());
+				G3DVector dx(*m_pCamera->viewSideVector());
 				dx.multiply(r1 * m_pCamera->lensDiameter());
-				G3DVector dy(m_pCamera->viewUpVector());
+				G3DVector dy(*m_pCamera->viewUpVector());
 				dy.multiply(r2 * m_pCamera->lensDiameter());
 				directionVector.multiply(focalDistance);
-				directionVector.subtract(&dx);
-				directionVector.subtract(&dy);
+				directionVector.subtract(dx);
+				directionVector.subtract(dy);
 				directionVector.normalize();
-				G3DVector lensPoint(m_pCamera->lookFromPoint());
-				lensPoint.add(&dx);
-				lensPoint.add(&dy);
+				G3DVector lensPoint(*m_pCamera->lookFromPoint());
+				lensPoint.add(dx);
+				lensPoint.add(dy);
 				pRay->Cast(this, &lensPoint, &directionVector, m_pCamera->maxDepth());
 			}
 			else
@@ -736,8 +736,8 @@ unsigned int GRayTraceScene::renderPixelAntiAliassed(GRayTraceRay* pRay, G3DVect
 
 	if(pDistance)
 	{
-		G3DVector directionVector(pScreenPoint);
-		directionVector.subtract(m_pCamera->lookFromPoint());
+		G3DVector directionVector(*pScreenPoint);
+		directionVector.subtract(*m_pCamera->lookFromPoint());
 		directionVector.normalize();
 		m_pBoundingBoxTree->closestIntersection(m_pCamera->lookFromPoint(), &directionVector, pDistance);
 	}
@@ -756,20 +756,20 @@ unsigned int GRayTraceScene::renderPixelPathTrace(GRayTraceRay* pRay, G3DVector*
 	{
 		for(x = 0; x < SQRT_RAYS_PER_PIXEL; x++)
 		{
-			G3DVector directionVector(pScreenPoint);
+			G3DVector directionVector(*pScreenPoint);
 
 			// Jitter in X direction
-			jitter.copy(&m_pixDX);
+			jitter.copy(m_pixDX);
 			jitter.multiply((G3DReal)(((double)x + m_pRand->uniform()) / SQRT_RAYS_PER_PIXEL - .5));
-			directionVector.add(&jitter);
+			directionVector.add(jitter);
 
 			// Jitter in Y direction
-			jitter.copy(&m_pixDY);
+			jitter.copy(m_pixDY);
 			jitter.multiply((G3DReal)(((double)y + m_pRand->uniform()) / SQRT_RAYS_PER_PIXEL - .5));
-			directionVector.add(&jitter);
+			directionVector.add(jitter);
 
 			// Cast the ray
-			directionVector.subtract(m_pCamera->lookFromPoint());
+			directionVector.subtract(*m_pCamera->lookFromPoint());
 			if(focalDistance > 0)
 			{
 				// Use focus lens -- Start from a random point on the lens and fire at the focal point
@@ -780,17 +780,17 @@ unsigned int GRayTraceScene::renderPixelPathTrace(GRayTraceRay* pRay, G3DVector*
 					if((r1 * r1) + (r2 * r2) <= .25)
 						break;
 				}
-				G3DVector dx(m_pCamera->viewSideVector());
+				G3DVector dx(*m_pCamera->viewSideVector());
 				dx.multiply(r1 * m_pCamera->lensDiameter());
-				G3DVector dy(m_pCamera->viewUpVector());
+				G3DVector dy(*m_pCamera->viewUpVector());
 				dy.multiply(r2 * m_pCamera->lensDiameter());
 				directionVector.multiply(focalDistance);
-				directionVector.subtract(&dx);
-				directionVector.subtract(&dy);
+				directionVector.subtract(dx);
+				directionVector.subtract(dy);
 				directionVector.normalize();
-				G3DVector lensPoint(m_pCamera->lookFromPoint());
-				lensPoint.add(&dx);
-				lensPoint.add(&dy);
+				G3DVector lensPoint(*m_pCamera->lookFromPoint());
+				lensPoint.add(dx);
+				lensPoint.add(dy);
 				pRay->Trace(this, &lensPoint, &directionVector, m_pCamera->maxDepth(), true);
 			}
 			else
@@ -818,7 +818,7 @@ bool GRayTraceScene::renderLine()
 		return false;
 	GRayTraceRay ray(m_pRand);
 	int x;
-	G3DVector screenPoint(&m_pixSide);
+	G3DVector screenPoint(m_pixSide);
 	int nWidth = m_pImage->width();
 	G3DReal distance;
 	G3DReal* pDistance = m_pDistanceMap ? &distance : NULL;
@@ -843,9 +843,9 @@ bool GRayTraceScene::renderLine()
 		m_pImage->setPixel(x, m_nY, col);
 		if(pDistance)
 			m_pDistanceMap[nWidth * m_nY + x] = distance;
-		screenPoint.add(&m_pixDX);
+		screenPoint.add(m_pixDX);
 	}
-	m_pixSide.add(&m_pixDY);
+	m_pixSide.add(m_pixDY);
 	if(--m_nY >= 0)
 		return true;
 	else
@@ -866,11 +866,11 @@ unsigned int GRayTraceScene::renderSinglePixel(int x, int y)
 	renderBegin();
 
 	// Compute the screen point
-	G3DVector screenPoint(&m_pixSide);
+	G3DVector screenPoint(m_pixSide);
 	m_pixDY.multiply((G3DReal)(m_pImage->height() - 1 - y));
-	screenPoint.add(&m_pixDY);
+	screenPoint.add(m_pixDY);
 	m_pixDX.multiply((G3DReal)(m_pImage->width() - 1 - x));
-	screenPoint.add(&m_pixDX);
+	screenPoint.add(m_pixDX);
 
 	// Cast the ray
 	GRayTraceRay ray(m_pRand);
@@ -947,7 +947,7 @@ GDomNode* GRayTraceDirectionalLight::serialize(GDom* pDoc, const GRayTraceScene*
 
 /*virtual*/ void GRayTraceDirectionalLight::colorContribution(GRayTraceScene* pScene, GRayTraceRay* pRay, GRayTraceMaterial* pMaterial, bool bSpecular)
 {
-	G3DVector direction(&m_direction);
+	G3DVector direction(m_direction);
 	if(m_jitter > 0)
 		GRayTraceRay::JitterRay(&direction, m_jitter, pScene->rand());
 
@@ -958,12 +958,12 @@ GDomNode* GRayTraceDirectionalLight::serialize(GDom* pDoc, const GRayTraceScene*
 
 	// Compute diffuse component of the color
 	GRayTraceColor diffuse(pMaterial->color(GRayTraceMaterial::Diffuse, pRay));
-	diffuse.multiply(std::max((G3DReal)0, direction.dotProduct(&pRay->m_normalVector)));
+	diffuse.multiply(std::max((G3DReal)0, direction.dotProduct(pRay->m_normalVector)));
 
 	// Compute specular component of the color
 	if(bSpecular)
 	{
-		G3DReal mag = (G3DReal)pow(std::max((G3DReal)0, pRay->m_reflectionVector.dotProduct(&direction)), pMaterial->specularExponent());
+		G3DReal mag = (G3DReal)pow(std::max((G3DReal)0, pRay->m_reflectionVector.dotProduct(direction)), pMaterial->specularExponent());
 		GRayTraceColor specular(pMaterial->color(GRayTraceMaterial::Specular, pRay));
 		specular.multiply(mag);
 		diffuse.add(&specular);
@@ -1004,7 +1004,7 @@ GDomNode* GRayTracePointLight::serialize(GDom* pDoc, const GRayTraceScene* pScen
 
 /*virtual*/ void GRayTracePointLight::colorContribution(GRayTraceScene* pScene, GRayTraceRay* pRay, GRayTraceMaterial* pMaterial, bool bSpecular)
 {
-	G3DVector lightDirection(&m_position);
+	G3DVector lightDirection(m_position);
 	if(m_jitter > 0)
 	{
 		// Jitter light position (to create soft shadows)
@@ -1014,7 +1014,7 @@ GDomNode* GRayTracePointLight::serialize(GDom* pDoc, const GRayTraceScene* pScen
 	}
 
 	// Check if the point is in a shadow
-	lightDirection.subtract(&pRay->m_collisionPoint);
+	lightDirection.subtract(pRay->m_collisionPoint);
 	double distsqared = lightDirection.squaredMag();
 	lightDirection.normalize();
 	G3DReal distance;
@@ -1026,12 +1026,12 @@ GDomNode* GRayTracePointLight::serialize(GDom* pDoc, const GRayTraceScene* pScen
 
 	// Compute diffuse component of the color
 	GRayTraceColor diffuse(pMaterial->color(GRayTraceMaterial::Diffuse, pRay));
-	diffuse.multiply(std::max((G3DReal)0, lightDirection.dotProduct(&pRay->m_normalVector)));
+	diffuse.multiply(std::max((G3DReal)0, lightDirection.dotProduct(pRay->m_normalVector)));
 
 	// Compute specular component of the color
 	if(bSpecular)
 	{
-		G3DReal mag = (G3DReal)pow(std::max((G3DReal)0, pRay->m_reflectionVector.dotProduct(&lightDirection)), pMaterial->specularExponent());
+		G3DReal mag = (G3DReal)pow(std::max((G3DReal)0, pRay->m_reflectionVector.dotProduct(lightDirection)), pMaterial->specularExponent());
 		GRayTraceColor specular(pMaterial->color(GRayTraceMaterial::Specular, pRay));
 		specular.multiply(mag);
 		diffuse.add(&specular);
@@ -1075,10 +1075,10 @@ GDomNode* GRayTraceAreaLight::serialize(GDom* pDoc, const GRayTraceScene* pScene
 	{
 		// Pick a random point on the triangle
 		GRayTraceTriangle* pTri = (GRayTraceTriangle*)m_pObject;
-		G3DVector u(pTri->vertex(1));
-		u.subtract(pTri->vertex(0));
-		G3DVector v(pTri->vertex(2));
-		v.subtract(pTri->vertex(0));
+		G3DVector u(*pTri->vertex(1));
+		u.subtract(*pTri->vertex(0));
+		G3DVector v(*pTri->vertex(2));
+		v.subtract(*pTri->vertex(0));
 		double a = pScene->rand()->uniform() * 2 - 1;
 		double b = pScene->rand()->uniform() * 2 - 1;
 		if(a + b > 1)
@@ -1088,30 +1088,30 @@ GDomNode* GRayTraceAreaLight::serialize(GDom* pDoc, const GRayTraceScene* pScene
 		}
 		u.multiply((G3DReal)a);
 		v.multiply((G3DReal)b);
-		lightDirection.copy(pTri->vertex(0));
-		lightDirection.add(&u);
-		lightDirection.add(&v);
+		lightDirection.copy(*pTri->vertex(0));
+		lightDirection.add(u);
+		lightDirection.add(v);
 	}
 	else if(m_pObject->type() == GRayTraceObject::Sphere)
 	{
 		// Pick a random point on a disc facing the point of collision
 		GRayTraceSphere* pSphere = (GRayTraceSphere*)m_pObject;
 		G3DVector u, v;
-		G3DVector N(pSphere->center());
-		N.subtract(&pRay->m_collisionPoint);
+		G3DVector N(*pSphere->center());
+		N.subtract(pRay->m_collisionPoint);
 		N.normalize();
 		if(std::abs(N.m_vals[0]) < 0.5)
 		{
 			v.set(1, 0, 0);
-			u.crossProduct(&N, &v);
+			u.crossProduct(N, v);
 		}
 		else 
 		{
 			v.set(0, 1, 0);
-			u.crossProduct(&N, &v);
+			u.crossProduct(N, v);
 		}
 		u.normalize();
-		v.crossProduct(&u, &N);
+		v.crossProduct(u, N);
 		double a, b;
 		while(true)
 		{
@@ -1122,9 +1122,9 @@ GDomNode* GRayTraceAreaLight::serialize(GDom* pDoc, const GRayTraceScene* pScene
 		}
 		u.multiply((G3DReal)a);
 		v.multiply((G3DReal)b);
-		lightDirection.copy(pSphere->center());
-		lightDirection.add(&u);
-		lightDirection.add(&v);
+		lightDirection.copy(*pSphere->center());
+		lightDirection.add(u);
+		lightDirection.add(v);
 	}
 	else
 	{
@@ -1132,7 +1132,7 @@ GDomNode* GRayTraceAreaLight::serialize(GDom* pDoc, const GRayTraceScene* pScene
 	}
 
 	// Check if the point is in a shadow
-	lightDirection.subtract(&pRay->m_collisionPoint);
+	lightDirection.subtract(pRay->m_collisionPoint);
 	double distsqared = lightDirection.squaredMag();
 	lightDirection.normalize();
 	G3DReal distance;
@@ -1145,21 +1145,21 @@ GDomNode* GRayTraceAreaLight::serialize(GDom* pDoc, const GRayTraceScene* pScene
 	if(m_pObject->type() == GRayTraceObject::Triangle)
 	{
 		GRayTraceTriangle* pTri = (GRayTraceTriangle*)m_pObject;
-		G3DVector u(pTri->vertex(1));
-		u.subtract(pTri->vertex(0));
-		G3DVector v(pTri->vertex(2));
-		v.subtract(pTri->vertex(0));
+		G3DVector u(*pTri->vertex(1));
+		u.subtract(*pTri->vertex(0));
+		G3DVector v(*pTri->vertex(2));
+		v.subtract(*pTri->vertex(0));
 		G3DVector t;
-		t.crossProduct(&u, &v);
+		t.crossProduct(u, v);
 		G3DReal triangleArea = (G3DReal)sqrt(t.squaredMag()) / 2;
 		G3DVector triangleNormal;
-		triangleNormal.triangleNormal(pTri->vertex(0), pTri->vertex(1), pTri->vertex(2));
-		diffuse.multiply(std::abs(pRay->m_normalVector.dotProduct(&lightDirection) * triangleNormal.dotProduct(&lightDirection) * triangleArea / (G3DReal)(M_PI * distsqared)));
+		triangleNormal.triangleNormal(*pTri->vertex(0), *pTri->vertex(1), *pTri->vertex(2));
+		diffuse.multiply(std::abs(pRay->m_normalVector.dotProduct(lightDirection) * triangleNormal.dotProduct(lightDirection) * triangleArea / (G3DReal)(M_PI * distsqared)));
 	}
 	else
 	{
 		GRayTraceSphere* pSphere = (GRayTraceSphere*)m_pObject;
-		diffuse.multiply(pRay->m_normalVector.dotProduct(&lightDirection)  * pSphere->radius() * pSphere->radius() / (G3DReal)distsqared);
+		diffuse.multiply(pRay->m_normalVector.dotProduct(lightDirection) * pSphere->radius() * pSphere->radius() / (G3DReal)distsqared);
 	}
 
 	pRay->m_color.add(&diffuse);
@@ -1185,8 +1185,6 @@ GRayTraceMaterial* GRayTraceMaterial::deserialize(GDomNode* pNode)
 			return new GRayTracePhysicalMaterial(pNode);
 		case Image:
 			return new GRayTraceImageTexture(pNode);
-		case Etherial:
-			throw Ex("Sorry, not implemented yet");
 	}
 	return NULL;
 }
@@ -1487,45 +1485,45 @@ bool GRayTraceBoundingBoxBase::DoesRayHitBox(G3DVector* pRayOrigin, G3DVector* p
 	G3DVector point;
 	if(pDirectionVector->m_vals[0] != 0)
 	{
-		point.copy(pDirectionVector);
+		point.copy(*pDirectionVector);
 		point.multiply((m_min.m_vals[0] - pRayOrigin->m_vals[0]) / pDirectionVector->m_vals[0]);
-		point.add(pRayOrigin);
+		point.add(*pRayOrigin);
 		if(point.m_vals[1] >= m_min.m_vals[1] && point.m_vals[2] >= m_min.m_vals[2] &&
 			point.m_vals[1] <= m_max.m_vals[1] && point.m_vals[2] <= m_max.m_vals[2])
 			return true;
-		point.copy(pDirectionVector);
+		point.copy(*pDirectionVector);
 		point.multiply((m_max.m_vals[0] - pRayOrigin->m_vals[0]) / pDirectionVector->m_vals[0]);
-		point.add(pRayOrigin);
+		point.add(*pRayOrigin);
 		if(point.m_vals[1] >= m_min.m_vals[1] && point.m_vals[2] >= m_min.m_vals[2] &&
 			point.m_vals[1] <= m_max.m_vals[1] && point.m_vals[2] <= m_max.m_vals[2])
 			return true;
 	}
 	if(pDirectionVector->m_vals[1] != 0)
 	{
-		point.copy(pDirectionVector);
+		point.copy(*pDirectionVector);
 		point.multiply((m_min.m_vals[1] - pRayOrigin->m_vals[1]) / pDirectionVector->m_vals[1]);
-		point.add(pRayOrigin);
+		point.add(*pRayOrigin);
 		if(point.m_vals[0] >= m_min.m_vals[0] && point.m_vals[2] >= m_min.m_vals[2] &&
 			point.m_vals[0] <= m_max.m_vals[0] && point.m_vals[2] <= m_max.m_vals[2])
 			return true;
-		point.copy(pDirectionVector);
+		point.copy(*pDirectionVector);
 		point.multiply((m_max.m_vals[1] - pRayOrigin->m_vals[1]) / pDirectionVector->m_vals[1]);
-		point.add(pRayOrigin);
+		point.add(*pRayOrigin);
 		if(point.m_vals[0] >= m_min.m_vals[0] && point.m_vals[2] >= m_min.m_vals[2] &&
 			point.m_vals[0] <= m_max.m_vals[0] && point.m_vals[2] <= m_max.m_vals[2])
 			return true;
 	}
 	if(pDirectionVector->m_vals[2] != 0)
 	{
-		point.copy(pDirectionVector);
+		point.copy(*pDirectionVector);
 		point.multiply((m_min.m_vals[2] - pRayOrigin->m_vals[2]) / pDirectionVector->m_vals[2]);
-		point.add(pRayOrigin);
+		point.add(*pRayOrigin);
 		if(point.m_vals[0] >= m_min.m_vals[0] && point.m_vals[1] >= m_min.m_vals[1] &&
 			point.m_vals[0] <= m_max.m_vals[0] && point.m_vals[1] <= m_max.m_vals[1])
 			return true;
-		point.copy(pDirectionVector);
+		point.copy(*pDirectionVector);
 		point.multiply((m_max.m_vals[2] - pRayOrigin->m_vals[2]) / pDirectionVector->m_vals[2]);
-		point.add(pRayOrigin);
+		point.add(*pRayOrigin);
 		if(point.m_vals[0] >= m_min.m_vals[0] && point.m_vals[1] >= m_min.m_vals[1] &&
 			point.m_vals[0] <= m_max.m_vals[0] && point.m_vals[1] <= m_max.m_vals[1])
 			return true;
@@ -1614,29 +1612,11 @@ GRayTraceObject* GRayTraceBoundingBoxLeaf::closestIntersection(G3DVector* pRayOr
 
 // -----------------------------------------------------------------------------
 
-GRayTraceTriMesh::GRayTraceTriMesh(GRayTraceMaterial* pMaterial, size_t nPoints, size_t nTriangles, size_t nNormals, size_t nTextureCoords)
+GRayTraceTriMesh::GRayTraceTriMesh(GRayTraceMaterial* pMaterial)
 {
 	m_pMaterial = pMaterial;
-	m_nPoints = nPoints;
-	m_pPoints = new G3DVector[nPoints];
-	m_nTriangles = nTriangles;
-	m_pTriangles = new size_t[3 * nTriangles];
-	if(nNormals > 0)
-	{
-		if(nNormals != nPoints)
-			throw "The number of normals is not equal to the number of vertices";
-		m_pNormals = new G3DVector[nPoints];
-	}
-	else
-		m_pNormals = NULL;
-	if(nTextureCoords > 0)
-	{
-		if(nTextureCoords != nPoints)
-			throw "The number of texture coords is not equal to the number of vertices";
-		m_pTextureCoords = new G3DReal[2 * nPoints];
-	}
-	else
-		m_pTextureCoords = NULL;
+	m_pNormals = nullptr;
+	m_pTextureCoords = nullptr;
 	m_bCulling = false;
 }
 
@@ -1648,29 +1628,27 @@ GRayTraceTriMesh::GRayTraceTriMesh(GDomNode* pNode, GRayTraceScene* pScene)
 	GDomNode* pNormalsNode = pNode->getIfExists("normals");
 	GDomNode* pCoordsNode = pNode->getIfExists("coords");
 	GDomListIterator it1(pPointsNode);
-	m_nPoints = it1.remaining();
-	m_pPoints = new G3DVector[m_nPoints];
 	for(size_t i = 0; it1.current(); i++)
 	{
-		m_pPoints[i].deserialize(it1.current());
+		G3DVector tmp;
+		tmp.deserialize(it1.current());
+		m_points.push_back(tmp);
 		it1.advance();
 	}
 	GDomListIterator it2(pTrianglesNode);
 	if(it2.remaining() % 3 != 0)
 		throw Ex("triangle points are not a multiple of 3");
-	m_nTriangles = it2.remaining() / 3;
-	m_pTriangles = new size_t[it2.remaining()];
 	for(size_t i = 0; it2.current(); i++)
 	{
-		m_pTriangles[i] = (size_t)it2.currentInt();
+		m_triangles.push_back((size_t)it2.currentInt());
 		it2.advance();
 	}
 	if(pNormalsNode)
 	{
 		GDomListIterator it3(pNormalsNode);
-		if(it3.remaining() != (size_t)m_nPoints)
+		if(it3.remaining() != m_points.size())
 			throw Ex("The number of normals must match the number of vertexes");
-		m_pNormals = new G3DVector[m_nPoints];
+		m_pNormals = new G3DVector[m_points.size()];
 		for(size_t i = 0; it3.current(); i++)
 		{
 			m_pNormals[i].deserialize(it3.current());
@@ -1682,9 +1660,9 @@ GRayTraceTriMesh::GRayTraceTriMesh(GDomNode* pNode, GRayTraceScene* pScene)
 	if(pCoordsNode)
 	{
 		GDomListIterator it4(pCoordsNode);
-		if(it4.remaining() != 2 * (size_t)m_nPoints)
+		if(it4.remaining() != 2 * m_points.size())
 			throw Ex("The number of texture coords must be double the number of vertexes");
-		m_pTextureCoords = new G3DReal[2 * m_nPoints];
+		m_pTextureCoords = new G3DReal[2 * m_points.size()];
 		for(size_t i = 0; it4.current(); i++)
 		{
 			m_pTextureCoords[i] = it4.currentDouble();
@@ -1698,8 +1676,6 @@ GRayTraceTriMesh::GRayTraceTriMesh(GDomNode* pNode, GRayTraceScene* pScene)
 
 /*virtual*/ GRayTraceTriMesh::~GRayTraceTriMesh()
 {
-	delete[] m_pPoints;
-	delete[] m_pTriangles;
 	delete[] m_pNormals;
 	delete[] m_pTextureCoords;
 }
@@ -1709,53 +1685,44 @@ GDomNode* GRayTraceTriMesh::serialize(GDom* pDoc, const GRayTraceScene* pScene) 
 	GDomNode* pNode = pDoc->newObj();
 	pNode->add(pDoc, "material", pScene->materialIndex(m_pMaterial));
 	GDomNode* pPointsNode = pNode->add(pDoc, "points", pDoc->newList());
-	for(size_t i = 0; i < m_nPoints; i++)
-		pPointsNode->add(pDoc, m_pPoints[i].serialize(pDoc));
+	for(size_t i = 0; i < m_points.size(); i++)
+		pPointsNode->add(pDoc, m_points[i].serialize(pDoc));
 	GDomNode* pTrianglesNode = pNode->add(pDoc, "triangles", pDoc->newList());
-	int j = 0;
-	for(size_t i = 0; i < m_nTriangles; i++)
-	{
-		pTrianglesNode->add(pDoc, m_pTriangles[j]);
-		j++;
-		pTrianglesNode->add(pDoc, m_pTriangles[j]);
-		j++;
-		pTrianglesNode->add(pDoc, m_pTriangles[j]);
-		j++;
-	}
+	for(size_t i = 0; i < m_triangles.size(); i++)
+		pTrianglesNode->add(pDoc, m_triangles[i]);
 	if(m_pNormals)
 	{
 		GDomNode* pNormalsNode = pNode->add(pDoc, "normals", pDoc->newList());
-		for(size_t i = 0; i < m_nPoints; i++)
+		for(size_t i = 0; i < m_points.size(); i++)
 			pNormalsNode->add(pDoc, m_pNormals[i].serialize(pDoc));
 	}
 	if(m_pTextureCoords)
 	{
 		GDomNode* pCoordsNode = pNode->add(pDoc, "coords", pDoc->newList());
-		for(size_t i = 0; i < 2 * m_nPoints; i++)
+		for(size_t i = 0; i < 2 * m_points.size(); i++)
 			pCoordsNode->add(pDoc, m_pTextureCoords[i]);
 	}
 	pNode->add(pDoc, "culling", m_bCulling);
 	return pNode;
 }
 
-void GRayTraceTriMesh::setPoint(size_t nIndex, const G3DVector* pPoint)
+void GRayTraceTriMesh::addPoint(const G3DVector& point)
 {
-	GAssert(nIndex < m_nPoints); // out of range
-	m_pPoints[nIndex] = *pPoint;
+	m_points.push_back(point);
 }
 
-void GRayTraceTriMesh::setTriangle(size_t nIndex, size_t v1, size_t v2, size_t v3)
+void GRayTraceTriMesh::addTriangle(size_t v1, size_t v2, size_t v3)
 {
-	GAssert(nIndex < m_nTriangles); // out of range
-	size_t* pTri = &m_pTriangles[3 * nIndex];
-	pTri[0] = v1;
-	pTri[1] = v2;
-	pTri[2] = v3;
+	m_triangles.push_back(v1);
+	m_triangles.push_back(v2);
+	m_triangles.push_back(v3);
 }
 
 void GRayTraceTriMesh::setNormal(size_t nIndex, G3DVector* pNormal)
 {
-	GAssert(nIndex < m_nPoints); // out of range
+	if(!m_pNormals)
+		m_pNormals = new G3DVector[m_points.size()];
+	GAssert(nIndex < m_points.size()); // out of range
 	m_pNormals[nIndex] = *pNormal;
 }
 
@@ -1862,32 +1829,31 @@ void GRayTraceTriMesh::computePhongNormals()
 {
 	// Make lists of all the triangles that touch each vertex
 	vector<GTriangleIndexArray> arrVertexTriangles;
-	arrVertexTriangles.resize(m_nPoints);
-	for(size_t i = 0; i < m_nTriangles; i++)
+	arrVertexTriangles.resize(m_points.size());
+	for(size_t i = 0; i < m_triangles.size() / 3; i++)
 	{
 		for(size_t j = 0; j < 3; j++)
-			arrVertexTriangles[m_pTriangles[3 * i + j]].m_triangles.push_back(i);
+			arrVertexTriangles[m_triangles[3 * i + j]].m_triangles.push_back(i);
 	}
 
 	// Make the vertex normals
 	size_t nTri;
 	delete[] m_pNormals;
-	m_pNormals = new G3DVector[m_nPoints];
+	m_pNormals = new G3DVector[m_points.size()];
 	G3DVector triNorm;
-	for(size_t i = 0; i < m_nPoints; i++)
+	for(size_t i = 0; i < m_points.size(); i++)
 	{
 		m_pNormals[i].set(0, 0, 0);
 		for(size_t j = 0; j < arrVertexTriangles[i].m_triangles.size(); j++)
 		{
 			nTri = arrVertexTriangles[i].m_triangles[j];
-			GAssert(nTri >= 0 && nTri < m_nTriangles); // out of range
 			triNorm.triangleNormal(
-					&m_pPoints[m_pTriangles[3 * nTri]],
-					&m_pPoints[m_pTriangles[3 * nTri + 1]],
-					&m_pPoints[m_pTriangles[3 * nTri + 2]]
+					m_points[m_triangles[3 * nTri]],
+					m_points[m_triangles[3 * nTri + 1]],
+					m_points[m_triangles[3 * nTri + 2]]
 				);
 			// todo: scale each component vector by the area of the triangle that contributes it?
-			m_pNormals[i].add(&triNorm);
+			m_pNormals[i].add(triNorm);
 		}
 		m_pNormals[i].normalize();
 	}
@@ -1895,7 +1861,9 @@ void GRayTraceTriMesh::computePhongNormals()
 
 void GRayTraceTriMesh::setTextureCoord(size_t nIndex, G3DReal x, G3DReal y)
 {
-	GAssert(nIndex < m_nPoints); // out of range
+	if(!m_pTextureCoords)
+		m_pTextureCoords = new G3DReal[2 * m_points.size()];
+	GAssert(nIndex < m_points.size()); // out of range
 	nIndex *= 2;
 	m_pTextureCoords[nIndex] = x;
 	m_pTextureCoords[nIndex + 1] = y;
@@ -1907,7 +1875,7 @@ bool GRayTraceTriMesh::isPointWithinPlanarPolygon(G3DVector* pPoint, G3DVector**
 	// are the dimensions with the smallest component in the normal vector)
 	GAssert(nVertices >= 3); // at least three points are needed to define a planar polygon
 	G3DVector plane;
-	plane.triangleNormal(ppVertices[0], ppVertices[1], ppVertices[2]);
+	plane.triangleNormal(*ppVertices[0], *ppVertices[1], *ppVertices[2]);
 	plane.m_vals[0] = std::abs(plane.m_vals[0]);
 	plane.m_vals[1] = std::abs(plane.m_vals[1]);
 	plane.m_vals[2] = std::abs(plane.m_vals[2]);
@@ -1965,13 +1933,15 @@ bool GRayTraceTriMesh::isPointWithinPlanarPolygon(G3DVector* pPoint, G3DVector**
 G3DReal GRayTraceTriMesh::rayDistanceToTriangle(size_t nTriangle, G3DVector* pRayOrigin, G3DVector* pRayDirection)
 {
 	// Compute the plane equasion Ax + By + Cz + D = 0
-	size_t* pTriangle = &m_pTriangles[3 * nTriangle];
+	size_t t1 = m_triangles[3 * nTriangle];
+	size_t t2 = m_triangles[3 * nTriangle + 1];
+	size_t t3 = m_triangles[3 * nTriangle + 2];
 	G3DVector plane; // The plane normal is the vector (A, B, C)
 	G3DReal d;
-	plane.planeEquation(&m_pPoints[pTriangle[0]], &m_pPoints[pTriangle[1]], &m_pPoints[pTriangle[2]], &d);
+	plane.planeEquation(m_points[t1], m_points[t2], m_points[t3], &d);
 
 	// Compute distance and point of intersection
-	G3DReal tmp = plane.dotProduct(pRayDirection);
+	G3DReal tmp = plane.dotProduct(*pRayDirection);
 	if(tmp >= 0)
 	{
 		if(tmp == 0)
@@ -1986,18 +1956,18 @@ G3DReal GRayTraceTriMesh::rayDistanceToTriangle(size_t nTriangle, G3DVector* pRa
 			tmp = -tmp;
 		}
 	}
-	G3DReal distance = -(plane.dotProduct(pRayOrigin) + d) / tmp;
+	G3DReal distance = -(plane.dotProduct(*pRayOrigin) + d) / tmp;
 	if(distance <= 0)
 		return 0; // the intersection point is behind the ray origin
-	G3DVector point(pRayDirection);
+	G3DVector point(*pRayDirection);
 	point.multiply(distance);
-	point.add(pRayOrigin);
+	point.add(*pRayOrigin);
 
 	// Determine if the intersection point is within the triangle
 	G3DVector* pVertices[3];
-	pVertices[0] = &m_pPoints[pTriangle[0]];
-	pVertices[1] = &m_pPoints[pTriangle[1]];
-	pVertices[2] = &m_pPoints[pTriangle[2]];
+	pVertices[0] = &m_points[t1];
+	pVertices[1] = &m_points[t2];
+	pVertices[2] = &m_points[t3];
 	if(!isPointWithinPlanarPolygon(&point, pVertices, 3))
 		return 0; // the ray misses the triangle
 	return distance;
@@ -2005,8 +1975,10 @@ G3DReal GRayTraceTriMesh::rayDistanceToTriangle(size_t nTriangle, G3DVector* pRa
 
 void GRayTraceTriMesh::normalVector(GRayTraceRay* pRay, size_t nIndex)
 {
-	size_t* pTriangle = &m_pTriangles[3 * nIndex];
-	pRay->m_normalVector.triangleNormal(&m_pPoints[pTriangle[0]], &m_pPoints[pTriangle[1]], &m_pPoints[pTriangle[2]]);
+	size_t t0 = m_triangles[3 * nIndex];
+	size_t t1 = m_triangles[3 * nIndex + 1];
+	size_t t2 = m_triangles[3 * nIndex + 2];
+	pRay->m_normalVector.triangleNormal(m_points[t0], m_points[t1], m_points[t2]);
 	if(!m_pNormals && !m_pTextureCoords)
 		return;
 
@@ -2033,19 +2005,19 @@ void GRayTraceTriMesh::normalVector(GRayTraceRay* pRay, size_t nIndex)
 	}
 
 	// Find the weights alpha, beta, and gamma
-	G3DReal u1 = m_pPoints[pTriangle[1]].m_vals[i1] - m_pPoints[pTriangle[0]].m_vals[i1];
-	G3DReal u2 = m_pPoints[pTriangle[2]].m_vals[i1] - m_pPoints[pTriangle[0]].m_vals[i1];
-	G3DReal v1 = m_pPoints[pTriangle[1]].m_vals[i2] - m_pPoints[pTriangle[0]].m_vals[i2];
-	G3DReal v2 = m_pPoints[pTriangle[2]].m_vals[i2] - m_pPoints[pTriangle[0]].m_vals[i2];
-	G3DReal u0 = pRay->m_collisionPoint.m_vals[i1] - m_pPoints[pTriangle[0]].m_vals[i1];
-	G3DReal v0 = pRay->m_collisionPoint.m_vals[i2] - m_pPoints[pTriangle[0]].m_vals[i2];
+	G3DReal u1 = m_points[t1].m_vals[i1] - m_points[t0].m_vals[i1];
+	G3DReal u2 = m_points[t2].m_vals[i1] - m_points[t0].m_vals[i1];
+	G3DReal v1 = m_points[t1].m_vals[i2] - m_points[t0].m_vals[i2];
+	G3DReal v2 = m_points[t2].m_vals[i2] - m_points[t0].m_vals[i2];
+	G3DReal u0 = pRay->m_collisionPoint.m_vals[i1] - m_points[t0].m_vals[i1];
+	G3DReal v0 = pRay->m_collisionPoint.m_vals[i2] - m_points[t0].m_vals[i2];
 	G3DReal beta  = (u0 * v2 - u2 * v0) / (u1 * v2 - v1 * u2);
 	G3DReal gamma = (v0 * u1 - u0 * v1) / (u1 * v2 - v1 * u2);
 	G3DReal alpha = (G3DReal)1.0 - (gamma + beta);
 /*
-	GAssert(ABS(alpha * m_pPoints[pTriangle[0]].m_vals[0] + beta * m_pPoints[pTriangle[1]].m_vals[0] + gamma * m_pPoints[pTriangle[2]].m_vals[0] - pRay->m_collisionPoint.m_vals[0]) < .001, "value is wrong");
-	GAssert(ABS(alpha * m_pPoints[pTriangle[0]].m_vals[1] + beta * m_pPoints[pTriangle[1]].m_vals[1] + gamma * m_pPoints[pTriangle[2]].m_vals[1] - pRay->m_collisionPoint.m_vals[1]) < .001, "value is wrong");
-	GAssert(ABS(alpha * m_pPoints[pTriangle[0]].m_vals[2] + beta * m_pPoints[pTriangle[1]].m_vals[2] + gamma * m_pPoints[pTriangle[2]].m_vals[2] - pRay->m_collisionPoint.m_vals[2]) < .001, "value is wrong");
+	GAssert(ABS(alpha * m_pPoints[t0].m_vals[0] + beta * m_points[t1].m_vals[0] + gamma * m_points[t2].m_vals[0] - pRay->m_collisionPoint.m_vals[0]) < .001, "value is wrong");
+	GAssert(ABS(alpha * m_pPoints[t0].m_vals[1] + beta * m_points[t1].m_vals[1] + gamma * m_points[t2].m_vals[1] - pRay->m_collisionPoint.m_vals[1]) < .001, "value is wrong");
+	GAssert(ABS(alpha * m_pPoints[t0].m_vals[2] + beta * m_points[t1].m_vals[2] + gamma * m_points[t2].m_vals[2] - pRay->m_collisionPoint.m_vals[2]) < .001, "value is wrong");
 */	
 	// todo: If beta and gamma > 0 and beta + gamma <= 1,
 	// then the point of intersection is inside the triangle.
@@ -2054,86 +2026,89 @@ void GRayTraceTriMesh::normalVector(GRayTraceRay* pRay, size_t nIndex)
 	// Compute the Phong normal
 	if(m_pNormals)
 	{
-		G3DVector tmpNormal(&m_pNormals[pTriangle[0]]);
+		G3DVector tmpNormal(m_pNormals[t0]);
 		tmpNormal.multiply(alpha);
-		pRay->m_normalVector.copy(&tmpNormal);
-		tmpNormal.copy(&m_pNormals[pTriangle[1]]);
+		pRay->m_normalVector.copy(tmpNormal);
+		tmpNormal.copy(m_pNormals[t1]);
 		tmpNormal.multiply(beta);
-		pRay->m_normalVector.add(&tmpNormal);
-		tmpNormal.copy(&m_pNormals[pTriangle[2]]);
+		pRay->m_normalVector.add(tmpNormal);
+		tmpNormal.copy(m_pNormals[t2]);
 		tmpNormal.multiply(gamma);
-		pRay->m_normalVector.add(&tmpNormal);
+		pRay->m_normalVector.add(tmpNormal);
 		pRay->m_normalVector.normalize();
 	}
 
 	// Compute texture coordinate
 	if(m_pTextureCoords)
 	{
-		G3DReal x = alpha * m_pTextureCoords[2 * pTriangle[0]] +
-				beta * m_pTextureCoords[2 * pTriangle[1]] +
-				gamma * m_pTextureCoords[2 * pTriangle[2]];
-		G3DReal y = alpha * m_pTextureCoords[2 * pTriangle[0] + 1] +
-				beta * m_pTextureCoords[2 * pTriangle[1] + 1] +
-				gamma * m_pTextureCoords[2 * pTriangle[2] + 1];
+		G3DReal x = alpha * m_pTextureCoords[2 * t0] +
+				beta * m_pTextureCoords[2 * t1] +
+				gamma * m_pTextureCoords[2 * t2];
+		G3DReal y = alpha * m_pTextureCoords[2 * t0 + 1] +
+				beta * m_pTextureCoords[2 * t1 + 1] +
+				gamma * m_pTextureCoords[2 * t2 + 1];
 		pRay->SetTextureCoords(x, y);
 	}
 }
 
 void GRayTraceTriMesh::center(G3DVector* pOutPoint, size_t nIndex)
 {
-	size_t* pTriangle = &m_pTriangles[3 * nIndex];
-	pOutPoint->copy(&m_pPoints[pTriangle[0]]);
-	pOutPoint->add(&m_pPoints[pTriangle[1]]);
-	pOutPoint->add(&m_pPoints[pTriangle[2]]);
+	size_t t0 = m_triangles[3 * nIndex];
+	size_t t1 = m_triangles[3 * nIndex + 1];
+	size_t t2 = m_triangles[3 * nIndex + 2];
+	pOutPoint->copy(m_points[t0]);
+	pOutPoint->add(m_points[t1]);
+	pOutPoint->add(m_points[t2]);
 	pOutPoint->multiply((G3DReal)1.0 / (G3DReal)3.0);
 }
 
 G3DVector* GRayTraceTriMesh::vertex(size_t nIndex, size_t nVertex)
 {
-	size_t* pTriangle = &m_pTriangles[3 * nIndex];
-	return &m_pPoints[pTriangle[nVertex]];
+	return &m_points[m_triangles[3 * nIndex + nVertex]];
 }
 
 void GRayTraceTriMesh::adjustBoundingBox(size_t nIndex, G3DVector* pMin, G3DVector* pMax)
 {
-	size_t* pTriangle = &m_pTriangles[3 * nIndex];
+	size_t t0 = m_triangles[3 * nIndex];
+	size_t t1 = m_triangles[3 * nIndex + 1];
+	size_t t2 = m_triangles[3 * nIndex + 2];
 
 	// Vertex 0
-	pMin->m_vals[0] = std::min(pMin->m_vals[0], m_pPoints[pTriangle[0]].m_vals[0]);
-	pMin->m_vals[1] = std::min(pMin->m_vals[1], m_pPoints[pTriangle[0]].m_vals[1]);
-	pMin->m_vals[2] = std::min(pMin->m_vals[2], m_pPoints[pTriangle[0]].m_vals[2]);
-	pMax->m_vals[0] = std::max(pMax->m_vals[0], m_pPoints[pTriangle[0]].m_vals[0]);
-	pMax->m_vals[1] = std::max(pMax->m_vals[1], m_pPoints[pTriangle[0]].m_vals[1]);
-	pMax->m_vals[2] = std::max(pMax->m_vals[2], m_pPoints[pTriangle[0]].m_vals[2]);
+	pMin->m_vals[0] = std::min(pMin->m_vals[0], m_points[t0].m_vals[0]);
+	pMin->m_vals[1] = std::min(pMin->m_vals[1], m_points[t0].m_vals[1]);
+	pMin->m_vals[2] = std::min(pMin->m_vals[2], m_points[t0].m_vals[2]);
+	pMax->m_vals[0] = std::max(pMax->m_vals[0], m_points[t0].m_vals[0]);
+	pMax->m_vals[1] = std::max(pMax->m_vals[1], m_points[t0].m_vals[1]);
+	pMax->m_vals[2] = std::max(pMax->m_vals[2], m_points[t0].m_vals[2]);
 
 	// Vertex 1
-	pMin->m_vals[0] = std::min(pMin->m_vals[0], m_pPoints[pTriangle[1]].m_vals[0]);
-	pMin->m_vals[1] = std::min(pMin->m_vals[1], m_pPoints[pTriangle[1]].m_vals[1]);
-	pMin->m_vals[2] = std::min(pMin->m_vals[2], m_pPoints[pTriangle[1]].m_vals[2]);
-	pMax->m_vals[0] = std::max(pMax->m_vals[0], m_pPoints[pTriangle[1]].m_vals[0]);
-	pMax->m_vals[1] = std::max(pMax->m_vals[1], m_pPoints[pTriangle[1]].m_vals[1]);
-	pMax->m_vals[2] = std::max(pMax->m_vals[2], m_pPoints[pTriangle[1]].m_vals[2]);
+	pMin->m_vals[0] = std::min(pMin->m_vals[0], m_points[t1].m_vals[0]);
+	pMin->m_vals[1] = std::min(pMin->m_vals[1], m_points[t1].m_vals[1]);
+	pMin->m_vals[2] = std::min(pMin->m_vals[2], m_points[t1].m_vals[2]);
+	pMax->m_vals[0] = std::max(pMax->m_vals[0], m_points[t1].m_vals[0]);
+	pMax->m_vals[1] = std::max(pMax->m_vals[1], m_points[t1].m_vals[1]);
+	pMax->m_vals[2] = std::max(pMax->m_vals[2], m_points[t1].m_vals[2]);
 
 	// Vertex 2
-	pMin->m_vals[0] = std::min(pMin->m_vals[0], m_pPoints[pTriangle[2]].m_vals[0]);
-	pMin->m_vals[1] = std::min(pMin->m_vals[1], m_pPoints[pTriangle[2]].m_vals[1]);
-	pMin->m_vals[2] = std::min(pMin->m_vals[2], m_pPoints[pTriangle[2]].m_vals[2]);
-	pMax->m_vals[0] = std::max(pMax->m_vals[0], m_pPoints[pTriangle[2]].m_vals[0]);
-	pMax->m_vals[1] = std::max(pMax->m_vals[1], m_pPoints[pTriangle[2]].m_vals[1]);
-	pMax->m_vals[2] = std::max(pMax->m_vals[2], m_pPoints[pTriangle[2]].m_vals[2]);
+	pMin->m_vals[0] = std::min(pMin->m_vals[0], m_points[t2].m_vals[0]);
+	pMin->m_vals[1] = std::min(pMin->m_vals[1], m_points[t2].m_vals[1]);
+	pMin->m_vals[2] = std::min(pMin->m_vals[2], m_points[t2].m_vals[2]);
+	pMax->m_vals[0] = std::max(pMax->m_vals[0], m_points[t2].m_vals[0]);
+	pMax->m_vals[1] = std::max(pMax->m_vals[1], m_points[t2].m_vals[1]);
+	pMax->m_vals[2] = std::max(pMax->m_vals[2], m_points[t2].m_vals[2]);
 }
 
 // static
 GRayTraceTriMesh* GRayTraceTriMesh::makeQuadSurface(GRayTraceMaterial* pMaterial, G3DVector* p1, G3DVector* p2, G3DVector* p3, G3DVector* p4)
 {
 	bool imageTexture = (pMaterial->materialType() == GRayTraceMaterial::Image);
-	GRayTraceTriMesh* pMesh = new GRayTraceTriMesh(pMaterial, 4, 2, 0, (imageTexture ? 4 : 0));
-	pMesh->setPoint(0, p1);
-	pMesh->setPoint(1, p2);
-	pMesh->setPoint(2, p3);
-	pMesh->setPoint(3, p4);
-	pMesh->setTriangle(0, 0, 1, 2);
-	pMesh->setTriangle(1, 2, 3, 0);
+	GRayTraceTriMesh* pMesh = new GRayTraceTriMesh(pMaterial);
+	pMesh->addPoint(*p1);
+	pMesh->addPoint(*p2);
+	pMesh->addPoint(*p3);
+	pMesh->addPoint(*p4);
+	pMesh->addTriangle(0, 1, 2);
+	pMesh->addTriangle(2, 3, 0);
 	if(imageTexture)
 	{
 		GImage* pImage = ((GRayTraceImageTexture*)pMaterial)->textureImage();
@@ -2149,11 +2124,11 @@ GRayTraceTriMesh* GRayTraceTriMesh::makeQuadSurface(GRayTraceMaterial* pMaterial
 GRayTraceTriMesh* GRayTraceTriMesh::makeSingleTriangle(GRayTraceMaterial* pMaterial, G3DVector* p1, G3DVector* p2, G3DVector* p3)
 {
 	bool imageTexture = (pMaterial->materialType() == GRayTraceMaterial::Image);
-	GRayTraceTriMesh* pMesh = new GRayTraceTriMesh(pMaterial, 3, 1, 0, (imageTexture ? 4 : 0));
-	pMesh->setPoint(0, p1);
-	pMesh->setPoint(1, p2);
-	pMesh->setPoint(2, p3);
-	pMesh->setTriangle(0, 0, 1, 2);
+	GRayTraceTriMesh* pMesh = new GRayTraceTriMesh(pMaterial);
+	pMesh->addPoint(*p1);
+	pMesh->addPoint(*p2);
+	pMesh->addPoint(*p3);
+	pMesh->addTriangle(0, 1, 2);
 	if(imageTexture)
 	{
 		GImage* pImage = ((GRayTraceImageTexture*)pMaterial)->textureImage();
@@ -2169,44 +2144,41 @@ GRayTraceTriMesh* GRayTraceTriMesh::makeCylinder(GRayTraceMaterial* pMaterial, G
 {
 	// Compute t, u, and v as the three component vectors of the MakeCylinder. w is just any
 	// vector that is not parallel to t
-	G3DVector t(pCenter1);
-	t.subtract(pCenter2);
+	G3DVector t(*pCenter1);
+	t.subtract(*pCenter2);
 	G3DVector w;
 	if(t.m_vals[0] > t.m_vals[1] && t.m_vals[0] > t.m_vals[2])
 		w.set(0, 1, 0);
 	else
 		w.set(1, 0, 0);
 	G3DVector u, v;
-	u.crossProduct(&t, &w);
+	u.crossProduct(t, w);
 	u.normalize();
 	u.multiply(radius);
-	v.crossProduct(&t, &u);
+	v.crossProduct(t, u);
 	v.normalize();
 	v.multiply(radius);
 
 	// Make the mesh
 	size_t nVertices = nSides * 2 + (bEndCaps ? 2 : 0);
-	size_t nTriangles = nSides * (bEndCaps ? 4 : 2);
 	bool imageTexture = (pMaterial->materialType() == GRayTraceMaterial::Image);
 	GImage* pImage = imageTexture ? ((GRayTraceImageTexture*)pMaterial)->textureImage() : NULL;
-	GRayTraceTriMesh* pMesh = new GRayTraceTriMesh(pMaterial, nVertices, nTriangles, 0, (pImage ? nVertices : 0));
-	G3DVector p1(pCenter1);
-	p1.add(&u);
-	G3DVector p2(pCenter2);
-	p2.add(&u);
+	GRayTraceTriMesh* pMesh = new GRayTraceTriMesh(pMaterial);
+	G3DVector p1(*pCenter1);
+	p1.add(u);
+	G3DVector p2(*pCenter2);
+	p2.add(u);
 	G3DVector p3, p4;
 	double dRads;
 	double dStep = 2 * M_PI / nSides;
-	size_t nVertex = 0;
-	size_t nTriangle = 0;
 	if(bEndCaps)
 	{
-		pMesh->setPoint(nVertex++, pCenter1);
-		pMesh->setPoint(nVertex++, pCenter2);
+		pMesh->addPoint(*pCenter1);
+		pMesh->addPoint(*pCenter2);
 		if(pImage)
 		{
-			pMesh->setTextureCoord(nVertex - 2, (G3DReal)pImage->width() / 2, (G3DReal)pImage->height() / 2);
-			pMesh->setTextureCoord(nVertex - 1, (G3DReal)pImage->width() / 2, (G3DReal)pImage->height() / 2);
+			pMesh->setTextureCoord(pMesh->pointCount() - 2, (G3DReal)pImage->width() / 2, (G3DReal)pImage->height() / 2);
+			pMesh->setTextureCoord(pMesh->pointCount() - 1, (G3DReal)pImage->width() / 2, (G3DReal)pImage->height() / 2);
 		}
 	}
 	size_t nPrevVertexPos = nVertices;
@@ -2214,42 +2186,40 @@ GRayTraceTriMesh* GRayTraceTriMesh::makeCylinder(GRayTraceMaterial* pMaterial, G
 	{
 		// Move forward
 		dRads -= dStep;
-		p3.copy(&p1);
-		p4.copy(&p2);
+		p3.copy(p1);
+		p4.copy(p2);
 
 		// Compute the two vertices of the new edge
-		w.copy(&u);
+		w.copy(u);
 		w.multiply((G3DReal)cos(dRads));
-		p1.copy(&v);
+		p1.copy(v);
 		p1.multiply((G3DReal)sin(dRads));
-		p1.add(&w);
-		p2.copy(&p1);
-		p1.add(pCenter1);
-		p2.add(pCenter2);
-		pMesh->setPoint(nVertex++, &p1);
-		pMesh->setPoint(nVertex++, &p2);
+		p1.add(w);
+		p2.copy(p1);
+		p1.add(*pCenter1);
+		p2.add(*pCenter2);
+		pMesh->addPoint(p1);
+		pMesh->addPoint(p2);
 
 		// Set the texture coordinates
 		if(pImage)
 		{
 			G3DReal y = (G3DReal)(dRads * (pImage->height() - 1) / (2 * M_PI));
-			pMesh->setTextureCoord(nVertex - 2, 0, y);
-			pMesh->setTextureCoord(nVertex - 1, (G3DReal)(pImage->width() - 1), y);
+			pMesh->setTextureCoord(pMesh->pointCount() - 2, 0, y);
+			pMesh->setTextureCoord(pMesh->pointCount() - 1, (G3DReal)(pImage->width() - 1), y);
 		}
 
 		// Make the triangles
-		pMesh->setTriangle(nTriangle++, nVertex - 1, nVertex - 2, nPrevVertexPos - 1);
-		pMesh->setTriangle(nTriangle++, nPrevVertexPos - 2, nPrevVertexPos - 1, nVertex - 2);
+		pMesh->addTriangle(pMesh->pointCount() - 1, pMesh->pointCount() - 2, nPrevVertexPos - 1);
+		pMesh->addTriangle(nPrevVertexPos - 2, nPrevVertexPos - 1, pMesh->pointCount() - 2);
 		if(bEndCaps)
 		{
-			pMesh->setTriangle(nTriangle++, nVertex - 2, nPrevVertexPos - 2, 0);
-			pMesh->setTriangle(nTriangle++, nVertex - 1, nPrevVertexPos - 1, 1);
+			pMesh->addTriangle(pMesh->pointCount() - 2, nPrevVertexPos - 2, 0);
+			pMesh->addTriangle(pMesh->pointCount() - 1, nPrevVertexPos - 1, 1);
 		}
 
-		nPrevVertexPos = nVertex;
+		nPrevVertexPos = pMesh->pointCount();
 	}
-	GAssert(nVertex == nVertices); // wrong number of vertices
-	GAssert(nTriangle == nTriangles); // wrong number of triangles
 	//pMesh->ComputePhongNormals();
 	return pMesh;
 }
@@ -2322,8 +2292,8 @@ G3DReal GRayTraceSphere::rayDistance(G3DVector* pRayOrigin, G3DVector* pRayDirec
 //virtual
 void GRayTraceSphere::normalVector(GRayTraceRay* pRay)
 {
-	pRay->m_normalVector.copy(&pRay->m_collisionPoint);
-	pRay->m_normalVector.subtract(&m_center);
+	pRay->m_normalVector.copy(pRay->m_collisionPoint);
+	pRay->m_normalVector.subtract(m_center);
 	pRay->m_normalVector.normalize();
 }
 
@@ -2341,9 +2311,9 @@ void GRayTraceSphere::adjustBoundingBox(G3DVector* pMin, G3DVector* pMax)
 void GRayTraceSphere::drawWireFrame(GCamera* pCamera, GImage* pImage)
 {
 	G3DVector centr, perim, tmp;
-	tmp.copy(pCamera->viewSideVector());
+	tmp.copy(*pCamera->viewSideVector());
 	tmp.multiply(m_radius);
-	tmp.add(&m_center);
+	tmp.add(m_center);
 	pCamera->project(&m_center, &centr);
 	if(centr.m_vals[2] < 0)
 		return; // behind the camera
@@ -2464,16 +2434,15 @@ void GTriMeshBuilder::add(const G3DVector& a, const G3DVector& b, const G3DVecto
 
 GRayTraceTriMesh* GTriMeshBuilder::mesh()
 {
-	GRayTraceTriMesh* pMesh = new GRayTraceTriMesh(m_pMaterial, m_points.size(), m_indexes.size() / 3, 0, 0);
+	GRayTraceTriMesh* pMesh = new GRayTraceTriMesh(m_pMaterial);
 	for(size_t i = 0; i < m_points.size(); i++)
-		pMesh->setPoint(i, &m_points[i]);
-	size_t j = 0;
+		pMesh->addPoint(m_points[i]);
 	for(size_t i = 0; i < m_indexes.size(); )
 	{
 		size_t a = m_indexes[i++];
 		size_t b = m_indexes[i++];
 		size_t c = m_indexes[i++];
-		pMesh->setTriangle(j++, a, b, c);
+		pMesh->addTriangle(a, b, c);
 	}
 	m_points.clear();
 	m_indexes.clear();
@@ -2500,15 +2469,15 @@ void G3dLetterMaker::move(G3DReal dx, G3DReal dy, G3DReal dz)
 	G3DVector tmp(dx, dy, dz);
 	G3DVector ofs;
 	m_basis.multiply(&tmp, &ofs);
-	m_pos.add(&ofs);
+	m_pos.add(ofs);
 }
 
 void G3dLetterMaker::move(G3DVector& vec)
 {
 	G3DVector ofs;
 	m_basis.multiply(&vec, &ofs);
-	m_pos.add(&ofs);
-	m_pos.add(&vec);
+	m_pos.add(ofs);
+	m_pos.add(vec);
 }
 
 void G3dLetterMaker::scale(G3DReal width, G3DReal height, G3DReal depth)
@@ -3075,10 +3044,10 @@ void G3dLetterMaker::set(G3DVector* pBack, G3DVector* pFront, G3DReal x, G3DReal
 {
 	G3DVector tmp(x, y, 0.0);
 	m_basis.multiply(&tmp, pBack);
-	pBack->add(&m_pos);
+	pBack->add(m_pos);
 	tmp.set(x, y, 1.0);
 	m_basis.multiply(&tmp, pFront);
-	pFront->add(&m_pos);
+	pFront->add(m_pos);
 }
 
 void G3dLetterMaker::addQuad(G3DReal x1, G3DReal y1, G3DReal x2, G3DReal y2, G3DReal x3, G3DReal y3, G3DReal x4, G3DReal y4)

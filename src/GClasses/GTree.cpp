@@ -23,7 +23,6 @@ using std::string;
 
 namespace GClasses {
 
-#ifndef MIN_PREDICT
 class MyRelationalObject
 {
 public:
@@ -152,7 +151,6 @@ void GRelationalTable_test()
 	if(table.size() != 0)
 		throw Ex("failed");
 }
-#endif // !MIN_PREDICT
 
 } // namespace GClasses
 

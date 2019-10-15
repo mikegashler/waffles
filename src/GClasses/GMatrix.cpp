@@ -19,16 +19,14 @@
 
 #include "GMatrix.h"
 #include "GError.h"
-#ifndef MIN_PREDICT
-#	include "GAssignment.h"
-#	include "GMath.h"
-#	include "GDistribution.h"
-#	include "GFile.h"
-#	include "GHashTable.h"
-#	include "GBits.h"
-#	include "GNeighborFinder.h"
-#	include "GDistance.h"
-#endif // MIN_PREDICT
+#include "GAssignment.h"
+#include "GMath.h"
+#include "GDistribution.h"
+#include "GFile.h"
+#include "GHashTable.h"
+#include "GBits.h"
+#include "GNeighborFinder.h"
+#include "GDistance.h"
 #include "GVec.h"
 #include "GHeap.h"
 #include "GDom.h"
@@ -198,7 +196,6 @@ void GRelation::printRow(ostream& stream, const double* pRow, char separator, co
 	stream << "\n";
 }
 
-#ifndef MIN_PREDICT
 void GRelation::save(const GMatrix* pData, const char* szFilename) const
 {
 	std::ofstream stream;
@@ -218,7 +215,6 @@ void GRelation::save(const GMatrix* pData, const char* szFilename) const
 void GRelation::test()
 {
 }
-#endif // MIN_PREDICT
 
 
 
@@ -606,27 +602,27 @@ void GArffRelation::setName(const char* szName)
 
 void GArffRelation::parseAttribute(GArffTokenizer& tok)
 {
-	tok.skip(tok.m_spaces);
-	string dataname = tok.nextArg(tok.m_argEnd);
+	tok.skipWhile(tok.m_spaces);
+	string dataname = tok.readUntil_escaped_quoted(tok.m_argEnd);
 	//std::cerr << "Attr:" << dataname << "\n"; //DEBUG
-	tok.skip(tok.m_spaces);
+	tok.skipWhile(tok.m_spaces);
 	char c = tok.peek();
 	if(c == '{')
 	{
-		tok.advance(1);
+		tok.skip(1);
 		GAssert(m_attrs.size() == m_valueCounts.size());
 		size_t index = m_valueCounts.size();
 		m_attrs.resize(index + 1);
 		while(true)
 		{
-			tok.nextArg(tok.m_valEnd);
+			tok.readUntil_escaped_quoted(tok.m_valEnd);
 			char* szVal = tok.trim(tok.m_whitespace);
 			if(*szVal == '\0')
 				throw Ex("Empty value specified on line ", to_str(tok.line()));
 			m_attrs[index].m_values.push_back(szVal);
 			char c2 = tok.peek();
 			if(c2 == ',')
-				tok.advance(1);
+				tok.skip(1);
 			else if(c2 == '}')
 				break;
 			else if(c2 == '\n')
@@ -647,7 +643,7 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 	}
 	else
 	{
-		const char* szType = tok.nextUntil(tok.m_whitespace);
+		const char* szType = tok.readUntil(tok.m_whitespace);
 		if(	_stricmp(szType, "CONTINUOUS") == 0 ||
 			_stricmp(szType, "REAL") == 0 ||
 			_stricmp(szType, "NUMERIC") == 0 ||
@@ -660,22 +656,22 @@ void GArffRelation::parseAttribute(GArffTokenizer& tok)
 		else if(_stricmp(szType, "DATE") == 0)
 		{
 			dataname += ":";
-			tok.skip(tok.m_spaces);
+			tok.skipWhile(tok.m_spaces);
 			while(true)
 			{
 				char c2 = tok.peek();
 				if(c2 == '\n' || c2 == '\r')
 					break;
 				dataname += c2;
-				tok.advance(1);
+				tok.skip(1);
 			}
 			addAttribute(dataname.c_str(), (size_t)-2, NULL);
 		}
 		else
 			throw Ex("Unsupported attribute type: (", szType, "), at line ", to_str(tok.line()));
 	}
-	tok.skipTo(tok.m_newline);
-	tok.advance(1);
+	tok.skipUntil(tok.m_newline);
+	tok.skip(1);
 }
 
 // virtual
@@ -814,12 +810,10 @@ const char* GArffRelation::attrName(size_t nAttr) const
 	return m_attrs[nAttr].m_name.c_str();
 }
 
-#ifndef MIN_PREDICT
 void GArffRelation::setAttrName(size_t attr, const char* szNewName)
 {
 	m_attrs[attr].m_name = szNewName;
 }
-#endif // MIN_PREDICT
 
 int GArffRelation::addAttrValue(size_t nAttr, const char* szValue)
 {
@@ -903,7 +897,6 @@ double GArffRelation::parseValue(size_t attr, const char* val)
 	}
 }
 
-#ifndef MIN_PREDICT
 void GArffRelation::dropValue(size_t attr, int val)
 {
 	size_t valCount = valueCount(attr);
@@ -917,7 +910,6 @@ void GArffRelation::dropValue(size_t attr, int val)
 	}
 	GMixedRelation::setAttrValueCount(attr, valCount - 1);
 }
-#endif // MIN_PREDICT
 
 // ------------------------------------------------------------------
 
@@ -1006,7 +998,7 @@ bool GMatrix::operator==(const GMatrix& other) const{
 
 void GMatrix::setRelation(GRelation* pRelation)
 {
-	if(pRelation && rows() > 0 && pRelation->size() != m_pRelation->size())
+	if(pRelation && rows() > 0 && m_pRelation && pRelation->size() != m_pRelation->size())
 		throw Ex("Existing data incompatible with new relation");
 	if(m_pRelation != pRelation)
 	{
@@ -1088,38 +1080,37 @@ double GMatrix_parseValue(GArffRelation* pRelation, size_t col, const char* szVa
 		throw Ex("Unexpected attribute type, ", to_str(vals));
 }
 
-#ifndef MIN_PREDICT
 void GMatrix::parseArff(GArffTokenizer& tok, size_t maxRows)
 {
 	// Parse the meta data
 	GArffRelation* pRelation = new GArffRelation();
 	while(true)
 	{
-		tok.skip(tok.m_whitespace);
+		tok.skipWhile(tok.m_whitespace);
 		char c = tok.peek();
 		if(c == '\0')
 			throw Ex("Invalid ARFF file--contains no data");
 		else if(c == '%')
 		{
-			tok.advance(1);
-			tok.skipTo(tok.m_newline);
+			tok.skip(1);
+			tok.skipUntil(tok.m_newline);
 		}
 		else if(c == '@')
 		{
-			tok.advance(1);
-			const char* szTok = tok.nextUntil(tok.m_whitespace);
+			tok.skip(1);
+			const char* szTok = tok.readUntil(tok.m_whitespace);
 			if(_stricmp(szTok, "ATTRIBUTE") == 0)
 				pRelation->parseAttribute(tok);
 			else if(_stricmp(szTok, "RELATION") == 0)
 			{
-				tok.skip(tok.m_spaces);
-				pRelation->setName(tok.nextArg(tok.m_whitespace));
-				tok.advance(1);
+				tok.skipWhile(tok.m_spaces);
+				pRelation->setName(tok.readUntil_escaped_quoted(tok.m_whitespace));
+				tok.skip(1);
 			}
 			else if(_stricmp(szTok, "DATA") == 0)
 			{
-				tok.skipTo(tok.m_newline);
-				tok.advance(1);
+				tok.skipUntil(tok.m_newline);
+				tok.skip(1);
 				break;
 			}
 		}
@@ -1134,28 +1125,28 @@ void GMatrix::parseArff(GArffTokenizer& tok, size_t maxRows)
 	{
 		if(rows() >= maxRows)
 			break;
-		tok.skip(tok.m_whitespace);
+		tok.skipWhile(tok.m_whitespace);
 		char c = tok.peek();
 		if(c == '\0')
 			break;
 		else if(c == '%')
 		{
-			tok.advance(1);
-			tok.skipTo(tok.m_newline);
+			tok.skip(1);
+			tok.skipUntil(tok.m_newline);
 		}
 		else if(c == '{')
 		{
 			// Parse ARFF sparse data format
-			tok.advance(1);
+			tok.skip(1);
 			GVec& r = newRow();
 			r.fill(0.0);
 			while(true)
 			{
-				tok.skip(tok.m_space);
+				tok.skipWhile(tok.m_space);
 				char c2 = tok.peek();
 				if(c2 >= '0' && c2 <= '9')
 				{
-					const char* szTok = tok.nextUntil(tok.m_valEnder);
+					const char* szTok = tok.readUntil(tok.m_valEnder);
 #ifdef WINDOWS
 					size_t column = (size_t)_strtoui64(szTok, (char**)NULL, 10);
 #else
@@ -1163,17 +1154,17 @@ void GMatrix::parseArff(GArffTokenizer& tok, size_t maxRows)
 #endif
 					if(column >= colCount)
 						throw Ex("Column index out of range at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-					tok.skip(tok.m_spaces);
-					const char* szVal = tok.nextArg(tok.m_valEnder);
+					tok.skipWhile(tok.m_spaces);
+					const char* szVal = tok.readUntil_escaped_quoted(tok.m_valEnder);
 					r[column] = GMatrix_parseValue(pRelation, column, szVal, tok);
-					tok.skipTo(tok.m_valHardEnder);
+					tok.skipUntil(tok.m_valHardEnder);
 					c2 = tok.peek();
 					if(c2 == ',' || c2 == '\t')
-						tok.advance(1);
+						tok.skip(1);
 				}
 				else if(c2 == '}')
 				{
-					tok.advance(1);
+					tok.skip(1);
 					break;
 				}
 				else if(c2 == '\n' || c2 == '\0')
@@ -1191,24 +1182,24 @@ void GMatrix::parseArff(GArffTokenizer& tok, size_t maxRows)
 			{
 				if(column >= colCount)
 					throw Ex("Too many values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
-				tok.nextArg(tok.m_commaNewlineTab);
+				tok.readUntil_escaped_quoted(tok.m_commaNewlineTab);
 				const char* szVal = tok.trim(tok.m_whitespace);
 				r[column] = GMatrix_parseValue(pRelation, column, szVal, tok);
 				column++;
 				char c2 = tok.peek();
 				while(c2 == '\t' || c2 == ' ')
 				{
-					tok.advance(1);
+					tok.skip(1);
 					c2 = tok.peek();
 				}
 				if(c2 == ',')
-					tok.advance(1);
+					tok.skip(1);
 				else if(c2 == '\n' || c2 == '\0')
 					break;
 				else if(c2 == '%')
 				{
-					tok.advance(1);
-					tok.skipTo(tok.m_newline);
+					tok.skip(1);
+					tok.skipUntil(tok.m_newline);
 					break;
 				}
 			}
@@ -1319,7 +1310,6 @@ GDomNode* GMatrix::serialize(GDom* pDoc) const
 	return pData;
 }
 
-#endif // MIN_PREDICT
 
 void GMatrix::col(size_t index, double* pOutVector)
 {
@@ -1357,7 +1347,6 @@ void GMatrix::add(const GMatrix* pThat, bool transposeThat, double scalar)
 	}
 }
 
-#ifndef MIN_PREDICT
 void GMatrix::dropValue(size_t attr, int val)
 {
 	if(attr >= cols())
@@ -1385,7 +1374,6 @@ void GMatrix::dropValue(size_t attr, int val)
 			r[attr] = UNKNOWN_DISCRETE_VALUE;
 	}
 }
-#endif // MIN_PREDICT
 
 void GMatrix::subtract(const GMatrix* pThat, bool transposeThat)
 {
@@ -2526,7 +2514,12 @@ void GMatrix::newColumns(size_t n)
 {
 	size_t oldSize = m_pRelation->size();
 	if(m_pRelation->type() == GRelation::UNIFORM)
-		setRelation(new GUniformRelation(m_pRelation->size() + n, m_pRelation->valueCount(0)));
+	{
+		size_t newSize = m_pRelation->size() + n;
+		size_t vals = m_pRelation->valueCount(0);
+		setRelation(nullptr);
+		setRelation(new GUniformRelation(newSize, vals));
+	}
 	else
 	{
 		for(size_t i = 0; i < n; i++)
@@ -2585,7 +2578,7 @@ void GMatrix::fill(double val, size_t colStart, size_t colCount)
 {
 	size_t count = std::min(cols() - colStart, colCount);
 	for(size_t i = 0; i < rows(); i++)
-		row(i).fill(val, colStart, colStart + count);
+		row(i).fill(val, colStart, count);
 }
 
 void GMatrix::fillUniform(GRand& rand, double min, double max)
@@ -3033,7 +3026,6 @@ double GMatrix::columnMean(size_t nAttribute, const GVec* pWeights, bool throwIf
 	}
 }
 
-#ifndef MIN_PREDICT
 double GMatrix::columnMedian(size_t nAttribute, bool throwIfEmpty) const
 {
 	if(nAttribute >= cols())
@@ -3067,7 +3059,6 @@ double GMatrix::columnMedian(size_t nAttribute, bool throwIfEmpty) const
 		return 0.5 * (*a + *b);
 	}
 }
-#endif // MIN_PREDICT
 
 void GMatrix::centroid(GVec& outCentroid, const GVec* pWeights) const
 {
@@ -4140,7 +4131,6 @@ GVec* GMatrix::swapRow(size_t i, GVec* pNewRow)
 	return pRow;
 }
 
-#ifndef MIN_PREDICT
 //static
 GSimpleAssignment GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMetric& metric)
 {
@@ -4156,10 +4146,8 @@ GSimpleAssignment GMatrix::bipartiteMatching(GMatrix& a, GMatrix& b, GDistanceMe
 	}
 	return linearAssignment(costs);
 }
-#endif // MIN_PREDICT
 
 
-#ifndef MIN_PREDICT
 void GMatrix_testParsing()
 {
 	const char* file =
@@ -4780,7 +4768,6 @@ void GMatrix::test()
 	GMatrix_testBoundingSphere(prng);
 	GMatrix_testImport();
 }
-#endif // !MIN_PREDICT
 
 std::string to_str(const GMatrix& m){
   std::stringstream out;
@@ -4841,7 +4828,8 @@ GDataColSplitter::~GDataColSplitter()
 
 
 GCSVParser::GCSVParser()
-: m_separator(','),
+: m_single_quotes(false),
+m_separator(','),
 m_columnNamesInFirstRow(false),
 m_tolerant(false),
 m_clearlyNumericalThreshold(10),
@@ -4886,6 +4874,8 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* szFilename)
 	size_t nLen;
 	char* szFile = GFile::loadFile(szFilename, &nLen);
 	std::unique_ptr<char[]> hFile(szFile);
+	if(nLen < 1)
+		throw Ex("Empty file");
 	parse(outMatrix, szFile, nLen);
 }
 
@@ -4950,7 +4940,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 					}
 					else if(pFile[nPos + i] == '"')
 						quoquo = true;
-					else if(pFile[nPos + i] == '\'')
+					else if(pFile[nPos + i] == '\'' && m_single_quotes)
 						quo = true;
 					else if(pFile[nPos + i] == m_separator)
 						columnCount++;
@@ -5000,7 +4990,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 					}
 					else if(pFile[nPos + i] == '"')
 						quoquo = true;
-					else if(pFile[nPos + i] == '\'')
+					else if(pFile[nPos + i] == '\'' && m_single_quotes)
 						quo = true;
 					else if(pFile[nPos + i] == m_separator)
 						break;
@@ -5064,7 +5054,7 @@ void GCSVParser::parse(GMatrix& outMatrix, const char* pFile, size_t len)
 					if(el[k] == '"')
 						quoquo = false;
 				}
-				else if(el[k] == '\'')
+				else if(el[k] == '\'' && m_single_quotes)
 					quo = true;
 				else if(el[k] == '"')
 					quoquo = true;
@@ -5525,36 +5515,36 @@ void GRaggedMatrix::parseCSV(GTokenizer& tok)
 	while(true)
 	{
 		vals.clear();
-		tok.skip(c_whitespace);
+		tok.skipWhile(c_whitespace);
 		char c = tok.peek();
 		if(c == '\0')
 			break;
 		else if(c == '%')
 		{
-			tok.advance(1);
-			tok.skipTo(c_newline);
+			tok.skip(1);
+			tok.skipUntil(c_newline);
 		}
 		else
 		{
 			while(true)
 			{
-				tok.nextArg(c_commaNewlineTab);
+				tok.readUntil_escaped_quoted(c_commaNewlineTab);
 				const char* szVal = tok.trim(c_whitespace);
 				vals.push_back(GMatrix_parseValue(&rel, 0, szVal, tok));
 				char c2 = tok.peek();
 				while(c2 == '\t' || c2 == ' ')
 				{
-					tok.advance(1);
+					tok.skip(1);
 					c2 = tok.peek();
 				}
 				if(c2 == ',')
-					tok.advance(1);
+					tok.skip(1);
 				else if(c2 == '\n' || c2 == '\0')
 					break;
 				else if(c2 == '%')
 				{
-					tok.advance(1);
-					tok.skipTo(c_newline);
+					tok.skip(1);
+					tok.skipUntil(c_newline);
 					break;
 				}
 			}

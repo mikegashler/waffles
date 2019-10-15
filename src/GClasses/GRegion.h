@@ -31,6 +31,17 @@ class GRect;
 struct GRegionEdge;
 struct GRegion;
 
+
+struct GRegion
+{
+	int m_nPixels;
+	int m_nSumRed;
+	int m_nSumGreen;
+	int m_nSumBlue;
+	struct GRegionEdge* m_pNeighbors;
+};
+
+
 /// The base class for region ajacency graphs. These are useful
 /// for breaking down an image into patches of similar color.
 class GRegionAjacencyGraph
@@ -50,6 +61,9 @@ public:
 	/// Returns the number of regions so far
 	size_t regionCount();
 
+    /// Get a region
+	struct GRegion& region(size_t i) { return *m_regions[i]; }
+
 	/// Returns the average pixel color in the specified region
 	void averageColor(size_t nRegion, float* pRed, float* pGreen, float* pBlue);
 
@@ -66,6 +80,8 @@ public:
 	/// Returns the two regions that are ajacent
 	void ajacency(size_t nEdge, size_t* pRegion1, size_t* pRegion2);
 };
+
+
 
 /// Implements a region adjacency graph for 2D images, and lets
 /// you merge similar regions to create a hierarchical breakdown
@@ -95,34 +111,36 @@ public:
 	/// average color of each region
 	void setMaskPixel(int x, int y, unsigned int c, size_t nRegion);
 };
-/*
-/// A 3D region adjacency graph
+
+
+
 class G3DRegionGraph : public GRegionAjacencyGraph
 {
 protected:
-	GVideo* m_pRegionMask;
+	std::vector<GImage*> m_regionMask;
 
 public:
-	G3DRegionGraph(int nWidth, int nHeight);
+	G3DRegionGraph(size_t frames, int nWidth, int nHeight);
 	virtual ~G3DRegionGraph();
 
 	/// Toboggans the gradient magnitude image of the provided image to produce a
 	/// list of watershed regions
-	void makeWatershedRegions(GVideo* pVideo);
+	void makeWatershedRegions(const std::vector<GImage*>& frames);
 
 	/// Given a G3DRegionGraph, this merges every region with its closest neighbor to
 	/// form a coarser G3DRegionGraph
 	void makeCoarserRegions(G3DRegionGraph* pFineRegions);
 
 	/// Gets a pointer to the region mask image
-	GVideo* regionMask() { return m_pRegionMask; }
+	std::vector<GImage*>& regionMask() { return m_regionMask; }
 
 	/// Specifies which region the given pixel belongs to. The color
 	/// of the pixel is also specified so it can keep track of the
-	/// average color of each region. (z is the frame number)
-	void setMaskPixel(int x, int y, int z, unsigned int c, int nRegion);
+	/// average color of each region
+	void setMaskPixel(size_t frame, int x, int y, unsigned int c, size_t nRegion);
 };
-*/
+
+
 
 /// Iterates the border of a 2D region by running around the border and reporting
 /// the coordinates of each interior border pixel and the direction to the
@@ -203,10 +221,8 @@ public:
 	GSubImageFinder(GImage* pHaystack);
 	~GSubImageFinder();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // NO_TEST_CODE
 
 	/// The width and height of pNeedleRect must be powers of 2 and less than
 	/// the dimensions of pHaystack. pNeedleRect specifies the portion of pNeedle
@@ -228,10 +244,8 @@ public:
 	GSubImageFinder2(GImage* pHaystack);
 	~GSubImageFinder2();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // NO_TEST_CODE
 
 	/// Finds the best x and y positions of pNeedle within pHaystack. It is assumed that the
 	/// needle fits entirely within the haystack. There are no restrictions on image sizes.

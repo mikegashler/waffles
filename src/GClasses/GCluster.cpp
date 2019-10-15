@@ -209,7 +209,6 @@ size_t GAgglomerativeClusterer::whichCluster(size_t nVector)
 	return m_pClusters[nVector];
 }
 
-#ifndef NO_TEST_CODE
 
 #define SPIRAL_POINTS 250
 #define SPIRAL_HEIGHT 3
@@ -327,7 +326,6 @@ void GAgglomerativeClusterer::test()
 	image.SavePNGFile("spirals.png");
 */
 }
-#endif // !NO_TEST_CODE
 
 // -----------------------------------------------------------------------------------------
 

@@ -248,6 +248,15 @@ UsageNode* makeAlgorithmUsageTree()
 		pPoly->add("[order]=3", "The order of the polynomial.");
 	}
 	{
+		UsageNode* pGB = pRoot->add("gradboost <options> [algorithm]", "Uses GradBoost to create an ensemble that boosts the accuracy of an underlying model by computing residual models that add together to make a prediction.");
+		UsageNode* pOpts = pGB->add("<options>");
+		pOpts->add
+		  ("-trainratio [value]=1.0", "When approximating the weighted training set by resampling, use a sample of size [value]*training_set_size");
+		pOpts->add
+		  ("-size [n]=30", "The number of base learners to use in "
+		   "the ensemble.");
+	}
+	{
 		UsageNode* pGCT = pRoot->add("graphcuttransducer <options>", "This is a model-free transduction algorithm. It uses a min-cut/max-flow graph-cut algorithm to separate each label from all of the others.");
 		UsageNode* pOpts = pGCT->add("<options>");
 		pOpts->add("-autotune", "Automatically determine a good set of parameters for this model with the current data.");
@@ -1431,7 +1440,7 @@ UsageNode* makeSparseUsageTree()
 	UsageNode* pRoot = new UsageNode("waffles_sparse [command]", "Sparse learning, document classification, information retrieval, etc.");
 	{
 		UsageNode* pDocsToSparse = pRoot->add("docstosparsematrix <options> [folder1] [folder2] ...", "Converts a set of documents to a sparse feature matrix, and a dense label matrix. [folder1] should contain all of the documents in class1. [folder2] should contain all the documents in class2, and so forth. The words are filtered against a common set of stop words. Also, words less than 4 letters are ignored. "
-			"Currently, only .txt and .html documents are supported. Other file types are ignored. Each row in the sparse matrix represents one of the documents. Subdirectories are not followed. The feature vector is saved to a sparse matrix in compressed-column format. If more than one folder is specified, then a dense label matrix will also be generated. A mapping from row number to document filename is printed to stdout.");
+			"Currently, only .txt documents are supported. Other file types are ignored. Each row in the sparse matrix represents one of the documents. Subdirectories are not followed. The feature vector is saved to a sparse matrix in compressed-column format. If more than one folder is specified, then a dense label matrix will also be generated. A mapping from row number to document filename is printed to stdout.");
 		UsageNode* pOpts = pDocsToSparse->add("<options>");
 		pOpts->add("-nostem", "Specifies not to stem the words. (The default is to use the Porter stemming algorithm.)");
 		pOpts->add("-binary", "Just use the value 1 if the word occurs in a document, or a 0 if it does not occur. The default behavior is to compute the somewhat more meaningful value: a/b*log(c/d), where a=the number of times the word occurs in this document, b=the max number of times this word occurs in any document, c=total number of documents, and d=number of documents that contain this word.");
@@ -1608,6 +1617,12 @@ UsageNode* makeTransformUsageTree()
 		pOpts->add("-precision [val]=14", "Specify how many digits of precision to use before truncating and resorting to scientific notation.");
 	}
 	{
+		pRoot->add("dupes [filename]=file.txt", "Finds all duplicate odd-numbered lines in file.txt, and groups the corresponding even-numbered lines together. (This is used, for example, as part of a script that searches for duplicate files in a directory hierarchy.)");
+	}
+	{
+		pRoot->add("extracttext [html-file]=index.html", "Prints just the text from an HTML file.");
+	}
+	{
 		UsageNode* pFMS = pRoot->add("fillmissingvalues [dataset] <options>", "Replace all missing values in the dataset. (Note that the fillmissingvalues command in the waffles_recommend tool performs a similar task, but it can intelligently predict the missing values instead of just using the baseline value.)");
 		pFMS->add("[dataset]=data.arff", "The filename of a dataset");
 		UsageNode* pOpts = pFMS->add("<options>");
@@ -1739,6 +1754,9 @@ UsageNode* makeTransformUsageTree()
 	{
 		pRoot->add("prettify [json-file]=model.json", "Pretty-prints a JSON file.");
 	}
+	{
+		pRoot->add("prettifyhtml [html-file]=index.html", "Pretty-prints an HTML file.");
+	}
 	pRoot->add("pseudoinverse [dataset]=m.arff", "Compute the Moore-Penrose pseudo-inverse of the specified matrix of real values.");
 	pRoot->add("reducedrowechelonform [dataset]=m.arff", "Convert a matrix to reduced row echelon form. Results are printed to stdout.");
 	{
@@ -1824,6 +1842,12 @@ UsageNode* makeTransformUsageTree()
 		pSplitFold->add("[n]=10", "The number of folds.");
 		UsageNode* pOpts = pSplitFold->add("<options>");
 		pOpts->add("-out [train_filename] [test_filename]", "Specify the filenames for the training and test portions of the data. The default values are train.arff and test.arff.");
+	}
+	{
+		UsageNode* pSplitVal = pRoot->add("splitval [dataset] [attr] [val]", "Divides a dataset into 2 parts named less_than.arff and greater_or_equal.arff.");
+		pSplitVal->add("[dataset]=data.arff", "The filename of a datset.");
+		pSplitVal->add("[attr]=0", "The (zero-based) index of the column to divide on.");
+		pSplitVal->add("[val]=0.0", "The value to divide on.");
 	}
 	{
 		UsageNode* pSD = pRoot->add("squareddistance [a] [b]", "Computesthe sum and mean squared distance between dataset [a] and [b]. ([a] and [b] are each the names of files in .arff format. They must have the same dimensions.)");

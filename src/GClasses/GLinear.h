@@ -46,10 +46,8 @@ public:
 
 	virtual ~GLinearRegressor();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
 
 	/// Saves the model to a text file. (This doesn't save the short-term
 	/// memory used for incremental learning, so if you're doing "incremental"
@@ -115,9 +113,7 @@ public:
 	/// Destructor
 	virtual ~GLinearDistribution();
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;
@@ -165,10 +161,8 @@ public:
 	/// Returns false if there is no solution, and true if it finds a solution.
 	static bool simplexMethod(GMatrix* pA, const double* pB, int leConstraints, int geConstraints, const double* pC, double* pOutX);
 
-#ifndef NO_TEST_CODE
 	/// Perform unit tests for this class. Throws an exception if any tests fail. Returns if they all pass.
 	static void test();
-#endif
 };
 
 

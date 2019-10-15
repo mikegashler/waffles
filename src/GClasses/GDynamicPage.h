@@ -30,6 +30,7 @@ namespace GClasses {
 class GConstStringHashTable;
 class GDynamicPageServer;
 class GDynamicPageSession;
+class GDynamicPageConnection;
 class GRand;
 class GDom;
 
@@ -49,6 +50,9 @@ public:
 	/// you know that the session will no longer be referring to
 	/// this extension.
 	virtual void onDisown() = 0;
+
+	/// Marshal this object into a Dom node.
+	virtual GDomNode* serialize(GDom* pDoc) = 0;
 };
 
 
@@ -62,9 +66,11 @@ protected:
 	const char* m_szUrl;
 	const char* m_szParams;
 	size_t m_paramsLen;
+	GDynamicPageConnection* m_pConnection;
 
 public:
 	GDynamicPageSession(GDynamicPageServer* pServer, unsigned long long id);
+	GDynamicPageSession(GDynamicPageServer* pServer, GDomNode* pNode);
 	virtual ~GDynamicPageSession();
 
 	/// Returns the server object associated with this session
@@ -83,9 +89,17 @@ public:
 	/// Stamp the session as having been accessed at the current time
 	void onAccess();
 
+	/// Associate the current connection with this session
+	void setConnection(GDynamicPageConnection* pConn);
+
+	GDynamicPageConnection* connection() { return m_pConnection; }
+
 	/// Retrieve the extension object that was associated with this
 	/// session by a call to setExtension.
 	GDynamicPageSessionExtension* extension() { return m_pExtension; }
+
+	/// Marshal this object into a Dom node
+	GDomNode* serialize(GDom* pDom);
 
 	void setCurrentUrl(const char* szUrl, const char* szParams, size_t paramsLength)
 	{
@@ -138,7 +152,6 @@ class GDynamicPageServer : public GHttpServer
 {
 protected:
 	GRand* m_pRand;
-	bool m_bKeepGoing;
 	std::map<unsigned long long, GDynamicPageSession*> m_sessions;
 	char* m_szMyAddress;
 	char m_daemonSalt[16];
@@ -148,13 +161,13 @@ public:
 	GDynamicPageServer(int port, GRand* pRand);
 	virtual ~GDynamicPageServer();
 
-	virtual void onStateChange() {}
-	virtual void onEverySixHours() {}
-	virtual void onShutDown() {}
-	void go();
-	void shutDown();
+	virtual GDynamicPageSessionExtension* deserializeSessionExtension(const GDomNode* pNode)
+	{
+		throw Ex("deserializeSessionExtension has not be overridden");
+	}
+
 	void flushSessions();
-	
+
 	/// Returns the session with the specified id. If no session is found with that id, returns NULL.
 	GDynamicPageSession* findSession(unsigned long long id);
 
@@ -166,12 +179,16 @@ public:
 
 	/// Returns the account if the password is correct. Returns NULL if not.
 	const char* myAddress();
+
 	void setDaemonSalt(const char* szSalt);
 	const char* daemonSalt();
 	const char* passwordSalt();
 
 	GRand* prng() { return m_pRand; }
 	void redirect(std::ostream& response, const char* szUrl);
+
+	GDomNode* serialize(GDom* pDoc);
+	void deserialize(const GDomNode* pNode);
 
 protected:
 	void doMaintenance();

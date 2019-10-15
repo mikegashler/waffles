@@ -50,11 +50,32 @@ namespace GClasses {
 /// A wrapper for PThreads on Linux and for some corresponding WIN32 api on Windows
 class GThread
 {
+protected:
+	volatile bool m_started;
+	volatile bool m_finished;
+
 public:
+	GThread()
+	: m_started(false), m_finished(false)
+	{
+	}
+
+	virtual ~GThread()
+	{
+	}
+
+	virtual void run() = 0;
+
+	THREAD_HANDLE spawn();
+	void join(size_t miliseconds = 0);
+
 	static THREAD_HANDLE spawnThread(unsigned int (*pFunc)(void*), void* pData);
 
 	/// it may be an error to sleep more than 976ms (1,000,000 / 1024) on Unix
 	static void sleep(unsigned int nMiliseconds);
+
+protected:
+	static unsigned int startThread(void* pObj);
 };
 
 
@@ -77,10 +98,8 @@ public:
 	GSpinLock();
 	virtual ~GSpinLock();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // !NO_TEST_CODE
 
 	void lock(const char* szWhoHoldsTheLock);
 	void unlock();

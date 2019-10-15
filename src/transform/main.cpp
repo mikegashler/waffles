@@ -30,6 +30,7 @@
 #include "../GClasses/GRand.h"
 #include "../GClasses/GFile.h"
 #include "../GClasses/GFunction.h"
+#include "../GClasses/GHtml.h"
 #include "../GClasses/GTransform.h"
 #include "../GClasses/GVec.h"
 #include "../GClasses/GHashTable.h"
@@ -498,6 +499,40 @@ void dropHomogeneousCols(GArgReader& args)
 	pData->print(cout);
 }
 
+void dupes(GArgReader& args)
+{
+	std::map<std::string, std::vector<std::string>* > themap;
+	std::ifstream file(args.pop_string());
+	std::string key;
+	std::string val;
+	std::vector<std::string>* pAl;
+	while(std::getline(file, key))
+	{
+		std::getline(file, val);
+		std::map<std::string, std::vector<std::string>* >::iterator it = themap.find(key);
+		if(it == themap.end())
+		{
+			pAl = new std::vector<std::string>();
+			themap.insert(std::pair<std::string, std::vector<std::string>* >(key, pAl));
+		}
+		else
+			pAl = it->second;
+		pAl->push_back(val);
+	}
+	std::map<std::string, std::vector<std::string>* >::iterator it;
+	for(it = themap.begin(); it != themap.end(); it++)
+	{
+		pAl = it->second;
+		if(pAl->size() < 2)
+			continue;
+		const std::string& k = it->first;
+		std::cout << k << "\n";
+		for(size_t i = 0; i < pAl->size(); i++)
+			std::cout << (*pAl)[i] << "\n";
+		std::cout << "\n";
+	}
+}
+
 void keepOnlyColumns(GArgReader& args)
 {
 	//Load the data file and the list of columns to keep
@@ -747,6 +782,12 @@ void Export(GArgReader& args)
 	// Print data
 	for(size_t i = 0; i < pData->rows(); i++)
 		pData->relation().printRow(cout, pData->row(i).data(), separator, missing);
+}
+
+void extractText(GArgReader& args)
+{
+	GHtmlDoc doc(args.pop_string());
+	doc.document()->writeTextOnly(cout);
 }
 
 void Import(GArgReader& args)
@@ -1218,6 +1259,12 @@ void prettify(GArgReader& args)
 	GDom doc;
 	doc.loadJson(args.pop_string());
 	doc.writeJsonPretty(cout);
+}
+
+void prettifyHtml(GArgReader& args)
+{
+	GHtmlDoc doc(args.pop_string());
+	doc.document()->writePretty(cout);
 }
 
 void pseudoInverse(GArgReader& args)
@@ -2366,8 +2413,10 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("droprandomvalues")) dropRandomValues(args);
 		else if(args.if_pop("droprows")) dropRows(args);
 		else if(args.if_pop("dropunusedvalues")) dropUnusedValues(args);
+		else if(args.if_pop("dupes")) dupes(args);
 		else if(args.if_pop("enumeratevalues")) enumerateValues(args);
 		else if(args.if_pop("export")) Export(args);
+		else if(args.if_pop("extracttext")) extractText(args);
 		else if(args.if_pop("fillmissingvalues")) fillMissingValues(args);
 		else if(args.if_pop("filterelements")) filterElements(args);
 		else if(args.if_pop("filterrows")) filterRows(args);
@@ -2389,6 +2438,7 @@ int main(int argc, char *argv[])
 		else if(args.if_pop("overlay")) overlay(args);
 		else if(args.if_pop("powercolumns")) powerColumns(args);
 		else if(args.if_pop("prettify")) prettify(args);
+		else if(args.if_pop("prettifyhtml")) prettifyHtml(args);
 		else if(args.if_pop("pseudoinverse")) pseudoInverse(args);
 		else if(args.if_pop("reducedrowechelonform")) reducedRowEchelonForm(args);
 		else if(args.if_pop("reordercolumns")) reorderColumns(args);

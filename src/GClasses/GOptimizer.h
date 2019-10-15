@@ -40,8 +40,6 @@ class GNeuralNetOptimizer
 {
 protected:
 	GNeuralNet& m_model;
-	GVec m_weights;
-	GVec m_gradient;
 
 	const GMatrix* m_pTrainingFeatures;
 	const GMatrix* m_pTrainingLabels;
@@ -63,15 +61,12 @@ public:
 	GNeuralNetOptimizer(GNeuralNet& model, GRand& rand, const GMatrix* pTrainingFeatures = nullptr, const GMatrix* pTrainingLabels = nullptr);
 	virtual ~GNeuralNetOptimizer();
 
-	GVec& weights() { return m_weights; }
-	GVec& gradient() { return m_gradient; }
-
 	/// Prepare for optimization (i.e. allocate delta vectors).
 	virtual void init() = 0;
-	
+
 	/// Evaluate feat and lab, and update the model's gradient.
 	virtual void computeGradient(const GVec &feat, const GVec &lab) = 0;
-	
+
 	/// Step the model's parameters in the direction of the calculated gradient scaled by learningRate.
 	virtual void descendGradient(double learningRate) = 0;
 
@@ -271,7 +266,6 @@ public:
 };
 
 
-#ifndef MIN_PREDICT
 class GOptimizerBasicTestTargetFunction : public GTargetFunction
 {
 public:
@@ -279,7 +273,6 @@ public:
 
 	virtual double computeError(const GVec& vector);
 };
-#endif // MIN_PREDICT
 
 
 /// This is the base class of all search algorithms
@@ -313,10 +306,8 @@ public:
 	/// stable, then the value of nIterations should be large.
 	double searchUntil(size_t nBurnInIterations, size_t nIterations, double dImprovement);
 
-#ifndef MIN_PREDICT
 	/// This is a helper method used by the unit tests of several model learners
 	void basicTest(double minAccuracy, double warnRange = 0.001);
-#endif // MIN_PREDICT
 
 };
 

@@ -383,7 +383,8 @@ void test(GArgReader& args)
 	GVec prediction(labels.cols());
 	GVec pFullRow(pData->cols());
 	GTEMPBUF(double, results, labels.cols());
-	GVec::setAll(results, 0.0, labels.cols());
+	GVecWrapper vw2(results, labels.cols());
+	vw2.fill(0.0);
 	for(size_t i = 0; i < pData->rows(); i++)
 	{
 		pData->fullRow(pFullRow, i);
@@ -432,91 +433,6 @@ void transpose(GArgReader& args)
 		doc.setRoot(pB->serialize(&doc));
 		doc.writeJson(cout);
 	}
-}
-
-class MyHtmlParser1 : public GHtml
-{
-protected:
-	GVocabulary* m_pVocab;
-
-public:
-	MyHtmlParser1(GVocabulary* pVocab, const char* pDoc, size_t nSize)
-	: GHtml(pDoc, nSize), m_pVocab(pVocab)
-	{
-	}
-
-	virtual ~MyHtmlParser1() {}
-
-	virtual void onTextChunk(const char* pChunk, size_t chunkSize)
-	{
-		m_pVocab->addWordsFromTextBlock(pChunk, chunkSize);
-	}
-};
-
-class MyHtmlParser2 : public GHtml
-{
-protected:
-	GSparseMatrix* m_pSM;
-	size_t m_row;
-	GVocabulary* m_pVocab;
-	bool m_binary;
-
-public:
-	MyHtmlParser2(const char* pDoc, size_t nSize, GSparseMatrix* pSM, size_t row, GVocabulary* pVocab, bool binary)
-	: GHtml(pDoc, nSize), m_pSM(pSM), m_row(row), m_pVocab(pVocab), m_binary(binary)
-	{
-	}
-
-	virtual ~MyHtmlParser2() {}
-
-	virtual void onTextChunk(const char* pChunk, size_t chunkSize)
-	{
-		GWordIterator it(pChunk, chunkSize);
-		const char* pWord;
-		size_t wordLen;
-		while(true)
-		{
-			if(!it.next(&pWord, &wordLen))
-				break;
-			size_t col = m_pVocab->wordIndex(pWord, wordLen);
-			if(col != INVALID_INDEX)
-			{
-				if(m_binary)
-					m_pSM->set(m_row, col, 1.0);
-				else
-					m_pSM->set(m_row, col, m_pSM->get(m_row, col) + m_pVocab->weight(col));
-			}
-		}
-	}
-};
-
-void addWordsToVocabFromHtmlFile(GVocabulary* pVocab, const char* szFilename)
-{
-	size_t len;
-	char* pFile = GFile::loadFile(szFilename, &len);
-	std::unique_ptr<char[]> hFile(pFile);
-	pVocab->newDoc();
-	MyHtmlParser1 parser(pVocab, pFile, len);
-	while(true)
-	{
-		if(!parser.parseSomeMore())
-			break;
-	}
-}
-
-void makeHtmlFileVector(GSparseMatrix* pFeatures, GMatrix* pLabels, int clss, size_t row, GVocabulary* pVocab, const char* szFilename, bool binary)
-{
-	size_t len;
-	char* pFile = GFile::loadFile(szFilename, &len);
-	std::unique_ptr<char[]> hFile(pFile);
-	MyHtmlParser2 parser(pFile, len, pFeatures, row, pVocab, binary);
-	while(true)
-	{
-		if(!parser.parseSomeMore())
-			break;
-	}
-	if(clss > 0)
-		pLabels->row(row)[0] = (double)clss;
 }
 
 void addWordsToVocabFromTextFile(GVocabulary* pVocab, const char* szFilename)
@@ -601,10 +517,8 @@ void docsToSparseMatrix(GArgReader& args)
 				GFile::parsePath(filename, &pd);
 				if(_stricmp(filename + pd.extStart, ".txt") == 0)
 					addWordsToVocabFromTextFile(&vocab, filename);
-				else if(_stricmp(filename + pd.extStart, ".html") == 0 || _stricmp(filename + pd.extStart, ".htm") == 0)
-					addWordsToVocabFromHtmlFile(&vocab, filename);
 				else
-					printf("Skipping file: %s. (Only .txt and .html is supported.)\n", filename);
+					printf("Skipping file: %s. (Only .txt files are supported.)\n", filename);
 			}
 		}
 		if(chdir(cwd) != 0)
@@ -646,11 +560,6 @@ void docsToSparseMatrix(GArgReader& args)
 				{
 					printf("%d) %s\n", (int)row, filename);
 					makeTextFileVector(&sparseFeatures, pLabels, clss, row++, &vocab, filename, binary);
-				}
-				else if(_stricmp(filename + pd.extStart, ".html") == 0 || _stricmp(filename + pd.extStart, ".htm") == 0)
-				{
-					printf("%d) %s\n", (int)row, filename);
-					makeHtmlFileVector(&sparseFeatures, pLabels, clss, row++, &vocab, filename, binary);
 				}
 			}
 		}

@@ -982,7 +982,6 @@ void GDecisionTree::clear()
 	m_pRoot = NULL;
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GDecisionTree::test()
 {
@@ -1001,7 +1000,6 @@ void GDecisionTree::test()
 		ml1Tree.basicTest(0.33, 0.33);
 	}
 }
-#endif
 
 // ----------------------------------------------------------------------
 
@@ -1340,15 +1338,12 @@ void GMeanMarginsTree::clear()
 	m_internalLabelDims = 0;
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GMeanMarginsTree::test()
 {
 	GAutoFilter af(new GMeanMarginsTree());
 	af.basicTest(0.70, 0.9);
 }
-#endif
-
 
 
 
@@ -1426,11 +1421,9 @@ void GRandomForest::predictDistribution(const GVec& in, GPrediction* out)
 	m_pEnsemble->predictDistribution(in, out);
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GRandomForest::test()
 {
 	GRandomForest rf(30);
 	rf.basicTest(0.762, 0.925, 0.01);
 }
-#endif

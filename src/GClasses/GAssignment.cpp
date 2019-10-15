@@ -1140,7 +1140,6 @@ linearAssignmentBruteForce(GMatrix benefits, ShouldMaximize /*not used*/){
 }
 
 
-#ifndef  NO_TEST_CODE
 
 ///\brief Runs unit tests on nextKPermutation
 void testNextKPermutation(){
@@ -1826,7 +1825,6 @@ void testLinearAssignment(){
 	testLAPVJRCTThrows();
 	testLASupportRoutines();
 }
-#endif //NO_TEST_CODE
 
 
 

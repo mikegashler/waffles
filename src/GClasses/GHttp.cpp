@@ -745,6 +745,11 @@ void GHttpConnection::setContentType(const char* szContentType)
 	safe_strcpy(m_szContentType, szContentType, 64);
 }
 
+void GHttpConnection::allowOrigin(const char* szOrigin)
+{
+	m_sAllowOrigin = szOrigin;
+}
+
 void GHttpConnection::setCookie(const char* szPayload, bool bPersist)
 {
 	m_bPersistCookie = bPersist;
@@ -923,7 +928,7 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 				}
 				catch(std::exception&)
 				{
-					// failed to send response
+					std::cout << "Error: Failed to send GET response\n";
 				}
 			}
 			else
@@ -934,7 +939,7 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 				}
 				catch(std::exception&)
 				{
-					// failed to send response
+					std::cout << "Error: Failed to send not modified response\n";
 				}
 			}
 		}
@@ -948,7 +953,7 @@ void GHttpServer::processHeaderLine(GHttpConnection* pConn, const char* szLine)
 			}
 			catch(std::exception&)
 			{
-				// failed to send response
+				std::cout << "Error: Failed to HEAD response\n";
 			}
 		}
 		else if(pConn->m_eRequestType == GHttpConnection::Post)
@@ -1041,23 +1046,19 @@ void GHttpServer::sendResponse(GHttpConnection* pConn)
 	m_stream.clear();
 
 	// Make the header
-	const char pTmp1[] = "HTTP/1.1 200 OK\r\nContent-Type: ";
-	m_pSocket->send(pTmp1, sizeof(pTmp1) - 1, pConn);
-	m_pSocket->send(pConn->m_szContentType, strlen(pConn->m_szContentType), pConn);
-
+	std::ostringstream os;
+	os << "HTTP/1.1 200 OK\r\n";
+	os << "Content-Type: " << pConn->m_szContentType << "\r\n";
 	if(pConn->m_eRequestType != GHttpConnection::Head)
+		os << "Content-Length: " << sPayload.length() << "\r\n";
+	if(pConn->m_sAllowOrigin.length() > 0)
 	{
-		std::ostringstream os;
-		os << "\r\nContent-Length: ";
-		os << sPayload.length();
-		os << "\r\n";
-		string s = os.str();
-		m_pSocket->send(s.c_str(), s.length(), pConn);
+		os << "Access-Control-Allow-Origin: " << pConn->m_sAllowOrigin << "\r\n";
+		pConn->m_sAllowOrigin = "";
 	}
 
 	// Set the date header
 	{
-		std::ostringstream os;
 		os << "Date: ";
 		time_t t = time((time_t*)0);
 #ifdef WINDOWS
@@ -1070,43 +1071,34 @@ void GHttpServer::sendResponse(GHttpConnection* pConn)
 		const char* szAscTime = asctime(pTime);
 		char szGMT[40];
 		AscTimeToGMT(szAscTime, szGMT);
-		os << szGMT;
-		os << "\r\n";
-		string s = os.str();
-		m_pSocket->send(s.c_str(), s.length(), pConn);
+		os << szGMT << "\r\n";
 	}
 
 	// Set the last-modified header
 	if(pConn->m_modifiedTime != 0)
 	{
-		std::ostringstream os;
 		os << "Last-Modified: ";
 		struct tm* pTime = gmtime(&pConn->m_modifiedTime);
 		const char* szAscTime = asctime(pTime);
 		char szGMT[40];
 		AscTimeToGMT(szAscTime, szGMT);
-		os << szGMT;
-		os << "\r\n";
-		string s = os.str();
-		m_pSocket->send(s.c_str(), s.length(), pConn);
+		os << szGMT << "\r\n";
 	}
 
 	// Set cookie
 	if(pConn->m_szCookieOutgoing[0] != '\0')
 	{
-		std::ostringstream os;
-		os << "Set-Cookie: ";
-		os << pConn->m_szCookieOutgoing;
+		os << "Set-Cookie: " << pConn->m_szCookieOutgoing;
 		os << "; path=/";
 		if(pConn->m_bPersistCookie)
 			os << "; expires=Sat, 01-Jan-2060 00:00:00 GMT";
 		os << "\r\n";
-		string s = os.str();
-		m_pSocket->send(s.c_str(), s.length(), pConn);
 	}
 
-	// End of header
-	m_pSocket->send("\r\n", 2, pConn);
+	// Send headers
+	os << "\r\n";
+	string headers = os.str();
+	m_pSocket->send(headers.c_str(), headers.length(), pConn);
 
 	// Send the payload
 	if(pConn->m_eRequestType != GHttpConnection::Head)
@@ -1296,6 +1288,25 @@ const char* GHttpParamParser::find(const char* szName)
 	return it->second;
 }
 
+std::string GHttpParamParser::to_str(bool html)
+{
+	std::ostringstream os;
+	std::map<const char*, const char*, strComp>::iterator it = m_map.begin();
+	for(; it != m_map.end(); it++)
+	{
+		os << it->first;
+		os << "=";
+		std::string s = it->second;
+		if(s.length() < 32)
+			os << s;
+		else
+			os << s.substr(0, 29) << "...";
+		if(html)
+			os << "<br>";
+		os << "\n";
+	}
+	return os.str();
+}
 
 
 

@@ -55,9 +55,7 @@ public:
 
 	~GSparseMatrix();
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 
 	typedef SparseVec::const_iterator Iter;
 

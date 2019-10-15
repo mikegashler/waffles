@@ -132,25 +132,21 @@ public:
 		return 1u << boundingShift(n);
 	}
 
-	/// Returns the sign (-1, 0, +1) of an integer
-	static inline int sign(int n)
+	/// Returns the sign (-1, 0, +1) of an integer, float, or double
+	template <typename T>
+	static int sign(T val)
 	{
-		if(n > 0)
-			return 1;
-		if(n < 0)
-			return -1;
-		return 0;
+		return (T(0) < val) - (val < T(0));
 	}
 
-	/// Returns the sign of d
-	static inline int sign(double d)
-	{
-		if(d > 0)
-			return 1;
-		if(d < 0)
-			return -1;
-		return 0;
-	}
+	/// Reverses the bits in an unsigned char
+	unsigned char reverse_bits(unsigned char n);
+
+	/// Returns the number of characters needed to encode the specified number of bytes into base64
+	static size_t base64Size(size_t inSize);
+
+	/// Encodes pIn into base64. (Assumes pOut is already the correct size, as determined by calling base64Size.)
+	static void toBase64(unsigned char* pIn, size_t inSize, char* pOut);
 
 	/// Converts two hexadecimal digits to a byte. lsn is least significant
 	/// nybble. msn is most significant nybble.
@@ -489,9 +485,7 @@ public:
 		return out;
 	}
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 };
 
 } // namespace GClasses

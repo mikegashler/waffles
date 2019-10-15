@@ -221,12 +221,18 @@ public:
 	/// Draw a rectangle
 	void rect(double x, double y, double w, double h, unsigned int col = 0x008080);
 
+	/// Draw an arc
+	void arc(double cx, double cy, double r, double astart, double aend, double thickness, unsigned int col = 0x800080);
+
 	/// Draw text
 	void text(double x, double y, const char* szText, double size = 1.0, Anchor eAnchor = Start, unsigned int col = 0x000000, double angle = 0.0, bool serifs = true);
 
 	/// Generate an SVG file with all of the components that have been added so far.
 	void print(std::ostream& stream);
 
+	/// Write to an SVG file
+	void save(const char* szFilename);
+    
 	/// Label the horizontal axis. If maxLabels is 0, then no grid-lines will be drawn. If maxLabels is -1, then
 	/// Logarithmic grid-lines will be drawn. If pLabels is non-NULL, then its values will be used to label
 	/// the grid-lines instead of the continuous values.

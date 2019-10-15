@@ -247,9 +247,8 @@ public:
 	/// you use GCategoricalSampler.)
 	void draw(size_t samples, size_t* pOutBatch);
 
-#ifndef MIN_PREDICT
+	/// Run unit tests for this class.
 	static void test();
-#endif // MIN_PREDICT
 
 };
 

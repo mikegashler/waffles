@@ -416,7 +416,6 @@ void GBag::determineWeights(const GMatrix& features, const GMatrix& labels)
 		(*it)->m_weight = 1.0;
 }
 
-#ifndef NO_TEST_CODE
 #include "GDecisionTree.h"
 // static
 void GBag::test()
@@ -430,84 +429,6 @@ void GBag::test()
 	}
 	bag.basicTest(0.764, 0.93, 0.01);
 }
-#endif
-
-
-
-
-
-
-GBomb::GBomb(const GDomNode* pNode, GLearnerLoader& ll)
-: GBag(pNode, ll)
-{
-	m_samples = (size_t)pNode->getInt("samps");
-}
-
-// virtual
-void GBomb::determineWeights(const GMatrix& features, const GMatrix& labels)
-{
-	// Try uniform weights first
-	double* pWeights = new double[m_models.size()];
-	std::unique_ptr<double[]> hWeights(pWeights);
-	double uniform = 1.0 / m_models.size();
-	for(size_t i = 0; i < m_models.size(); i++)
-		pWeights[i] = uniform;
-	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
-		(*it)->m_weight = uniform;
-	double minErr = sumSquaredError(features, labels);
-
-	// Try random weight combinations
-	for(size_t i = 0; i < m_samples; i++)
-	{
-		// Set weights randomly from a dirichlet distribution with unifrom probabilities
-		for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
-			(*it)->m_weight = m_rand.exponential();
-		normalizeWeights();
-
-		// Evaluate accuracy
-		double err = sumSquaredError(features, labels);
-
-		// Remember the best weights yet found
-		if(err < minErr)
-		{
-			minErr = err;
-			double* pW = pWeights;
-			for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
-				*(pW++) = (*it)->m_weight;
-		}
-	}
-
-	// Restore the best weights yet found
-	double* pW = pWeights;
-	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
-		(*it)->m_weight = *(pW++);
-}
-
-// virtual
-GDomNode* GBomb::serialize(GDom* pDoc) const
-{
-	GDomNode* pNode = baseDomNode(pDoc, "GBomb");
-	serializeBase(pDoc, pNode);
-	pNode->add(pDoc, "ts", m_trainSize);
-	pNode->add(pDoc, "samps", m_samples);
-	return pNode;
-}
-
-#ifndef NO_TEST_CODE
-// static
-void GBomb::test()
-{
-	GBomb bomb;
-	for(size_t i = 0; i < 32; i++)
-	{
-		GDecisionTree* pTree = new GDecisionTree();
-		pTree->useRandomDivisions();
-		bomb.addLearner(pTree);
-	}
-	bomb.basicTest(0.76, 0.765, 0.01);
-}
-#endif
-
 
 
 
@@ -547,7 +468,6 @@ GDomNode* GBayesianModelAveraging::serialize(GDom* pDoc) const
 	return pNode;
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GBayesianModelAveraging::test()
 {
@@ -560,7 +480,6 @@ void GBayesianModelAveraging::test()
 	}
 	bma.basicTest(0.708, 0.816, 0.01);
 }
-#endif
 
 
 
@@ -626,7 +545,6 @@ GDomNode* GBayesianModelCombination::serialize(GDom* pDoc) const
 	return pNode;
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GBayesianModelCombination::test()
 {
@@ -639,7 +557,6 @@ void GBayesianModelCombination::test()
 	}
 	bmc.basicTest(0.76, 0.928, 0.01);
 }
-#endif
 
 
 
@@ -768,7 +685,6 @@ void GResamplingAdaBoost::trainInnerInner(const GMatrix& features, const GMatrix
 	normalizeWeights();
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GResamplingAdaBoost::test()
 {
@@ -777,7 +693,104 @@ void GResamplingAdaBoost::test()
 	GResamplingAdaBoost boost(pLearner, true, new GLearnerLoader());
 	boost.basicTest(0.753, 0.92);
 }
-#endif
+
+
+
+
+
+
+
+
+
+GGradBoost::GGradBoost(GSupervisedLearner* pLearner, bool ownLearner, GLearnerLoader* pLoader)
+: GEnsemble(), m_pLearner(pLearner), m_ownLearner(ownLearner), m_pLoader(pLoader), m_trainSize(1.0), m_ensembleSize(30)
+{
+}
+
+GGradBoost::GGradBoost(const GDomNode* pNode, GLearnerLoader& ll)
+: GEnsemble(pNode, ll), m_pLearner(NULL), m_ownLearner(false), m_pLoader(NULL)
+{
+	m_trainSize = pNode->getDouble("ts");
+	m_ensembleSize = (size_t)pNode->getInt("es");
+}
+
+// virtual
+GGradBoost::~GGradBoost()
+{
+	clear();
+	if(m_ownLearner)
+		delete(m_pLearner);
+	delete(m_pLoader);
+}
+
+// virtual
+GDomNode* GGradBoost::serialize(GDom* pDoc) const
+{
+	GDomNode* pNode = baseDomNode(pDoc, "GGradBoost");
+	serializeBase(pDoc, pNode);
+	pNode->add(pDoc, "es", m_ensembleSize);
+	pNode->add(pDoc, "ts", m_trainSize);
+	return pNode;
+}
+
+// virtual
+void GGradBoost::clear()
+{
+	for(vector<GWeightedModel*>::iterator it = m_models.begin(); it != m_models.end(); it++)
+		delete(*it);
+	m_models.clear();
+	if(m_pLearner)
+		m_pLearner->clear();
+}
+
+// virtual
+void GGradBoost::trainInnerInner(const GMatrix& features, const GMatrix& labels)
+{
+	clear();
+
+	// Compute label centroid
+	m_labelCentroid.resize(labels.cols());
+	for(size_t i = 0; i < m_labelCentroid.size(); i++)
+		m_labelCentroid[i] = labels.columnMean(i);
+
+	// Train the ensemble
+	size_t drawRows = (size_t)(m_trainSize * features.rows());
+	GVec prediction(m_labelCentroid.size());
+	for(size_t es = 0; es < m_ensembleSize; es++)
+	{
+		// Draw a training set from the distribution
+		GMatrix drawnFeatures(features.relation().clone());
+		GReleaseDataHolder hDrawnFeatures(&drawnFeatures);
+		GMatrix residualLabels(labels.relation().clone());
+		for(size_t i = 0; i < drawRows; i++)
+		{
+			size_t index = m_rand.next(features.rows());
+			drawnFeatures.takeRow((GVec*)&features[index]);
+			GVec& lab = residualLabels.newRow();
+			lab.copy(labels[index]);
+			predict(features[index], prediction);
+			lab -= prediction;
+		}
+
+		// Train an instance of the model and store a clone of it
+		m_pLearner->train(drawnFeatures, residualLabels);
+		GDom doc;
+		GSupervisedLearner* pClone = m_pLoader->loadLearner(m_pLearner->serialize(&doc));
+		m_models.push_back(new GWeightedModel(1.0, pClone));
+	}
+}
+
+// virtual
+void GGradBoost::predict(const GVec& in, GVec& out)
+{
+	out.copy(m_labelCentroid);
+	for(size_t i = 0; i < m_models.size(); i++)
+	{
+		m_models[i]->m_pModel->predict(in, m_accumulator);
+		out += m_accumulator;
+	}
+}
+
 
 
 
@@ -892,7 +905,6 @@ void GBucket::predictDistribution(const GVec& in, GPrediction* out)
 	m_models[m_nBestLearner]->predictDistribution(in, out);
 }
 
-#ifndef NO_TEST_CODE
 #include "GDecisionTree.h"
 // static
 void GBucket::test()
@@ -903,4 +915,3 @@ void GBucket::test()
 	bucket.addLearner(new GAutoFilter(new GMeanMarginsTree()));
 	bucket.basicTest(0.695, 0.918);
 }
-#endif

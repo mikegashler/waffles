@@ -40,10 +40,8 @@ public:
 	GBezier(GBezier* pThat);
 	~GBezier();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
 
 	/// Returns the number of control points in this curve (which is always
 	/// one more than the degree of the curve).

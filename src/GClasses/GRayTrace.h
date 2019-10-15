@@ -364,6 +364,7 @@ public:
 	GRayTracePointLight(GDomNode* pNode);
 	virtual ~GRayTracePointLight();
 
+	G3DVector* position() { return &m_position; }
 	virtual GDomNode* serialize(GDom* pDoc, const GRayTraceScene* pScene) const;
 	virtual LightType lightType() const { return Point; }
 	virtual void colorContribution(GRayTraceScene* pScene, GRayTraceRay* pRay, GRayTraceMaterial* pMaterial, bool bSpecular);
@@ -396,7 +397,6 @@ public:
 	{
 		Physical,
 		Image,
-		Etherial,
 	};
 
 	enum ColorType
@@ -573,16 +573,14 @@ class GRayTraceTriMesh
 {
 protected:
 	GRayTraceMaterial* m_pMaterial;
-	size_t m_nPoints;
-	G3DVector* m_pPoints;
-	size_t m_nTriangles;
-	size_t* m_pTriangles;
+	std::vector<G3DVector> m_points;
+	std::vector<size_t> m_triangles;
 	G3DVector* m_pNormals;
 	G3DReal* m_pTextureCoords;
 	bool m_bCulling;
 
 public:
-	GRayTraceTriMesh(GRayTraceMaterial* pMaterial, size_t nPoints, size_t nTriangles, size_t nNormals, size_t nTextureCoords);
+	GRayTraceTriMesh(GRayTraceMaterial* pMaterial);
 	GRayTraceTriMesh(GDomNode* pNode, GRayTraceScene* pScene);
 	~GRayTraceTriMesh();
 
@@ -599,12 +597,13 @@ public:
 	void normalVector(GRayTraceRay* pRay, size_t nIndex);
 	bool isCulled() { return m_bCulling || m_pNormals; }
 	void activateCulling() { m_bCulling = true; }
-	void setPoint(size_t nIndex, const G3DVector* pPoint);
-	void setTriangle(size_t nIndex, size_t v1, size_t v2, size_t v3);
+	void addPoint(const G3DVector& point);
+	void addTriangle(size_t v1, size_t v2, size_t v3);
 	void setNormal(size_t nIndex, G3DVector* pNormal);
 	void setTextureCoord(size_t nIndex, G3DReal x, G3DReal y);
 	void center(G3DVector* pOutPoint, size_t nIndex);
-	size_t triangleCount() { return m_nTriangles; }
+	size_t pointCount() { return m_points.size(); }
+	size_t triangleCount() { return m_triangles.size() / 3; }
 	void triangle(size_t index, size_t* v1, size_t* v2, size_t* v3);
 	GRayTraceMaterial* material() { return m_pMaterial; }
 	void adjustBoundingBox(size_t nIndex, G3DVector* pMin, G3DVector* pMax);

@@ -646,7 +646,6 @@ void GKNN::clear()
 	m_valueCounts.resize(0);
 }
 
-#ifndef NO_TEST_CODE
 //static
 void GKNN::test()
 {
@@ -654,7 +653,7 @@ void GKNN::test()
 	knn.setNeighborCount(3);
 	knn.basicTest(0.72, 0.92, 0.1);
 }
-#endif
+
 
 // ---------------------------------------------------------------------------------------
 
@@ -725,7 +724,8 @@ std::unique_ptr<GMatrix> GNeighborTransducer::transduceInner(const GMatrix& feat
 				GVec& row = labelList.row(i);
 				size_t index = (size_t)row[0];
 				pNF->findNearest(m_friendCount, index);
-				GVec::setAll(tallys, 0.0, labelValues);
+				GVecWrapper vw2(tallys, labelValues);
+				vw2.fill(0.0);
 				for(size_t j = 0; j < m_friendCount; j++)
 				{
 					if(pNF->neighbor(j) >= features2.rows())
@@ -1124,7 +1124,6 @@ void GSparseInstance::clear()
 	m_pSkipRows = NULL;
 }
 
-#ifndef NO_TEST_CODE
 //static
 void GSparseInstance::test()
 {
@@ -1132,7 +1131,6 @@ void GSparseInstance::test()
 	learner.setNeighborCount(3);
 	learner.basicTest(0.0, 0.0);
 }
-#endif
 
 
 

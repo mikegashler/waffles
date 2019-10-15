@@ -20,19 +20,13 @@
 #include "GTransform.h"
 #include "GDom.h"
 #include "GVec.h"
-#ifndef MIN_PREDICT
 #include "GDistribution.h"
-#endif // MIN_PREDICT
 #include "GRand.h"
-#ifndef MIN_PREDICT
 #include "GManifold.h"
 #include "GCluster.h"
 #include "GString.h"
-#endif // MIN_PREDICT
 #include "GNeuralNet.h"
-#ifndef MIN_PREDICT
 #include "GRecommender.h"
-#endif // MIN_PREDICT
 #include "GHolders.h"
 #include <stdlib.h>
 #include <vector>
@@ -162,7 +156,6 @@ std::unique_ptr<GMatrix> GIncrementalTransform::untransformBatch(const GMatrix& 
 	return pOut;
 }
 
-#ifndef MIN_PREDICT
 //static
 void GIncrementalTransform::test()
 {
@@ -219,7 +212,6 @@ void GIncrementalTransform::test()
 	if(!pD->relation().isCompatible(m.relation()) || !m.relation().isCompatible(pD->relation()))
 		throw Ex("failed");
 }
-#endif // MIN_PREDICT
 
 
 
@@ -390,7 +382,6 @@ GIncrementalTransform* GIncrementalTransformChainer::chain(GIncrementalTransform
 		return new GIncrementalTransformChainer(pA, pB);
 }
 
-#ifndef MIN_PREDICT
 // virtual
 GDomNode* GIncrementalTransformChainer::serialize(GDom* pDoc) const
 {
@@ -399,7 +390,6 @@ GDomNode* GIncrementalTransformChainer::serialize(GDom* pDoc) const
 	pNode->add(pDoc, "second", m_pSecond->serialize(pDoc));
 	return pNode;
 }
-#endif // MIN_PREDICT
 
 // virtual
 GRelation* GIncrementalTransformChainer::trainInner(const GMatrix& data)
@@ -435,7 +425,6 @@ void GIncrementalTransformChainer::untransform(const GVec& in, GVec& out)
 	m_pFirst->untransform(buf, out);
 }
 
-#ifndef MIN_PREDICT
 // virtual
 void GIncrementalTransformChainer::untransformToDistribution(const GVec& in, GPrediction* out)
 {
@@ -443,7 +432,6 @@ void GIncrementalTransformChainer::untransformToDistribution(const GVec& in, GPr
 	m_pSecond->untransform(in, buf);
 	m_pFirst->untransformToDistribution(buf, out);
 }
-#endif // MIN_PREDICT
 
 // ---------------------------------------------------------------
 
@@ -466,7 +454,6 @@ GPCA::~GPCA()
 	delete(m_pBasisVectors);
 }
 
-#ifndef MIN_PREDICT
 // virtual
 GDomNode* GPCA::serialize(GDom* pDoc) const
 {
@@ -475,7 +462,6 @@ GDomNode* GPCA::serialize(GDom* pDoc) const
 	pNode->add(pDoc, "aboutOrigin", m_aboutOrigin);
 	return pNode;
 }
-#endif // MIN_PREDICT
 
 void GPCA::computeEigVals()
 {
@@ -684,7 +670,6 @@ GDataAugmenter::~GDataAugmenter()
 	delete(m_pTransform);
 }
 
-#ifndef MIN_PREDICT
 // virtual
 GDomNode* GDataAugmenter::serialize(GDom* pDoc) const
 {
@@ -692,7 +677,6 @@ GDomNode* GDataAugmenter::serialize(GDom* pDoc) const
 	pNode->add(pDoc, "trans", m_pTransform->serialize(pDoc));
 	return pNode;
 }
-#endif // MIN_PREDICT
 
 // virtual
 GRelation* GDataAugmenter::trainInner(const GMatrix& data)
@@ -735,7 +719,6 @@ void GDataAugmenter::untransformToDistribution(const GVec& in, GPrediction* out)
 }
 
 // --------------------------------------------------------------------------
-#ifndef MIN_PREDICT
 
 GAttributeSelector::GAttributeSelector(const GDomNode* pNode)
 : GIncrementalTransform(pNode), m_seed(1234567)
@@ -836,7 +819,7 @@ GRelation* GAttributeSelector::trainInner(const GMatrix& data)
 		size_t pos = 0;
 		double weakest = 1e308;
 		size_t weakestIndex = 0;
-		GVec& weights = optimizer.weights();
+		GVec& weights = optimizer.model().weights;
 		for(size_t i = 0; i < curDims; i++)
 		{
 			double w = 0;
@@ -905,7 +888,6 @@ void GAttributeSelector::test()
 	if(r[2] != 3 && r[2] != 13 && r[2] != 17)
 		throw Ex("failed");
 }
-#endif // MIN_PREDICT
 
 // --------------------------------------------------------------------------
 
@@ -1007,15 +989,15 @@ void GNominalToCat::transform(const GVec& in, GVec& out)
 			if(in[i] >= 0)
 			{
 				GAssert(in[i] < nValues);
-				GVec::setAll(out.data() + j, m_lo, nValues);
+				out.fill(m_lo, j, nValues);
 				out[j + (int)in[i]] = m_hi;
 			}
 			else
 			{
 				if(m_preserveUnknowns)
-					GVec::setAll(out.data() + j, UNKNOWN_REAL_VALUE, nValues);
+					out.fill(UNKNOWN_REAL_VALUE, j, nValues);
 				else
-					GVec::setAll(out.data() + j, (m_hi - m_lo) / nValues + m_lo, nValues);
+					out.fill((m_hi - m_lo) / nValues + m_lo, j, nValues);
 			}
 			j += nValues;
 		}
@@ -1082,7 +1064,6 @@ void GNominalToCat::untransform(const GVec& in, GVec& out)
 	}
 }
 
-#ifndef MIN_PREDICT
 // virtual
 void GNominalToCat::untransformToDistribution(const GVec& in, GPrediction* out)
 {
@@ -1136,7 +1117,6 @@ void GNominalToCat::untransformToDistribution(const GVec& in, GPrediction* out)
 		}
 	}
 }
-#endif // MIN_PREDICT
 
 void GNominalToCat::reverseAttrMap(vector<size_t>& rmap)
 {
@@ -1407,7 +1387,6 @@ void GDiscretize::untransformToDistribution(const GVec& in, GPrediction* out)
 
 
 
-#ifndef MIN_PREDICT
 
 GImputeMissingVals::GImputeMissingVals()
 : m_pCF(NULL), m_pNTC(NULL), m_pLabels(NULL), m_pBatch(NULL)
@@ -1571,7 +1550,6 @@ void GImputeMissingVals::setLabels(const GMatrix* pLabels)
 	m_pLabels = pLabels;
 }
 
-#endif // MIN_PREDICT
 
 // --------------------------------------------------------------------------
 

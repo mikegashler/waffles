@@ -378,7 +378,6 @@ void GNaiveBayes::autoTune(GMatrix& features, GMatrix& labels)
 	m_equivalentSampleSize = bestEss;
 }
 
-#ifndef NO_TEST_CODE
 void GNaiveBayes_CheckResults(double yprior, double ycond, double nprior, double ncond, GPrediction* out)
 {
 	double py = yprior * ycond;
@@ -452,6 +451,5 @@ void GNaiveBayes::test()
 	GAutoFilter af(new GNaiveBayes());
 	af.basicTest(0.77, 0.94);
 }
-#endif // !NO_TEST_CODE
 
 } // namespace GClasses

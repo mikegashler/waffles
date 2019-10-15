@@ -194,7 +194,6 @@ unsigned char* GKeyPair::powerMod(const unsigned char* pInput, int nInputSize, b
 	return pOutput;
 }
 
-#ifndef NO_TEST_CODE
 /*static*/ void GKeyPair::test()
 {
 	GRand prng(0);
@@ -220,6 +219,5 @@ unsigned char* GKeyPair::powerMod(const unsigned char* pInput, int nInputSize, b
 	if(final.compareTo(&message) != 0)
 		throw Ex("failed");
 }
-#endif // !NO_TEST_CODE
 
 } // namespace GClasses

@@ -69,14 +69,6 @@ struct GRegionEdge
 	}
 };
 
-struct GRegion
-{
-	int m_nPixels;
-	int m_nSumRed;
-	int m_nSumGreen;
-	int m_nSumBlue;
-	struct GRegionEdge* m_pNeighbors;
-};
 
 
 
@@ -407,23 +399,31 @@ void G2DRegionGraph::makeCoarserRegions(G2DRegionGraph* pFineRegions)
 }
 
 // ------------------------------------------------------------------------------------------
-/*
-G3DRegionGraph::G3DRegionGraph(int nWidth, int nHeight)
+
+G3DRegionGraph::G3DRegionGraph(size_t frames, int nWidth, int nHeight)
  : GRegionAjacencyGraph()
 {
-	m_pRegionMask = new GVideo(nWidth, nHeight);
+	for(size_t i = 0; i < frames; i++)
+	{
+		GImage* pImage = new GImage();
+		m_regionMask.push_back(pImage);
+		pImage->setSize(nWidth, nHeight);
+		pImage->clear(0xffffffff);
+	}
 }
 
 G3DRegionGraph::~G3DRegionGraph()
 {
-	delete(m_pRegionMask);
+	for(size_t i = 0; i < m_regionMask.size(); i++)
+		delete(m_regionMask[i]);
 }
 
-void G3DRegionGraph::setMaskPixel(int x, int y, int z, unsigned int c, int nRegion)
+void G3DRegionGraph::setMaskPixel(size_t frame, int x, int y, unsigned int c, size_t nRegion)
 {
-	GAssert(x >= 0 && x < m_pRegionMask->width() && y >= 0 && y < m_pRegionMask->height() && z >= 0 && z < m_pRegionMask->frameCount()); // out of range
-	GAssert(m_pRegionMask->frame(z)->pixel(x, y) == 0xffffffff); // This pixel is already set
-	m_pRegionMask->frame(z)->setPixel(x, y, nRegion);
+	GImage* pImage = m_regionMask[frame];
+	GAssert(x >= 0 && x < (int)pImage->width() && y >= 0 && y < (int)pImage->height()); // out of range
+	GAssert(pImage->pixel(x, y) == 0xffffffff); // This pixel is already set
+	pImage->setPixel(x, y, (unsigned int)nRegion);
 	struct GRegion* pRegion = m_regions[nRegion];
 	pRegion->m_nSumRed += gRed(c);
 	pRegion->m_nSumGreen += gGreen(c);
@@ -431,170 +431,190 @@ void G3DRegionGraph::setMaskPixel(int x, int y, int z, unsigned int c, int nRegi
 	pRegion->m_nPixels++;
 }
 
-void PickTobogganDirection(GVideo* pGradMagVideo, int u, int v, int w, int* pdu, int* pdv, int* pdw)
+void G3DRegionGraph_makeGradientMagnitudeVideo(const std::vector<GImage*>& in, std::vector<GImage*>& out)
 {
-	unsigned int cand;
-	GImage* pFrame = pGradMagVideo->frame(w);
-	unsigned int grad = pFrame->pixel(u, v);
-	int du = 0;
-	int dv = 0;
-	int dw = 0;
-	if(w > 0)
+	while(out.size() < in.size())
 	{
-		pFrame = pGradMagVideo->frame(w - 1);
-		cand = pFrame->pixel(u, v);
-		if(cand < grad)
-		{
-			grad = cand;
-			du = 0;
-			dv = 0;
-			dw = -1;
-		}
+		GImage* pImage = new GImage();
+		out.push_back(pImage);
+		pImage->setSize(in[0]->width(), in[0]->height());
 	}
-	if(w < pGradMagVideo->frameCount() - 1)
+	for(int z = 0; z < (int)in.size(); z++)
 	{
-		pFrame = pGradMagVideo->frame(w + 1);
-		cand = pFrame->pixel(u, v);
-		if(cand < grad)
+		GImage* pImage = in[z];
+		GImage* pOutImage = out[z];
+		for(int y = 0; y < (int)pImage->height(); y++)
 		{
-			grad = cand;
-			du = 0;
-			dv = 0;
-			dw = 1;
-		}
-	}
-	if(u > 0)
-	{
-		cand = pFrame->pixel(u - 1, v);
-		if(cand < grad)
-		{
-			grad = cand;
-			du = -1;
-			dv = 0;
-			dw = 0;
-		}
-	}
-	if(v > 0)
-	{
-		cand = pFrame->pixel(u, v - 1);
-		if(cand < grad)
-		{
-			grad = cand;
-			du = 0;
-			dv = -1;
-			dw = 0;
-		}
-	}
-	if(u < pGradMagVideo->width() - 1)
-	{
-		cand = pFrame->pixel(u + 1, v);
-		if(cand < grad)
-		{
-			grad = cand;
-			du = 1;
-			dv = 0;
-			dw = 0;
-		}
-	}
-	if(v < pGradMagVideo->height() - 1)
-	{
-		cand = pFrame->pixel(u, v + 1);
-		if(cand < grad)
-		{
-			grad = cand;
-			du = 0;
-			dv = 1;
-			dw = 0;
-		}
-	}
-	*pdu = du;
-	*pdv = dv;
-	*pdw = dw;
-}
-
-void G3DRegionGraph::makeWatershedRegions(GVideo* pVideo)
-{
-	GVideo gradMag(pVideo->width(), pVideo->height());
-	gradMag.makeGradientMagnitudeVideo(pVideo, false);
-	GVideo* pMask = regionMask();
-	GAssert(pVideo->width() == pMask->width() && pVideo->height() == pMask->height()); // size mismatch
-	int x, y, z, u, v, w, du, dv, dw;
-	unsigned int region, other;
-	while(pMask->frameCount() < pVideo->frameCount())
-	{
-		pMask->addBlankFrame();
-		pMask->frame(pMask->frameCount() - 1)->clear(0xffffffff);
-	}
-	for(z = 0; z < pVideo->frameCount(); z++)
-	{
-		for(y = 0; y < pVideo->height(); y++)
-		{
-			for(x = 0; x < pVideo->width(); x++)
+			for(int x = 0; x < (int)pImage->width(); x++)
 			{
-				u = x;
-				v = y;
-				w = z;
-				do
+				int rx = 0;	int ry = 0;	int rz = 0;
+				int gx = 0; int gy = 0;	int gz = 0;
+				int bx = 0; int by = 0;	int bz = 0;
+				int r, g, b;
+				for(int dz = -1; dz < 2; dz++)
 				{
-					region = pMask->frame(w)->pixel(u, v);
-					if(region != 0xffffffff)
-						break;
-					PickTobogganDirection(&gradMag, u, v, w, &du, &dv, &dw);
-					u += du;
-					v += dv;
-					w += dw;
-				} while(du != 0 || dv != 0 || dw != 0);
-				if(region == 0xffffffff)
-				{
-					region = addRegion();
-					setMaskPixel(u, v, w, pVideo->frame(w)->pixel(u, v), region);
+					int zz = std::max(0, (int)std::min((int)in.size() - 1, z + dz));
+					GImage* pImg = in[zz];
+					for(int dy = -1; dy < 2; dy++)
+					{
+						int yy = std::max(0, std::min((int)pImg->height() - 1, y + dy));
+						for(int dx = -1; dx < 2; dx++)
+						{
+							int xx = std::max(0, std::min((int)pImg->width() - 1, x + dx));
+							unsigned int pix = pImg->pixel(xx, yy);
+							r = gRed(pix);
+							g = gGreen(pix);
+							b = gBlue(pix);
+							int x_scalar = dx * (2 - dy * dy) * (2 - dz * dz);
+							int y_scalar = (2 - dx * dx) * dy * (2 - dz * dz);
+							int z_scalar = (2 - dx * dx) * (2 - dy * dy) * dz;
+							rx += r * x_scalar;
+							gx += g * x_scalar;
+							bx += b * x_scalar;
+							ry += r * y_scalar;
+							gy += g * y_scalar;
+							by += b * y_scalar;
+							rz += r * z_scalar;
+							gz += g * z_scalar;
+							bz += b * z_scalar;
+						}
+					}
 				}
-				u = x;
-				v = y;
-				w = z;
-				do
-				{
-					if(pMask->frame(w)->pixel(u, v) != 0xffffffff)
-						break;
-					setMaskPixel(u, v, w, pVideo->frame(w)->pixel(u, v), region);
-					PickTobogganDirection(&gradMag, u, v, w, &du, &dv, &dw);
-					u += du;
-					v += dv;
-					w += dw;
-				} while(du != 0 || dv != 0 || dw != 0);
-				if(x > 0)
-				{
-					other = pMask->frame(z)->pixel(x - 1, y);
-					if(other != region)
-						makeNeighbors(region, other);
-				}
-				if(y > 0)
-				{
-					other = pMask->frame(z)->pixel(x, y - 1);
-					if(other != region)
-						makeNeighbors(region, other);
-				}
-				if(z > 0)
-				{
-					other = pMask->frame(z - 1)->pixel(x, y);
-					if(other != region)
-						makeNeighbors(region, other);
-				}
+				unsigned int grad = rx * rx + ry * ry + rz * rz;
+				grad = std::max((int)grad, gx * gx + gy * gy + gz * gz);
+				grad = std::max((int)grad, bx * bx + by * by + bz * bz);
+				pOutImage->setPixel(x, y, grad);
 			}
 		}
 	}
 }
 
-void G3DRegionGraph::makeCoarserRegions(G3DRegionGraph* pFineRegions)
+void G3DRegionGraph_PickTobogganDirection(GImage* pGradMagImage, int u, int v, int* pdu, int* pdv)
+{
+	unsigned int cand;
+	unsigned int grad = pGradMagImage->pixel(u, v);
+	int du = 0;
+	int dv = 0;
+	if(u > 0)
+	{
+		cand = pGradMagImage->pixel(u - 1, v);
+		if(cand < grad)
+		{
+			grad = cand;
+			du = -1;
+			dv = 0;
+		}
+	}
+	if(v > 0)
+	{
+		cand = pGradMagImage->pixel(u, v - 1);
+		if(cand < grad)
+		{
+			grad = cand;
+			du = 0;
+			dv = -1;
+		}
+	}
+	if(u < (int)pGradMagImage->width() - 1)
+	{
+		cand = pGradMagImage->pixel(u + 1, v);
+		if(cand < grad)
+		{
+			grad = cand;
+			du = 1;
+			dv = 0;
+		}
+	}
+	if(v < (int)pGradMagImage->height() - 1)
+	{
+		cand = pGradMagImage->pixel(u, v + 1);
+		if(cand < grad)
+		{
+			grad = cand;
+			du = 0;
+			dv = 1;
+		}
+	}
+	*pdu = du;
+	*pdv = dv;
+}
+/*
+void G3DRegionGraph::makeWatershedRegions(const std::vector<GImage*>& frames)
+{
+	std::vector<GImage*> gradMag;
+	G3DRegionGraph_makeGradientMagnitudeVideo(frames, gradMag);
+	GImage* pMask = regionMask();
+	int x, y, u, v, du, dv;
+	size_t region, other;
+	for(y = 0; y < (int)pImage->height(); y++)
+	{
+		for(x = 0; x < (int)pImage->width(); x++)
+		{
+			u = x;
+			v = y;
+			do
+			{
+				region = pMask->pixel(u, v);
+				if(region != 0xffffffff)
+					break;
+				G3DRegionGraph_PickTobogganDirection(&gradMag, u, v, &du, &dv);
+				u += du;
+				v += dv;
+			} while(du != 0 || dv != 0);
+			if(region == 0xffffffff)
+			{
+				region = addRegion();
+				setMaskPixel(u, v, pImage->pixel(u, v), region);
+			}
+			u = x;
+			v = y;
+			do
+			{
+				if(pMask->pixel(u, v) != 0xffffffff)
+					break;
+				setMaskPixel(u, v, pImage->pixel(u, v), region);
+				G3DRegionGraph_PickTobogganDirection(&gradMag, u, v, &du, &dv);
+				u += du;
+				v += dv;
+			} while(du != 0 || dv != 0);
+			if(x > 0)
+			{
+				other = pMask->pixel(x - 1, y);
+				if(other != region)
+					makeNeighbors(region, other);
+			}
+			if(y > 0)
+			{
+				other = pMask->pixel(x, y - 1);
+				if(other != region)
+					makeNeighbors(region, other);
+			}
+		}
+	}
+}
+
+double MeasureRegionDifference(struct GRegion* pA, struct GRegion* pB)
+{
+	double dSum = 0;
+	double d;
+	d = (double)pA->m_nSumRed / pA->m_nPixels - (double)pB->m_nSumRed / pB->m_nPixels;
+	dSum += (d * d);
+	d = (double)pA->m_nSumGreen / pA->m_nPixels - (double)pB->m_nSumGreen / pB->m_nPixels;
+	dSum += (d * d);
+	d = (double)pA->m_nSumBlue / pA->m_nPixels - (double)pB->m_nSumBlue / pB->m_nPixels;
+	dSum += (d * d);
+	return dSum;
+}
+
+void G3DRegionGraph::makeCoarserRegions(G2DRegionGraph* pFineRegions)
 {
 	// Find every region's closest neighbor
-	GVideo* pFineRegionMask = pFineRegions->regionMask();
-	GVideo* pCoarseRegionMask = regionMask();
+	GImage* pFineRegionMask = pFineRegions->regionMask();
+	GImage* pCoarseRegionMask = regionMask();
 	GAssert(pCoarseRegionMask->width() == pFineRegionMask->width() && pCoarseRegionMask->height() == pFineRegionMask->height()); // size mismatch
 	int* pBestNeighborMap = new int[pFineRegions->regionCount()];
 	std::unique_ptr<int[]> hBestNeighborMap(pBestNeighborMap);
-	int i, j;
-	for(i = 0; i < pFineRegions->regionCount(); i++)
+	for(size_t i = 0; i < pFineRegions->regionCount(); i++)
 	{
 		struct GRegion* pRegion = pFineRegions->m_regions[i];
 		struct GRegionEdge* pEdge;
@@ -603,13 +623,13 @@ void G3DRegionGraph::makeCoarserRegions(G3DRegionGraph* pFineRegions)
 		int nBestNeighbor = -1;
 		for(pEdge = pRegion->m_pNeighbors; pEdge; pEdge = pEdge->GetNext(i))
 		{
-			j = pEdge->GetOther(i);
+			size_t j = pEdge->GetOther(i);
 			struct GRegion* pOtherRegion = pFineRegions->m_regions[j];
 			d = MeasureRegionDifference(pRegion, pOtherRegion);
 			if(d < dBestDiff)
 			{
 				dBestDiff = d;
-				nBestNeighbor = j;
+				nBestNeighbor = (int)j;
 			}
 		}
 		GAssert(nBestNeighbor != -1 || pFineRegions->regionCount() == 1); // failed to find a neighbor
@@ -621,10 +641,10 @@ void G3DRegionGraph::makeCoarserRegions(G3DRegionGraph* pFineRegions)
 	std::unique_ptr<int[]> hNewRegionMap(pNewRegionMap);
 	memset(pNewRegionMap, 0xff, sizeof(int) * pFineRegions->regionCount());
 	int nNewRegionCount = 0;
-	for(i = 0; i < pFineRegions->regionCount(); i++)
+	for(size_t i = 0; i < pFineRegions->regionCount(); i++)
 	{
-		int nNewRegion = -1;
-		j = i;
+		size_t nNewRegion = -1;
+		size_t j = i;
 		while(pNewRegionMap[j] == -1)
 		{
 			pNewRegionMap[j] = -2;
@@ -637,17 +657,16 @@ void G3DRegionGraph::makeCoarserRegions(G3DRegionGraph* pFineRegions)
 		j = i;
 		while(pNewRegionMap[j] == -2)
 		{
-			pNewRegionMap[j] = nNewRegion;
+			pNewRegionMap[j] = (int)nNewRegion;
 			j = pBestNeighborMap[j];
 		}
 	}
 
 	// Make the new regions
-	int k;
-	for(i = 0; i < pFineRegions->regionCount(); i++)
+	for(size_t i = 0; i < pFineRegions->regionCount(); i++)
 	{
 		struct GRegion* pRegion = pFineRegions->m_regions[i];
-		j = pNewRegionMap[i];
+		size_t j = pNewRegionMap[i];
 		if(regionCount() <= j)
 		{
 			GAssert(regionCount() == j); // how'd it get two behind?
@@ -659,14 +678,14 @@ void G3DRegionGraph::makeCoarserRegions(G3DRegionGraph* pFineRegions)
 		pCoarseRegion->m_nSumBlue += pRegion->m_nSumBlue;
 		pCoarseRegion->m_nPixels += pRegion->m_nPixels;
 	}
-	for(i = 0; i < pFineRegions->regionCount(); i++)
+	for(size_t i = 0; i < pFineRegions->regionCount(); i++)
 	{
 		struct GRegion* pRegion = pFineRegions->m_regions[i];
-		j = pNewRegionMap[i];
+		size_t j = pNewRegionMap[i];
 		struct GRegionEdge* pEdge;
 		for(pEdge = pRegion->m_pNeighbors; pEdge; pEdge = pEdge->GetNext(i))
 		{
-			k = pNewRegionMap[pEdge->GetOther(i)];
+			size_t k = pNewRegionMap[pEdge->GetOther(i)];
 			if(j != k)
 				makeNeighbors(j, k);
 		}
@@ -674,22 +693,13 @@ void G3DRegionGraph::makeCoarserRegions(G3DRegionGraph* pFineRegions)
 
 	// Make the fine region mask
 	unsigned int nOldRegion;
-	int x, y, z;
-	GImage* pCurrentFine;
-	GImage* pCurrentCoarse;
-	for(z = 0; z < pFineRegionMask->frameCount(); z++)
+	int x, y;
+	for(y = 0; y < (int)pFineRegionMask->height(); y++)
 	{
-		if(pCoarseRegionMask->frameCount() <= z)
-			pCoarseRegionMask->addBlankFrame();
-		pCurrentFine = pFineRegionMask->frame(z);
-		pCurrentCoarse = pCoarseRegionMask->frame(z);
-		for(y = 0; y < pFineRegionMask->height(); y++)
+		for(x = 0; x < (int)pFineRegionMask->width(); x++)
 		{
-			for(x = 0; x < pFineRegionMask->width(); x++)
-			{
-				nOldRegion = pCurrentFine->pixel(x, y);
-				pCurrentCoarse->setPixel(x, y, pNewRegionMap[nOldRegion]);
-			}
+			nOldRegion = pFineRegionMask->pixel(x, y);
+			pCoarseRegionMask->setPixel(x, y, pNewRegionMap[nOldRegion]);
 		}
 	}
 }
@@ -1002,15 +1012,14 @@ void GSubImageFinder::findSubImage(int* pOutX, int* pOutY, GImage* pNeedle, GRec
 		for(x = 0; x < m_nHaystackWidth; x++)
 		{
 			d = m_pCorRed[pos].real * m_pCorGreen[pos].real * m_pCorBlue[pos].real;
-			corr.setPixel(x, y, gFromGray(MAX((int)0, (int)(d * 255 * 256 / dBest))));
+			corr.setPixel(x, y, gFromGray(std::max((int)0, (int)(d * 255 * 256 / dBest))));
 			pos++;
 		}
 	}
-	corr.savePng("correlat.png");
+	corr.savePpm("correlat.ppm");
 */
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GSubImageFinder::test()
 {
@@ -1042,9 +1051,8 @@ void GSubImageFinder::test()
 	int x, y;
 	finder.findSubImage(&x, &y, &bar, &r, &r2);
 	if(x != 13 || y != 17)
-		throw "wrong answer";
+		throw Ex("wrong answer");
 }
-#endif // NO_TEST_CODE
 
 
 
@@ -1165,7 +1173,6 @@ void GSubImageFinder2::findSubImage(int* pOutX, int* pOutY, GImage* pNeedle, GRe
 	*pOutY = (*itBest)->m_y;
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GSubImageFinder2::test()
 {
@@ -1197,11 +1204,9 @@ void GSubImageFinder2::test()
 	int x, y;
 	finder.findSubImage(&x, &y, &bar, &r);
 	if(x != 13 || y != 17)
-		throw "wrong answer";
+		throw Ex("wrong answer");
 }
-#endif // NO_TEST_CODE
 
 
 
 } // namespace GClasses
-

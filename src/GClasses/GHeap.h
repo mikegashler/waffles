@@ -26,9 +26,10 @@
 
 namespace GClasses {
 
-#define BITS_PER_POINTER (sizeof(void*) * 8)
-#define ALIGN_DOWN(p) (((p) / BITS_PER_POINTER) * BITS_PER_POINTER)
-#define ALIGN_UP(p) ALIGN_DOWN((p) + BITS_PER_POINTER - 1)
+#define ALIGN_BYTES 1 // For byte-addressable machines
+//#define ALIGN_BYTES (sizeof(void*)) // For pointer-addressable machines
+#define ALIGN_DOWN(p) (((p) / ALIGN_BYTES) * ALIGN_BYTES)
+#define ALIGN_UP(p) ALIGN_DOWN((p) + ALIGN_BYTES - 1)
 
 /// Provides a heap in which to put strings or whatever
 /// you need to store. If you need to allocate space for

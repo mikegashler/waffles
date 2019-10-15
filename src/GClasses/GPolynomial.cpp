@@ -51,10 +51,8 @@ public:
 
 	virtual ~GPolynomialSingleLabel();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // NO_TEST_CODE
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	GDomNode* serialize(GDom* pDoc) const;
@@ -530,7 +528,6 @@ void GPolynomialSingleLabel::copy(GPolynomialSingleLabel* pOther)
 	}
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GPolynomialSingleLabel::test()
 {
@@ -576,9 +573,8 @@ void GPolynomialSingleLabel::test()
 	// 7 * (11 * 11) + 8 * (11 * 11 * 7) + 9 * (11 * 11 * 7 * 7)
 	// = 64809
 	if(prediction != 64809)
-		throw "wrong answer";
+		throw Ex("wrong answer");
 }
-#endif // NO_TEST_CODE
 
 
 
@@ -699,7 +695,6 @@ void GPolynomial::autoTune(GMatrix& features, GMatrix& labels)
 	m_controlPoints = bestCP;
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GPolynomial::test()
 {
@@ -707,7 +702,6 @@ void GPolynomial::test()
 	GAutoFilter af(new GPolynomial());
 	af.basicTest(0.78, -1.0/*skip it*/);
 }
-#endif // NO_TEST_CODE
 
 
 } // namespace GClasses

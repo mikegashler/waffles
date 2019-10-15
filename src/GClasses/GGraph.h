@@ -52,10 +52,8 @@ public:
 	GGraphCut(size_t nNodes);
 	~GGraphCut();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // !NO_TEST_CODE
 
 	/// Returns the number of nodes in the graph
 	size_t nodeCount() { return m_nNodes; }
@@ -130,10 +128,8 @@ public:
 	GFloydWarshall(size_t nodes);
 	~GFloydWarshall();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
 
 	/// Returns the number of nodes in the graph
 	size_t nodeCount() { return m_nodes; }
@@ -186,10 +182,8 @@ public:
 	GDijkstra(size_t nodes);
 	~GDijkstra();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
 
 	/// Returns the number of nodes in the graph
 	size_t nodeCount() { return m_nodes; }
@@ -225,10 +219,8 @@ public:
 	GBrandesBetweennessCentrality(size_t nodes);
 	~GBrandesBetweennessCentrality();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
 
 	/// Returns the number of nodes in the graph
 	size_t nodeCount();
@@ -288,10 +280,8 @@ public:
 	GAtomicCycleFinder(size_t nodes);
 	virtual ~GAtomicCycleFinder();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
 
 	/// Returns the number of nodes in the graph
 	size_t nodeCount();

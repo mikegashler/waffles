@@ -118,7 +118,8 @@ double GMixtureOfGaussians::iterate()
 	int i;
 	double x, d;
 	double likelihood = 0;
-	GVec::setAll(m_pTemp, 0.0, 3 * m_nKernelCount);
+	GVecWrapper vw(m_pTemp, 3 * m_nKernelCount);
+	vw.fill(0.0);
 	for(size_t j = 0; j < m_pData->rows(); j++)
 	{
 		x = m_pData->row(j)[m_nAttribute];
@@ -152,7 +153,6 @@ void GMixtureOfGaussians::params(int nKernel, double* pMean, double* pVariance, 
 	*pWeight = m_pArrMeanVarWeight[3 * nKernel + 2];
 }
 
-#ifndef NO_TEST_CODE
 
 #define KERNEL_COUNT 2
 #define SAMPLE_COUNT 10000
@@ -215,4 +215,3 @@ void GMixtureOfGaussians::test()
 			throw Ex("Failed");
 	}
 }
-#endif // !NO_TEST_CODE

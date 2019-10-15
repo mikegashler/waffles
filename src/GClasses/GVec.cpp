@@ -18,26 +18,26 @@
 */
 
 #include "GVec.h"
-#include <cstdio>
-#include <cstring>
 #include "GRand.h"
 #include "GError.h"
 #include "GMatrix.h"
-#ifndef MIN_PREDICT
 #include "GBits.h"
-#endif // MIN_PREDICT
 #include "GDom.h"
-#ifndef MIN_PREDICT
 #include "GMath.h"
 #include "GImage.h"
-#endif // MIN_PREDICT
 #include "GBitTable.h"
 #include "GHolders.h"
+#include "GTokenizer.h"
+#include "GTime.h"
 #include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <queue>
 
 namespace GClasses {
 
 using std::vector;
+using std::string;
 
 GVec::GVec(size_t n)
 : m_size(n)
@@ -65,7 +65,7 @@ GVec::GVec(const std::initializer_list<double>& list)
 	else
 		m_data = new double[list.size()];
 	size_t i = 0;
-	for(const double* it = begin(list); it != end(list); ++it)
+	for(const double* it = list.begin(); it != list.end(); ++it)
 	{
 		m_data[i++] = *it;
 	}
@@ -82,19 +82,6 @@ GVec::GVec(GDomNode* pNode)
 	deserialize(pNode);
 }
 
-GVec::GVec(const GVec& orig)
-{
-	m_size = orig.m_size;
-	if(m_size == 0)
-		m_data = NULL;
-	else
-	{
-		m_data = new double[m_size];
-		for(size_t i = 0; i < m_size; i++)
-			m_data[i] = orig.m_data[i];
-	}
-}
-
 GVec::~GVec()
 {
 	delete[] m_data;
@@ -102,7 +89,7 @@ GVec::~GVec()
 
 GVec& GVec::operator=(const GVec& orig)
 {
-	resize(orig.m_size);
+	resize_implicit(orig.m_size);
 	for(size_t i = 0; i < m_size; i++)
 		m_data[i] = orig.m_data[i];
 	return *this;
@@ -113,6 +100,17 @@ void GVec::resize(size_t n)
 	if(m_size == n)
 		return;
 	delete[] m_data;
+	m_data = nullptr;
+	m_size = 0;
+	resize_implicit(n);
+}
+
+void GVec::resize_implicit(size_t n)
+{
+	if(m_size == n)
+		return;
+	if(m_size != 0)
+		throw Ex("Implicit resizing from non-empty vector is not allowed. Call resize to make it explicit.");
 	m_size = n;
 	if(n == 0)
 		m_data = NULL;
@@ -136,9 +134,9 @@ void GVec::resizePreserve(size_t n)
 	delete[] oldData;
 }
 
-void GVec::fill(const double val, size_t startPos, size_t endPos)
+void GVec::fill(const double val, size_t startPos, size_t elements)
 {
-	endPos = std::min(endPos, m_size);
+	size_t endPos = std::min(startPos + elements, m_size);
 	for(size_t i = startPos; i < endPos; i++)
 		m_data[i] = val;
 }
@@ -218,14 +216,14 @@ void GVec::copy(const GVec& orig, size_t start, size_t size)
 {
 	GAssert(start <= orig.size());
 	size = std::min(size, orig.size() - start);
-	resize(size);
+	resize_implicit(size);
 	for(size_t i = 0; i < size; i++)
 		m_data[i] = orig[start + i];
 }
 
 void GVec::copy(const double* pSource, size_t n)
 {
-	resize(n);
+	resize_implicit(n);
 	for(size_t i = 0; i < n; i++)
 		(*this)[i] = *(pSource++);
 }
@@ -335,20 +333,25 @@ void GVec::fillSimplex(GRand& rand)
 	(*this) *= (1.0 / sum());
 }
 
-void GVec::print(std::ostream& stream, char separator) const
+void GVec::print(std::ostream& stream, char separator, size_t max_elements_per_line) const
 {
 	std::streamsize oldPrecision = stream.precision(14);
 	if(m_size > 0)
 		stream << (*this)[0];
 	for(size_t i = 1; i < m_size; i++)
-		stream << separator << (*this)[i];
+	{
+		stream << separator;
+		if(i % max_elements_per_line == 0)
+			stream << "\n";
+		stream << (*this)[i];
+	}
 	stream.precision(oldPrecision);
 }
 
-std::string GVec::to_str(char separator) const
+std::string GVec::to_str(char separator, size_t max_elements_per_line) const
 {
 	std::ostringstream ss;
-	print(ss, separator);
+	print(ss, separator, max_elements_per_line);
 	return ss.str();
 }
 
@@ -431,7 +434,7 @@ GDomNode* GVec::serialize(GDom* pDoc) const
 void GVec::deserialize(const GDomNode* pNode)
 {
 	GDomListIterator it(pNode);
-	resize(it.remaining());
+	resize_implicit(it.remaining());
 	for(size_t i = 0; it.current(); i++)
 	{
 		(*this)[i] = it.currentDouble();
@@ -499,9 +502,24 @@ void GVec::addScaled(double scalar, const GVec& that, size_t start, size_t size)
 {
 	GAssert(start + size <= that.size() || size == (size_t)-1);
 	size = std::min(size, that.size() - start);
-	GAssert(this->size() == size);
+	GAssert(this->size() >= size);
 	for(size_t i = 0; i < size; i++)
 		(*this)[i] += (scalar * that[start + i]);
+}
+
+void GVec::addScaled(size_t startPos, double scalar, const GVec& that, size_t start, size_t size)
+{
+	GAssert(start + size <= that.size() || size == (size_t)-1);
+	size = std::min(size, that.size() - start);
+	GAssert(this->size() >= size + startPos);
+	for(size_t i = 0; i < size; i++)
+		(*this)[startPos + i] += (scalar * that[start + i]);
+}
+
+void GVec::regularize(double amount)
+{
+	regularizeL2(amount);
+	regularizeL1(0.2 * amount);
 }
 
 void GVec::regularizeL1(double amount)
@@ -513,6 +531,11 @@ void GVec::regularizeL1(double amount)
 		else
 			(*this)[i] = std::max(0.0, (*this)[i] - amount);
 	}
+}
+
+void GVec::regularizeL2(double amount)
+{
+	(*this) *= (1.0 - amount);
 }
 
 void GVec::erase(size_t start, size_t count)
@@ -591,7 +614,7 @@ void GVec::toImage(GImage* pImage, int width, int height, int channels, double r
 
 void GVec::fromImage(GImage* pImage, int width, int height, int channels, double range)
 {
-	resize(width * height * channels);
+	resize_implicit(width * height * channels);
 	unsigned int* pix = pImage->pixels();
 	if(channels == 3)
 	{
@@ -630,53 +653,6 @@ void GVec::swapContents(GVec& that)
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// static
-void GVec::setAll(double* pVector, double value, size_t dims)
-{
-	for(size_t i = 0; i < dims; i++)
-	{
-		*pVector = value;
-		pVector++;
-	}
-}
-
-void GVec::fill(double* pVector, double value, size_t dims)
-{
-	for(size_t i = 0; i < dims; i++)
-	{
-		*pVector = value;
-		pVector++;
-	}
-}
-
-// static
-void GVec::perturb(double* pDest, double deviation, size_t dims, GRand& rand)
-{
-	for(size_t i = 0; i < dims; i++)
-		*(pDest++) += deviation * rand.normal();
-}
-
-#ifndef MIN_PREDICT
 // static
 void GVec::test()
 {
@@ -704,7 +680,8 @@ void GVec::test()
 	GVec v1(2);
 	v1[0] = 2.0;
 	v1[1] = 7.0;
-	GVec v2(v1);
+	GVec v2;
+	v2.copy(v1);
 	if(v2.size() != 2)
 		throw Ex("failed");
 	if(v1.squaredDistance(v2) != 0.0)
@@ -766,7 +743,6 @@ void GVec::test()
 	if ( v6[0] != 5 || v6[1] != 5 )
 		throw Ex("failed");
 }
-#endif // MIN_PREDICT
 
 std::string to_str(const GVec& v)
 {
@@ -795,7 +771,7 @@ GIndexVec::GIndexVec(const std::initializer_list<size_t>& list)
 	else
 		m_data = new size_t[list.size()];
 	size_t i = 0;
-	for(const size_t* it = begin(list); it != end(list); ++it)
+	for(const size_t* it = list.begin(); it != list.end(); ++it)
 	{
 		m_data[i++] = *it;
 	}
@@ -844,6 +820,12 @@ void GIndexVec::resize(size_t n)
 		m_data = nullptr;
 	else
 		m_data = new size_t[n];
+}
+
+void GIndexVec::fill(size_t val)
+{
+	for(size_t i = 0; i < m_size; i++)
+		m_data[i] = val;
 }
 
 void GIndexVec::fillIndexes()
@@ -1157,7 +1139,6 @@ bool GCoordVectorIterator::advance(size_t steps)
 	return true;
 }
 
-#ifndef MIN_PREDICT
 bool GCoordVectorIterator::advanceSampling()
 {
 	if(m_sampleShift == INVALID_INDEX) // if we have not yet computed the step size
@@ -1196,7 +1177,6 @@ bool GCoordVectorIterator::advanceSampling()
 	}
 	return true;
 }
-#endif // MIN_PREDICT
 
 size_t* GCoordVectorIterator::current()
 {
@@ -1230,7 +1210,6 @@ void GCoordVectorIterator::setRandom(GRand* pRand)
 		m_pCoords[i] = (size_t)pRand->next(m_pRanges[i]);
 }
 
-#ifndef MIN_PREDICT
 #define TEST_DIMS 4
 // static
 void GCoordVectorIterator::test()
@@ -1258,59 +1237,391 @@ void GCoordVectorIterator::test()
 	if(count != size)
 		throw Ex("didn't get them all");
 }
-#endif // MIN_PREDICT
 
 
 
 
 
 
-size_t GTensor_countTensorSize(const GIndexVec& dims)
+size_t GTensor_countTensorSize(const GIndexVec& shape)
 {
 	size_t n = 1;
-	for(size_t i = 0; i < dims.size(); i++)
-		n *= dims[i];
+	for(size_t i = 0; i < shape.size(); i++)
+		n *= shape[i];
 	return n;
 }
 
-GTensor::GTensor(GVec& vals, const std::initializer_list<size_t>& list)
-: GVecWrapper(vals), dims(list.size())
+GTensor::GTensor(const std::initializer_list<size_t>& list, bool ownBuffer, GVec* pBuffer)
+: shape(list.size()), pHolder(nullptr)
 {
+	// Populate the shape
 	size_t i = 0;
 	size_t tot = 1;
-	for(const size_t* it = begin(list); it != end(list); ++it)
+	for(const size_t* it = list.begin(); it != list.end(); ++it)
 	{
-		dims[i++] = *it;
+		shape[i++] = *it;
 		tot *= *it;
 	}
-	if(tot != vals.size())
-		throw Ex("Mismatching sizes. GVec has ", GClasses::to_str(vals.size()), ", GTensor has ", GClasses::to_str(tot));
+
+	// Arrange for the buffer
+	if(pBuffer && tot != pBuffer->size())
+		throw Ex("Mismatching sizes. pBuffer has ", GClasses::to_str(pBuffer->size()), ", but the shape requires ", GClasses::to_str(tot));
+	if(ownBuffer)
+	{
+		if(pBuffer)
+			pHolder = pBuffer;
+		else
+			pHolder = new GVec(tot);
+		setData(*pHolder);
+	}
+	else
+	{
+		if(pBuffer)
+			setData(*pBuffer);
+	}
 }
 
 GTensor::GTensor(const GTensor& copyMe)
 : GVecWrapper(copyMe.m_data, copyMe.m_size),
-dims(copyMe.dims)
-{
-}
-
-GTensor::GTensor(double* buf, const GIndexVec& _dims)
-: GVecWrapper(buf, buf ? GTensor_countTensorSize(_dims) : 0),
-dims(_dims)
+shape(copyMe.shape), pHolder(nullptr)
 {
 }
 
 GTensor::GTensor(GDomNode* pNode)
 : GVecWrapper(nullptr, 0),
-dims(pNode)
+shape(pNode), pHolder(nullptr)
 {
+}
+
+GTensor::~GTensor()
+{
+	delete(pHolder);
+}
+
+void GTensor::get(GVecWrapper& out, size_t index)
+{
+	size_t len = 1;
+	for(size_t i = 1; i < shape.size(); i++)
+		len *= shape[i];
+	out.setData(*this, index * shape[0], len);
+}
+
+inline bool isRealValue(const char* szValue)
+{
+	if(*szValue == '-')
+		szValue++;
+	if(*szValue == '.')
+		szValue++;
+	if(*szValue >= '0' && *szValue <= '9')
+		return true;
+	return false;
+}
+
+
+class GTensorAttr
+{
+public:
+	std::vector<std::string> m_values;
+
+	GDomNode* serialize(GDom* pDoc, size_t valCount) const;
+};
+
+class GTensorMeta
+{
+public:
+	std::vector<GTensorAttr*> m_attrs;
+
+
+	~GTensorMeta()
+	{
+		for(size_t i = 0; i < m_attrs.size(); i++)
+			delete(m_attrs[i]);
+	}
+
+	void parseAttribute(GTokenizer& tok, GCharSet& cs_whitespace, GCharSet& cs_spaces, GCharSet& cs_argEnd, GCharSet& cs_valEnd, GCharSet& cs_newline)
+	{
+		tok.skipWhile(cs_spaces);
+		string dataname = tok.readUntil_escaped_quoted(cs_argEnd);
+		tok.skipWhile(cs_spaces);
+		char c = tok.peek();
+		if(c == '{')
+		{
+			tok.skip(1);
+			size_t index = m_attrs.size();
+			m_attrs.push_back(new GTensorAttr());
+			while(true)
+			{
+				tok.readUntil_escaped_quoted(cs_valEnd);
+				char* szVal = tok.trim(cs_whitespace);
+				if(*szVal == '\0')
+					throw Ex("Empty value specified on line ", to_str(tok.line()));
+				m_attrs[index]->m_values.push_back(szVal);
+				char c2 = tok.peek();
+				if(c2 == ',')
+					tok.skip(1);
+				else if(c2 == '}')
+					break;
+				else if(c2 == '\n')
+					throw Ex("Expected a '}' but got new-line on line ", to_str(tok.line()));
+				else
+					throw Ex("inconsistency");
+			}
+		}
+		else
+		{
+			const char* szType = tok.readUntil(cs_whitespace);
+			if(	_stricmp(szType, "CONTINUOUS") == 0 ||
+				_stricmp(szType, "REAL") == 0 ||
+				_stricmp(szType, "NUMERIC") == 0 ||
+				_stricmp(szType, "INTEGER") == 0)
+			{
+				m_attrs.push_back(new GTensorAttr());
+			}
+			else
+				throw Ex("Unsupported attribute type: (", szType, "), at line ", to_str(tok.line()));
+		}
+		tok.skipUntil(cs_newline);
+		tok.skip(1);
+	}
+
+	static string stripQuotes(string& s)
+	{
+		if(s.length() < 2)
+			return s;
+		if(s[0] == '"' && s[s.length() - 1] == '"')
+			return s.substr(1, s.length() - 2);
+		if(s[0] == '\'' && s[s.length() - 1] == '\'')
+			return s.substr(1, s.length() - 2);
+		return s;
+	}
+
+	int findEnumeratedValue(size_t nAttr, const char* szValue) const
+	{
+		size_t nValueCount = m_attrs[nAttr]->m_values.size();
+		size_t i;
+		bool quotedCand = false;
+		for(i = 0; i < nValueCount; i++)
+		{
+			const char* szCand = m_attrs[nAttr]->m_values[i].c_str();
+			if(_stricmp(szCand, szValue) == 0)
+				return (int)i;
+			if(*szCand == '"' || *szCand == '\'')
+				quotedCand = true;
+		}
+		if(quotedCand || *szValue == '"' || *szValue == '\'')
+		{
+			string sValue = szValue;
+			if(sValue.length() > 0 && (sValue[0] == '"' || sValue[0] == '\''))
+				sValue = stripQuotes(sValue);
+			for(i = 0; i < nValueCount; i++)
+			{
+				string sCand = m_attrs[nAttr]->m_values[i].c_str();
+				if(sCand.length() > 0 && (sCand[0] == '"' || sCand[0] == '\''))
+					sCand = stripQuotes(sCand);
+				if(sCand.compare(sValue) == 0)
+					return (int)i;
+			}
+		}
+		return UNKNOWN_DISCRETE_VALUE;
+	}
+};
+
+
+double GTensor_parseValue(GTensorMeta& relation, size_t col, const char* szVal, GTokenizer& tok)
+{
+	size_t vals = relation.m_attrs[col]->m_values.size();
+	if(vals == 0) // Continuous
+	{
+		// Continuous attribute
+		if(*szVal == '\0' || (*szVal == '?' && szVal[1] == '\0'))
+			return UNKNOWN_REAL_VALUE;
+		else
+		{
+			if(!isRealValue(szVal))
+				throw Ex("Expected a numeric value at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+			return atof(szVal);
+		}
+	}
+	else if(vals < (size_t)-10) // Nominal
+	{
+		// Nominal attribute
+		if(*szVal == '\0' || (*szVal == '?' && szVal[1] == '\0'))
+			return UNKNOWN_DISCRETE_VALUE;
+		else
+		{
+			int nVal = relation.findEnumeratedValue(col, szVal);
+			if(nVal == UNKNOWN_DISCRETE_VALUE)
+				throw Ex("Unrecognized enumeration value '", szVal, "' for attribute ", to_str(col), " at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+			return (double)nVal;
+		}
+	}
+	else
+		throw Ex("Unexpected attribute type, ", to_str(vals));
+}
+
+void GTensor::loadArff(const char* szFilename)
+{
+	GTokenizer tok(szFilename);
+	parseArff(tok);
+}
+
+void GTensor::parseArff(GTokenizer& tok)
+{
+	delete(pHolder);
+	pHolder = nullptr;
+	GCharSet cs_whitespace("\t\n\r ");
+	GCharSet cs_spaces(" \t");
+	GCharSet cs_space(" ");
+	GCharSet cs_valEnd(",}\n");
+	GCharSet cs_valEnder(" ,\t}\n");
+	GCharSet cs_valHardEnder(",}\t\n");
+	GCharSet cs_argEnd(" \t\n{\r");
+	GCharSet cs_newline("\n");
+	GCharSet cs_commaNewlineTab(",\n\t");
+
+	// Parse the meta data
+	GTensorMeta meta;
+	while(true)
+	{
+		tok.skipWhile(cs_whitespace);
+		char c = tok.peek();
+		if(c == '\0')
+			throw Ex("Invalid ARFF file--contains no data");
+		else if(c == '%')
+		{
+			tok.skip(1);
+			tok.skipUntil(cs_newline);
+		}
+		else if(c == '@')
+		{
+			tok.skip(1);
+			const char* szTok = tok.readUntil(cs_whitespace);
+			if(_stricmp(szTok, "ATTRIBUTE") == 0)
+				meta.parseAttribute(tok, cs_whitespace, cs_spaces, cs_argEnd, cs_valEnd, cs_newline);
+			else if(_stricmp(szTok, "RELATION") == 0)
+			{
+				tok.skipWhile(cs_spaces);
+				tok.readUntil_escaped_quoted(cs_whitespace);
+				tok.skip(1);
+			}
+			else if(_stricmp(szTok, "DATA") == 0)
+			{
+				tok.skipUntil(cs_newline);
+				tok.skip(1);
+				break;
+			}
+		}
+		else
+			throw Ex("Expected a '%' or a '@' at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+	}
+
+	// Parse the data
+	std::queue<double> data_buf;
+	size_t colCount = meta.m_attrs.size();
+	while(true)
+	{
+		tok.skipWhile(cs_whitespace);
+		char c = tok.peek();
+		if(c == '\0')
+			break;
+		else if(c == '%')
+		{
+			tok.skip(1);
+			tok.skipUntil(cs_newline);
+		}
+		else if(c == '{')
+		{
+			// Parse ARFF sparse data format
+			tok.skip(1);
+			while(true)
+			{
+				tok.skipWhile(cs_space);
+				char c2 = tok.peek();
+				if(c2 >= '0' && c2 <= '9')
+				{
+					const char* szTok = tok.readUntil(cs_valEnder);
+#ifdef WINDOWS
+					size_t column = (size_t)_strtoui64(szTok, (char**)NULL, 10);
+#else
+					size_t column = strtoull(szTok, (char**)NULL, 10);
+#endif
+					if(column >= colCount)
+						throw Ex("Column index out of range at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+					tok.skipWhile(cs_spaces);
+					const char* szVal = tok.readUntil_escaped_quoted(cs_valEnder);
+					data_buf.push(GTensor_parseValue(meta, column, szVal, tok));
+					tok.skipUntil(cs_valHardEnder);
+					c2 = tok.peek();
+					if(c2 == ',' || c2 == '\t')
+						tok.skip(1);
+				}
+				else if(c2 == '}')
+				{
+					tok.skip(1);
+					break;
+				}
+				else if(c2 == '\n' || c2 == '\0')
+					throw Ex("Expected a matching '}' at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+				else
+					throw Ex("Unexpected token at line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+			}
+		}
+		else
+		{
+			// Parse ARFF dense data format
+			size_t column = 0;
+			while(true)
+			{
+				if(column >= colCount)
+					throw Ex("Too many values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+				tok.readUntil_escaped_quoted(cs_commaNewlineTab);
+				const char* szVal = tok.trim(cs_whitespace);
+				data_buf.push(GTensor_parseValue(meta, column, szVal, tok));
+				column++;
+				char c2 = tok.peek();
+				while(c2 == '\t' || c2 == ' ')
+				{
+					tok.skip(1);
+					c2 = tok.peek();
+				}
+				if(c2 == ',')
+					tok.skip(1);
+				else if(c2 == '\n' || c2 == '\0')
+					break;
+				else if(c2 == '%')
+				{
+					tok.skip(1);
+					tok.skipUntil(cs_newline);
+					break;
+				}
+			}
+			if(column < colCount)
+				throw Ex("Not enough values on line ", to_str(tok.line()), ", col ", to_str(tok.col()));
+		}
+	}
+
+	// Fill the tensor with data
+	size_t rowCount = data_buf.size() / colCount;
+	if(rowCount * colCount != data_buf.size())
+		throw Ex("Unexpected number of elements");
+	shape.resize(2);
+	shape[0] = rowCount;
+	shape[1] = colCount;
+	pHolder = new GVec(data_buf.size());
+	setData(*pHolder);
+	for(size_t i = 0; i < data_buf.size(); i++)
+	{
+		(*this)[i] = data_buf.front();
+		data_buf.pop();
+	}
 }
 
 void GTensor::convolve(const GTensor& in, const GTensor& filter, GTensor& out, bool flipFilter, size_t stride)
 {
 	// Precompute some values
-	size_t dc = in.dims.size();
-	GAssert(dc == filter.dims.size());
-	GAssert(dc == out.dims.size());
+	size_t dc = in.shape.size();
+	GAssert(dc == filter.shape.size());
+	GAssert(dc == out.shape.size());
 	size_t* kinner = (size_t*)alloca(sizeof(size_t) * 5 * dc);
 	size_t* kouter = kinner + dc;
 	size_t* stepInner = kouter + dc;
@@ -1323,11 +1634,11 @@ void GTensor::convolve(const GTensor& in, const GTensor& filter, GTensor& out, b
 	stepOuter[0] = 1;
 	for(size_t i = 1; i < dc; i++)
 	{
-		stepInner[i] = stepInner[i - 1] * in.dims[i - 1];
-		stepFilter[i] = stepFilter[i - 1] * filter.dims[i - 1];
-		stepOuter[i] = stepOuter[i - 1] * out.dims[i - 1];
+		stepInner[i] = stepInner[i - 1] * in.shape[i - 1];
+		stepFilter[i] = stepFilter[i - 1] * filter.shape[i - 1];
+		stepOuter[i] = stepOuter[i - 1] * out.shape[i - 1];
 	}
-	size_t filterTail = stepFilter[dc - 1] * filter.dims[dc - 1] - 1;
+	size_t filterTail = stepFilter[dc - 1] * filter.shape[dc - 1] - 1;
 
 	// Do convolution
 	size_t op = 0;
@@ -1337,7 +1648,7 @@ void GTensor::convolve(const GTensor& in, const GTensor& filter, GTensor& out, b
 	{
 		kouter[i] = 0;
 		kinner[i] = 0;
-		ssize_t padding = (stride * (out.dims[i] - 1) + filter.dims[i] - in.dims[i]) / 2;
+		ssize_t padding = (stride * (out.shape[i] - 1) + filter.shape[i] - in.shape[i]) / 2;
 		ssize_t adj = (padding - std::min(padding, (ssize_t)kouter[i])) - kinner[i];
 		kinner[i] += adj;
 		fp += adj * stepFilter[i];
@@ -1349,7 +1660,7 @@ void GTensor::convolve(const GTensor& in, const GTensor& filter, GTensor& out, b
 		// Fix up the initial kinner positions
 		for(size_t i = 0; i < dc; i++)
 		{
-			ssize_t padding = (stride * (out.dims[i] - 1) + filter.dims[i] - in.dims[i]) / 2;
+			ssize_t padding = (stride * (out.shape[i] - 1) + filter.shape[i] - in.shape[i]) / 2;
 			ssize_t adj = (padding - std::min(padding, (ssize_t)kouter[i])) - kinner[i];
 			kinner[i] += adj;
 			fp += adj * stepFilter[i];
@@ -1366,8 +1677,8 @@ void GTensor::convolve(const GTensor& in, const GTensor& filter, GTensor& out, b
 				kinner[i]++;
 				ip += stepInner[i];
 				fp += stepFilter[i];
-				ssize_t padding = (stride * (out.dims[i] - 1) + filter.dims[i] - in.dims[i]) / 2;
-				if(kinner[i] < filter.dims[i] && kouter[i] + kinner[i] - padding < in.dims[i])
+				ssize_t padding = (stride * (out.shape[i] - 1) + filter.shape[i] - in.shape[i]) / 2;
+				if(kinner[i] < filter.shape[i] && kouter[i] + kinner[i] - padding < in.shape[i])
 					break;
 				ssize_t adj = (padding - std::min(padding, (ssize_t)kouter[i])) - kinner[i];
 				kinner[i] += adj;
@@ -1386,7 +1697,7 @@ void GTensor::convolve(const GTensor& in, const GTensor& filter, GTensor& out, b
 			kouter[i]++;
 			op += stepOuter[i];
 			ip += stride * stepInner[i];
-			if(kouter[i] < out.dims[i])
+			if(kouter[i] < out.shape[i])
 				break;
 			op -= kouter[i] * stepOuter[i];
 			ip -= kouter[i] * stride * stepInner[i];
@@ -1403,13 +1714,14 @@ void GTensor::test()
 	{
 		// 1D test
 		GVec in({2,3,1,0,1});
-		GTensor tin(in, {5});
+		GTensor tin({5}, false, &in);
 
 		GVec k({1, 0, 2});
-		GTensor tk(k, {3});
+		GTensor tk({3}, false, &k);
 
 		GVec out(7);
-		GTensor tout(out, {7});
+		out.fill(0.0);
+		GTensor tout({7}, false, &out);
 
 		GTensor::convolve(tin, tk, tout, true, 1);
 
@@ -1429,7 +1741,7 @@ void GTensor::test()
 				7, 8, 9
 			}
 		);
-		GTensor tin(in, {3, 3});
+		GTensor tin({3, 3}, false, &in);
 
 		GVec k(
 			{
@@ -1438,13 +1750,14 @@ void GTensor::test()
 				-1, -2, -1
 			}
 		);
-		GTensor tk(k, {3, 3});
+		GTensor tk({3, 3}, false, &k);
 
 		GVec out(9);
-		GTensor tout(out, {3, 3});
+		out.fill(0.0);
+		GTensor tout({3, 3}, false, &out);
 
 		GTensor::convolve(tin, tk, tout, false, 1);
-		
+
 		GVec expected(
 			{
 				-13, -20, -17,

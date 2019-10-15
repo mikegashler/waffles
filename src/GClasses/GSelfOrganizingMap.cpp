@@ -1092,7 +1092,6 @@ GSelfOrganizingMap::neighborsInCircle(unsigned nodeIdx, double radius) const{
 
 
 
-#ifndef NO_TEST_CODE
 #include "GRand.h"
 #include "GImage.h"
   namespace{
@@ -1163,7 +1162,6 @@ void GSelfOrganizingMap::test(){
 
 
 }
-#endif // !NO_TEST_CODE
 
 } // namespace GClasses
 

@@ -159,6 +159,9 @@ public:
 
 	/// You can call this to simulate a signal.
 	void onSignal(int sig);
+
+	/// Returns a string representation of the specified signal
+	static const char* to_str(int sig);
 };
 
 

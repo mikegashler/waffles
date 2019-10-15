@@ -35,6 +35,7 @@
 //#	include <termios.h>
 //#	include <fcntl.h>
 #	ifndef __linux__
+#  include <xmmintrin.h>
 #  ifndef __FreeBSD__
 #		include <mach-o/dyld.h>
 #  endif
@@ -170,7 +171,7 @@ void GPipe::toFile(const char* szFilename)
 	// Fork the first time
 	int firstPid = fork();
 	if(firstPid < 0)
-		throw "Error forking off the child process in GApp::LaunchDaemon";
+		throw Ex("Error forking off the child process in GApp::LaunchDaemon");
 	if(firstPid) // If I am the parent process...
 	{
 		int status;
@@ -612,7 +613,7 @@ void GApp::enableFloatingPointExceptions()
 	_control87(cw,MCW_EM);
 #else
 #	ifdef DARWIN
-	// todo: Anyone know how to do this on Darwin?
+	_MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID);
 #	else
 	feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
 #	endif
@@ -637,17 +638,21 @@ bool GApp::openUrlInBrowser(const char* szUrl)
 #	else // DARWIN
 	GTEMPBUF(char, pBuf, 32 + strlen(szUrl));
 
-	// Gnome
-	strcpy(pBuf, "gnome-open ");
+	strcpy(pBuf, "xdg-open ");
 	strcat(pBuf, szUrl);
 	if(system(pBuf) != 0)
 	{
-		// KDE
-		//strcpy(pBuf, "kfmclient exec ");
-		strcpy(pBuf, "konqueror ");
+		strcpy(pBuf, "gnome-open ");
 		strcat(pBuf, szUrl);
-		strcat(pBuf, " &");
-		return system(pBuf) == 0;
+		if(system(pBuf) != 0)
+		{
+			// KDE
+			//strcpy(pBuf, "kfmclient exec ");
+			strcpy(pBuf, "dolphin ");
+			strcat(pBuf, szUrl);
+			strcat(pBuf, " &");
+			return system(pBuf) == 0;
+		}
 	}
 #	endif // !DARWIN
 #endif // !WINDOWS
@@ -714,8 +719,27 @@ void GSignalHandler::onSignal(int sig)
 
 int GSignalHandler::check()
 {
-	return m_gotSignal;
+	int oldSignal = m_gotSignal;
+	m_gotSignal = 0;
+	return oldSignal;
 }
+
+/*static*/
+const char* GSignalHandler::to_str(int sig)
+{
+	switch(sig)
+	{
+		case SIGABRT: return "SIGABRT";
+		case SIGFPE: return "SIGFPE";
+		case SIGILL: return "SIGILL";
+		case SIGINT: return "SIGINT";
+		case SIGSEGV: return "SIGSEGV";
+		case SIGTERM: return "SIGTERM";
+		case SIGPIPE: return "SIGPIPE";
+		default: return "UNRECOGNIZED";
+	}
+}
+
 
 
 

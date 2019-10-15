@@ -156,10 +156,9 @@ public:
 	/// binary-split division.
 	void setSampleCount(size_t n) { m_samples = n; }
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif // !NO_TEST_CODE
+
 protected:
 	void resetStab();
 	void reset();

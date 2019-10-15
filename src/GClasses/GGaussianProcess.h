@@ -40,9 +40,7 @@ public:
 	GRunningCovariance(size_t dims);
 	~GRunningCovariance();
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 
 	/// Adds a vector to the covariance. (Remember that covariance is computed
 	/// about the origin, not the centroid. If pVec comes from a distribution with a
@@ -85,9 +83,7 @@ public:
 	/// Destructor
 	virtual ~GGaussianProcess();
 
-#ifndef NO_TEST_CODE
 	static void test();
-#endif
 
 	/// Marshal this object into a DOM, which can then be converted to a variety of serial formats.
 	virtual GDomNode* serialize(GDom* pDoc) const;

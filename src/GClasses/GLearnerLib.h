@@ -94,7 +94,7 @@ public:
 
 	static GBag* InstantiateBag(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
-	static GBomb* InstantiateBomb(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
+	static GGradBoost* InstantiateGradBoost(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 
 	static GResamplingAdaBoost* InstantiateBoost(GArgReader& args, GMatrix* pFeatures, GMatrix* pLabels);
 

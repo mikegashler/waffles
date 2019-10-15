@@ -138,11 +138,9 @@ public:
 	/// \brief Saves to a file
 	void save(const GMatrix* pData, const char* szFilename) const;
 
-#ifndef MIN_PREDICT
 	/// \brief Performs unit tests for this class. Throws an exception
 	/// if there is a failure.
 	static void test();
-#endif // !MIN_PREDICT
 
 };
 
@@ -392,10 +390,8 @@ public:
 	virtual std::string attrNameStr(std::size_t nAttr) const {
 		return attrName(nAttr); }
 
-#ifndef MIN_PREDICT
     /// \brief Sets the name of the specified attribute.
     void setAttrName(size_t attr, const char* szNewName);
-#endif // MIN_PREDICT
 
 	/// \brief Adds a new possible value to a nominal attribute. Returns
 	/// the numerical form of the new value.
@@ -420,11 +416,9 @@ public:
 	/// \brief Parses the meta-data for an attribute
 	void parseAttribute(GArffTokenizer& tok);
 
-#ifndef MIN_PREDICT
 	/// \brief Drops the specified value from the list of possible values.
 	/// (Swaps the last value in to fill its slot.)
 	void dropValue(size_t attr, int val);
-#endif // MIN_PREDICT
 };
 
 /// \brief Represents a matrix or a database table.
@@ -567,10 +561,8 @@ public:
 	/// \brief Computes the determinant of this matrix
 	double determinant();
 
-#ifndef MIN_PREDICT
 	/// \brief Drops any occurrences of the specified value, and removes it as a possible value
 	void dropValue(size_t attr, int val);
-#endif // MIN_PREDICT
 
 	/// \brief Computes the eigenvalue that corresponds to the specified
 	/// eigenvector of this matrix
@@ -614,7 +606,6 @@ public:
 	static GMatrix* align(GMatrix* pA, GMatrix* pB);
 
 
-#ifndef MIN_PREDICT
 	/// \brief Loads an ARFF file and replaces the contents of this matrix with it.
 	void loadArff(const char* szFilename, size_t maxRows = (size_t)-1);
 
@@ -629,7 +620,6 @@ public:
 
 	/// \brief Parses an ARFF file and replaces the contents of this matrix with it.
 	void parseArff(GArffTokenizer& tok, size_t maxRows = (size_t)-1);
-#endif // MIN_PREDICT
 
 
 	/// \brief Sets this dataset to an identity matrix. (It doesn't
@@ -712,13 +702,11 @@ public:
 	/// \brief Returns the number of rows in this matrix
 	size_t rows() const { return m_rows.size(); }
 
-#ifndef MIN_PREDICT
 	/// \brief Saves this matrix to a file in ARFF format
 	void saveArff(const char* szFilename);
 
 	/// \brief Saves this matrix to a file in raw (binary) format
 	void saveRaw(const char* szFilename);
-#endif // MIN_PREDICT
 
 	/// \brief Performs SVD on A, where A is this m-by-n matrix.
 	///
@@ -771,10 +759,8 @@ public:
 	/// pVector must be big enough to hold rows() * cols() doubles.
 	void toVector(double* pVector) const;
 
-#ifndef MIN_PREDICT
 	/// \brief Marshalls this object to a DOM, which may be saved to a variety of serial formats.
 	GDomNode* serialize(GDom* pDoc) const;
-#endif // MIN_PREDICT
 
 	/// \brief Returns the sum of the diagonal elements
 	double trace();
@@ -969,12 +955,10 @@ public:
 	/// \brief Scales the column by the specified scalar.
 	void scaleColumn(size_t col, double scalar);
 
-#ifndef MIN_PREDICT
 	/// \brief Computes the median of the values in the specified column
 	/// If there are no values in this column, then it will throw an exception if throwIfEmpty is true,
 	/// or else return UNKNOWN_REAL_VALUE.
 	double columnMedian(size_t nAttribute, bool throwIfEmpty = true) const;
-#endif // MIN_PREDICT
 
 	/// \brief Shifts the data such that the mean occurs at the origin.
 	/// Only continuous values are affected.  Nominal values are left
@@ -1227,11 +1211,10 @@ public:
 	/// unique values are found, it immediately returns maxCount.
 	size_t countUniqueValues(size_t col, size_t maxCount = (size_t)-1) const;
 
-#ifndef MIN_PREDICT
 	/// \brief Performs unit tests for this class. Throws an exception
 	/// if there is a failure.
 	static void test();
-#endif // MIN_PREDICT
+
 protected:
 	double determinantHelper(size_t nEndRow, size_t* pColumnList);
 	void inPlaceSquareTranspose();
@@ -1246,6 +1229,7 @@ protected:
 class GCSVParser
 {
 protected:
+	bool m_single_quotes; // If false, treats apostrophes as normal text. If true, treats them as quotation marks.
 	char m_separator;
 	bool m_columnNamesInFirstRow;
 	bool m_tolerant;

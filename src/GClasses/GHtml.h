@@ -20,47 +20,85 @@
 #define __GHTML_H__
 
 #include "GError.h"
+#include "GTokenizer.h"
+#include <vector>
+#include <string>
+#include <map>
+#include <ostream>
 
 namespace GClasses {
 
 class GConstStringHashTable;
 struct GHtmlTagHandlerStruct;
 
-/// This class is for parsing HTML files. It's designed to be very simple.
-/// This class might be useful, for example, for building a web-crawler
-/// or for extracting readable text from a web page.
-class GHtml
+class GHtmlElement
+{
+public:
+	GHtmlElement* parent;
+	bool text;
+	bool singleton;
+	std::string name; // or the text if this is a text element
+	std::vector<std::string> attrNames;
+	std::vector<std::string> attrValues;
+	std::vector<GHtmlElement*> children;
+
+	GHtmlElement(GHtmlElement* par, const char* szTagName)
+	: parent(par), text(false), singleton(false), name(szTagName)
+	{
+		if(par)
+			par->children.push_back(this);
+	}
+
+	~GHtmlElement()
+	{
+		for(size_t i = 0; i < children.size(); i++)
+			delete(children[i]);
+	}
+
+	void populateIdMap(std::map<std::string, GHtmlElement*>& id_to_el);
+
+	void write(std::ostream& stream) const;
+
+	void writePretty(std::ostream& stream, size_t depth = 0) const;
+
+	void writeTextOnly(std::ostream& stream) const;
+
+	/// Returns the a pointer to the first child element with the specified tag name
+	GHtmlElement* childTag(const char* szTagName);
+
+	/// Adds an attribute name/value pair to this element
+	void addAttr(const char* szName, const char* szValue);
+
+	/// Drops the first attribute with the specified name
+	void dropAttr(const char* szName);
+
+	/// Swaps the positions of two html element-branches in their DOMs. (Assumes one does not descend from the other--that would create nasty cycles.)
+	void swap(GHtmlElement* that);
+};
+
+
+
+class GHtmlDoc
 {
 protected:
-	const char* m_pDoc;
-	size_t m_nSize;
-	size_t m_nPos;
+	GHtmlElement* m_pDocument;
+	std::map<std::string, GHtmlElement*>* m_id_to_el;
 
 public:
-	GHtml(const char* pDoc, size_t nSize);
-	virtual ~GHtml();
+	GHtmlDoc(const char* szFilename);
+	
+	GHtmlDoc(const char* pFile, size_t len);
+	
+	~GHtmlDoc();
 
-	/// You should call this method in a loop until it returns false. It parses a
-	/// little bit more of the document each time you call it. It returns false
-	/// if there was nothing more to parse. The various virtual methods are called
-	/// whenever it finds something interesting.
-	bool parseSomeMore();
+	GHtmlElement* document() { return m_pDocument; }
 
-	/// This method will be called whenever the parser finds a section of display text
-	virtual void onTextChunk(const char* pChunk, size_t chunkSize) {}
+	GHtmlElement* getElementById(const char* id);
 
-	/// This method is called whenever a new tag is found
-	virtual void onTag(const char* pTagName, size_t tagNameLen) {}
-
-	/// This method is called for each parameter in the tag
-	virtual void onTagParam(const char* pTagName, size_t tagNameLen, const char* pParamName, size_t paramNameLen, const char* pValue, size_t valueLen) {}
-
-	/// This method is called when an HTML comment (<!--comment-->) is found
-	virtual void onComment(const char* pComment, size_t len) {}
-
-protected:
-	void parseTag();
+	GHtmlElement* getBody();
 };
+
+
 
 } // namespace GClasses
 

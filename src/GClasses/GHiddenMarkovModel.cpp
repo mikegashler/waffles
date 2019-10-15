@@ -368,7 +368,6 @@ void GHiddenMarkovModel::baumWelch(vector<int*>& sequences, vector<int>& lengths
 	baumWelchEndTraining();
 }
 
-#ifndef NO_TEST_CODE
 // static
 void GHiddenMarkovModel::test()
 {
@@ -416,6 +415,5 @@ void GHiddenMarkovModel::test()
 	if(std::abs(pSym[3] - 0.80064922665648264) > 1e-12)
 		throw Ex("wrong");
 }
-#endif
 
 #endif // __GHIDDENMARKOVMODEL_H__

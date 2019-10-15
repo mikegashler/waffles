@@ -46,10 +46,8 @@ public:
 	GMomentumGreedySearch(GTargetFunction* pCritic);
 	virtual ~GMomentumGreedySearch();
 
-#ifndef MIN_PREDICT
 	/// Performs unit testing. Throws an exception if any test fails.
 	static void test();
-#endif
 
 	/// Returns a pointer to the state vector
 	virtual const GVec& currentVector() { return m_pVector; }
@@ -90,10 +88,8 @@ public:
 	GHillClimber(GTargetFunction* pCritic);
 	virtual ~GHillClimber();
 
-#ifndef MIN_PREDICT
 	/// Performs unit testing. Throws an exception if any test fails.
 	static void test();
-#endif
 
 	/// Returns a pointer to the current vector
 	virtual const GVec& currentVector() { return m_pVector; }
@@ -141,10 +137,8 @@ public:
 	GAnnealing(GTargetFunction* pTargetFunc, GRand* pRand);
 	virtual ~GAnnealing();
 
-#ifndef MIN_PREDICT
 	/// Performs unit testing. Throws an exception if any test fails.
 	static void test();
-#endif
 
 	/// Performs a little more optimization. (Call this in a loop until
 	/// acceptable results are found.)
@@ -181,10 +175,8 @@ public:
 	GRandomDirectionBinarySearch(GTargetFunction* pTargetFunc, GRand* pRand);
 	virtual ~GRandomDirectionBinarySearch();
 
-#ifndef MIN_PREDICT
 	/// Performs unit testing. Throws an exception if any test fails.
 	static void test();
-#endif
 
 	/// Performs a little more optimization. (Call this in a loop until
 	/// acceptable results are found.)

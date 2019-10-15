@@ -347,7 +347,6 @@ GMatrix* GManifold::multiDimensionalScaling(GMatrix* pDistances, size_t targetDi
 	return pResults;
 }
 
-#ifndef NO_TEST_CODE
 #define POINT_COUNT 9
 void GManifold_testMultiDimensionalScaling()
 {
@@ -386,7 +385,6 @@ void GManifold::test()
 {
 	GManifold_testMultiDimensionalScaling();
 }
-#endif
 
 
 

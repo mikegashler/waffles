@@ -39,10 +39,8 @@ public:
 	GHiddenMarkovModel(int stateCount, int symbolCount);
 	~GHiddenMarkovModel();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
 
 	/// Returns the current vector of initial state probabilities
 	double* initialStateProbabilities() { return m_pInitialStateProbabilities; }

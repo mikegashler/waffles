@@ -214,7 +214,6 @@ void GPriorityQueue::removeMax()
 	m_entries.pop_back();
 }
 
-#ifndef NO_TEST_CODE
 int GPriorityQueueTestComparer(void* pThis, void* pA, void* pB)
 {
 	int a = *(int*)pA;
@@ -258,7 +257,6 @@ void GPriorityQueue::test()
 			throw Ex("wrong answer");
 	}
 }
-#endif
 
 
 
@@ -268,7 +266,6 @@ void GPriorityQueue::test()
 
 
 
-#ifndef NO_TEST_CODE
 #define TEST_PQ_SIZE 8192
 void GSimplePriorityQueue_test()
 {
@@ -317,7 +314,6 @@ void GSimplePriorityQueue_test()
 			throw Ex("mismatch");
 	}
 }
-#endif //!NO_TEST_CODE
 
 
 

@@ -62,10 +62,9 @@ public:
 	GPriorityQueue(PointerComparer pCompareFunc, void* pThis);
 	~GPriorityQueue();
 
-#ifndef NO_TEST_CODE
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
-#endif
+
 	/// Returns the number of items in the queue
 	int size();
 

@@ -84,7 +84,6 @@ GDistanceMetric* GDistanceMetric::deserialize(GDomNode* pNode)
 	return NULL;
 }
 
-#ifndef NO_TEST_CODE
 void GDistanceMetric_exerciseMetric(GDistanceMetric& metric)
 {
 	// Make two vectors
@@ -118,7 +117,6 @@ void GDistanceMetric::test()
 	GDenseCosineDistance d3; GDistanceMetric_exerciseMetric(d3);
 	GKernelDistance d4(GKernel::kernelComplex1(), true); GDistanceMetric_exerciseMetric(d4);
 }
-#endif
 
 // --------------------------------------------------------------------
 

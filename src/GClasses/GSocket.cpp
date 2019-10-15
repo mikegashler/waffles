@@ -377,6 +377,12 @@ in_addr GTCPConnection::ipAddr()
 	return GSocket_ipAddr(m_sock);
 }
 
+const char* GTCPConnection::getIPAddress()
+{
+	return inet_ntoa(ipAddr());
+}
+
+
 
 
 
@@ -961,7 +967,6 @@ char* GPackageServer::receive(size_t* pOutLen, GPackageConnection** pOutConn)
 }
 
 
-#ifndef NO_TEST_CODE
 #define TEST_PORT 7251
 #define CLIENT_COUNT 5
 #define TEST_LEN 1000
@@ -1059,7 +1064,6 @@ void GPackageServer::test()
 	//GPackageServer_threaded_test();
 }
 
-#endif // !NO_TEST_CODE
 
 
 
@@ -1118,4 +1122,3 @@ const GDomNode* GDomServer::receive(GPackageConnection** pOutConn)
 
 
 } // namespace GClasses
-
