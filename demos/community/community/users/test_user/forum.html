@@ -1,0 +1,170 @@
+<!doctype html><html><head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" charset="UTF-8">
+	<title></title>
+	<style>
+  body {
+    background-color: #e0d8d0;
+    background-image:url('back.png');
+    background-repeat:repeat-x;
+  }
+
+  body,td,center {
+    font-family: verdana, tahoma, geneva, sans-serif;
+    font-size: 20px;
+  }
+
+  @media (max-width: 990px) {
+    body,td,center {
+      font-size: 34px;
+    }
+  }
+
+  p {
+    line-height: 2.5;
+    padding-bottom: 25px;
+    text-indent: 80px;
+  }
+
+  li {
+    line-height: 2;
+    padding-bottom: 50px;
+  }
+
+  a {
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  #lightning {
+    width: 100%;
+    height: 190px;
+    background-image:url('lightning.png');
+    z-index: -10;
+    background-repeat:repeat-x;
+  }
+
+  #next {
+      position: absolute;
+      top: 0px;
+      right: 0px;
+      width: 145px;
+      height: 45px;
+  }
+
+	div.indent {
+		margin-left: 100px;
+	}
+
+	div.bubble {
+		border-radius: 20px;
+	  border: 1px solid #808080;
+		background: #ffffff;
+		display: inline-block;
+	}
+
+	div.hidden {
+		display: none;
+	}
+	</style>
+</head><body>
+
+<script type="text/javascript">
+let comments_file = "users/yellow_frog_tamer/comments.json";
+
+function tog_viz(id)
+{
+	var x = document.getElementById(id);
+  if (x.style.display == "block") {
+		x.style.display = "none";
+  } else {
+		x.style.display = "block";
+		var tb = document.getElementById(id + 't');
+		tb.focus();
+  }
+}
+
+function ajax(url, outgoing, callback)
+{
+	//alert("The cookie is: " + document.cookie);
+	ob.cookie = document.cookie;
+	let payload = JSON.stringify(outgoing);
+	let request = new XMLHttpRequest();
+	request.onreadystatechange = function()
+	{
+		if(request.readyState == 4)
+		{
+			if(request.status == 200)
+			{
+				//alert("The server replied: " + request.responseText);
+				let incoming = JSON.parse(request.responseText);
+				callback(incoming);
+			}
+			else
+			{
+				if(request.status == 0 && request.statusText.length == 0)
+					alert("Connection failed");
+				else
+					alert("Server returned status " + request.status + ", " + request.statusText);
+			}
+		}
+	};
+	request.open('post', url, true);
+	request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+	request.send(payload);
+}
+
+function refresh_comments_callback(incoming)
+{
+	let comments = document.getElementById("comments");
+	comments.innerHTML = incoming.html;
+}
+
+function refresh_comments()
+{
+	// Find the text field
+	let comments = document.getElementById("comments");
+
+	// Make a JSON blob
+	let outgoing = {};
+	outgoing.action = "get_comments";
+	outgoing.file = comments_file;
+
+	// Send the JSON blob to the server
+	ajax("http://localhost:8987/ajax", outgoing, refresh_comments_callback);
+}
+
+function submit_comment_callback(incoming)
+{
+	refresh_comments();
+}
+
+function post_comment(id)
+{
+	// Find the text field
+	let msg = document.getElementById(id);
+
+	// Make a JSON blob
+	let ob = {};
+	ob.action = "add_comment";
+	ob.file = comments_file;
+	ob.id = id;
+	ob.comment = msg.value;
+
+	// Send the JSON blob to the server
+	ajax("http://localhost:8987/ajax", ob, submit_comment_callback);
+}
+
+refresh_comments();
+</script>
+
+<br><br>
+<h2>Visitor Comments:</h2>
+<div id="comments"></div>
+<textarea id="rt" rows="2" cols="50"></textarea><br>
+<input type="button" onclick="post_comment('rt');" value="Post">
+<br><br><br>
+
+</body></html>
