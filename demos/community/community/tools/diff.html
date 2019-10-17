@@ -1,0 +1,34 @@
+<script>
+
+function cut_trailing_underscores(s)
+{
+	let len = s.length;
+	while(len >= 0 && s.charAt(len - 1) == '░')
+		len--;
+	return s.substr(0, len);
+}
+
+function take(keep, replace)
+{
+	let obKeep = document.getElementById(keep);
+	let obReplace = document.getElementById(replace);
+	let newText = cut_trailing_underscores(obKeep.innerHTML);
+	obKeep.innerHTML = newText;
+	obReplace.innerHTML = newText;
+	obReplace.classList.remove("dc");
+	obReplace.classList.remove("c0");
+	obReplace.classList.remove("c1");
+	obReplace.classList.remove("c2");
+	obReplace.classList.remove("c3");
+	obReplace.classList.add("resolved");
+	obKeep.classList.remove("dc");
+	obKeep.classList.remove("c0");
+	obKeep.classList.remove("c1");
+	obKeep.classList.remove("c2");
+	obKeep.classList.remove("c3");
+	obKeep.classList.add("resolved");
+}
+
+</script>
+
+Click on the segments you want to keep...<br><br>

@@ -1,0 +1,165 @@
+body,center {
+	font-family: verdana, tahoma, geneva, sans-serif;
+	font-size: 18px;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+#wholepage {
+	color: #000040;
+}
+
+#header {
+	background: #c2c2b6;
+	padding: 5px;
+	margin: 0px 0px 0px 0px;
+	text-align: center;
+	vertical-align: middle;
+}
+
+#sidebar {
+	background: #c2c2b6;
+	margin: 0px 0px 0px 0px;
+	padding: 5px;
+	width: 190px;
+	vertical-align: top;
+}
+
+#mainbody {
+	border: 1px solid #604000;
+	background: #F4f4e0;
+	margin: 0px 0px 0px 0px;
+	padding: 15px;
+	width: 970px;
+}
+
+#footer {
+	background: #c2c2b6;
+	margin: 0px 0px 10px 0px;
+	padding: 5px;
+	text-align: center;
+	vertical-align: middle;
+}
+
+.tooltip {
+	background-color: #c0e0b0;
+	position: relative;
+	display: inline-block;
+	padding: 5px;
+	border: 0px
+}
+
+.tooltip .tooltiptext {
+	visibility: hidden;
+	background-color: green;
+	width: 110px;
+	color: #ffffff;
+	text-align: center;
+	border-radius: 6px;
+	padding: 5px 5px;
+
+	/* Position the tooltip */
+	position: absolute;
+	z-index: 1;
+	top: -25px;
+	left: 0%;
+}
+
+.tooltip:hover .tooltiptext {
+	visibility: visible;
+}
+
+summary {
+	color: #004080;
+	cursor: pointer;
+}
+
+details summary::-webkit-details-marker {
+	display:none;
+}
+
+
+/* Container holding the image and the text */
+.container {
+    position: relative;
+}
+
+/* Top left text */
+.overlay {
+	width: 100%;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+}
+
+/* browse */
+.btn
+{
+	width: 170px;
+	padding: 0px 8px;
+	font-size: 12px;
+}
+
+
+/* diff */
+pre
+{
+	white-space: pre-wrap;
+}
+.mono
+{
+	font-family: "Lucida Console", Monaco, monospace
+}
+.resolved
+{
+	display: inline;
+	text-decoration: none;
+	pointer-events: none;
+}
+.c0
+{
+	background-color: #ffd0e0;
+}
+.c1
+{
+	background-color: #e0e0ff;
+}
+.c2
+{
+	background-color: #ffc020;
+}
+.c3
+{
+	background-color: #20ff20;
+}
+.dc
+{
+	text-decoration: none;
+	display: inline;
+}
+
+/* templates */
+.col_white { color: white; }
+.col_gray { color: gray; }
+.col_black { color: black; }
+.col_red { color: red; }
+.col_yellow { color: yellow; }
+.col_green { color: green; }
+.col_cyan { color: cyan; }
+.col_blue { color: blue; }
+.col_magenta { color: magenta; }
+.bg_white { background-color: white; }
+.bg_gray { background-color: gray; }
+.bg_black { background-color: black; }
+.bg_red { background-color: red; }
+.bg_yellow { background-color: yellow; }
+.bg_green { background-color: green; }
+.bg_cyan { background-color: cyan; }
+.bg_blue { background-color: blue; }
+.bg_magenta { background-color: magenta; }
