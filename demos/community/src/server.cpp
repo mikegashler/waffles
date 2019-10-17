@@ -401,7 +401,7 @@ void Connection::handleAjax(Server* pServer, GDynamicPageSession* pSession, ostr
 		else if(strcmp(action, "add_comment") == 0)
 		{
 			Forum::ajaxAddComment(pServer, pSession, pInNode, docOut, pOutNode);
-			allowOrigin("gashler.com:8988");
+			allowOrigin("http://gashler.com:8988");
 		}
 		else if(strcmp(action, "get_comments") == 0)
 		{
