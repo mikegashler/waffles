@@ -41,6 +41,14 @@ m_recommender(*pRand)
 	m_keepGoing = true;
 	char buf[300];
 	GApp::appPath(buf, 256, true);
+	size_t len = strlen(buf);
+	if(len > 0)
+	{
+		--len; // nix trailing '/'
+		while(len > 0 && buf[len - 1] != '/')
+			--len; // nix training folder
+	}
+	buf[len] = '\0';
 	GFile::condensePath(buf);
 	m_basePath = buf;
 	cout << "Base path: " << m_basePath << "\n";
@@ -393,7 +401,7 @@ void Connection::handleAjax(Server* pServer, GDynamicPageSession* pSession, ostr
 		else if(strcmp(action, "add_comment") == 0)
 		{
 			Forum::ajaxAddComment(pServer, pSession, pInNode, docOut, pOutNode);
-			allowOrigin("*"); // BUG: BUGBUG: TODO: ################# Security vulnerability. REMOVE OR FIX THIS LINE
+			allowOrigin("gashler.com:8988");
 		}
 		else if(strcmp(action, "get_comments") == 0)
 		{
@@ -598,7 +606,7 @@ void Connection::handleTools(Server* pServer, GDynamicPageSession* pSession, ost
 	{
 		// Send the file
 		string webpath = ((Server*)m_pServer)->m_basePath;
-		webpath += "tools/";
+		webpath += "community/tools/";
 		if(headers)
 			Server::makeHeader(pSession, response, szParamsMessage);
 		sendFileSafe(webpath.c_str(), szUrl + 1, response);
@@ -636,7 +644,7 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 		else
 		{
 			string webpath = ((Server*)m_pServer)->m_basePath;
-			webpath += "users/";
+			webpath += "community/users/";
 			//if(headers)
 			//	Server::makeHeader(pSession, response, szParamsMessage);
 			sendFileSafe(webpath.c_str(), m_szUrl + 1, response);
