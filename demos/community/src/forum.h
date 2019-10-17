@@ -32,6 +32,9 @@ using namespace GClasses;
 class Forum
 {
 public:
+	/// A page for an admin to monitor recent comments
+	void pageFeed(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
+
 	/// Returns all of the comments (so you can inject them into a web page by setting .innerHTML)
 	static void ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut);
 

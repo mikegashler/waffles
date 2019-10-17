@@ -107,6 +107,20 @@ GDomNode* GDynamicPageSession::serialize(GDom* pDoc)
 	return pObj;
 }
 
+const char* GDynamicPageSession::url()
+{
+	return m_pConnection->m_szUrl;
+}
+
+const char* GDynamicPageSession::params()
+{
+	return m_pConnection->m_pContent;
+}
+
+size_t GDynamicPageSession::paramsLen()
+{
+	return m_pConnection->m_nContentLength;
+}
 
 // ------------------------------------------------------
 
@@ -137,10 +151,27 @@ string remove_cr_lf(const char* str)
 	return s;
 }
 
-GDynamicPageSession* GDynamicPageConnection::establishSession()
+const char* _strnstr(const char* big, const char* small, size_t len)
 {
-	// Find existing session
-	unsigned long long nSessionID;
+	for(size_t i = 0; i < len; i++)
+	{
+		const char* a = big;
+		const char* b = small;
+		while(*b != '\0' && *a == *b)
+		{
+			++a;
+			++b;
+		}
+		if(*b == '\0')
+			return big;
+		++big;
+	}
+	return nullptr;
+}
+
+GDynamicPageSession* GDynamicPageConnection::establishSession(bool makeNewIfNecessary)
+{
+	// Check for a cookie in the HTTP header
 	GDynamicPageSession* pSession = NULL;
 	if(m_szCookieIncoming[0] != '\0')
 	{
@@ -149,9 +180,9 @@ GDynamicPageSession* GDynamicPageConnection::establishSession()
 		{
 			crumb += 6;
 #ifdef WINDOWS
-			nSessionID = _strtoui64(crumb, NULL, 10);
+			unsigned long long nSessionID = _strtoui64(crumb, NULL, 10);
 #else
-			nSessionID = strtoull(crumb, NULL, 10);
+			unsigned long long nSessionID = strtoull(crumb, NULL, 10);
 #endif
 			pSession = m_pServer->findSession(nSessionID);
 			if(!pSession)
@@ -162,16 +193,37 @@ GDynamicPageSession* GDynamicPageConnection::establishSession()
 		}
 		else
 		{
-			cout << "Cookie with no GDPSI cookie crumb from " << inet_ntoa(ipAddr()) << ": " << m_szCookieIncoming << "\n";
+			cout << "Cookie with no GDPSI= cookie crumb from " << inet_ntoa(ipAddr()) << ": " << m_szCookieIncoming << "\n";
 			cout.flush();
 		}
 	}
 
-	// Make a new session
+	// Check for a cookie in the content
 	if(!pSession)
 	{
+		const char* crumb = _strnstr(m_pContent, "GDPSI=", std::min((size_t)1024, m_nContentLength));
+		if(crumb)
+		{
+			crumb += 6;
+#ifdef WINDOWS
+			unsigned long long nSessionID = _strtoui64(crumb, NULL, 10);
+#else
+			unsigned long long nSessionID = strtoull(crumb, NULL, 10);
+#endif
+			pSession = m_pServer->findSession(nSessionID);
+			if(!pSession)
+			{
+				cout << "Unrecognized session id cookie crumb from " << inet_ntoa(ipAddr()) << "\n";
+				cout.flush();
+			}
+		}
+	}
+
+	// Make a new session
+	if(!pSession && makeNewIfNecessary)
+	{
 		// Make a new cookie
-		nSessionID = (unsigned long long)m_pServer->prng()->next() ^ (unsigned long long)(GTime::seconds() * 10000);
+		unsigned long long nSessionID = (unsigned long long)m_pServer->prng()->next() ^ (unsigned long long)(GTime::seconds() * 10000);
 		std::ostringstream os;
 		os << "GDPSI=";
 		os << nSessionID;
@@ -179,7 +231,8 @@ GDynamicPageSession* GDynamicPageConnection::establishSession()
 		setCookie(tmp.c_str(), true);
 		pSession = m_pServer->makeNewSession(nSessionID);
 	}
-	pSession->setConnection(this);
+	if(pSession)
+		pSession->setConnection(this); // just sets a pointer back to this object
 
 	return pSession;
 }
@@ -188,8 +241,7 @@ GDynamicPageSession* GDynamicPageConnection::establishSession()
 void GDynamicPageConnection::doGet(ostream& response)
 {
 	// Set up the session
-	GDynamicPageSession* pSession = establishSession();
-	pSession->setCurrentUrl(m_szUrl, m_pContent, m_nContentLength);
+	GDynamicPageSession* pSession = establishSession(true);
 
 	// Handle the request
 	setContentType("text/html");
@@ -199,7 +251,8 @@ void GDynamicPageConnection::doGet(ostream& response)
 // virtual
 void GDynamicPageConnection::doPost(ostream& response)
 {
-	doGet(response);
+	GDynamicPageSession* pSession = establishSession(false);
+	handleRequest(pSession, response);
 }
 
 // virtual

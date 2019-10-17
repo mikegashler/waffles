@@ -33,21 +33,20 @@ using std::cout;
 
 void Forum::format_comment_recursive(GDomNode* pEntry, std::ostream& os, std::string& id, bool allow_direct_reply, size_t depth)
 {
-cout << "id=" << id << "\n";
 	// Extract relevant data
-	const char* szUser = pEntry->getString("user");
-	const char* szDate = "2019-01-01 22:21"; // TODO: Make this dynamic
+	const char* szUsername = pEntry->getString("user");
+	const char* szDate = pEntry->getString("date");
 	const char* szComment = pEntry->getString("comment");
 	GDomNode* pReplies = pEntry->getIfExists("replies");
 
-	// Add the comment enclosed in a "bord" div
-	os << "<div class=\"bord\"><table cellpadding=10px><tr>\n";
+	// Add the comment enclosed in a "bubble" div
+	os << "<div class=\"bubble\"><table cellpadding=10px><tr>\n";
 	os << "<td valign=top align=right>";
-	os << szUser << "<br>";
+	os << szUsername << "<br>";
 	os << szDate;
 	os << "</td><td valign=top>";
 	os << szComment;
-	os << "<br><a href=\"#\" onclick=\"tog_viz('" << id << "')\">reply</a>";
+	os << "<br><a href=\"#javascript:void(0)\" onclick=\"tog_viz('" << id << "')\">reply</a>";
 	os << "</td></tr>\n";
 	os << "</table></div><br>\n";
 
@@ -111,11 +110,16 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
 {
 	// Get the data
+	Account* pAccount = getAccount(pSession);
+	if(!pAccount)
+		throw Ex("No cookie? No service.");
+	const char* szUsername = pAccount->username();
 	const char* szFilename = pIn->getString("file");
-	const char* szUser = pIn->getString("user");
 	const char* szId = pIn->getString("id");
 	const char* szIpAddress = pSession->connection()->getIPAddress();
 	const char* szComment = pIn->getString("comment");
+	string sDate;
+	GTime::appendTimeStampValue(&sDate, "-", " ", ":", true);
 
 	// Parse the ID (to determine where to insert the comment)
 	if(*szId != 'r')
@@ -155,7 +159,9 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	cmd += " += {\"ip\":\"";
 	cmd += szIpAddress;
 	cmd += "\",\"user\":\"";
-	cmd += szUser;
+	cmd += szUsername;
+	cmd += "\",\"date\":\"";
+	cmd += sDate;
 	cmd += "\",\"comment\":\"";
 	cmd += szComment;
 	cmd += "\"}";
@@ -170,4 +176,57 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	GJsonAsADatabase& jaad = pServer->jaad();
 	const GDomNode* pResponse = jaad.apply(pRequest, &doc);
 	pOut->add(&doc, "response", pResponse);
+
+	// Log this comment
+	string cmd2 = "+={\"ip\":\"";
+	cmd2 += szIpAddress;
+	cmd2 += "\",\"user\":\"";
+	cmd2 += szUsername;
+	cmd2 += "\",\"date\":\"";
+	cmd2 += sDate;
+	cmd2 += "\",\"file\":\"";
+	cmd2 += szFilename;
+	cmd2 += "\",\"comment\":\"";
+	cmd2 += szComment;
+	cmd2 += "\"}";
+	GDomNode* pReq2 = doc.newObj();
+	pReq2->add(&doc, "file", "comments_log.json");
+	pReq2->add(&doc, "auth", "7b4932af10354c01");
+	pReq2->add(&doc, "cmd", cmd.c_str());
+	jaad.apply(pReq2, &doc);
+}
+
+void Forum::pageFeed(Server* pServer, GDynamicPageSession* pSession, ostream& response)
+{
+	// Check access privileges
+	if(!pSession)
+		throw Ex("No cookie? No service.");
+	Account* pAccount = getAccount(pSession);
+	if(!pAccount->isAdmin())
+	{
+		response << "Sorry, you must be an admin to access this page.";
+		return;
+	}
+
+	// Load the log file
+	string filename = pServer->m_basePath;
+	filename += "comments_log.json";
+	GDom dom;
+	dom.loadJson(filename.c_str());
+	GDomNode* pNode = dom.root();
+
+	// Generate a page
+	response << "<h2>Recent comments</h2>\n";
+	response << "<table><tr><td>Ban user</td><td>Date</td><td>Username</td><td>IP</td><td>Comment</td></tr>\n";
+	for(size_t i = 0; i < pNode->size(); i++)
+	{
+		GDomNode* pComment = pNode->get(i);
+		response << "<tr><td><input type=\"checkbox\"></td>";
+		response << "<td>" << pComment->getString("date") << "</td>";
+		response << "<td>" << pComment->getString("user") << "</td>";
+		response << "<td>" << pComment->getString("ip") << "</td>";
+		response << "<td>" << pComment->getString("comment") << "</td>";
+		response << "\n";
+	}
+	response << "</table>\n";
 }

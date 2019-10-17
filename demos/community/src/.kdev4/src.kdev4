@@ -1,30 +1,25 @@
 [Buildset]
 BuildItems=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00\x01\x00\x00\x00\x06\x00s\x00r\x00c)
 
-[Defines And Includes][Compiler]
-Name=GCC
-Path=gcc
-Type=GCC
-
 [Launch]
 Launch Configurations=Launch Configuration 0
 
 [Launch][Launch Configuration 0]
 Configured Launch Modes=execute
 Configured Launchers=nativeAppLauncher
-Name=New Native Application Configuration
+Name=New Compiled Binary Launcher
 Type=Native Application
 
 [Launch][Launch Configuration 0][Data]
 Arguments=
 Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x00)
 Dependency Action=Nothing
-EnvironmentGroup=default
+EnvironmentGroup=
 Executable=file:///home/mike/waffles/demos/community/bin/communitydbg
 External Terminal=konsole --noclose --workdir %workdir -e %exe
 Project Target=
 Use External Terminal=false
-Working Directory=
+Working Directory=file:///home/mike/waffles/demos/community/bin
 isExecutable=true
 
 [Project]

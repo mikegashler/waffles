@@ -63,9 +63,6 @@ protected:
 	unsigned long long m_id;
 	time_t m_tLastAccessed;
 	GDynamicPageSessionExtension* m_pExtension;
-	const char* m_szUrl;
-	const char* m_szParams;
-	size_t m_paramsLen;
 	GDynamicPageConnection* m_pConnection;
 
 public:
@@ -101,16 +98,14 @@ public:
 	/// Marshal this object into a Dom node
 	GDomNode* serialize(GDom* pDom);
 
-	void setCurrentUrl(const char* szUrl, const char* szParams, size_t paramsLength)
-	{
-		m_szUrl = szUrl;
-		m_szParams = szParams;
-		m_paramsLen = paramsLength;
-	}
+	// Get the current URL from the connection. (Convenience method.)
+	const char* url();
 
-	const char* url() { return m_szUrl; }
-	const char* params() { return m_szParams; }
-	size_t paramsLen() { return m_paramsLen; }
+	// Get the current params from the connection. (Convenience method.)
+	const char* params();
+
+	// Get the length of the params
+	size_t paramsLen();
 };
 
 
@@ -133,7 +128,7 @@ protected:
 
 	virtual bool hasBeenModifiedSince(const char* szUrl, const char* szDate);
 	virtual void setHeaders(const char* szUrl, const char* szParams);
-	GDynamicPageSession* establishSession();
+	GDynamicPageSession* establishSession(bool makeNewIfNecessary);
 
 	void sendFile(const char* szMimeType, const char* szFilename, std::ostream& response);
 

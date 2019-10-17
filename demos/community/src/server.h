@@ -34,12 +34,38 @@ class MyJaad : public GJsonAsADatabase
 public:
 	MyJaad(const char* szBasePath) : GJsonAsADatabase(szBasePath)
 	{}
-	
+
 	virtual ~MyJaad()
 	{}
-	
+
 	virtual bool checkPermission(const char* szFilename, const char* szAuth)
 	{
+		// Make sure it's not too long
+		size_t len = strlen(szFilename);
+		if(len > 128)
+			return false;
+
+		// Make sure there are no funny characters
+		for(size_t i = 0; i < len; i++)
+		{
+			if(szFilename[i] == '.' || szFilename[i] == '/' ||
+				szFilename[i] == '_' || szFilename[i] == '-' ||
+				(szFilename[i] >= 'a' && szFilename[i] <= 'z') ||
+				(szFilename[i] >= 'A' && szFilename[i] <= 'Z') ||
+				(szFilename[i] >= '0' && szFilename[i] <= '9'))
+				{}
+			else
+				return false;
+		}
+
+		// No breaking out of the base path
+		if(strstr(szFilename, ".."))
+			return false;
+
+		// It should be a json file
+		if(!strstr(szFilename, ".json"))
+			return false;
+
 		return true;
 	}
 };

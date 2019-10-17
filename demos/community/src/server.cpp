@@ -392,7 +392,6 @@ void Connection::handleAjax(Server* pServer, GDynamicPageSession* pSession, ostr
 		else if(strcmp(action, "filelist") == 0) Editor::ajaxFilelist(pServer, pSession, pInNode, docOut, pOutNode);
 		else if(strcmp(action, "add_comment") == 0)
 		{
-			//pInNode->add(&docOut, "ip", 
 			Forum::ajaxAddComment(pServer, pSession, pInNode, docOut, pOutNode);
 			allowOrigin("*"); // BUG: BUGBUG: TODO: ################# Security vulnerability. REMOVE OR FIX THIS LINE
 		}
