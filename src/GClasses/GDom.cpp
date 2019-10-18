@@ -1654,6 +1654,14 @@ GJaadDom* GJsonAsADatabase::getDom(const char* szFile)
 		filename += szFile;
 		if(GFile::doesFileExist(filename.c_str()))
 			pDoc->loadJson(filename.c_str());
+		else
+		{
+			PathData pd;
+			GFile::parsePath(filename.c_str(), &pd);
+			std::string dir = filename.substr(0, pd.fileStart);
+			if(!GFile::doesDirExist(dir.c_str()))
+				throw Ex("No such directory: ", dir.substr(m_basePath.length()));
+		}
 		m_doms.insert(std::pair<string, GJaadDom*>(szFile, pDoc));
 		return hDoc.release();
 	}
@@ -1799,7 +1807,7 @@ const GDomNode* GJsonAsADatabase::apply(GDomNode* pRequest, GDom* pResponseDom)
 	catch(const std::exception& e)
 	{
 		GDomNode* pNode = pResponseDom->newObj();
-		pNode->add(pResponseDom, "red_error", e.what());
+		pNode->add(pResponseDom, "jaad_error", e.what());
 		return pNode;
 	}
 }

@@ -92,15 +92,27 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 	if(pResponse)
 	{
 		// Convert to HTML
-		if(pResponse->type() != GDomNode::type_list)
-			throw Ex("Expected a list type");
 		std::ostringstream os;
-		for(size_t i = 0; i < pResponse->size(); i++)
+		if(pResponse->type() != GDomNode::type_list)
 		{
-			GDomNode* pEntry = pResponse->get(i);
-			string id = "r";
-			id += to_str(i);
-			format_comment_recursive(pEntry, os, id, true, 12);
+			// Convert hierarchical list of comments into HTML
+			os << "<h2>Visitor Comments:</h2>\n";
+			for(size_t i = 0; i < pResponse->size(); i++)
+			{
+				GDomNode* pEntry = pResponse->get(i);
+				string id = "r";
+				id += to_str(i);
+				format_comment_recursive(pEntry, os, id, true, 12);
+			}
+			os << "<textarea id=\"rt\" rows=\"2\" cols=\"50\"></textarea><br>\n";
+			os << "<input type=\"button\" onclick=\"post_comment('rt');\" value=\"Post\">\n";
+		}
+		else
+		{
+			// Convert error message into HTML
+			os << "<br><font color=\"red\">[Comments currently unavailable because: ";
+			os << pResponse->getString("jaad_error");
+			os << "]</font><br>\n";
 		}
 		pOut->add(&doc, "html", os.str().c_str());
 	}
