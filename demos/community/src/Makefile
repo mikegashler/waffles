@@ -116,11 +116,10 @@ clean : partialcleandbg partialcleanopt
 	rm -f $(DEPS_DBG)
 
 install : $(TARGET_PATH)/$(TARGET_NAME_OPT)
-	rm -rf /var/www/html/mike/community
-	killall $(TARGET_NAME_OPT)
+	-killall $(TARGET_NAME_OPT)
 	sleep 1
-	cp $(TARGET_PATH)/$(TARGET_NAME_OPT) /var/www/html/mike/community
-	/var/www/html/mike/community daemon
+	cp $(TARGET_PATH)/$(TARGET_NAME_OPT) /var/www/html/mike/community/
+	/var/www/html/mike/community/community daemon
 
 uninstall:
 	rm -f /usr/local/bin/$(TARGET_NAME_OPT)
