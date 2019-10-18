@@ -59,7 +59,7 @@ m_recommender(*pRand)
 Server::~Server()
 {
 	saveState();
-
+	
 	// Delete all the accounts
 	flushSessions(); // ensure that there are no sessions referencing the accounts
 	for(map<std::string,Account*>::iterator it = m_accounts.begin(); it != m_accounts.end(); it++)
@@ -401,12 +401,12 @@ void Connection::handleAjax(Server* pServer, GDynamicPageSession* pSession, ostr
 		else if(strcmp(action, "add_comment") == 0)
 		{
 			Forum::ajaxAddComment(pServer, pSession, pInNode, docOut, pOutNode);
-			allowOrigin("http://gashler.com:8988");
+			allowOrigin("http://gashler.com");
 		}
 		else if(strcmp(action, "get_comments") == 0)
 		{
 			Forum::ajaxGetForumHtml(pServer, pSession, pInNode, docOut, pOutNode);
-			allowOrigin("*"); // BUG: BUGBUG: TODO: ################# Security vulnerability. REMOVE OR FIX THIS LINE
+			allowOrigin("http://gashler.com");
 		}
 		else
 		{

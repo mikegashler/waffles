@@ -1333,7 +1333,7 @@ GJsonAsADatabase::~GJsonAsADatabase()
 	{
 		GDom* pDom = it->second;
 		delete(pDom);
-		it++;
+		++it;
 	}
 }
 
@@ -1351,6 +1351,7 @@ void GJsonAsADatabase::flush()
 			pDom->saveJson(fullpath.c_str());
 			pDom->resetModCount();
 		}
+		++it;
 	}
 }
 
