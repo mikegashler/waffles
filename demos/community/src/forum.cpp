@@ -84,7 +84,6 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 	// Make a request node
 	GDomNode* pRequest = doc.newObj();
 	pRequest->add(&doc, "file", pIn->getString("file"));
-	pRequest->add(&doc, "auth", "7b4932af10354c01");
 	pRequest->add(&doc, "cmd", "");
 
 	// Request the whole file
@@ -169,7 +168,6 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	// Make a request node
 	GDomNode* pRequest = doc.newObj();
 	pRequest->add(&doc, "file", szFilename);
-	pRequest->add(&doc, "auth", "7b4932af10354c01");
 	pRequest->add(&doc, "cmd", cmd.c_str());
 
 	// Send the request
@@ -191,7 +189,6 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	cmd2 += "\"}";
 	GDomNode* pReq2 = doc.newObj();
 	pReq2->add(&doc, "file", "comments_log.json");
-	pReq2->add(&doc, "auth", "7b4932af10354c01");
 	pReq2->add(&doc, "cmd", cmd.c_str());
 	jaad.apply(pReq2, &doc);
 }

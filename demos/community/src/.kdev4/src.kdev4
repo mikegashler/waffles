@@ -15,11 +15,11 @@ Arguments=
 Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x00)
 Dependency Action=Nothing
 EnvironmentGroup=
-Executable=file:///home/mike/waffles/demos/community/bin/communitydbg
+Executable=file:///home/mike/waffles/demos/community/community/communitydbg
 External Terminal=konsole --noclose --workdir %workdir -e %exe
 Project Target=
 Use External Terminal=false
-Working Directory=file:///home/mike/waffles/demos/community/bin
+Working Directory=file:///home/mike/waffles/demos/community/community
 isExecutable=true
 
 [Project]

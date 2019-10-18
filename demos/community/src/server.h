@@ -38,7 +38,7 @@ public:
 	virtual ~MyJaad()
 	{}
 
-	virtual bool checkPermission(const char* szFilename, const char* szAuth)
+	virtual bool checkPermission(const char* szFilename)
 	{
 		// Make sure it's not too long
 		size_t len = strlen(szFilename);
@@ -62,8 +62,12 @@ public:
 		if(strstr(szFilename, ".."))
 			return false;
 
-		// It should be a json file
-		if(!strstr(szFilename, ".json"))
+		// Make sure it ends with "comments.json"
+		std::string sFile = "comments.json";
+		if(len < sFile.length())
+			return false;
+		std::string s = szFilename;
+		if(s.compare (s.length() - sFile.length(), sFile.length(), sFile) != 0)
 			return false;
 
 		return true;

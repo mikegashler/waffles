@@ -448,6 +448,9 @@ public:
 /// ".somefield[3] -= .newfield"         Remove a field
 /// ".somefield[.field == 'val']"        Get the object with a field of 'val'
 /// ".somefield[.field == 'val'].f2 = 3" Set f2 of the object with a field of 'val' to 3
+/// "[3]"                                Get an array element from a root list
+/// "+= {'x':123, 'y':456}"              Add an object to a root list
+/// ".somefield = {'x':123, 'y':456}"    Set a field in the root object
 ///
 class GJsonAsADatabase
 {
@@ -459,11 +462,11 @@ public:
 	GJsonAsADatabase(const char* szBasePath);
 	virtual ~GJsonAsADatabase();
 
-	/// Evaluates the szAuth parameter to determine whether the user has
-	/// permission to modify the specified file, szFilename.
+	/// Evaluates whether the user has
+	/// permission to modify the specified file.
 	/// The default implementation disallows everything.
 	/// You must override this method to allow valid actions to be performed.
-	virtual bool checkPermission(const char* szFilename, const char* szAuth) { return false; }
+	virtual bool checkPermission(const char* szFilename) { return false; }
 
 	const GDomNode* apply(GDomNode* pRequest, GDom* pResponseDom);
 

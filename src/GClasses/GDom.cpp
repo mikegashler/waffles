@@ -1421,6 +1421,8 @@ GDomNode* GJsonAsADatabase::findNode(GDom* pDoc, GDomNode* pOb, GDom* pResponseD
 			field = trim(field);
 			if(field.length() == 0)
 				throw Ex("Expected a field name after '.'");
+			if(!pOb && op != '\0')
+				pOb = (GDomNode*)pDoc->setRoot(pDoc->newObj());
 			if(pOb->type() != GDomNode::type_obj)
 				throw Ex("'.' can only be used on object types.");
 			GDomNode* pChild = pOb->getIfExists(field.c_str());
@@ -1428,11 +1430,11 @@ GDomNode* GJsonAsADatabase::findNode(GDom* pDoc, GDomNode* pOb, GDom* pResponseD
 			{
 				if(op == '\0')
 					throw Ex("No field named ", field);
-				else if(szCmd[i] == '.')
+				else if(szCmd[i] == '.') // the next connector will be a '.'
 					pChild = pOb->add(pDoc, field.c_str(), pDoc->newObj());
-				else if(szCmd[i] == '[')
+				else if(szCmd[i] == '[') // the next connector will be a '['
 					pChild = pOb->add(pDoc, field.c_str(), pDoc->newList());
-				else if(op == '+')
+				else if(op == '+') // There is no next connector, so use the operator
 					pChild = pOb->add(pDoc, field.c_str(), pDoc->newList());
 				else
 					throw Ex("Cannot determine the type for missing field ", field);
@@ -1442,7 +1444,7 @@ GDomNode* GJsonAsADatabase::findNode(GDom* pDoc, GDomNode* pOb, GDom* pResponseD
 		}
 		else if(c == '[')
 		{
-			if(pOb->type() != GDomNode::type_list)
+			if(pOb && pOb->type() != GDomNode::type_list)
 				throw Ex("'[]' can only be used with list types");
 
 			// Find the corresponding ']'
@@ -1453,6 +1455,8 @@ GDomNode* GJsonAsADatabase::findNode(GDom* pDoc, GDomNode* pOb, GDom* pResponseD
 			if(indStart == i)
 				throw Ex("Expected an index or equation after '['");
 			string sIndex(szCmd + indStart, i - indStart);
+			if(!pOb && op != '\0')
+				pOb = (GDomNode*)pDoc->setRoot(pDoc->newList());
 
 			// Parse the index
 			char c = sIndex[0];
@@ -1696,8 +1700,7 @@ const GDomNode* GJsonAsADatabase::apply(GDomNode* pRequest, GDom* pResponseDom)
 	{
 		// Check for permission
 		const char* szFile = pRequest->getString("file");
-		const char* szAuth = pRequest->getString("auth");
-		if(!checkPermission(szFile, szAuth))
+		if(!checkPermission(szFile))
 			throw Ex("Permission denied");
 
 		// Find or load the DOM

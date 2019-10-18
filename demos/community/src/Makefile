@@ -117,7 +117,10 @@ clean : partialcleandbg partialcleanopt
 
 install : $(TARGET_PATH)/$(TARGET_NAME_OPT)
 	rm -rf /var/www/html/mike/community
-	cp -r $(TARGET_PATH) /var/www/html/mike/
+	killall $(TARGET_NAME_OPT)
+	sleep 1
+	cp $(TARGET_PATH)/$(TARGET_NAME_OPT) /var/www/html/mike/community
+	/var/www/html/mike/community daemon
 
 uninstall:
 	rm -f /usr/local/bin/$(TARGET_NAME_OPT)
