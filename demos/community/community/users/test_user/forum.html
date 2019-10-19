@@ -133,7 +133,7 @@ function refresh_comments()
 	outgoing.file = comments_file;
 
 	// Send the JSON blob to the server
-	ajax("http://gashler.com:8988/ajax", outgoing, refresh_comments_callback);
+	ajax("http://gashler.com:8987/ajax", outgoing, refresh_comments_callback);
 }
 
 function submit_comment_callback(incoming)
@@ -154,7 +154,7 @@ function post_comment(id)
 	ob.comment = msg.value;
 
 	// Send the JSON blob to the server
-	ajax("http://gashler.com:8988/ajax", ob, submit_comment_callback);
+	ajax("http://gashler.com:8987/ajax", ob, submit_comment_callback);
 }
 
 refresh_comments();

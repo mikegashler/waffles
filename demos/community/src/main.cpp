@@ -179,6 +179,7 @@ int main(int nArgs, char* pArgs[])
 			doItAsDaemon();
 		else
 			doit(NULL);
+		nRet = 0;
 	}
 	catch(std::exception& e)
 	{

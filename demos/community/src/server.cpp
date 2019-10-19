@@ -58,14 +58,23 @@ m_recommender(*pRand)
 // virtual
 Server::~Server()
 {
+	cout << "Saving server state...\n";
+	cout.flush();
 	saveState();
 	
 	// Delete all the accounts
+	cout << "Flushing sessions...\n";
+	cout.flush();
 	flushSessions(); // ensure that there are no sessions referencing the accounts
 	for(map<std::string,Account*>::iterator it = m_accounts.begin(); it != m_accounts.end(); it++)
 		delete(it->second);
 
+	cout << "Persisting comments...\n";
+	cout.flush();
 	delete(m_pJaad);
+	
+	cout << "Done shutting down server.\n";
+	cout.flush();
 }
 
 void Server::makeHeader(GDynamicPageSession* pSession, ostream& response, const char* szParamsMessage)
@@ -574,7 +583,11 @@ void Connection::handleTools(Server* pServer, GDynamicPageSession* pSession, ost
 	else if(check_url(szUrl, "/items.svg")) { pageMaker = &Submit::plotItems; headers = false; }
 	else headers = false;
 
-	if(pageMaker)
+	if(headers && !pSession)
+	{
+		response << "No cookie? No service.";
+	}
+	else if(pageMaker)
 	{
 		// Try to find the current account. Make one if there are none.
 		// (There may still be no current account if the user explicitly logged out.)
@@ -620,12 +633,13 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 {
 	try
 	{
-		pSession->setConnection(this);
+		if(pSession)
+			pSession->setConnection(this);
 		Server* pServer = (Server*)m_pServer;
 
 #ifdef _DEBUG
 		cout << "Handling request for: " << m_szUrl;
-		if(pSession->params() && pSession->params()[0] != '\0')
+		if(pSession && pSession->params() && pSession->params()[0] != '\0')
 			cout << "?" << pSession->params();
 		cout << "\n";
 #endif
