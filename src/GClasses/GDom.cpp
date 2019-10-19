@@ -1331,7 +1331,7 @@ GJsonAsADatabase::~GJsonAsADatabase()
 	map<string, GJaadDom*>::iterator it = m_doms.begin();
 	while(it != m_doms.end())
 	{
-		GDom* pDom = it->second;
+		GJaadDom* pDom = it->second;
 		delete(pDom);
 		++it;
 	}
@@ -1662,8 +1662,9 @@ GJaadDom* GJsonAsADatabase::getDom(const char* szFile)
 			if(!GFile::doesDirExist(dir.c_str()))
 				throw Ex("No such directory: ", dir.substr(m_basePath.length()));
 		}
+		hDoc.release();
 		m_doms.insert(std::pair<string, GJaadDom*>(szFile, pDoc));
-		return hDoc.release();
+		return pDoc;
 	}
 	else
 		return it->second;

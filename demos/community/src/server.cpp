@@ -590,13 +590,8 @@ void Connection::handleTools(Server* pServer, GDynamicPageSession* pSession, ost
 	}
 	else if(pageMaker)
 	{
-		// Try to find the current account. Make one if there are none.
-		// (There may still be no current account if the user explicitly logged out.)
 		Terminal* pTerminal = getTerminal(pSession);
-		if(pTerminal->accountCount() == 0)
-			pTerminal->makeNewAccount((Server*)m_pServer);
 		Account* pAccount = pTerminal->currentAccount();
-
 		if(pAccount)
 		{
 			// Make the requested page
@@ -642,6 +637,11 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 			cout << "?" << pSession->params();
 		cout << "\n";
 #endif
+		// Make an account if there is not one already for this terminal
+		Terminal* pTerminal = getTerminal(pSession);
+		if(pTerminal->accountCount() == 0)
+			pTerminal->makeNewAccount((Server*)m_pServer);
+
 		if(strcmp(m_szUrl, "/") == 0)
 			strcpy(m_szUrl, "/tools/survey");
 		if(check_url(m_szUrl, "/ajax"))

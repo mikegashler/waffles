@@ -93,7 +93,7 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 	{
 		// Convert to HTML
 		std::ostringstream os;
-		if(pResponse->type() != GDomNode::type_list)
+		if(pResponse->type() == GDomNode::type_list)
 		{
 			// Convert hierarchical list of comments into HTML
 			os << "<h2>Visitor Comments:</h2>\n";
@@ -123,7 +123,7 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	// Get the data
 	Account* pAccount = getAccount(pSession);
 	if(!pAccount)
-		throw Ex("No cookie? No service.");
+		throw Ex("You must be logged in to comment.");
 	const char* szUsername = pAccount->username();
 	const char* szFilename = pIn->getString("file");
 	const char* szId = pIn->getString("id");
@@ -200,7 +200,7 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	cmd2 += szComment;
 	cmd2 += "\"}";
 	GDomNode* pReq2 = doc.newObj();
-	pReq2->add(&doc, "file", "comments_log.json");
+	pReq2->add(&doc, "file", "comments.json");
 	pReq2->add(&doc, "cmd", cmd.c_str());
 	jaad.apply(pReq2, &doc);
 }

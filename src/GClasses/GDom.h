@@ -326,7 +326,7 @@ protected:
 
 public:
 	GDom();
-	~GDom();
+	virtual ~GDom();
 
 	/// Performs unit tests for this class. Throws an exception if there is a failure.
 	static void test();
