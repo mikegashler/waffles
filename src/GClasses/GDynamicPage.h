@@ -106,6 +106,11 @@ public:
 
 	// Get the length of the params
 	size_t paramsLen();
+
+	// Add a 'cookie' field to pOutNode with this session's cookie.
+	// (This is needed because some browsers block cookies in AJAX requests.)
+	void addAjaxCookie(GDom& docOut, GDomNode* pOutNode);
+
 };
 
 
@@ -128,7 +133,7 @@ protected:
 
 	virtual bool hasBeenModifiedSince(const char* szUrl, const char* szDate);
 	virtual void setHeaders(const char* szUrl, const char* szParams);
-	GDynamicPageSession* establishSession(bool makeNewIfNecessary);
+	GDynamicPageSession* establishSession();
 
 	void sendFile(const char* szMimeType, const char* szFilename, std::ostream& response);
 

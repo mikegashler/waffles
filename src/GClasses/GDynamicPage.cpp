@@ -122,6 +122,14 @@ size_t GDynamicPageSession::paramsLen()
 	return m_pConnection->m_nContentLength;
 }
 
+void GDynamicPageSession::addAjaxCookie(GDom& docOut, GDomNode* pOutNode)
+{
+  std::ostringstream os;
+  os << "GDPSI=";
+	os << m_id;
+	pOutNode->add(&docOut, "cookie", os.str().c_str());
+}
+
 // ------------------------------------------------------
 
 GDynamicPageConnection::GDynamicPageConnection(SOCKET sock, GDynamicPageServer* pServer)
@@ -169,7 +177,7 @@ const char* _strnstr(const char* big, const char* small, size_t len)
 	return nullptr;
 }
 
-GDynamicPageSession* GDynamicPageConnection::establishSession(bool makeNewIfNecessary)
+GDynamicPageSession* GDynamicPageConnection::establishSession()
 {
 	// Check for a cookie in the HTTP header
 	GDynamicPageSession* pSession = NULL;
@@ -201,7 +209,7 @@ GDynamicPageSession* GDynamicPageConnection::establishSession(bool makeNewIfNece
 	// Check for a cookie in the content
 	if(!pSession)
 	{
-		const char* crumb = _strnstr(m_pContent, "GDPSI=", std::min((size_t)1024, m_nContentLength));
+		const char* crumb = _strnstr(m_pContent, "GDPSI=", m_nContentLength);
 		if(crumb)
 		{
 			crumb += 6;
@@ -220,7 +228,7 @@ GDynamicPageSession* GDynamicPageConnection::establishSession(bool makeNewIfNece
 	}
 
 	// Make a new session
-	if(!pSession && makeNewIfNecessary)
+	if(!pSession)
 	{
 		// Make a new cookie
 		unsigned long long nSessionID = (unsigned long long)m_pServer->prng()->next() ^ (unsigned long long)(GTime::seconds() * 10000);
@@ -231,8 +239,7 @@ GDynamicPageSession* GDynamicPageConnection::establishSession(bool makeNewIfNece
 		setCookie(tmp.c_str(), true);
 		pSession = m_pServer->makeNewSession(nSessionID);
 	}
-	if(pSession)
-		pSession->setConnection(this); // just sets a pointer back to this object
+	pSession->setConnection(this); // just sets a pointer back to this object
 
 	return pSession;
 }
@@ -241,7 +248,7 @@ GDynamicPageSession* GDynamicPageConnection::establishSession(bool makeNewIfNece
 void GDynamicPageConnection::doGet(ostream& response)
 {
 	// Set up the session
-	GDynamicPageSession* pSession = establishSession(true);
+	GDynamicPageSession* pSession = establishSession();
 
 	// Handle the request
 	setContentType("text/html");
@@ -251,7 +258,7 @@ void GDynamicPageConnection::doGet(ostream& response)
 // virtual
 void GDynamicPageConnection::doPost(ostream& response)
 {
-	GDynamicPageSession* pSession = establishSession(false);
+	GDynamicPageSession* pSession = establishSession();
 	handleRequest(pSession, response);
 }
 

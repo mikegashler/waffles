@@ -73,6 +73,7 @@
 
 <script type="text/javascript">
 let comments_file = "users/test_user/comments.json";
+let server_addr = "http://gashler.com:8987/ajax";
 
 function tog_viz(id)
 {
@@ -86,44 +87,48 @@ function tog_viz(id)
   }
 }
 
+let cookie = null;
+
 function ajax(url, outgoing, callback)
 {
-	//alert("The cookie is: " + document.cookie);
-	outgoing.cookie = document.cookie;
+	// Add a cookie to the object, since some browsers block HTTP header cookies in AJAX
+	let c = document.cookie;
+	if(!c || c.indexOf("GDPSI=") < 0)
+		c = cookie;
+	if(c)
+		outgoing.cookie = c;
 	let payload = JSON.stringify(outgoing);
 	let request = new XMLHttpRequest();
-	request.onreadystatechange = function()
-	{
-		if(request.readyState == 4)
-		{
-			if(request.status == 200)
-			{
-				//alert("The server replied: " + request.responseText);
+	request.onreadystatechange = function() {
+		if(request.readyState == 4) {
+			if(request.status == 200) {
+				//console.log("The server replied: " + request.responseText);
 				let incoming = JSON.parse(request.responseText);
+				if(incoming.cookie) {
+					cookie = incoming.cookie;
+					delete incoming.cookie;
+				}
 				callback(incoming);
-			}
-			else
-			{
+			}	else {
 				if(request.status == 0 && request.statusText.length == 0)
-					alert("Connection failed");
+					console.log("Connection failed");
 				else
-					alert("Server returned status " + request.status + ", " + request.statusText);
+					console.log("Server returned status " + request.status + ", " + request.statusText);
 			}
 		}
 	};
 	request.open('post', url, true);
 	request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
 	request.send(payload);
+	//console.log("Sent message: " + payload);
 }
 
-function refresh_comments_callback(incoming)
-{
+function refresh_comments_callback(incoming) {
 	let comments = document.getElementById("comments");
 	comments.innerHTML = incoming.html;
 }
 
-function refresh_comments()
-{
+function refresh_comments() {
 	// Find the text field
 	let comments = document.getElementById("comments");
 
@@ -133,16 +138,14 @@ function refresh_comments()
 	outgoing.file = comments_file;
 
 	// Send the JSON blob to the server
-	ajax("http://gashler.com:8987/ajax", outgoing, refresh_comments_callback);
+	ajax(server_addr, outgoing, refresh_comments_callback);
 }
 
-function submit_comment_callback(incoming)
-{
+function submit_comment_callback(incoming) {
 	refresh_comments();
 }
 
-function post_comment(id)
-{
+function post_comment(id) {
 	// Find the text field
 	let msg = document.getElementById(id);
 
@@ -154,7 +157,7 @@ function post_comment(id)
 	ob.comment = msg.value;
 
 	// Send the JSON blob to the server
-	ajax("http://gashler.com:8987/ajax", ob, submit_comment_callback);
+	ajax(server_addr, ob, submit_comment_callback);
 }
 
 refresh_comments();

@@ -61,7 +61,7 @@ Server::~Server()
 	cout << "Saving server state...\n";
 	cout.flush();
 	saveState();
-	
+
 	// Delete all the accounts
 	cout << "Flushing sessions...\n";
 	cout.flush();
@@ -72,7 +72,7 @@ Server::~Server()
 	cout << "Persisting comments...\n";
 	cout.flush();
 	delete(m_pJaad);
-	
+
 	cout << "Done shutting down server.\n";
 	cout.flush();
 }
@@ -430,6 +430,7 @@ void Connection::handleAjax(Server* pServer, GDynamicPageSession* pSession, ostr
 		cout.flush();
 		return;
 	}
+	pSession->addAjaxCookie(docOut, pOutNode);
 	pOutNode->writeJson(response);
 }
 
@@ -633,8 +634,6 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 {
 	try
 	{
-		if(pSession)
-			pSession->setConnection(this);
 		Server* pServer = (Server*)m_pServer;
 
 #ifdef _DEBUG
@@ -659,11 +658,7 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 		{
 			string webpath = ((Server*)m_pServer)->m_basePath;
 			webpath += "community/users/";
-			//if(headers)
-			//	Server::makeHeader(pSession, response, szParamsMessage);
 			sendFileSafe(webpath.c_str(), m_szUrl + 1, response);
-			//if(headers)
-			//	Server::makeFooter(pSession, response);
 		}
 	}
 	catch(std::exception& e)
