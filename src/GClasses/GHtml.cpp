@@ -27,7 +27,7 @@ using std::string;
 namespace GClasses {
 
 struct InsensitiveCompare
-{ 
+{
     bool operator() (const std::string& a, const std::string& b) const
     {
         return _stricmp(a.c_str(), b.c_str()) < 0;
@@ -87,7 +87,7 @@ public:
 		self_closing.insert("colgroup");*/
 		special.insert("script");
 		special.insert("style");
-		
+
 	}
 
 	GHtmlParser(const char* szFilename) : GTokenizer(szFilename),
@@ -296,7 +296,7 @@ void GHtmlElement::write(std::ostream& stream) const
 		if(singleton) // unique combination of flags for the document tag
 		{
 			for(size_t i = 0; i < children.size(); i++)
-				children[i]->write(stream);	
+				children[i]->write(stream);
 		}
 		else
 			stream << name;
@@ -317,7 +317,7 @@ void GHtmlElement::write(std::ostream& stream) const
 		{
 			stream << ">";
 			for(size_t i = 0; i < children.size(); i++)
-				children[i]->write(stream);	
+				children[i]->write(stream);
 			stream << "</" << name << ">";
 		}
 	}
@@ -491,6 +491,7 @@ GHtmlElement* GHtmlDoc::getElementById(const char* id)
 	return it->second;
 }
 
+/*
 GHtmlElement* GHtmlDoc::getBody()
 {
 	GHtmlElement* pHtml = m_pDocument->childTag("html");
@@ -498,7 +499,7 @@ GHtmlElement* GHtmlDoc::getBody()
 		return nullptr;
 	return pHtml->childTag("body");
 }
-
+*/
 
 
 }

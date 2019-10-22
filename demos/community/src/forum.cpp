@@ -21,6 +21,7 @@
 #include <GClasses/GHtml.h>
 #include <GClasses/GText.h>
 #include <GClasses/GTime.h>
+#include <GClasses/GFile.h>
 #include <vector>
 #include <sstream>
 #include "forum.h"
@@ -208,8 +209,6 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 void Forum::pageFeed(Server* pServer, GDynamicPageSession* pSession, ostream& response)
 {
 	// Check access privileges
-	if(!pSession)
-		throw Ex("No cookie? No service.");
 	Account* pAccount = getAccount(pSession);
 	if(!pAccount->isAdmin())
 	{
@@ -238,4 +237,61 @@ void Forum::pageFeed(Server* pServer, GDynamicPageSession* pSession, ostream& re
 		response << "\n";
 	}
 	response << "</table>\n";
+}
+
+void Forum::pageForumWrapper(Server* pServer, GDynamicPageSession* pSession, ostream& response)
+{
+	// Parse the url
+	string s = pSession->url();
+	if(s.length() < 3 || s.substr(0, 3).compare("/c/") != 0)
+		throw Ex("Unexpected url");
+	s = s.substr(3);
+	if(s[s.length() - 1] == '/')
+		s += "index.html";
+	PathData pd;
+	GFile::parsePath(s.c_str(), &pd);
+	if(pd.extStart == pd.len)
+	{
+		s += "/index.html";
+		GFile::parsePath(s.c_str(), &pd);
+	}
+
+	// If it's not an HTML file, just send the file
+	if(s.substr(pd.extStart).compare(".html") != 0)
+	{
+		pSession->connection()->sendFileSafe(pServer->m_basePath.c_str(), s.c_str(), response);
+		return;
+	}
+
+	// Parse the HTML
+	GHtmlDoc doc(s.c_str());
+	GHtmlElement* pElHtml = doc.document()->childTag("html");
+	if(!pElHtml)
+		return throw Ex("Expected an html tag");
+	GHtmlElement* pElHead = pElHtml->childTag("head");
+	if(!pElHead)
+		pElHead = new GHtmlElement(pElHtml, "head", 0);
+	GHtmlElement* pElStyle = pElHead->childTag("style");
+	if(!pElStyle)
+		pElStyle = new GHtmlElement(pElHead, "style");
+	GHtmlElement* pElBody = pElHtml->childTag("body");
+	if(!pElBody)
+		return throw Ex("Expected a body tag");
+
+	// Inject the comments stuff
+	string& sStyle = pServer->cache("chat_style.css");
+	GHtmlElement* pAddedStyle = new GHtmlElement(pElStyle, sStyle.c_str());
+	pAddedStyle->text = true;
+	string sScript = "let comments_file = \"";
+	sScript += s.substr(0, pd.extStart);
+	sScript += "_comments.json\";\n";
+	sScript += pServer->cache("chat_script.js");
+	GHtmlElement* pAddedScript = new GHtmlElement(pElBody, "script", 0);
+	pAddedScript->addAttr("type", "\"text/javascript\"");
+	GHtmlElement* pAddedScriptContent = new GHtmlElement(pAddedScript, sScript.c_str());
+	pAddedScriptContent->text = true;
+	GHtmlElement* pAddedComments = new GHtmlElement(pElBody, "div");
+	pAddedComments->addAttr("id", "\"comments\"");
+
+	doc.document()->write(response);
 }

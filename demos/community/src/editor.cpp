@@ -238,7 +238,9 @@ void Editor::ajaxSaveGui(Server* pServer, GDynamicPageSession* pSession, const G
 	GHtmlElement* pOldContent = domOld.getElementById("content");
 	if(!pOldContent)
 	{
-		pOldContent = domOld.getBody();
+		GHtmlElement* pHtml = domOld.document()->childTag("html");
+		if(pHtml)
+			pOldContent = pHtml->childTag("body");
 		if(!pOldContent)
 			throw Ex("Could not find content or body in the old dom");
 	}
@@ -318,7 +320,9 @@ void Editor::pageEditGui(Server* pServer, GDynamicPageSession* pSession, ostream
 	GHtmlElement* pContent = dom.getElementById("content");
 	if(!pContent)
 	{
-		pContent = dom.getBody();
+		GHtmlElement* pHtml = dom.document()->childTag("html");
+		if(pHtml)
+			pContent = pHtml->childTag("body");
 		if(!pContent)
 			throw Ex("Could not find content or body");
 		pContent->name = "div";
@@ -371,7 +375,7 @@ void Editor::pageNewPage(Server* pServer, GDynamicPageSession* pSession, std::os
 			url += "/templates/";
 			url += file;
 			response << "<iframe width=\"560\" height=\"315\" src=\"" << url << "\" frameborder=\"1\" allowfullscreen></iframe><br><br>";
-			
+
 			// Put an link overlay over the iframe
 			response << "<a href=\"redirect.html\" style=\"position:absolute; top:0; left:0; display:inline-block; width:500px; height:315px; z-index:5;\"></a>";
 		}
@@ -576,4 +580,3 @@ void Editor::pageHistory(Server* pServer, GDynamicPageSession* pSession, ostream
 	}
 	response << "</ul>\n";
 }
-

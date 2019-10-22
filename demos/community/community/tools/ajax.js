@@ -36,4 +36,4 @@ function cb(response)
 let ob = {};
 ob.burrito = 1.2345;
 let str = JSON.stringify(ob);
-httpPost("/ajax", str, cb);
+httpPost("/a", str, cb);

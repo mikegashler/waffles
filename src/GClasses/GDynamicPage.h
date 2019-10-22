@@ -127,6 +127,11 @@ public:
 
 	virtual void doGet(std::ostream& response);
 	virtual void doPost(std::ostream& response);
+
+	/// Concatenates szJailPath+szLocalPath, and makes sure that the result is within szJailPath, then
+	/// it automatically determines the mime type from the extension, and sends the file.
+	void sendFileSafe(const char* szJailPath, const char* localPath, std::ostream& response);
+
 protected:
 	/// This method is called by doGet or doPost when a client requests something from the server
 	virtual void handleRequest(GDynamicPageSession* pSession, std::ostream& response) = 0;
@@ -136,10 +141,6 @@ protected:
 	GDynamicPageSession* establishSession();
 
 	void sendFile(const char* szMimeType, const char* szFilename, std::ostream& response);
-
-	/// Concatenates szJailPath+szLocalPath, and makes sure that the result is within szJailPath, then
-	/// it automatically determines the mime type from the extension, and sends the file.
-	void sendFileSafe(const char* szJailPath, const char* localPath, std::ostream& response);
 
 	/// Determines an appropriate mime type for the given filename based on its extension.
 	/// (Currently only recognizes a very small number of extensions.)

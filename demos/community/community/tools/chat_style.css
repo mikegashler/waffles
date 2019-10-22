@@ -1,0 +1,15 @@
+
+	div.indent {
+		margin-left: 100px;
+	}
+
+	div.bubble {
+		border-radius: 20px;
+	  border: 1px solid #808080;
+		background: #ffffff;
+		display: inline-block;
+	}
+
+	div.hidden {
+		display: none;
+	}

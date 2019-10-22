@@ -208,6 +208,8 @@ Account* Server::newAccount(const char* szUsername, const char* szPasswordHash)
 		szPasswordHash = "";
 
 	// See if that username already exists
+	if(strlen(szUsername) < 2)
+		return nullptr;
 	if(findAccount(szUsername))
 		return nullptr;
 
@@ -644,19 +646,15 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 
 		if(strcmp(m_szUrl, "/") == 0)
 			strcpy(m_szUrl, "/tools/survey");
-		if(check_url(m_szUrl, "/ajax"))
-		{
+		if(check_url(m_szUrl, "/a"))
 			handleAjax(pServer, pSession, response);
-			return;
-		}
-		else if(check_url(m_szUrl, "/tools"))
-		{
+		else if(check_url(m_szUrl, "/tools")) // todo: rename to "/b"
 			handleTools(pServer, pSession, response);
-			return;
-		}
+		else if(check_url(m_szUrl, "/c"))
+			Forum::pageForumWrapper(pServer, pSession, response);
 		else
 		{
-			string webpath = ((Server*)m_pServer)->m_basePath;
+			string webpath = pServer->m_basePath;
 			webpath += "community/users/";
 			sendFileSafe(webpath.c_str(), m_szUrl + 1, response);
 		}

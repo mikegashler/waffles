@@ -34,7 +34,5 @@ function save()
 	ob.action = "save_text";
 	ob.page = document.getElementById("page").value;
 	ob.filename = document.getElementById("filename").value;
-	httpPost("/ajax", JSON.stringify(ob), cb);
+	httpPost("/a", JSON.stringify(ob), cb);
 }
-
-

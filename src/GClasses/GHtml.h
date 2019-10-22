@@ -42,11 +42,18 @@ public:
 	std::vector<std::string> attrValues;
 	std::vector<GHtmlElement*> children;
 
-	GHtmlElement(GHtmlElement* par, const char* szTagName)
+	/// Makes an element and inserts it at the specified position of its parent's children.
+	/// If pos is -1 (the default), then it is added at the end of the children.
+	GHtmlElement(GHtmlElement* par, const char* szTagName, int pos = -1)
 	: parent(par), text(false), singleton(false), name(szTagName)
 	{
 		if(par)
-			par->children.push_back(this);
+		{
+			if(pos < 0)
+				par->children.push_back(this);
+			else
+				par->children.insert(par->children.begin() + pos, this);
+		}
 	}
 
 	~GHtmlElement()
@@ -63,7 +70,7 @@ public:
 
 	void writeTextOnly(std::ostream& stream) const;
 
-	/// Returns the a pointer to the first child element with the specified tag name
+	/// Returns a pointer to the first immediate child element with the specified tag name
 	GHtmlElement* childTag(const char* szTagName);
 
 	/// Adds an attribute name/value pair to this element
@@ -86,16 +93,16 @@ protected:
 
 public:
 	GHtmlDoc(const char* szFilename);
-	
+
 	GHtmlDoc(const char* pFile, size_t len);
-	
+
 	~GHtmlDoc();
 
 	GHtmlElement* document() { return m_pDocument; }
 
 	GHtmlElement* getElementById(const char* id);
 
-	GHtmlElement* getBody();
+	//GHtmlElement* getBody();
 };
 
 

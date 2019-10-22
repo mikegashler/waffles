@@ -96,7 +96,7 @@ function onfolderchange()
 	let ob = {};
 	ob.action = "filelist";
 	ob.folder = selectBox.value;
-	httpPost("/ajax", JSON.stringify(ob), cb);
+	httpPost("/a", JSON.stringify(ob), cb);
 }
 
 function selected_filename()
@@ -142,7 +142,7 @@ function onPageLoad()
 	let ob = {};
 	ob.action = "filelist";
 	ob.folder = ".";
-	httpPost("/ajax", JSON.stringify(ob), cb);
+	httpPost("/a", JSON.stringify(ob), cb);
 }
 
 onPageLoad();

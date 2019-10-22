@@ -247,7 +247,7 @@ function save()
 	ob.action = "save_gui";
 	ob.content = document.getElementById("content").outerHTML;
 	ob.filename = document.getElementById("filename").value;
-	httpPost("/ajax", JSON.stringify(ob), cb);
+	httpPost("/a", JSON.stringify(ob), cb);
 }
 
 /*

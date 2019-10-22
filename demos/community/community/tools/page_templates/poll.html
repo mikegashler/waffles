@@ -99,26 +99,26 @@ function getCheckboxIndex(id)
 
 function onCheckboxClick(cb)
 {
-	let jaad = 
+	let jaad =
 	{
 		"file" : "/" + tools.username() + "/test.json",
 		"auth" : "secret",
 		"cmd"  : ".people[.name==\"" + tools.username() + "\"].votes[" + getCheckboxIndex(op.id) + "]=" + (cb.checked ? "true" : "false");
 	}
 	let json_string = JSON.stringify(ob);
-	tools.httpPost("/tools/ajax", json_string, onServerConfirmsVote);
+	tools.httpPost("/a", json_string, onServerConfirmsVote);
 }
 
 function getStats()
 {
-	let jaad = 
+	let jaad =
 	{
 		"file" : "/" + tools.username() + "/test.json",
 		"auth" : "secret",
 		"cmd"  : ".votes[.name==\"" + tools.username() + "\"]";
 	}
 	let json_string = JSON.stringify(ob);
-	tools.httpPost("/tools/ajax", json_string, onServerProvidesStats);
+	tools.httpPost("/a", json_string, onServerProvidesStats);
 }
 
 getStats();
