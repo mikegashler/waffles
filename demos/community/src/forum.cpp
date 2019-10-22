@@ -90,10 +90,10 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 	// Request the whole file
 	GJsonAsADatabase& jaad = pServer->jaad();
 	const GDomNode* pResponse = jaad.apply(pRequest, &doc);
+	std::ostringstream os;
 	if(pResponse)
 	{
 		// Convert to HTML
-		std::ostringstream os;
 		if(pResponse->type() == GDomNode::type_list)
 		{
 			// Convert hierarchical list of comments into HTML
@@ -115,15 +115,15 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 			os << pResponse->getString("jaad_error");
 			os << "]</font><br>\n";
 		}
-		pOut->add(&doc, "html", os.str().c_str());
 	}
 	else
 	{
 		os << "<br><br><h2>Visitor Comments:</h2>\n";
-		os << "[No comments yet.]\n";
+		os << "[No comments yet.]<br>\n";
 		os << "<textarea id=\"rt\" rows=\"2\" cols=\"50\"></textarea><br>\n";
 		os << "<input type=\"button\" onclick=\"post_comment('rt');\" value=\"Post\">\n";
 	}
+	pOut->add(&doc, "html", os.str().c_str());
 }
 
 void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
@@ -291,7 +291,7 @@ void Forum::pageForumWrapper(Server* pServer, GDynamicPageSession* pSession, ost
 	string& sStyle = pServer->cache("chat_style.css");
 	GHtmlElement* pAddedStyle = new GHtmlElement(pElStyle, sStyle.c_str());
 	pAddedStyle->text = true;
-	string sScript = "let comments_file = \"";
+	string sScript = "\nlet comments_file = \"";
 	sScript += s.substr(0, pd.extStart);
 	sScript += "_comments.json\";\n";
 	sScript += pServer->cache("chat_script.js");
