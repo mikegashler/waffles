@@ -97,7 +97,7 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 		if(pResponse->type() == GDomNode::type_list)
 		{
 			// Convert hierarchical list of comments into HTML
-			os << "<h2>Visitor Comments:</h2>\n";
+			os << "<br><br><h2>Visitor Comments:</h2>\n";
 			for(size_t i = 0; i < pResponse->size(); i++)
 			{
 				GDomNode* pEntry = pResponse->get(i);
@@ -116,6 +116,13 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 			os << "]</font><br>\n";
 		}
 		pOut->add(&doc, "html", os.str().c_str());
+	}
+	else
+	{
+		os << "<br><br><h2>Visitor Comments:</h2>\n";
+		os << "[No comments yet.]\n";
+		os << "<textarea id=\"rt\" rows=\"2\" cols=\"50\"></textarea><br>\n";
+		os << "<input type=\"button\" onclick=\"post_comment('rt');\" value=\"Post\">\n";
 	}
 }
 
