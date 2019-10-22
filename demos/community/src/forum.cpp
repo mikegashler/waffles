@@ -264,7 +264,9 @@ void Forum::pageForumWrapper(Server* pServer, GDynamicPageSession* pSession, ost
 	}
 
 	// Parse the HTML
-	GHtmlDoc doc(s.c_str());
+	string fullPath = pServer->m_basePath;
+	fullPath += s;
+	GHtmlDoc doc(fullPath.c_str());
 	GHtmlElement* pElHtml = doc.document()->childTag("html");
 	if(!pElHtml)
 		return throw Ex("Expected an html tag");

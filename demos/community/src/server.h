@@ -86,6 +86,7 @@ protected:
 public:
 	bool m_keepGoing;
 	std::string m_basePath;
+	std::string m_toolsPath;
 
 	Server(int port, GRand* pRand);
 	virtual ~Server();

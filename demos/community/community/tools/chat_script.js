@@ -1,4 +1,3 @@
-let comments_file = "users/test_user/comments.json";
 let server_addr = "http://gashler.com:8988/a";
 
 function tog_viz(id)

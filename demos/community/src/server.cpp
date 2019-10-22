@@ -52,6 +52,8 @@ m_recommender(*pRand)
 	GFile::condensePath(buf);
 	m_basePath = buf;
 	cout << "Base path: " << m_basePath << "\n";
+	m_toolsPath = m_basePath;
+	m_toolsPath += "community/tools/";
 	m_pJaad = new MyJaad(m_basePath.c_str());
 }
 
@@ -289,8 +291,7 @@ GDynamicPageConnection* Server::makeConnection(SOCKET sock)
 
 string& Server::cache(const char* szFilename)
 {
-	string s = m_basePath;
-	s += "tools/";
+	string s = m_toolsPath;
 	s += szFilename;
 	return m_fileCache.get(s.c_str());
 }
@@ -616,8 +617,7 @@ void Connection::handleTools(Server* pServer, GDynamicPageSession* pSession, ost
 	else
 	{
 		// Send the file
-		string webpath = ((Server*)m_pServer)->m_basePath;
-		webpath += "community/tools/";
+		string webpath = ((Server*)m_pServer)->m_toolsPath;
 		if(headers)
 			Server::makeHeader(pSession, response, szParamsMessage);
 		sendFileSafe(webpath.c_str(), szUrl + 1, response);
@@ -661,7 +661,7 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 	}
 	catch(std::exception& e)
 	{
-		cerr << "An error occurred: " << e.what() << " when processing the url: " << m_szUrl << "\n";
-		response << "Sorry, an error occurred. Please yell at the operator of this site.\n";
+		cerr << "An error occurred: " << e.what() << ", while processing the url: " << m_szUrl << "\n";
+		response << "Sorry, an internal error occurred. Please yell at the operator of this site.\n";
 	}
 }
