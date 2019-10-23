@@ -357,6 +357,8 @@ void NeuralRecommender::refine(size_t iters)
 	}
 
 	// Train
+	if(samples.size() < 1)
+		return;
 	GVec target(1);
 	GVec inputBlame(USER_PROFILE_SIZE + ITEM_PROFILE_SIZE);
 	for(size_t i = 0; i < iters; i++)

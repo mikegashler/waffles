@@ -114,6 +114,12 @@ public:
 
 	/// Make the footer part of standardized pages
 	static void makeFooter(GDynamicPageSession* pSession, std::ostream& response);
+
+	/// Prints a timestamp and message to stdout, and flushes
+	void log(const char* message);
+
+	/// This is called at periodic intervals, a few times per day
+	void do_maintenance();
 };
 
 

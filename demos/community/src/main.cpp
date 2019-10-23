@@ -104,13 +104,6 @@ void doit(void* pArg)
 			pServer->deserializeState(doc.root());
 			cout << "Server state loaded from " << statePath << "\n";
 			cout.flush();
-
-/*
-			// Do some training to make sure the model is in good shape
-			cout << "doing some training...\n";
-			for(size_t i = 0; i < recommender().topics().size(); i++)
-				recommender().refineModel(i, ON_STARTUP_TRAINING_ITERS);
-*/
 		}
 		else
 			cout << "No saved state. Made a new server\n";
@@ -139,7 +132,7 @@ void doit(void* pArg)
 			{
 				if(GTime::seconds() - dLastMaintenance > 14400)	// 4 hours
 				{
-					pServer->doSomeRecommenderTraining();
+					pServer->do_maintenance();
 					dLastMaintenance = GTime::seconds();
 				}
 				else

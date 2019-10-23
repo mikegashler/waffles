@@ -296,6 +296,42 @@ string& Server::cache(const char* szFilename)
 	return m_fileCache.get(s.c_str());
 }
 
+void Server::log(const char* message)
+{
+	char buf[64];
+	const char* time = GTime::asciiTime(buf, 64);
+	cout << time << ": " << message << "\n";
+	cout.flush();
+}
+
+void Server::do_maintenance()
+{
+	log("Doing maintenance");
+	try
+	{
+		// Save blog comments
+		m_pJaad->flush();
+		
+		// Train recommender system
+		doSomeRecommenderTraining();
+	}
+	catch(std::exception& e)
+	{
+		std::ostringstream os;
+		os << "An error occurred during maintenance: " << e.what();
+		log(os.str().c_str());
+	}
+}
+
+
+
+
+
+
+
+
+
+
 
 
 const char* g_auto_name_1[] =
@@ -629,21 +665,22 @@ void Connection::handleTools(Server* pServer, GDynamicPageSession* pSession, ost
 // virtual
 void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 {
+	Server* pServer = (Server*)m_pServer;
 	try
 	{
-		Server* pServer = (Server*)m_pServer;
-
-#ifdef _DEBUG
-		cout << "Handling request for: " << m_szUrl;
+		// Log the request
+		std::ostringstream os;
+		os << "Received request: " << m_szUrl;
 		if(pSession && pSession->params() && pSession->params()[0] != '\0')
-			cout << "?" << pSession->params();
-		cout << "\n";
-#endif
+			os << "?" << pSession->params();
+		pServer->log(os.str().c_str());
+
 		// Make an account if there is not one already for this terminal
 		Terminal* pTerminal = getTerminal(pSession);
 		if(pTerminal->accountCount() == 0)
 			pTerminal->makeNewAccount((Server*)m_pServer);
 
+		// Send the request to the right place to be processed
 		if(strcmp(m_szUrl, "/") == 0)
 			strcpy(m_szUrl, "/tools/survey");
 		if(check_url(m_szUrl, "/a"))
@@ -661,7 +698,9 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 	}
 	catch(std::exception& e)
 	{
-		cerr << "An error occurred: " << e.what() << ", while processing the url: " << m_szUrl << "\n";
+		std::ostringstream os;
+		os << "An error occurred: " << e.what();
+		pServer->log(os.str().c_str());
 		response << "Sorry, an internal error occurred. Please yell at the operator of this site.\n";
 	}
 }
