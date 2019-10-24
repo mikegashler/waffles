@@ -126,6 +126,80 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 	pOut->add(&doc, "html", os.str().c_str());
 }
 
+string HTML_scrub_string(const char* szString)
+{
+	std::ostringstream stream;
+	while(*szString != '\0')
+	{
+		if(*szString == '&')
+			stream << "&amp;";
+		else if(*szString == '<')
+			stream << "&lt;";
+		else if(*szString == '>')
+			stream << "&gt;";
+		else
+			stream << *szString;
+		++szString;
+	}
+	return stream.str();
+}
+
+string JSON_encode_string(const char* szString)
+{
+	std::ostringstream stream;
+	stream << '"';
+	while(*szString != '\0')
+	{
+		if(*szString < ' ')
+		{
+			switch(*szString)
+			{
+				case '\b': stream << "\\b"; break;
+				case '\f': stream << "\\f"; break;
+				case '\n': stream << "\\n"; break;
+				case '\r': stream << "\\r"; break;
+				case '\t': stream << "\\t"; break;
+				default:
+					stream << (*szString);
+			}
+		}
+		else if(*szString == '\\')
+			stream << "\\\\";
+		else if(*szString == '"')
+			stream << "\\\"";
+		else
+			stream << (*szString);
+		++szString;
+	}
+	stream << '"';
+	return stream.str();
+}
+
+void portions(const char* szString, double* whitespace, double* letters, double* caps)
+{
+	size_t _letters = 0;
+	size_t _caps = 0;
+	size_t _chars = 0;
+	size_t _space = 0;
+	while(*szString != '\0')
+	{
+		if(*szString >= 'a' && *szString <= 'z')
+			++_letters;
+		else if(*szString >= 'A' && *szString <= 'Z')
+		{
+			++_letters;
+			++_caps;
+		}
+		else if(*szString <= ' ')
+			++_space;
+		++_chars;
+		++szString;
+	}
+	*whitespace = (double)_space / _chars;
+	*letters = (double)_letters / _chars;
+	*caps = (double)_caps / _letters;
+}
+
 void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
 {
 	// Get the data
@@ -137,8 +211,22 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	const char* szId = pIn->getString("id");
 	const char* szIpAddress = pSession->connection()->getIPAddress();
 	const char* szComment = pIn->getString("comment");
-	string sDate;
-	GTime::appendTimeStampValue(&sDate, "-", " ", ":", true);
+
+	// Evaluate the comment
+	if(strstr(szComment, "work from home"))
+		throw Ex("Comment rejected. Looks like SPAM.");
+	if(strstr(szComment, "://"))
+		throw Ex("Comment rejected. URLs are not allowed.");
+	if(strstr(szComment, "href="))
+		throw Ex("Comment rejected. URLs are not allowed.");
+	double _ws, _letters, _caps;
+	portions(szComment, &_ws, &_letters, &_caps);
+	if(_ws > 0.5)
+		throw Ex("Comment rejected. Too much whitespace.");
+	if(_letters < 0.65)
+		throw Ex("Comment rejected. Comments should be mostly words, not symbols");
+	if(_caps > 0.2)
+		throw Ex("Comment rejected. It looks like your caps lock key might be on.");
 
 	// Parse the ID (to determine where to insert the comment)
 	if(*szId != 'r')
@@ -175,15 +263,17 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	}
 
 	// Construct the JAAD command
-	cmd += " += {\"ip\":\"";
-	cmd += szIpAddress;
-	cmd += "\",\"user\":\"";
-	cmd += szUsername;
-	cmd += "\",\"date\":\"";
-	cmd += sDate;
-	cmd += "\",\"comment\":\"";
-	cmd += szComment;
-	cmd += "\"}";
+	string sDate;
+	GTime::appendTimeStampValue(&sDate, "-", " ", ":", true);
+	cmd += " += {\"ip\":";
+	cmd += JSON_encode_string(szIpAddress);
+	cmd += ",\"user\":";
+	cmd += JSON_encode_string(szUsername);
+	cmd += ",\"date\":";
+	cmd += JSON_encode_string(sDate.c_str());
+	cmd += ",\"comment\":";
+	cmd += JSON_encode_string(HTML_scrub_string(szComment).c_str());
+	cmd += "}";
 
 	// Make a request node
 	GDomNode* pRequest = doc.newObj();

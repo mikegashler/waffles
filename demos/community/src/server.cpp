@@ -298,9 +298,9 @@ string& Server::cache(const char* szFilename)
 
 void Server::log(const char* message)
 {
-	char buf[64];
-	const char* time = GTime::asciiTime(buf, 64);
-	cout << time << ": " << message << "\n";
+	string sDate;
+	GTime::appendTimeStampValue(&sDate, "-", " ", ":", true);
+	cout << sDate << ": " << message << "\n";
 	cout.flush();
 }
 
@@ -435,14 +435,13 @@ void Connection::handleAjax(Server* pServer, GDynamicPageSession* pSession, ostr
 {
 	GDom docIn;
 	GDom docOut;
-	GDomNode* pOutNode = nullptr;
+	GDomNode* pOutNode = docOut.newObj();
 	setContentType("application/json");
 	try
 	{
 		docIn.parseJson(pSession->params(), pSession->paramsLen());
 		const GDomNode* pInNode = docIn.root();
 		const char* action = pInNode->getString("action");
-		pOutNode = docOut.newObj();
 		if(strcmp(action, "save_gui") == 0) Editor::ajaxSaveGui(pServer, pSession, pInNode, docOut, pOutNode);
 		else if(strcmp(action, "save_text") == 0) Editor::ajaxSaveText(pServer, pSession, pInNode, docOut, pOutNode);
 		else if(strcmp(action, "filelist") == 0) Editor::ajaxFilelist(pServer, pSession, pInNode, docOut, pOutNode);
@@ -467,7 +466,7 @@ void Connection::handleAjax(Server* pServer, GDynamicPageSession* pSession, ostr
 	{
 		cout << "\nProblem during AJAX request. " << e.what() << "\n";
 		cout.flush();
-		return;
+		pOutNode->add(&docOut, "error", e.what());
 	}
 	pSession->addAjaxCookie(docOut, pOutNode);
 	pOutNode->writeJson(response);

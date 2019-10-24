@@ -67,7 +67,10 @@ function refresh_comments() {
 }
 
 function submit_comment_callback(incoming) {
-	refresh_comments();
+	if('error' in incoming)
+		alert(incoming.error);
+	else
+		refresh_comments();
 }
 
 function post_comment(id) {
