@@ -468,7 +468,10 @@ public:
 	/// You must override this method to allow valid actions to be performed.
 	virtual bool checkPermission(const char* szFilename) { return false; }
 
-	const GDomNode* apply(GDomNode* pRequest, GDom* pResponseDom);
+	/// Throws an exception if anything goes wrong.
+	/// Returns nullptr if an operation was successfully completed.
+	/// Returns the requested data if data was requested.
+	const GDomNode* apply(const char* szFilename, const char* szCmd, GDom* pResponseDom);
 
 	/// Writes any changed files to disk
 	void flush();

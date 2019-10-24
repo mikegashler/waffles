@@ -82,14 +82,9 @@ void Forum::format_comment_recursive(GDomNode* pEntry, std::ostream& os, std::st
 
 void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
 {
-	// Make a request node
-	GDomNode* pRequest = doc.newObj();
-	pRequest->add(&doc, "file", pIn->getString("file"));
-	pRequest->add(&doc, "cmd", "");
-
 	// Request the whole file
 	GJsonAsADatabase& jaad = pServer->jaad();
-	const GDomNode* pResponse = jaad.apply(pRequest, &doc);
+	const GDomNode* pResponse = jaad.apply(pIn->getString("file"), "", &doc);
 	std::ostringstream os;
 	if(pResponse)
 	{
@@ -175,7 +170,7 @@ string JSON_encode_string(const char* szString)
 	return stream.str();
 }
 
-void portions(const char* szString, double* whitespace, double* letters, double* caps)
+size_t portions(const char* szString, double* whitespace, double* letters, double* caps)
 {
 	size_t _letters = 0;
 	size_t _caps = 0;
@@ -198,6 +193,7 @@ void portions(const char* szString, double* whitespace, double* letters, double*
 	*whitespace = (double)_space / _chars;
 	*letters = (double)_letters / _chars;
 	*caps = (double)_caps / _letters;
+	return _chars;
 }
 
 void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
@@ -213,20 +209,20 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	const char* szComment = pIn->getString("comment");
 
 	// Evaluate the comment
-	if(strstr(szComment, "work from home"))
-		throw Ex("Comment rejected. Looks like SPAM.");
 	if(strstr(szComment, "://"))
-		throw Ex("Comment rejected. URLs are not allowed.");
+		throw Ex("Comment rejected. Hyperlinks are not allowed.");
 	if(strstr(szComment, "href="))
-		throw Ex("Comment rejected. URLs are not allowed.");
+		throw Ex("Comment rejected. Hyperlinks are not allowed.");
 	double _ws, _letters, _caps;
-	portions(szComment, &_ws, &_letters, &_caps);
-	if(_ws > 0.5)
+	size_t len = portions(szComment, &_ws, &_letters, &_caps);
+	if(len > 3 && _ws > 0.5)
 		throw Ex("Comment rejected. Too much whitespace.");
+	if(len > 25 && _ws < 0.02)
+		throw Ex("Comment rejected. Use more spaces.");
 	if(_letters < 0.65)
 		throw Ex("Comment rejected. Comments should be mostly words, not symbols");
 	if(_caps > 0.2)
-		throw Ex("Comment rejected. It looks like your caps lock key might be on.");
+		throw Ex("Comment rejected. Using all-caps is not friendly.");
 
 	// Parse the ID (to determine where to insert the comment)
 	if(*szId != 'r')
@@ -234,7 +230,7 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	if(*szId == '_')
 		throw Ex("Invalid ID");
 	szId++;
-	string cmd = "";
+	std::ostringstream cmd;
 	size_t depth = 0;
 	while(true)
 	{
@@ -250,13 +246,13 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 		{
 			if(++depth > 20)
 				throw Ex("Invalid ID");
-			cmd += '[';
+			cmd << '[';
 			while(*szId >= '0' && *szId <= '9')
 			{
-				cmd += *szId;
+				cmd << *szId;
 				++szId;
 			}
-			cmd += "].replies";
+			cmd << "].replies";
 		}
 		else
 			throw Ex("Invalid ID");
@@ -265,42 +261,30 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	// Construct the JAAD command
 	string sDate;
 	GTime::appendTimeStampValue(&sDate, "-", " ", ":", true);
-	cmd += " += {\"ip\":";
-	cmd += JSON_encode_string(szIpAddress);
-	cmd += ",\"user\":";
-	cmd += JSON_encode_string(szUsername);
-	cmd += ",\"date\":";
-	cmd += JSON_encode_string(sDate.c_str());
-	cmd += ",\"comment\":";
-	cmd += JSON_encode_string(HTML_scrub_string(szComment).c_str());
-	cmd += "}";
-
-	// Make a request node
-	GDomNode* pRequest = doc.newObj();
-	pRequest->add(&doc, "file", szFilename);
-	pRequest->add(&doc, "cmd", cmd.c_str());
+	string encodedIP = JSON_encode_string(szIpAddress);
+	string encodedUser = JSON_encode_string(szUsername);
+	string encodedDate = JSON_encode_string(sDate.c_str());
+	string encodedComment = JSON_encode_string(HTML_scrub_string(szComment).c_str());
+	cmd << " += {\"ip\":" << encodedIP;
+	cmd << ",\"user\":" << encodedUser;
+	cmd << ",\"date\":" << encodedDate;
+	cmd << ",\"comment\":" << encodedComment;
+	cmd << "}";
 
 	// Send the request
 	GJsonAsADatabase& jaad = pServer->jaad();
-	const GDomNode* pResponse = jaad.apply(pRequest, &doc);
+	const GDomNode* pResponse = jaad.apply(szFilename, cmd.str().c_str(), &doc);
 	pOut->add(&doc, "response", pResponse);
 
 	// Log this comment
-	string cmd2 = "+={\"ip\":\"";
-	cmd2 += szIpAddress;
-	cmd2 += "\",\"user\":\"";
-	cmd2 += szUsername;
-	cmd2 += "\",\"date\":\"";
-	cmd2 += sDate;
-	cmd2 += "\",\"file\":\"";
-	cmd2 += szFilename;
-	cmd2 += "\",\"comment\":\"";
-	cmd2 += szComment;
-	cmd2 += "\"}";
-	GDomNode* pReq2 = doc.newObj();
-	pReq2->add(&doc, "file", "comments.json");
-	pReq2->add(&doc, "cmd", cmd.c_str());
-	jaad.apply(pReq2, &doc);
+	std::ostringstream cmd2;
+	cmd2 << "+={\"ip\":" << encodedIP;
+	cmd2 << ",\"user\":" << encodedUser;
+	cmd2 << ",\"date\":" << encodedDate;
+	cmd2 << ",\"file\":" << JSON_encode_string(szFilename);
+	cmd2 << ",\"comment\":" << encodedComment;
+	cmd2 << "}";
+	jaad.apply("comments.json", cmd2.str().c_str(), &doc);
 }
 
 void Forum::pageFeed(Server* pServer, GDynamicPageSession* pSession, ostream& response)

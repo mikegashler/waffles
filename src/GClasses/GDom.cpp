@@ -1703,113 +1703,102 @@ void GJsonAsADatabase::del(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb)
 		throw Ex("An object or list type is needed for del");
 }
 
-const GDomNode* GJsonAsADatabase::apply(GDomNode* pRequest, GDom* pResponseDom)
+const GDomNode* GJsonAsADatabase::apply(const char* szFilename, const char* szCmd, GDom* pResponseDom)
 {
-	try
+	// Check for permission
+	if(!checkPermission(szFilename))
+		throw Ex("Permission denied");
+
+	// Find or load the DOM
+	GJaadDom* pDoc = getDom(szFilename);
+
+	// Do the command
+	size_t op = findTok(szCmd, '='); // possible bug: the '==' operator should not be detected here
+	if(szCmd[op] == '\0')
 	{
-		// Check for permission
-		const char* szFile = pRequest->getString("file");
-		if(!checkPermission(szFile))
-			throw Ex("Permission denied");
-
-		// Find or load the DOM
-		GJaadDom* pDoc = getDom(szFile);
-
-		// Do the command
-		const char* szCmd = pRequest->getString("cmd");
-		size_t op = findTok(szCmd, '='); // possible bug: the '==' operator should not be detected here
-		if(szCmd[op] == '\0')
+		// No '=', so the user must be requesting an object be returned
+		GDomNode* pNode = findNode(pDoc, pDoc->root(), pResponseDom, szCmd, '\0');
+		return pNode;
+	}
+	pDoc->incModCount();
+	if(op > 0 && szCmd[op - 1] == '+')
+	{
+		// It's a "+=" operation
+		string sLeft(szCmd, op - 1);
+		GDomNode* pNode = findNode(pDoc, pDoc->root(), pResponseDom, sLeft.c_str(), '+');
+		if(pNode)
 		{
-			// No '=', so the user must be requesting an object be returned
-			GDomNode* pNode = findNode(pDoc, pDoc->root(), pResponseDom, szCmd, '\0');
-			return pNode;
-		}
-		pDoc->incModCount();
-		if(op > 0 && szCmd[op - 1] == '+')
-		{
-			// It's a "+=" operation
-			string sLeft(szCmd, op - 1);
-			GDomNode* pNode = findNode(pDoc, pDoc->root(), pResponseDom, sLeft.c_str(), '+');
-			if(pNode)
-			{
-				if(pNode->type() != GDomNode::type_list)
-					throw Ex("The left part before '+=' is not a list type");
-				GDomNode* pOldRoot = pDoc->root();
-				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
-				pNode->add(pDoc, pDoc->root());
-				pDoc->setRoot(pOldRoot);
-			}
-			else
-			{
-				// Empty document. Make a root list node.
-				pNode = pDoc->newList();
-				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
-				pNode->add(pDoc, pDoc->root());
-				pDoc->setRoot(pNode);
-			}
-			return pResponseDom->newBool(true);
-		}
-		else if(op > 0 && szCmd[op - 1] == '-')
-		{
-			// It's a "-=" operation
-			string sLeft(szCmd, op - 1);
-			GDomNode* pNode = findNode(pDoc, pDoc->root(), pResponseDom, sLeft.c_str(), '-');
-			if(pNode)
-			{
-				string sField;
-				size_t index;
-				GDomNode* pVal = findLValue(pDoc, pNode, pResponseDom, szCmd + op + 1, &sField, &index);
-				if(pVal->type() == GDomNode::type_list)
-				{
-					pVal->del(index);
-					return pResponseDom->newBool(true);
-				}
-				else if(pVal->type() == GDomNode::type_obj)
-				{
-					pVal->del(sField.c_str());
-					return pResponseDom->newBool(true);
-				}
-				else
-					throw Ex("Can only remove from a list or object type");
-			}
-			else
-				throw Ex("Expected a left part before '-='");
+			if(pNode->type() != GDomNode::type_list)
+				throw Ex("The left part before '+=' is not a list type");
+			GDomNode* pOldRoot = pDoc->root();
+			pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+			pNode->add(pDoc, pDoc->root());
+			pDoc->setRoot(pOldRoot);
 		}
 		else
 		{
-			// It must be an "=" operation
-			string sLeft(szCmd, op);
+			// Empty document. Make a root list node.
+			pNode = pDoc->newList();
+			pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+			pNode->add(pDoc, pDoc->root());
+			pDoc->setRoot(pNode);
+		}
+		return nullptr;
+	}
+	else if(op > 0 && szCmd[op - 1] == '-')
+	{
+		// It's a "-=" operation
+		string sLeft(szCmd, op - 1);
+		GDomNode* pNode = findNode(pDoc, pDoc->root(), pResponseDom, sLeft.c_str(), '-');
+		if(pNode)
+		{
 			string sField;
 			size_t index;
-			GDomNode* pNode = findLValue(pDoc, pDoc->root(), pResponseDom, sLeft.c_str(), &sField, &index);
-			if(!pNode)
-				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
-			else if(pNode->type() == GDomNode::type_obj)
+			GDomNode* pVal = findLValue(pDoc, pNode, pResponseDom, szCmd + op + 1, &sField, &index);
+			if(pVal->type() == GDomNode::type_list)
 			{
-				GDomNode* pOldRoot = pDoc->root();
-				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
-				GDomNode* pVal = pDoc->root();
-				pDoc->setRoot(pOldRoot);
-				pNode->set(pDoc, sField.c_str(), pVal);
+				pVal->del(index);
+				return nullptr;
 			}
-			else if(pNode->type() == GDomNode::type_list)
+			else if(pVal->type() == GDomNode::type_obj)
 			{
-				GDomNode* pOldRoot = pDoc->root();
-				pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
-				GDomNode* pVal = pDoc->root();
-				pDoc->setRoot(pOldRoot);
-				pNode->set(pDoc, index, pVal);
+				pVal->del(sField.c_str());
+				return nullptr;
 			}
 			else
-				throw Ex("Not an LValue");
-			return pResponseDom->newBool(true);
+				throw Ex("Can only remove from a list or object type");
 		}
+		else
+			throw Ex("Expected a left part before '-='");
 	}
-	catch(const std::exception& e)
+	else
 	{
-		GDomNode* pNode = pResponseDom->newObj();
-		pNode->add(pResponseDom, "jaad_error", e.what());
-		return pNode;
+		// It must be an "=" operation
+		string sLeft(szCmd, op);
+		string sField;
+		size_t index;
+		GDomNode* pNode = findLValue(pDoc, pDoc->root(), pResponseDom, sLeft.c_str(), &sField, &index);
+		if(!pNode)
+			pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+		else if(pNode->type() == GDomNode::type_obj)
+		{
+			GDomNode* pOldRoot = pDoc->root();
+			pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+			GDomNode* pVal = pDoc->root();
+			pDoc->setRoot(pOldRoot);
+			pNode->set(pDoc, sField.c_str(), pVal);
+		}
+		else if(pNode->type() == GDomNode::type_list)
+		{
+			GDomNode* pOldRoot = pDoc->root();
+			pDoc->parseJson(szCmd + op + 1, strlen(szCmd + op + 1));
+			GDomNode* pVal = pDoc->root();
+			pDoc->setRoot(pOldRoot);
+			pNode->set(pDoc, index, pVal);
+		}
+		else
+			throw Ex("Not an LValue");
+		return nullptr;
 	}
 }
 
