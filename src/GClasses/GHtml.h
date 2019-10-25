@@ -103,6 +103,8 @@ public:
 	GHtmlElement* getElementById(const char* id);
 
 	//GHtmlElement* getBody();
+
+	static void test();
 };
 
 

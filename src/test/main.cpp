@@ -51,6 +51,7 @@
 #include "../GClasses/GHashTable.h"
 #include "../GClasses/GHiddenMarkovModel.h"
 #include "../GClasses/GHillClimber.h"
+#include "../GClasses/GHtml.h"
 #include "../GClasses/GKeyPair.h"
 #include "../GClasses/GKNN.h"
 #include "../GClasses/GLinear.h"
@@ -922,6 +923,7 @@ public:
 		runTest("GHashTable", GHashTable::test);
 		runTest("GHiddenMarkovModel", GHiddenMarkovModel::test);
 		runTest("GHillClimber", GHillClimber::test);
+		runTest("GHtmlDoc", GHtmlDoc::test);
 		runTest("GIncrementalTransform", GIncrementalTransform::test);
 		runTest("GInstanceRecommender", GInstanceRecommender::test);
 		runTest("GKdTree", GKdTree::test);
