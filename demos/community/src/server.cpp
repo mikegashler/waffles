@@ -311,7 +311,7 @@ void Server::do_maintenance()
 	{
 		// Save blog comments
 		m_pJaad->flush();
-		
+
 		// Train recommender system
 		doSomeRecommenderTraining();
 	}
@@ -442,7 +442,12 @@ void Connection::handleAjax(Server* pServer, GDynamicPageSession* pSession, ostr
 		docIn.parseJson(pSession->params(), pSession->paramsLen());
 		const GDomNode* pInNode = docIn.root();
 		const char* action = pInNode->getString("action");
-		if(strcmp(action, "save_gui") == 0) Editor::ajaxSaveGui(pServer, pSession, pInNode, docOut, pOutNode);
+		if(strcmp(action, "ping") == 0)
+		{
+			response << "true";
+			allowOrigin("*");
+		}
+		else if(strcmp(action, "save_gui") == 0) Editor::ajaxSaveGui(pServer, pSession, pInNode, docOut, pOutNode);
 		else if(strcmp(action, "save_text") == 0) Editor::ajaxSaveText(pServer, pSession, pInNode, docOut, pOutNode);
 		else if(strcmp(action, "filelist") == 0) Editor::ajaxFilelist(pServer, pSession, pInNode, docOut, pOutNode);
 		else if(strcmp(action, "add_comment") == 0)
