@@ -143,7 +143,9 @@ public:
 				char* szMore = readUntil(m_endTagName);
 				s += szMore;
 			}
-			return new GHtmlElement(par, s.c_str());
+			GHtmlElement* pEl = new GHtmlElement(par, s.c_str());
+			pEl->singleton = true;
+			return pEl;
 		}
 
 		GHtmlElement* pEl = new GHtmlElement(par, szTagName);
@@ -311,7 +313,7 @@ void GHtmlElement::write(std::ostream& stream) const
 				stream << "=" << attrValues[i];
 		}
 		if(singleton)
-			stream << "/>";
+			stream << ">"; // "/>";
 		else
 		{
 			stream << ">";
@@ -522,6 +524,7 @@ void GHtmlDoc::test()
     "<br><br>\n"
     "<table bgcolor=#f0e8e0 cellpadding=40 width=800 align=center><tr><td>\n"
     "<br>\n"
+	"<!-- Here comes the title -->\n"
     "<h1>My elegant title</h1>\n"
     "<p>Bla bla blah!\n"
     "</p>\n"
