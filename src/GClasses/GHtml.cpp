@@ -143,6 +143,7 @@ public:
 				char* szMore = readUntil(m_endTagName);
 				s += szMore;
 			}
+			skip(1);
 			GHtmlElement* pEl = new GHtmlElement(par, s.c_str());
 			pEl->singleton = true;
 			return pEl;
@@ -504,34 +505,56 @@ GHtmlElement* GHtmlDoc::getBody()
 
 void GHtmlDoc::test()
 {
-    const char* raw =
-    "<!doctype html>\n"
-    "<html>\n"
-    "<head>\n"
-    "  <meta http-equiv=\"Content-Type\" content=\"text/html;charset=UTF-8\">\n"
-    "  <title>Some Title</title>\n"
-    "  <style>\n"
-    "  body {\n"
-    "    background-color: #e0d8d0;\n"
-    "    background-image:url('back.png');\n"
-    "  }\n"
-    "  </style>\n"
-    "</head>\n"
-    "<body>\n"
-    "<a href=\"http://somesite.com/index.html\"><img src=\"pic.png\" id=\"mypic\"></a>\n"
-    "<div id=\"mydiv\">Div contents</div>\n"
-    "\n"
-    "<br><br>\n"
-    "<table bgcolor=#f0e8e0 cellpadding=40 width=800 align=center><tr><td>\n"
-    "<br>\n"
+	const char* raw =
+	"<!doctype html>\n"
+	"<html>\n"
+	"<head>\n"
+	"  <meta http-equiv=\"Content-Type\" content=\"text/html;charset=UTF-8\">\n"
+	"  <title>Some Title</title>\n"
+	"  <style>\n"
+	"  body {\n"
+	"    background-color: #e0d8d0;\n"
+	"    background-image:url('back.png');\n"
+	"  }\n"
+	"  </style>\n"
+	"</head>\n"
+	"<body>\n"
+	"<a href=\"http://somesite.com/index.html\"><img src=\"pic.png\" id=\"mypic\"></a>\n"
+	"<div id=\"mydiv\">Div contents</div>\n"
+	"\n"
+	"<br><br>\n"
+	"<table bgcolor=#f0e8e0 cellpadding=40 width=800 align=center><tr><td>\n"
+	"<br>\n"
 	"<!-- Here comes the title -->\n"
-    "<h1>My elegant title</h1>\n"
-    "<p>Bla bla blah!\n"
-    "</p>\n"
-    "	   <br><br>\n"
-    "<iframe width=\"720\" height=\"405\" src=\"https://www.youtube.com/embed/KzGjEkp772s?start=25\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>\n"
-    "</td></tr></table></body></html>\n";
-    GHtmlDoc doc(raw, strlen(raw));
+	"<h1>My elegant title</h1>\n"
+	"<p>Bla bla blah!\n"
+	"</p>\n"
+	"	   <br><br>\n"
+	"<iframe width=\"720\" height=\"405\" src=\"https://www.youtube.com/embed/KzGjEkp772s?start=25\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>\n"
+	"</td></tr></table></body></html>\n";
+	GHtmlDoc doc(raw, strlen(raw));
+	std::ostringstream os;
+	doc.document()->write(os);
+	string s = os.str();
+	const char* rt = s.c_str();
+
+	// Make sure the two strings differ only by whitespace
+	size_t i = 0;
+	size_t j = 0;
+	while(raw[i] != '\0' || rt[j] != '\0')
+	{
+		if(raw[i] == rt[j])
+		{
+			++i;
+			++j;
+		}
+		else if(raw[i] <= ' ')
+			++i;
+		else if(rt[j] <= ' ')
+			++j;
+		else
+			throw Ex("failed");
+	}
 }
 
 }
