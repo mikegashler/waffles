@@ -35,7 +35,7 @@ void Login::pageAdmin(Server* pServer, GDynamicPageSession* pSession, ostream& r
 	}
 
 	// Process params
-	std::map<std::string,Account*>& accounts = pServer->accounts();
+	std::vector<Account*>& accounts = pServer->accounts();
 	if(pSession->paramsLen() > 0)
 	{
 		GHttpParamParser params(pSession->params());
@@ -43,9 +43,9 @@ void Login::pageAdmin(Server* pServer, GDynamicPageSession* pSession, ostream& r
 		if(strcmp(szAction, "make_assistant") == 0)
 		{
 			// Remove all assistants
-			for(std::map<std::string,Account*>::iterator it = accounts.begin(); it != accounts.end(); it++)
+			for(size_t i = 0; i < accounts.size(); i++)
 			{
-				Account* pUserAccount = it->second;
+				Account* pUserAccount = accounts[i];
 				cout << "Clearing " << pUserAccount->username() << " as an assistant\n";
 				pUserAccount->makeAssistant(false);
 			}
@@ -77,9 +77,9 @@ void Login::pageAdmin(Server* pServer, GDynamicPageSession* pSession, ostream& r
 	response << "<form method=\"post\">";
 	response << "<input type=\"hidden\" name=\"action\" value=\"make_assistant\" />\n";
 	response << "<table>\n";
-	for(std::map<std::string,Account*>::iterator it = accounts.begin(); it != accounts.end(); it++)
+	for(size_t i = 0; i < accounts.size(); i++)
 	{
-		Account* pUserAccount = it->second;
+		Account* pUserAccount = accounts[i];
 		response << "<tr><td>";
 		response << "Assistant?<br><input type=\"checkbox\" name=\"assist_" << pUserAccount->username() << "\" value=\"true\"" << (pUserAccount->isAssistant() ? " checked" : "") << ">";
 		response << "</td><td>" << pUserAccount->username() << "</td><td>";
@@ -317,5 +317,3 @@ void Login::pageTools(Server* pServer, GDynamicPageSession* pSession, std::ostre
 	response << "let _username = " << pAccount->username() << ";\n\n";
 	response << pServer->cache("tools.js");
 }
-
-

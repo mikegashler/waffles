@@ -45,7 +45,7 @@ public:
 	static void ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut);
 
 protected:
-	static void format_comment_recursive(GDomNode* pEntry, std::ostream& os, std::string& id, bool allow_direct_reply, size_t depth);
+	static void format_comment_recursive(Server* pServer, GDomNode* pEntry, std::ostream& os, std::string& id, bool allow_direct_reply, size_t depth);
 
 };
 

@@ -32,10 +32,10 @@ using std::string;
 using std::vector;
 using std::cout;
 
-void Forum::format_comment_recursive(GDomNode* pEntry, std::ostream& os, std::string& id, bool allow_direct_reply, size_t depth)
+void Forum::format_comment_recursive(Server* pServer, GDomNode* pEntry, std::ostream& os, std::string& id, bool allow_direct_reply, size_t depth)
 {
 	// Extract relevant data
-	const char* szUsername = pEntry->getString("user");
+	const char* szUsername = pServer->get_account(pEntry->getInt("user"))->username();
 	const char* szDate = pEntry->getString("date");
 	const char* szComment = pEntry->getString("comment");
 	GDomNode* pReplies = pEntry->getIfExists("replies");
@@ -65,7 +65,7 @@ void Forum::format_comment_recursive(GDomNode* pEntry, std::ostream& os, std::st
 				bool child_allow_direct_replies = true;
 				if(i == pReplies->size() - 1)
 					child_allow_direct_replies = false;
-				format_comment_recursive(pReplies->get(i), os, child_allow_direct_replies ? child_id : id, child_allow_direct_replies, depth - 1);
+				format_comment_recursive(pServer, pReplies->get(i), os, child_allow_direct_replies ? child_id : id, child_allow_direct_replies, depth - 1);
 			}
 			os << "</div>\n";
 		}
@@ -98,7 +98,7 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 				GDomNode* pEntry = pResponse->get(i);
 				string id = "r";
 				id += to_str(i);
-				format_comment_recursive(pEntry, os, id, true, 12);
+				format_comment_recursive(pServer, pEntry, os, id, true, 12);
 			}
 			os << "<textarea id=\"rt\" rows=\"2\" cols=\"50\"></textarea><br>\n";
 			os << "<input type=\"button\" onclick=\"post_comment('rt');\" value=\"Post\">\n";
@@ -202,7 +202,7 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	Account* pAccount = getAccount(pSession);
 	if(!pAccount)
 		throw Ex("You must be logged in to comment.");
-	const char* szUsername = pAccount->username();
+	size_t user_id = pServer->user_id(pAccount->username());
 	const char* szFilename = pIn->getString("file");
 	const char* szId = pIn->getString("id");
 	const char* szIpAddress = pSession->connection()->getIPAddress();
@@ -262,11 +262,10 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	string sDate;
 	GTime::appendTimeStampValue(&sDate, "-", " ", ":", true);
 	string encodedIP = JSON_encode_string(szIpAddress);
-	string encodedUser = JSON_encode_string(szUsername);
 	string encodedDate = JSON_encode_string(sDate.c_str());
 	string encodedComment = JSON_encode_string(HTML_scrub_string(szComment).c_str());
 	cmd << " += {\"ip\":" << encodedIP;
-	cmd << ",\"user\":" << encodedUser;
+	cmd << ",\"user\":" << to_str(user_id);
 	cmd << ",\"date\":" << encodedDate;
 	cmd << ",\"comment\":" << encodedComment;
 	cmd << "}";
@@ -279,7 +278,7 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	// Log this comment
 	std::ostringstream cmd2;
 	cmd2 << "+={\"ip\":" << encodedIP;
-	cmd2 << ",\"user\":" << encodedUser;
+	cmd2 << ",\"user\":" << to_str(user_id);
 	cmd2 << ",\"date\":" << encodedDate;
 	cmd2 << ",\"file\":" << JSON_encode_string(szFilename);
 	cmd2 << ",\"comment\":" << encodedComment;
@@ -312,7 +311,7 @@ void Forum::pageFeed(Server* pServer, GDynamicPageSession* pSession, ostream& re
 		GDomNode* pComment = pNode->get(i);
 		response << "<tr><td><input type=\"checkbox\"></td>";
 		response << "<td>" << pComment->getString("date") << "</td>";
-		response << "<td>" << pComment->getString("user") << "</td>";
+		response << "<td>" << pServer->get_account(pComment->getInt("user"))->username() << "</td>";
 		response << "<td>" << pComment->getString("ip") << "</td>";
 		response << "<td>" << pComment->getString("comment") << "</td>";
 		response << "\n";

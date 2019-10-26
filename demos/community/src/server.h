@@ -78,7 +78,8 @@ public:
 class Server : public GDynamicPageServer
 {
 protected:
-	std::map<std::string,Account*> m_accounts; // Mapping from username to account
+	std::map<std::string,size_t> m_username_to_index; // Mapping from username to account index
+	std::vector<Account*> m_accounts;
 	NeuralRecommender m_recommender; // The recommender system
 	GFileCache m_fileCache;
 	MyJaad* m_pJaad;
@@ -96,12 +97,15 @@ public:
 	void doSomeRecommenderTraining();
 	virtual void onStateChange();
 	virtual void onShutDown();
-	std::map<std::string,Account*>& accounts() { return m_accounts; }
+	std::vector<Account*>& accounts() { return m_accounts; }
 	bool isUsernameTaken(const char* szUsername);
 	Account* findAccount(const char* szUsername);
+	Account* get_account(size_t index) { return m_accounts[index]; }
+	size_t user_id(const char* szUsername);
+	bool isValidUsername(const char* szUsername);
 	Account* newAccount(const char* szUsername, const char* szPasswordHash);
-	void deleteAccount(Account* pAccount);
-	void onRenameAccount(const char* szOldName, Account* pAccount);
+	//void deleteAccount(Account* pAccount);
+	bool onRenameAccount(const char* szOldName, const char* szNewName);
 	GDomNode* serializeState(GDom* pDoc);
 	void deserializeState(const GDomNode* pNode);
 	virtual GDynamicPageSessionExtension* deserializeSessionExtension(const GDomNode* pNode);
@@ -207,11 +211,9 @@ public:
 
 	bool changeUsername(Server* pServer, const char* szNewName)
 	{
-		if(pServer->findAccount(szNewName))
+		if(!pServer->onRenameAccount(m_username.c_str(), szNewName))
 			return false;
-		std::string oldName = m_username;
 		m_username = szNewName;
-		pServer->onRenameAccount(oldName.c_str(), this);
 		return true;
 	}
 

@@ -68,8 +68,8 @@ Server::~Server()
 	cout << "Flushing sessions...\n";
 	cout.flush();
 	flushSessions(); // ensure that there are no sessions referencing the accounts
-	for(map<std::string,Account*>::iterator it = m_accounts.begin(); it != m_accounts.end(); it++)
-		delete(it->second);
+	for(size_t i = 0; i < m_accounts.size(); i++)
+		delete(m_accounts[i]);
 
 	cout << "Persisting comments...\n";
 	cout.flush();
@@ -197,11 +197,48 @@ void Server::onShutDown()
 
 Account* Server::findAccount(const char* szUsername)
 {
-	map<string,Account*>::iterator it = m_accounts.find(szUsername);
-	if(it == m_accounts.end())
+	map<string,size_t>::iterator it = m_username_to_index.find(szUsername);
+	if(it == m_username_to_index.end())
 		return nullptr;
-	Account* pAccount = it->second;
+	size_t index = it->second;
+	Account* pAccount = m_accounts[index];
 	return pAccount;
+}
+
+size_t Server::user_id(const char* szUsername)
+{
+	map<string,size_t>::iterator it = m_username_to_index.find(szUsername);
+	if(it == m_username_to_index.end())
+		throw Ex("No such user");
+	return it->second;
+}
+
+bool Server::isValidUsername(const char* szUsername)
+{
+	// Make sure the username contains only alpha-numerics, hyphens, or underscores
+	for(size_t i = 0; szUsername[i] != '\0'; i++)
+	{
+		if((szUsername[i] >= 'a' && szUsername[i] <= 'z') ||
+			(szUsername[i] >= 'A' && szUsername[i] <= 'Z') ||
+			(szUsername[i] >= '0' && szUsername[i] <= '9') ||
+			(szUsername[i] == '-' || szUsername[i] == '_'))
+		{
+		}
+		else
+			return false;
+	}
+
+	size_t len = strlen(szUsername);
+
+	// One and two-letter usernames are reserved for system tools
+	if(len < 3)
+		return false;
+
+	// Crazy-long usernames are not appropriate
+	if(len > 40)
+		return false;
+
+	return true;
 }
 
 Account* Server::newAccount(const char* szUsername, const char* szPasswordHash)
@@ -210,29 +247,40 @@ Account* Server::newAccount(const char* szUsername, const char* szPasswordHash)
 		szPasswordHash = "";
 
 	// See if that username already exists
-	if(strlen(szUsername) < 2)
+	if(!isValidUsername(szUsername))
 		return nullptr;
 	if(findAccount(szUsername))
 		return nullptr;
 
 	// Make the account
 	Account* pAccount = new Account(szUsername, szPasswordHash);
-	m_accounts.insert(make_pair(string(szUsername), pAccount));
+	size_t index = m_accounts.size();
+	m_accounts.push_back(pAccount);
+	m_username_to_index.insert(make_pair(string(szUsername), index));
 	cout << "Made new account for " << szUsername << "\n";
 	cout.flush();
 	return pAccount;
 }
 
-void Server::onRenameAccount(const char* szOldName, Account* pAccount)
+bool Server::onRenameAccount(const char* szOldName, const char* szNewName)
 {
-	m_accounts.erase(szOldName);
-	m_accounts.insert(make_pair(pAccount->username(), pAccount));
+	map<string,size_t>::iterator it = m_username_to_index.find(szOldName);
+	if(it == m_username_to_index.end())
+		return false;
+	if(!isValidUsername(szNewName))
+		return false;
+	if(findAccount(szNewName))
+		return false;
+	size_t index = it->second;
+	m_username_to_index.erase(szOldName);
+	m_username_to_index.insert(make_pair(szNewName, index));
+	return true;
 }
-
+/*
 void Server::deleteAccount(Account* pAccount)
 {
 	string s;
-	for(std::map<std::string,Account*>::iterator it = m_accounts.begin(); it != m_accounts.end(); it++)
+	for(std::map<std::string,size_t>::iterator it = m_accounts.begin(); it != m_accounts.end(); it++)
 	{
 		if(it->second == pAccount)
 		{
@@ -244,15 +292,15 @@ void Server::deleteAccount(Account* pAccount)
 	cout << "Account " << pAccount->username() << " deleted.\n";
 	saveState();
 }
-
+*/
 GDomNode* Server::serializeState(GDom* pDoc)
 {
 	GDomNode* pNode = GDynamicPageServer::serialize(pDoc);
 	GDomNode* pAccounts = pDoc->newList();
 	pNode->add(pDoc, "accounts", pAccounts);
-	for(std::map<std::string,Account*>::iterator it = m_accounts.begin(); it != m_accounts.end(); it++)
+	for(size_t i = 0; i < m_accounts.size(); i++)
 	{
-		Account* pAcc = it->second;
+		Account* pAcc = m_accounts[i];
 		pAccounts->add(pDoc, pAcc->toDom(pDoc));
 	}
 	pNode->add(pDoc, "recommender", m_recommender.serialize(pDoc));
@@ -263,11 +311,17 @@ void Server::deserializeState(const GDomNode* pNode)
 {
 	// Load the accounts
 	GAssert(m_accounts.size() == 0);
+	for(size_t i = 0; i < m_accounts.size(); i++)
+		delete(m_accounts[i]);
+	m_accounts.clear();
+	m_username_to_index.clear();
 	GDomNode* pAccounts = pNode->get("accounts");
 	for(GDomListIterator it(pAccounts); it.current(); it.advance())
 	{
 		Account* pAccount = Account::fromDom(it.current(), *m_pRand);
-		m_accounts.insert(make_pair(string(pAccount->username()), pAccount));
+		size_t index = m_accounts.size();
+		m_accounts.push_back(pAccount);
+		m_username_to_index.insert(make_pair(string(pAccount->username()), index));
 	}
 
 	// Load the base stuff
@@ -586,14 +640,14 @@ const char* Connection::processParams(GDynamicPageSession* pSession)
 			else
 				szParamsMessage = "You must log in to do this action";
 		}
-		else if(strcmp(szAction, "nukeself") == 0)
+/*		else if(strcmp(szAction, "nukeself") == 0)
 		{
 			Account* pAccount = pTerminal->currentAccount();
 			const char* szUsername = pAccount->username();
 			((Server*)m_pServer)->deleteAccount(pAccount);
 			pTerminal->forgetAccount(szUsername);
 			pTerminal->logOut();
-		}
+		}*/
 		else if(strcmp(szAction, "train") == 0)
 			((Server*)m_pServer)->recommender().refine(ON_TRAIN_TRAINING_ITERS);
 	}
