@@ -51,19 +51,17 @@ function ajax(url, outgoing, callback)
 function refresh_comments_callback(incoming) {
 	let comments = document.getElementById("comments");
 	comments.innerHTML = incoming.html;
+	if('error' in incoming)
+		alert(incoming.error);
 }
 
 function refresh_comments() {
-	// Find the text field
-	let comments = document.getElementById("comments");
+	ajax(server_addr, { action: "get_comments", file: comments_file }, refresh_comments_callback);
+}
 
-	// Make a JSON blob
-	let outgoing = {};
-	outgoing.action = "get_comments";
-	outgoing.file = comments_file;
-
-	// Send the JSON blob to the server
-	ajax(server_addr, outgoing, refresh_comments_callback);
+function change_username() {
+	let nn = document.getElementById("username").value;
+	ajax(server_addr, { action: "get_comments", changename: nn, file: comments_file }, refresh_comments_callback);
 }
 
 function submit_comment_callback(incoming) {

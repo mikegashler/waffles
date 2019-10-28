@@ -82,17 +82,42 @@ void Forum::format_comment_recursive(Server* pServer, GDomNode* pEntry, std::ost
 
 void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
 {
-	// Request the whole file
+	// Change the username if requested
+	Account* pAccount = getAccount(pSession);
+	GDomNode* pChangeName = pIn->getIfExists("changename");
+	if(pChangeName)
+	{
+		const char* szNewName = pChangeName->asString();
+		if(pAccount)
+		{
+			if(!pAccount->changeUsername(pServer, szNewName))
+				pOut->add(&doc, "error", "Sorry, that username is not available");
+		}
+		else
+			pOut->add(&doc, "error", "Not currently logged in");
+	}
+
+	// Request the whole comments file
 	GJsonAsADatabase& jaad = pServer->jaad();
 	const GDomNode* pResponse = jaad.apply(pIn->getString("file"), "", &doc);
 	std::ostringstream os;
+
+	// Convert to HTML
 	if(pResponse)
 	{
-		// Convert to HTML
 		if(pResponse->type() == GDomNode::type_list)
 		{
 			// Convert hierarchical list of comments into HTML
 			os << "<br><br><h2>Visitor Comments:</h2>\n";
+
+			// Add the username
+			if(pAccount)
+			{
+				os << "Posting as " << pAccount->username() << ".";
+				os << "Change to <input type=\"text\" id=\"username\" value=\"" << pAccount->username() << "\"><input type=\"button\" onclick=\"change_username()\">\n";
+			}
+
+			// Add the comments
 			for(size_t i = 0; i < pResponse->size(); i++)
 			{
 				GDomNode* pEntry = pResponse->get(i);
@@ -219,10 +244,10 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 		throw Ex("Comment rejected. Too much whitespace.");
 	if(len > 25 && _ws < 0.02)
 		throw Ex("Comment rejected. Use more spaces.");
-	if(_letters < 0.65)
+	if(_letters < 0.6)
 		throw Ex("Comment rejected. Comments should be mostly words, not symbols");
-	if(_caps > 0.2)
-		throw Ex("Comment rejected. Using all-caps is not friendly.");
+	if(_caps > 0.3)
+		throw Ex("Comment rejected. Too many capitalized letters.");
 
 	// Parse the ID (to determine where to insert the comment)
 	if(*szId != 'r')

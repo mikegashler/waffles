@@ -124,7 +124,6 @@ public:
 		return (nodetype)m_type;
 	}
 
-protected:
 	/// Returns the boolean value stored by this node. Throws if this is not a bool type
 	bool asBool() const
 	{
@@ -161,7 +160,6 @@ protected:
 		return m_value.m_string;
 	}
 
-public:
 	/// Returns the node with the specified field name. Throws if this is not an object type. Returns
 	/// NULL if this is an object type, but there is no field with the specified name
 	GDomNode* getIfExists(const char* szName) const;
