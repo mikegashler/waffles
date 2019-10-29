@@ -119,7 +119,7 @@ public:
 	/// Make the footer part of standardized pages
 	static void makeFooter(GDynamicPageSession* pSession, std::ostream& response);
 
-	/// Prints a timestamp and message to stdout, and flushes
+	/// Prints a timestamp and message to stdout, and flushes stdout
 	void log(const char* message);
 
 	/// This is called at periodic intervals, a few times per day
@@ -140,6 +140,7 @@ protected:
 	User* m_pUser; // A redundant pointer to the User object that goes with this account
 	bool m_admin;
 	bool m_assistant;
+	bool m_banned;
 
 public:
 	Account(const char* szUsername, const char* szPasswordHash)
@@ -161,6 +162,11 @@ public:
 		return m_assistant;
 	}
 
+	bool isBanned()
+	{
+		return m_banned;
+	}
+
 	void makeAdmin(bool admin)
 	{
 		m_admin = admin;
@@ -169,6 +175,11 @@ public:
 	void makeAssistant(bool assistant)
 	{
 		m_assistant = assistant;
+	}
+
+	void makeBanned(bool banned)
+	{
+		m_banned = banned;
 	}
 
 	static Account* fromDom(GDomNode* pNode, GRand& rand)
@@ -180,6 +191,8 @@ public:
 			pAccount->makeAdmin(true);
 		if(pNode->getIfExists("assistant"))
 			pAccount->makeAssistant(true);
+		if(pNode->getIfExists("banned"))
+			pAccount->makeBanned(true);
 		return pAccount;
 	}
 
@@ -192,6 +205,8 @@ public:
 			pAccount->add(pDoc, "admin", "true");
 		if(m_assistant)
 			pAccount->add(pDoc, "assistant", "true");
+		if(m_banned)
+			pAccount->add(pDoc, "banned", "true");
 		return pAccount;
 	}
 
@@ -408,6 +423,7 @@ public:
 	virtual void handleRequest(GDynamicPageSession* pSession, std::ostream& response);
 	void handleAjax(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
 	void handleTools(Server* pServer, GDynamicPageSession* pSession, std::ostream& response);
+	bool is_admin(Terminal* pTerminal, const char** ppParamsMessage);
 	const char* processParams(GDynamicPageSession* pSession);
 };
 

@@ -22,6 +22,7 @@
 
 using std::ostream;
 using std::cout;
+using std::string;
 
 
 void Login::pageAdmin(Server* pServer, GDynamicPageSession* pSession, ostream& response)
@@ -40,28 +41,55 @@ void Login::pageAdmin(Server* pServer, GDynamicPageSession* pSession, ostream& r
 	{
 		GHttpParamParser params(pSession->params());
 		const char* szAction = params.find("action");
-		if(strcmp(szAction, "make_assistant") == 0)
+		if(strcmp(szAction, "adjust_permissions") == 0)
 		{
-			// Remove all assistants
+			// Set assistants
+			pServer->log("Clearing all admins, assistants, and bans");
 			for(size_t i = 0; i < accounts.size(); i++)
 			{
 				Account* pUserAccount = accounts[i];
-				cout << "Clearing " << pUserAccount->username() << " as an assistant\n";
+				if(i > 0)
+					pUserAccount->makeAdmin(false);
 				pUserAccount->makeAssistant(false);
+				pUserAccount->makeBanned(false);
 			}
-
-			// Make the checked users assistants
 			auto map = params.map();
 			for(std::map<const char*, const char*, GClasses::strComp>::iterator it = map.begin(); it != map.end(); it++)
 			{
-				if(strncmp(it->first, "assist_", 7) == 0)
+				if(strncmp(it->first, "admin_", 6) == 0)
+				{
+					const char* szUsername = it->first + 6;
+					Account* pUserAccount = pServer->findAccount(szUsername);
+					if(strcmp(it->second, "true") == 0)
+					{
+						string s = "Making admin: ";
+						s += pUserAccount->username();
+						pServer->log(s.c_str());
+						pUserAccount->makeAdmin(true);
+					}
+				}
+				else if(strncmp(it->first, "assist_", 7) == 0)
 				{
 					const char* szUsername = it->first + 7;
 					Account* pUserAccount = pServer->findAccount(szUsername);
 					if(strcmp(it->second, "true") == 0)
 					{
-						cout << "Making " << pUserAccount->username() << " an assistant\n";
+						string s = "Adding assistant: ";
+						s += pUserAccount->username();
+						pServer->log(s.c_str());
 						pUserAccount->makeAssistant(true);
+					}
+				}
+				else if(strncmp(it->first, "ban_", 4) == 0)
+				{
+					const char* szUsername = it->first + 4;
+					Account* pUserAccount = pServer->findAccount(szUsername);
+					if(strcmp(it->second, "true") == 0)
+					{
+						string s = "Banning user: ";
+						s += pUserAccount->username();
+						pServer->log(s.c_str());
+						pUserAccount->makeBanned(true);
 					}
 				}
 			}
@@ -75,39 +103,48 @@ void Login::pageAdmin(Server* pServer, GDynamicPageSession* pSession, ostream& r
 	// Form to give users assistant privileges
 	response << "<h2>Grant user permissions</h2>\n\n";
 	response << "<form method=\"post\">";
-	response << "<input type=\"hidden\" name=\"action\" value=\"make_assistant\" />\n";
-	response << "<table>\n";
+	response << "<input type=\"hidden\" name=\"action\" value=\"adjust_permissions\" />\n";
+	response << "<table><tr>";
+	response << "<td><b><i><u>Username</u></i></b></td>";
+	response << "<td><b><i><u>Admin</u></i></b></td>";
+	response << "<td><b><i><u>Assistant</u></i></b></td>";
+	response << "<td><b><i><u>Banned</u></i></b></td>";
+	response << "</tr>\n";
 	for(size_t i = 0; i < accounts.size(); i++)
 	{
 		Account* pUserAccount = accounts[i];
-		response << "<tr><td>";
-		response << "Assistant?<br><input type=\"checkbox\" name=\"assist_" << pUserAccount->username() << "\" value=\"true\"" << (pUserAccount->isAssistant() ? " checked" : "") << ">";
-		response << "</td><td>" << pUserAccount->username() << "</td><td>";
+		response << "<tr>";
+		response << "<td>" << pUserAccount->username() << "</td>";
+		response << "<td><input type=\"checkbox\" name=\"admin_" << pUserAccount->username() << "\" value=\"true\"" << (pUserAccount->isAdmin() ? " checked" : "") << "></td>";
+		response << "<td><input type=\"checkbox\" name=\"assist_" << pUserAccount->username() << "\" value=\"true\"" << (pUserAccount->isAssistant() ? " checked" : "") << "></td>";
+		response << "<td><input type=\"checkbox\" name=\"ban_" << pUserAccount->username() << "\" value=\"true\"" << (pUserAccount->isBanned() ? " checked" : "") << "></td>";
+		response << "</tr>";
 	}
 	response << "</table>\n";
 	response << "<br>\n";
 	response << "<input type=\"submit\" value=\"Submit\"></form>";
 	response << "</form><br><br>\n\n";
 
-	// Admin controls
-	if(pAccount->isAdmin())
-	{
-		response << "<h2>Admin controls</h2>\n\n";
+	// Form to train the recommender system a bit more
+	response << "<form name=\"trainform\" method=\"get\">\n";
+	response << "	Refine the recommender system:<br>\n";
+	response << "	<input type=\"hidden\" name=\"action\" value=\"train\" />\n";
+	response << "	<input type=\"submit\" value=\"Train\">\n";
+	response << "</form><br><br>\n\n";
 
-		// Form to train the recommender system a bit more
-		response << "<form name=\"trainform\" method=\"get\">\n";
-		response << "	Refine the recommender system:<br>\n";
-		response << "	<input type=\"hidden\" name=\"action\" value=\"train\" />\n";
-		response << "	<input type=\"submit\" value=\"Train\">\n";
-		response << "</form><br><br>\n\n";
+	// Form to flush the comments files
+	response << "<form name=\"flushform\" method=\"get\">\n";
+	response << "	Flush the comments files:<br>\n";
+	response << "	<input type=\"hidden\" name=\"action\" value=\"flush\" />\n";
+	response << "	<input type=\"submit\" value=\"Flush\">\n";
+	response << "</form><br><br>\n\n";
 
-		// Form to shut down the server
-		response << "<form name=\"shutdownform\" method=\"get\">\n";
-		response << "	Shut down the daemon:<br>\n";
-		response << "	<input type=\"hidden\" name=\"action\" value=\"shutdown\" />\n";
-		response << "	<input type=\"submit\" value=\"Shut down now\">\n";
-		response << "</form><br><br>\n\n";
-	}
+	// Form to shut down the server
+	response << "<form name=\"shutdownform\" method=\"get\">\n";
+	response << "	Shut down the daemon:<br>\n";
+	response << "	<input type=\"hidden\" name=\"action\" value=\"shutdown\" />\n";
+	response << "	<input type=\"submit\" value=\"Shut down now\">\n";
+	response << "</form><br><br>\n\n";
 }
 
 void Login::pageAccount(Server* pServer, GDynamicPageSession* pSession, ostream& response)

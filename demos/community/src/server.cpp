@@ -531,6 +531,22 @@ void Connection::handleAjax(Server* pServer, GDynamicPageSession* pSession, ostr
 	pOutNode->writeJson(response);
 }
 
+bool Connection::is_admin(Terminal* pTerminal, const char** ppParamsMessage)
+{
+	Account* pAccount = pTerminal->currentAccount();
+	if(!pAccount)
+	{
+		*ppParamsMessage = "You must be logged in to perform this action";
+		return false;
+	}
+	if(!pAccount->isAdmin())
+	{
+		*ppParamsMessage = "Sorry, only an administrator may perform this action";
+		return false;
+	}
+	return true;
+}
+
 const char* Connection::processParams(GDynamicPageSession* pSession)
 {
 	const char* szParamsMessage = nullptr;
@@ -604,6 +620,14 @@ const char* Connection::processParams(GDynamicPageSession* pSession)
 			else
 				szParamsMessage = "You must log in to change the name";
 		}
+		else if(strcmp(szAction, "flush") == 0)
+		{
+			if(is_admin(pTerminal, &szParamsMessage))
+			{
+				((Server*)m_pServer)->log("Flushing comments files as directed by admin");
+				((Server*)m_pServer)->jaad().flush();
+			}
+		}
 		else if(strcmp(szAction, "forget") == 0)
 		{
 			const char* szName = params.find("name");
@@ -625,20 +649,11 @@ const char* Connection::processParams(GDynamicPageSession* pSession)
 		}
 		else if(strcmp(szAction, "shutdown") == 0)
 		{
-			Account* pAccount = pTerminal->currentAccount();
-			if(pAccount)
+			if(is_admin(pTerminal, &szParamsMessage))
 			{
-				if(pAccount->isAdmin())
-				{
-					cout << "An admin has directed the server to shut down\n";
-					cout.flush();
-					((Server*)m_pServer)->m_keepGoing = false;
-				}
-				else
-					szParamsMessage = "Sorry, only an administrator may perform that action";
+				((Server*)m_pServer)->log("Shutting down server as directed by admin");
+				((Server*)m_pServer)->m_keepGoing = false;
 			}
-			else
-				szParamsMessage = "You must log in to do this action";
 		}
 /*		else if(strcmp(szAction, "nukeself") == 0)
 		{
