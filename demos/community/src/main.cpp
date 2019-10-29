@@ -83,11 +83,7 @@ void redirectStandardStreams(const char* pPath)
 void doit(void* pArg)
 {
 	{
-#ifdef _DEBUG
-		int port = 8987;
-#else
 		int port = 8988;
-#endif
 		size_t seed = getpid() * (size_t)time(NULL);
 		GRand prng(seed);
 		char statePath[300];
