@@ -88,9 +88,15 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 	if(pChangeName)
 	{
 		const char* szNewName = pChangeName->asString();
+		string sNewName = szNewName;
+		for(size_t i = 0; i < sNewName.length(); i++)
+		{
+			if(sNewName[i] == ' ')
+				sNewName[i] = '_';
+		}
 		if(pAccount)
 		{
-			if(!pAccount->changeUsername(pServer, szNewName))
+			if(!pAccount->changeUsername(pServer, sNewName.c_str()))
 				pOut->add(&doc, "error", "Sorry, that username is not available");
 		}
 		else
@@ -113,9 +119,11 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 			// Add the username
 			if(pAccount)
 			{
-				os << "Posting as " << pAccount->username() << ".";
-				os << "Change to <input type=\"text\" id=\"username\" value=\"" << pAccount->username() << "\"><input type=\"button\" onclick=\"change_username()\">\n";
+				os << "Posting as <a href=\"#javascript:void(0)\" onclick=\"tog_viz('change_username')\">" << pAccount->username() << "</a><br>\n";
+				os << "<div class=\"hidden\" id=\"change_username\">Change username to <input type=\"text\" id=\"username\" value=\"" << pAccount->username() << "\"><input type=\"button\" onclick=\"change_username()\" value=\"Change\"></div>\n";
 			}
+			else
+				os << "Not logged in<br>\n";
 
 			// Add the comments
 			for(size_t i = 0; i < pResponse->size(); i++)
@@ -139,7 +147,15 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 	else
 	{
 		os << "<br><br><h2>Visitor Comments:</h2>\n";
-		os << "[No comments yet.]<br>\n";
+			
+		// Add the username
+		if(pAccount)
+		{
+			os << "Posting as <a href=\"#javascript:void(0)\" onclick=\"tog_viz('change_username')\">" << pAccount->username() << "</a><br>\n";
+			os << "<div class=\"hidden\" id=\"change_username\">Change username to <input type=\"text\" id=\"username\" value=\"" << pAccount->username() << "\"><input type=\"button\" onclick=\"change_username()\" value=\"Change\"></div>\n";
+		}
+		else
+			os << "Not logged in<br>\n";
 		os << "<textarea id=\"rt\" rows=\"2\" cols=\"50\"></textarea><br>\n";
 		os << "<input type=\"button\" onclick=\"post_comment('rt');\" value=\"Post\">\n";
 	}
@@ -355,11 +371,11 @@ void Forum::pageForumWrapper(Server* pServer, GDynamicPageSession* pSession, ost
 		s += "index.html";
 	PathData pd;
 	GFile::parsePath(s.c_str(), &pd);
-	if(pd.extStart == pd.len)
+	/*if(pd.extStart == pd.len)
 	{
 		s += "/index.html";
 		GFile::parsePath(s.c_str(), &pd);
-	}
+	}*/
 
 	// If it's not an HTML file, just send the file
 	if(s.substr(pd.extStart).compare(".html") != 0)
