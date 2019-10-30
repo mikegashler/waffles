@@ -144,7 +144,7 @@ protected:
 
 public:
 	Account(const char* szUsername, const char* szPasswordHash)
-	: m_username(szUsername), m_passwordHash(szPasswordHash), m_pUser(nullptr), m_admin(false), m_assistant(false)
+	: m_username(szUsername), m_passwordHash(szPasswordHash), m_pUser(nullptr), m_admin(false), m_assistant(false), m_banned(false)
 	{
 	}
 
