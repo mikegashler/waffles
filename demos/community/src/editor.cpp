@@ -341,10 +341,10 @@ void Editor::pageEditGui(Server* pServer, GDynamicPageSession* pSession, ostream
 void Editor::pagePreview(Server* pServer, GDynamicPageSession* pSession, ostream& response)
 {
 	string s = pSession->url();
-	size_t pos = s.find("/tools/preview/");
+	size_t pos = s.find("/b/preview/");
 	if(pos == string::npos)
 		throw Ex("Unexpected url format");
-	pos += 14; // strlen("/tools/preview")
+	pos += 10; // strlen("/b/preview")
 
 	response << "<iframe width=\"560\" height=\"315\" src=\"" << (s.c_str() + pos) << "\" frameborder=\"0\" allowfullscreen></iframe>";
 }

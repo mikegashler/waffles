@@ -26,63 +26,19 @@
 #include "recommender.h"
 
 class Account;
+class Connection;
 
 using namespace GClasses;
-
-class MyJaad : public GJsonAsADatabase
-{
-public:
-	MyJaad(const char* szBasePath) : GJsonAsADatabase(szBasePath)
-	{}
-
-	virtual ~MyJaad()
-	{}
-
-	virtual bool checkPermission(const char* szFilename)
-	{
-		// Make sure it's not too long
-		size_t len = strlen(szFilename);
-		if(len > 128)
-			return false;
-
-		// Make sure there are no funny characters
-		for(size_t i = 0; i < len; i++)
-		{
-			if(szFilename[i] == '.' || szFilename[i] == '/' ||
-				szFilename[i] == '_' || szFilename[i] == '-' ||
-				(szFilename[i] >= 'a' && szFilename[i] <= 'z') ||
-				(szFilename[i] >= 'A' && szFilename[i] <= 'Z') ||
-				(szFilename[i] >= '0' && szFilename[i] <= '9'))
-				{}
-			else
-				return false;
-		}
-
-		// No breaking out of the base path
-		if(strstr(szFilename, ".."))
-			return false;
-
-		// Make sure it ends with "comments.json"
-		std::string sFile = "comments.json";
-		if(len < sFile.length())
-			return false;
-		std::string s = szFilename;
-		if(s.compare (s.length() - sFile.length(), sFile.length(), sFile) != 0)
-			return false;
-
-		return true;
-	}
-};
-
 
 class Server : public GDynamicPageServer
 {
 protected:
 	std::map<std::string,size_t> m_username_to_index; // Mapping from username to account index
 	std::vector<Account*> m_accounts;
+	std::set<std::string> m_banned_addresses;
 	NeuralRecommender m_recommender; // The recommender system
 	GFileCache m_fileCache;
-	MyJaad* m_pJaad;
+	GJsonAsADatabase* m_pJaad;
 
 public:
 	bool m_keepGoing;
@@ -100,6 +56,7 @@ public:
 	std::vector<Account*>& accounts() { return m_accounts; }
 	bool isUsernameTaken(const char* szUsername);
 	Account* findAccount(const char* szUsername);
+	size_t account_count() { return m_accounts.size(); }
 	Account* get_account(size_t index) { return m_accounts[index]; }
 	size_t user_id(const char* szUsername);
 	bool isValidUsername(const char* szUsername);
@@ -124,6 +81,12 @@ public:
 
 	/// This is called at periodic intervals, a few times per day
 	void do_maintenance();
+
+	/// Return true iff this account or its current IP address has been banned
+	bool isBanned(Connection* pConnection, Account* pAccount);
+	void loadBannedAddresses();
+	void saveBannedAddresses();
+
 };
 
 

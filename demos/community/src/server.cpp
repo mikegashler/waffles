@@ -20,6 +20,7 @@
 #include <GClasses/GApp.h>
 #include <GClasses/GTime.h>
 #include <map>
+#include <fstream>
 #include "server.h"
 #include "editor.h"
 #include "login.h"
@@ -53,8 +54,9 @@ m_recommender(*pRand)
 	m_basePath = buf;
 	cout << "Base path: " << m_basePath << "\n";
 	m_toolsPath = m_basePath;
-	m_toolsPath += "community/tools/";
-	m_pJaad = new MyJaad(m_basePath.c_str());
+	m_toolsPath += "community/b/";
+	m_pJaad = new GJsonAsADatabase(m_basePath.c_str());
+	loadBannedAddresses();
 }
 
 // virtual
@@ -75,6 +77,9 @@ Server::~Server()
 	cout.flush();
 	delete(m_pJaad);
 
+	cout << "Saving banned addresses...\n";
+	saveBannedAddresses();
+
 	cout << "Done shutting down server.\n";
 	cout.flush();
 }
@@ -86,7 +91,7 @@ void Server::makeHeader(GDynamicPageSession* pSession, ostream& response, const 
 	response << "	<meta charset=\"utf-8\">\n";
 	Account* pAccount = getAccount(pSession);
 	response << "	<title>Community Modeler</title>\n";
-	response << "	<link rel=\"stylesheet\" type=\"text/css\" href=\"/tools/style/style.css\" />\n";
+	response << "	<link rel=\"stylesheet\" type=\"text/css\" href=\"/b/style/style.css\" />\n";
 	response << "</head><body>\n";
 	response << "<table align=center width=1200 cellpadding=0 cellspacing=0><tr><td>\n";
 	response << "<table cellpadding=0 cellspacing=0>\n";
@@ -117,16 +122,19 @@ void Server::makeHeader(GDynamicPageSession* pSession, ostream& response, const 
 	response << "<td id=\"sidebar\">";
 	if(pAccount)
 	{
-		response << "	<a href=\"/tools/browse\">My pages</a><br><br>\n";
-		response << "	<a href=\"/tools/survey\">Survey</a><br><br>\n";
-		response << "	<a href=\"/tools/account?action=logout\">Log out</a><br><br>\n";
-		response << "	<a href=\"/tools/account\">Account</a><br><br>\n";
+		response << "	<a href=\"/b/browse\">My pages</a><br><br>\n";
+		response << "	<a href=\"/b/survey\">Survey</a><br><br>\n";
+		response << "	<a href=\"/b/account?action=logout\">Log out</a><br><br>\n";
+		response << "	<a href=\"/b/account\">Account</a><br><br>\n";
 		if(pAccount->isAdmin())
-			response << "	<a href=\"/tools/admin\">Admin</a><br><br>\n";
+		{
+			response << "	<a href=\"/b/admin\">Admin</a><br><br>\n";
+			response << "	<a href=\"/b/feed\">Feed</a><br><br>\n";
+		}
 	}
 	else
 	{
-		response << "	<a href=\"/tools/account?action=newaccount\">New account</a><br><br>\n";
+		response << "	<a href=\"/b/account?action=newaccount\">New account</a><br><br>\n";
 	}
 	response << "</td><td id=\"mainbody\">\n\n\n\n";
 }
@@ -364,7 +372,7 @@ void Server::do_maintenance()
 	try
 	{
 		// Save blog comments
-		m_pJaad->flush();
+		m_pJaad->flush(false);
 
 		// Train recommender system
 		doSomeRecommenderTraining();
@@ -377,7 +385,47 @@ void Server::do_maintenance()
 	}
 }
 
+bool Server::isBanned(Connection* pConnection, Account* pAccount)
+{
+	const char* szIPAddress = pConnection->getIPAddress();
+	if(pAccount->isBanned())
+	{
+		m_banned_addresses.insert(szIPAddress);
+		return true;
+	}
+	if(m_banned_addresses.find(szIPAddress) != m_banned_addresses.end())
+	{
+		pAccount->makeBanned(true);
+		return true;
+	}
+	return false;
+}
 
+void Server::loadBannedAddresses()
+{
+	string banfile = m_basePath;
+	banfile += "community/banned_addresses.txt";
+	m_banned_addresses.clear();
+	if(!GFile::doesFileExist(banfile.c_str()))
+		return;
+	std::ifstream is;
+	is.open(banfile.c_str());
+	string line;
+	while(std::getline(is, line))
+		m_banned_addresses.insert(line);
+	is.close();
+}
+
+void Server::saveBannedAddresses()
+{
+	std::string banfile = m_basePath;
+	banfile += "community/banned_addresses.txt";
+	std::ofstream os;
+	os.open(banfile.c_str());
+	for(std::set<std::string>::iterator it = m_banned_addresses.begin(); it != m_banned_addresses.end(); ++it)
+		os << *it << "\n";
+	os.close();
+}
 
 
 
@@ -625,7 +673,7 @@ const char* Connection::processParams(GDynamicPageSession* pSession)
 			if(is_admin(pTerminal, &szParamsMessage))
 			{
 				((Server*)m_pServer)->log("Flushing comments files as directed by admin");
-				((Server*)m_pServer)->jaad().flush();
+				((Server*)m_pServer)->jaad().flush(true);
 			}
 		}
 		else if(strcmp(szAction, "forget") == 0)
@@ -676,7 +724,7 @@ void Connection::handleTools(Server* pServer, GDynamicPageSession* pSession, ost
 	// Find a method to make the requested page
 	bool headers = true;
 	void (*pageMaker)(Server* pServer, GDynamicPageSession* pSession, ostream& response) = nullptr;
-	const char* szUrl = m_szUrl + 6; // Skip "/tools"
+	const char* szUrl = m_szUrl + 2; // Skip "/b"
 	if(check_url(szUrl, "/account")) pageMaker = &Login::pageAccount;
 	else if(check_url(szUrl, "/browse")) pageMaker = &Editor::pageBrowse;
 	else if(check_url(szUrl, "/diff")) pageMaker = &Editor::pageDiff;
@@ -690,6 +738,7 @@ void Connection::handleTools(Server* pServer, GDynamicPageSession* pSession, ost
 	else if(check_url(szUrl, "/stats")) pageMaker = &Submit::pageStats;
 	else if(check_url(szUrl, "/update")) pageMaker = &Submit::pageUpdateResponses;
 	else if(check_url(szUrl, "/admin")) pageMaker = &Login::pageAdmin;
+	else if(check_url(szUrl, "/feed")) pageMaker = &Forum::pageFeed;
 	else if(check_url(szUrl, "/newaccount")) pageMaker = &Login::pageNewAccount;
 	else if(check_url(szUrl, "/tools.js")) pageMaker = &Login::pageTools;
 	else if(check_url(szUrl, "/users.svg")) { pageMaker = &Submit::plotUsers; headers = false; }
@@ -753,12 +802,19 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 		if(pTerminal->accountCount() == 0)
 			pTerminal->makeNewAccount((Server*)m_pServer);
 
+		// Check for banned accounts
+		if(pServer->isBanned(this, pTerminal->currentAccount()))
+		{
+			response << "404. Page not found."; // Bogus non-confrontational "go away" message
+			return;
+		}
+
 		// Send the request to the right place to be processed
 		if(strcmp(m_szUrl, "/") == 0)
-			strcpy(m_szUrl, "/tools/survey");
+			strcpy(m_szUrl, "/b/survey");
 		if(check_url(m_szUrl, "/a"))
 			handleAjax(pServer, pSession, response);
-		else if(check_url(m_szUrl, "/tools")) // todo: rename to "/b"
+		else if(check_url(m_szUrl, "/b"))
 			handleTools(pServer, pSession, response);
 		else if(check_url(m_szUrl, "/c"))
 			Forum::pageForumWrapper(pServer, pSession, response);

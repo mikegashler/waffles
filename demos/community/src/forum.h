@@ -44,7 +44,12 @@ public:
 	/// Adds a comment to a forum
 	static void ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut);
 
+	/// Finds all comment files, and calls purge_comments_from_banned_users
+	static void scrub_all_comment_files(Server* pServer);
+
 protected:
+	static bool purge_comments_from_banned_users(Server* pServer, GDomNode* pRootList);
+
 	static void format_comment_recursive(Server* pServer, GDomNode* pEntry, std::ostream& os, std::string& id, bool allow_direct_reply, size_t depth);
 
 };

@@ -460,19 +460,13 @@ public:
 	GJsonAsADatabase(const char* szBasePath);
 	virtual ~GJsonAsADatabase();
 
-	/// Evaluates whether the user has
-	/// permission to modify the specified file.
-	/// The default implementation disallows everything.
-	/// You must override this method to allow valid actions to be performed.
-	virtual bool checkPermission(const char* szFilename) { return false; }
-
 	/// Throws an exception if anything goes wrong.
 	/// Returns nullptr if an operation was successfully completed.
 	/// Returns the requested data if data was requested.
 	const GDomNode* apply(const char* szFilename, const char* szCmd, GDom* pResponseDom);
 
-	/// Writes any changed files to disk
-	void flush();
+	/// Writes any changed files to disk. If clear_cache is true, it also clears its cache.
+	void flush(bool clear_cache);
 
 protected:
 	/// Finds the specified token, ignoring braced or bracked regions, escaped characters, and quoted or double-quoted strings.

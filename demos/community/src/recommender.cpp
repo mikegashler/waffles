@@ -477,7 +477,7 @@ void NeuralRecommender::deleteItemAndSwapInLast(size_t itemId)
 
 void Submit::makeSliderScript(ostream& response)
 {
-	response << "<script language=\"JavaScript\" src=\"/tools/style/slider.js\"></script>\n";
+	response << "<script language=\"JavaScript\" src=\"/b/style/slider.js\"></script>\n";
 	response << "<script language=\"JavaScript\">\n";
 	response << "	var A_TPL = { 'b_vertical' : false, 'b_watch': true, 'n_controlWidth': 321, 'n_controlHeight': 22, 'n_sliderWidth': 19, 'n_sliderHeight': 20, 'n_pathLeft' : 1, 'n_pathTop' : 1, 'n_pathLength' : 300, 's_imgControl': 'style/slider_bg.png', 's_imgSlider': 'style/slider_tab.png', 'n_zIndex': 1 }\n";
 	response << "</script>\n";
@@ -644,13 +644,13 @@ void Submit::pageSurvey(Server* pServer, GDynamicPageSession* pSession, ostream&
 	response << "</form><br><br>\n\n";
 
 	// The choices links at the bottom of the page
-	response << "<a href=\"/tools/submit\">Submit a new statement</a>";
+	response << "<a href=\"/b/submit\">Submit a new statement</a>";
 	response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-	response << "<a href=\"/tools/survey?topic=-1\">Change topic</a>\n";
+	response << "<a href=\"/b/survey?topic=-1\">Change topic</a>\n";
 	response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-	response << "<a href=\"/tools/update\">My opinions</a>\n";
+	response << "<a href=\"/b/update\">My opinions</a>\n";
 	response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-	response << "<a href=\"/tools/stats\">Vizualize</a>\n";
+	response << "<a href=\"/b/stats\">Vizualize</a>\n";
 
 /*
 	response << "Stats:<br>\n";
@@ -1145,11 +1145,11 @@ void Submit::pageStats(Server* pServer, GDynamicPageSession* pSession, ostream& 
 	response << "<img src=\"items.svg\"><br><br>\n";
 
 	// The choices links at the bottom of the page
-	response << "<a href=\"/tools/submit\">Submit a new question</a>";
+	response << "<a href=\"/b/submit\">Submit a new question</a>";
 	response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-	response << "<a href=\"/tools/update\">My opinions</a>\n";
+	response << "<a href=\"/b/update\">My opinions</a>\n";
 	response << "&nbsp;&nbsp;&nbsp;&nbsp;";
-	response << "<a href=\"/tools/survey\">" << "Survey</a>\n";
+	response << "<a href=\"/b/survey\">" << "Survey</a>\n";
 }
 
 void Submit::plotUsers(Server* pServer, GDynamicPageSession* pSession, ostream& response)

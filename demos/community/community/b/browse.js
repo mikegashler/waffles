@@ -113,22 +113,22 @@ function viewpage()
 
 function previewpage()
 {
-	window.location = "/tools/preview" + selected_filename();
+	window.location = "/b/preview" + selected_filename();
 }
 
 function editgui()
 {
-	window.location = "/tools/edit?pagename=" + selected_filename();
+	window.location = "/b/edit?pagename=" + selected_filename();
 }
 
 function edittext()
 {
-	window.location = "/tools/edittext?pagename=" + selected_filename();
+	window.location = "/b/edittext?pagename=" + selected_filename();
 }
 
 function history()
 {
-	window.location = "/tools/history?file=" + selected_filename();
+	window.location = "/b/history?file=" + selected_filename();
 }
 
 function newfolder()

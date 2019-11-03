@@ -204,7 +204,7 @@ void Login::pageAccount(Server* pServer, GDynamicPageSession* pSession, ostream&
 			response << "<tr><td>";
 			Account* pAcc = pTerminal->account(i);
 			if(!reqpw)
-				response << "<a href=\"/tools/account?action=login&name=" << pAcc->username() << "\">";
+				response << "<a href=\"/b/account?action=login&name=" << pAcc->username() << "\">";
 			response << "<div style=\"";
 			response << "background-color:#203050;width:220px;height:60px;";
 			response << "border:1px solid #000000;border-radius:15px;";
@@ -250,7 +250,7 @@ void Login::pageAccount(Server* pServer, GDynamicPageSession* pSession, ostream&
 	}
 
 	response << "<br><br>\n";
-	response << "<SCRIPT language=\"JavaScript\" src=\"/tools/sha1.js\" type=\"text/javascript\">\n</SCRIPT>\n";
+	response << "<SCRIPT language=\"JavaScript\" src=\"/b/sha1.js\" type=\"text/javascript\">\n</SCRIPT>\n";
 	if(pAccount)
 	{
 		response << "Your current username is: ";
@@ -327,7 +327,7 @@ void Login::pageNewAccount(Server* pServer, GDynamicPageSession* pSession, ostre
 	}
 
 	response << "<br><center><table width=\"400\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tr><td>\n";
-	response << "<SCRIPT language=\"JavaScript\" src=\"/tools/sha1.js\" type=\"text/javascript\">\n</SCRIPT>\n";
+	response << "<SCRIPT language=\"JavaScript\" src=\"/b/sha1.js\" type=\"text/javascript\">\n</SCRIPT>\n";
 	response << "	<big><big><b>Create a new account</b></big></big><br><br>\n";
 	response << "	<form name=\"newaccountform\" action=\"/newaccount\" method=\"post\" onsubmit=\"return HashNewAccount('";
 	response << pServer->passwordSalt();

@@ -52,7 +52,7 @@ class ViewStats;
 void LaunchBrowser(const char* szAddress, GRand* pRand)
 {
 	string s = szAddress;
-	s += "/tools/survey";
+	s += "/b/survey";
 	if(!GApp::openUrlInBrowser(s.c_str()))
 	{
 		cout << "Failed to open the URL: " << s.c_str() << "\nPlease open this URL manually.\n";

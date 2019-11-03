@@ -1327,17 +1327,10 @@ GJsonAsADatabase::GJsonAsADatabase(const char* szBasePath)
 
 GJsonAsADatabase::~GJsonAsADatabase()
 {
-	flush();
-	map<string, GJaadDom*>::iterator it = m_doms.begin();
-	while(it != m_doms.end())
-	{
-		GJaadDom* pDom = it->second;
-		delete(pDom);
-		++it;
-	}
+	flush(true);
 }
 
-void GJsonAsADatabase::flush()
+void GJsonAsADatabase::flush(bool clear_cache)
 {
 	map<string, GJaadDom*>::iterator it = m_doms.begin();
 	while(it != m_doms.end())
@@ -1352,6 +1345,17 @@ void GJsonAsADatabase::flush()
 			pDom->resetModCount();
 		}
 		++it;
+	}
+	if(clear_cache)
+	{
+		map<string, GJaadDom*>::iterator it = m_doms.begin();
+		while(it != m_doms.end())
+		{
+			GJaadDom* pDom = it->second;
+			delete(pDom);
+			++it;
+		}
+		m_doms.clear();
 	}
 }
 
@@ -1705,10 +1709,6 @@ void GJsonAsADatabase::del(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb)
 
 const GDomNode* GJsonAsADatabase::apply(const char* szFilename, const char* szCmd, GDom* pResponseDom)
 {
-	// Check for permission
-	if(!checkPermission(szFilename))
-		throw Ex("Permission denied");
-
 	// Find or load the DOM
 	GJaadDom* pDoc = getDom(szFilename);
 

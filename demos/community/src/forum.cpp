@@ -147,7 +147,7 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 	else
 	{
 		os << "<br><br><h2>Visitor Comments:</h2>\n";
-			
+
 		// Add the username
 		if(pAccount)
 		{
@@ -329,6 +329,39 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 
 void Forum::pageFeed(Server* pServer, GDynamicPageSession* pSession, ostream& response)
 {
+	// Process params
+	if(pSession->paramsLen() > 0)
+	{
+		GHttpParamParser params(pSession->params());
+		const char* szAction = params.find("action");
+		if(strcmp(szAction, "ban") == 0)
+		{
+			// Ban checked users
+			pServer->log("Banning users");
+			auto map = params.map();
+			for(std::map<const char*, const char*, GClasses::strComp>::iterator it = map.begin(); it != map.end(); it++)
+			{
+				if(strncmp(it->first, "ban_", 4) == 0)
+				{
+					size_t account_index = atoi(it->first + 4);
+					Account* pUserAccount = pServer->get_account(account_index);
+					if(strcmp(it->second, "true") == 0)
+					{
+						string s = "Banning user: ";
+						s += pUserAccount->username();
+						pServer->log(s.c_str());
+						pUserAccount->makeBanned(true);
+					}
+				}
+			}
+
+			// Scrub the comments
+			GJsonAsADatabase& jaad = pServer->jaad();
+			jaad.flush(true);
+			scrub_all_comment_files(pServer);
+		}
+	}
+
 	// Check access privileges
 	Account* pAccount = getAccount(pSession);
 	if(!pAccount->isAdmin())
@@ -346,11 +379,13 @@ void Forum::pageFeed(Server* pServer, GDynamicPageSession* pSession, ostream& re
 
 	// Generate a page
 	response << "<h2>Recent comments</h2>\n";
+	response << "<form method=\"post\">";
+	response << "<input type=\"hidden\" name=\"action\" value=\"ban\" />\n";
 	response << "<table><tr><td>Ban user</td><td>Date</td><td>Username</td><td>IP</td><td>Comment</td></tr>\n";
 	for(size_t i = 0; i < pNode->size(); i++)
 	{
 		GDomNode* pComment = pNode->get(i);
-		response << "<tr><td><input type=\"checkbox\"></td>";
+		response << "<tr><td><input type=\"checkbox\" name=\"ban_" << to_str(pComment->getInt("user")) << "></td>";
 		response << "<td>" << pComment->getString("date") << "</td>";
 		response << "<td>" << pServer->get_account(pComment->getInt("user"))->username() << "</td>";
 		response << "<td>" << pComment->getString("ip") << "</td>";
@@ -358,6 +393,8 @@ void Forum::pageFeed(Server* pServer, GDynamicPageSession* pSession, ostream& re
 		response << "\n";
 	}
 	response << "</table>\n";
+	response << "<input type=\"submit\" value=\"Ban checked users and remove all of their comments\"></form>";
+	response << "</form>";
 }
 
 void Forum::pageForumWrapper(Server* pServer, GDynamicPageSession* pSession, ostream& response)
@@ -417,4 +454,58 @@ void Forum::pageForumWrapper(Server* pServer, GDynamicPageSession* pSession, ost
 	pAddedComments->addAttr("id", "\"comments\"");
 
 	doc.document()->write(response);
+}
+
+bool Forum::purge_comments_from_banned_users(Server* pServer, GDomNode* pList)
+{
+	bool made_changes = false;
+	if(pList->type() != GDomNode::type_list)
+		return made_changes;
+	for(size_t i = pList->size() - 1; i < pList->size(); --i)
+	{
+		GDomNode* pComment = pList->get(i);
+		GDomNode* pUserId = pComment->getIfExists("user");
+		if(pUserId)
+		{
+			size_t userId = pUserId->asInt();
+			if(userId >= 0 && userId < pServer->account_count())
+			{
+				Account* pAccount = pServer->get_account(userId);
+				if(pAccount->isBanned())
+				{
+					pList->del(i);
+					made_changes = true;
+				}
+				else
+				{
+					GDomNode* pReplies = pComment->getIfExists("replies");
+					if(pReplies)
+					{
+						if(purge_comments_from_banned_users(pServer, pReplies))
+							made_changes = true;
+					}
+				}
+			}
+		}
+	}
+	return made_changes;
+}
+
+void Forum::scrub_all_comment_files(Server* pServer)
+{
+	std::vector<std::string> file_list;
+	GFile::fileListRecursive(file_list, pServer->m_basePath.c_str());
+	for(size_t i = 0; i < file_list.size(); i++)
+	{
+		if(ends_with(file_list[i], "comments.json"))
+		{
+			string fn = pServer->m_basePath;
+			fn += file_list[i];
+			GDom dom;
+			dom.loadJson(fn.c_str());
+			GDomNode* pRootList = dom.root();
+			if(purge_comments_from_banned_users(pServer, pRootList))
+				dom.saveJson(fn.c_str());
+		}
+	}
 }

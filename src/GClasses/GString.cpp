@@ -113,6 +113,14 @@ std::string& trim(std::string& str, const std::string& chars)
     return ltrim(rtrim(str, chars), chars);
 }
 
+bool ends_with(std::string const &fullString, std::string const &ending)
+{
+    if (fullString.length() >= ending.length())
+        return fullString.compare(fullString.length() - ending.length(), ending.length(), ending) == 0;
+	else
+		return false;
+}
+
 
 
 
