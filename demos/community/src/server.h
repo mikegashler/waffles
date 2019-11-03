@@ -57,7 +57,7 @@ public:
 	bool isUsernameTaken(const char* szUsername);
 	Account* findAccount(const char* szUsername);
 	size_t account_count() { return m_accounts.size(); }
-	Account* get_account(size_t index) { return m_accounts[index]; }
+	Account* get_account(size_t index) { if(index >= m_accounts.size()) throw Ex("Account index out of range"); return m_accounts[index]; }
 	size_t user_id(const char* szUsername);
 	bool isValidUsername(const char* szUsername);
 	Account* newAccount(const char* szUsername, const char* szPasswordHash);

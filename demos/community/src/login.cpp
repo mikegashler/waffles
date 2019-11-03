@@ -132,13 +132,6 @@ void Login::pageAdmin(Server* pServer, GDynamicPageSession* pSession, ostream& r
 	response << "	<input type=\"submit\" value=\"Train\">\n";
 	response << "</form><br><br>\n\n";
 
-	// Form to flush the comments files
-	response << "<form name=\"flushform\" method=\"get\">\n";
-	response << "	Flush the comments files:<br>\n";
-	response << "	<input type=\"hidden\" name=\"action\" value=\"flush\" />\n";
-	response << "	<input type=\"submit\" value=\"Flush\">\n";
-	response << "</form><br><br>\n\n";
-
 	// Form to shut down the server
 	response << "<form name=\"shutdownform\" method=\"get\">\n";
 	response << "	Shut down the daemon:<br>\n";

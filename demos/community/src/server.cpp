@@ -52,6 +52,9 @@ m_recommender(*pRand)
 	buf[len] = '\0';
 	GFile::condensePath(buf);
 	m_basePath = buf;
+#ifdef _DEBUG
+	m_basePath = "/var/www/html/mike/";
+#endif
 	cout << "Base path: " << m_basePath << "\n";
 	m_toolsPath = m_basePath;
 	m_toolsPath += "community/b/";
@@ -388,14 +391,15 @@ void Server::do_maintenance()
 bool Server::isBanned(Connection* pConnection, Account* pAccount)
 {
 	const char* szIPAddress = pConnection->getIPAddress();
-	if(pAccount->isBanned())
+	if(pAccount && pAccount->isBanned())
 	{
 		m_banned_addresses.insert(szIPAddress);
 		return true;
 	}
 	if(m_banned_addresses.find(szIPAddress) != m_banned_addresses.end())
 	{
-		pAccount->makeBanned(true);
+		if(pAccount)
+			pAccount->makeBanned(true);
 		return true;
 	}
 	return false;

@@ -359,6 +359,12 @@ void Forum::pageFeed(Server* pServer, GDynamicPageSession* pSession, ostream& re
 			GJsonAsADatabase& jaad = pServer->jaad();
 			jaad.flush(true);
 			scrub_all_comment_files(pServer);
+			response << "[Comments files scrubbed]<br>\n";
+		}
+		else if(strcmp(szAction, "flush") == 0)
+		{
+			pServer->jaad().flush(true);
+			response << "[Comments files flushed]<br>\n";
 		}
 	}
 
@@ -371,30 +377,41 @@ void Forum::pageFeed(Server* pServer, GDynamicPageSession* pSession, ostream& re
 	}
 
 	// Load the log file
-	string filename = pServer->m_basePath;
-	filename += "comments_log.json";
-	GDom dom;
-	dom.loadJson(filename.c_str());
-	GDomNode* pNode = dom.root();
+	GJsonAsADatabase& jaad = pServer->jaad();
+	GDom doc;
+	const GDomNode* pNode = jaad.apply("comments.json", "", &doc);
 
 	// Generate a page
-	response << "<h2>Recent comments</h2>\n";
-	response << "<form method=\"post\">";
-	response << "<input type=\"hidden\" name=\"action\" value=\"ban\" />\n";
-	response << "<table><tr><td>Ban user</td><td>Date</td><td>Username</td><td>IP</td><td>Comment</td></tr>\n";
-	for(size_t i = 0; i < pNode->size(); i++)
+	if(pNode)
 	{
-		GDomNode* pComment = pNode->get(i);
-		response << "<tr><td><input type=\"checkbox\" name=\"ban_" << to_str(pComment->getInt("user")) << "></td>";
-		response << "<td>" << pComment->getString("date") << "</td>";
-		response << "<td>" << pServer->get_account(pComment->getInt("user"))->username() << "</td>";
-		response << "<td>" << pComment->getString("ip") << "</td>";
-		response << "<td>" << pComment->getString("comment") << "</td>";
-		response << "\n";
+		response << "<h2>Recent comments</h2>\n";
+		response << "<form method=\"post\">";
+		response << "<input type=\"hidden\" name=\"action\" value=\"ban\" />\n";
+		response << "<table><tr><td>Ban user</td><td>Date</td><td>Username</td><td>IP</td><td>Comment</td></tr>\n";
+		for(size_t i = 0; i < pNode->size(); i++)
+		{
+			GDomNode* pComment = pNode->get(i);
+			response << "<tr><td><input type=\"checkbox\" name=\"ban_" << to_str(pComment->getInt("user")) << "\"></td>";
+			response << "<td>" << pComment->getString("date") << "</td>";
+			response << "<td>" << pServer->get_account(pComment->getInt("user"))->username() << "</td>";
+			response << "<td>" << pComment->getString("ip") << "</td>";
+			response << "<td>" << pComment->getString("comment") << "</td>";
+			response << "\n";
+		}
+		response << "</table>\n";
+		response << "<input type=\"submit\" value=\"Ban checked users and remove all of their comments\"></form>";
+		response << "</form>";
 	}
-	response << "</table>\n";
-	response << "<input type=\"submit\" value=\"Ban checked users and remove all of their comments\"></form>";
-	response << "</form>";
+	else
+		response << "No recent comments\n";
+
+	// Form to flush the comments files
+	response << "<br><br><br><br>\n";
+	response << "<form name=\"flushform\" method=\"get\">\n";
+	response << "	Flush the comments files:<br>\n";
+	response << "	<input type=\"hidden\" name=\"action\" value=\"flush\" />\n";
+	response << "	<input type=\"submit\" value=\"Flush\">\n";
+	response << "</form><br><br>\n\n";
 }
 
 void Forum::pageForumWrapper(Server* pServer, GDynamicPageSession* pSession, ostream& response)
@@ -499,13 +516,11 @@ void Forum::scrub_all_comment_files(Server* pServer)
 	{
 		if(ends_with(file_list[i], "comments.json"))
 		{
-			string fn = pServer->m_basePath;
-			fn += file_list[i];
 			GDom dom;
-			dom.loadJson(fn.c_str());
+			dom.loadJson(file_list[i].c_str());
 			GDomNode* pRootList = dom.root();
 			if(purge_comments_from_banned_users(pServer, pRootList))
-				dom.saveJson(fn.c_str());
+				dom.saveJson(file_list[i].c_str());
 		}
 	}
 }
