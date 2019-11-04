@@ -391,15 +391,24 @@ void Server::do_maintenance()
 bool Server::isBanned(Connection* pConnection, Account* pAccount)
 {
 	const char* szIPAddress = pConnection->getIPAddress();
-	if(pAccount && pAccount->isBanned())
+	if(pAccount)
 	{
-		m_banned_addresses.insert(szIPAddress);
-		return true;
+		if(pAccount->isBanned())
+		{
+			m_banned_addresses.insert(szIPAddress);
+			return true;
+		}
+		else if(pAccount->isAdmin())
+			return false;
 	}
 	if(m_banned_addresses.find(szIPAddress) != m_banned_addresses.end())
 	{
 		if(pAccount)
+		{
+			if(pAccount->isAdmin())
+				throw Ex("How did an admin's IP address get on the banned list?");
 			pAccount->makeBanned(true);
+		}
 		return true;
 	}
 	return false;
@@ -699,22 +708,6 @@ const char* Connection::processParams(GDynamicPageSession* pSession)
 			else
 				pTerminal->setRequirePassword(false);
 		}
-		else if(strcmp(szAction, "shutdown") == 0)
-		{
-			if(is_admin(pTerminal, &szParamsMessage))
-			{
-				((Server*)m_pServer)->log("Shutting down server as directed by admin");
-				((Server*)m_pServer)->m_keepGoing = false;
-			}
-		}
-/*		else if(strcmp(szAction, "nukeself") == 0)
-		{
-			Account* pAccount = pTerminal->currentAccount();
-			const char* szUsername = pAccount->username();
-			((Server*)m_pServer)->deleteAccount(pAccount);
-			pTerminal->forgetAccount(szUsername);
-			pTerminal->logOut();
-		}*/
 		else if(strcmp(szAction, "train") == 0)
 			((Server*)m_pServer)->recommender().refine(ON_TRAIN_TRAINING_ITERS);
 	}

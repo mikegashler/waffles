@@ -29,7 +29,7 @@ void Login::pageAdmin(Server* pServer, GDynamicPageSession* pSession, ostream& r
 {
 	// Check access privileges
 	Account* pAccount = getAccount(pSession);
-	if(!pAccount->isAdmin())
+	if(!pAccount || !pAccount->isAdmin())
 	{
 		response << "Sorry, you must be an admin to access this page.";
 		return;
@@ -93,6 +93,11 @@ void Login::pageAdmin(Server* pServer, GDynamicPageSession* pSession, ostream& r
 					}
 				}
 			}
+		}
+		else if(strcmp(szAction, "shutdown") == 0)
+		{
+			pServer->log("Shutting down server as directed by admin");
+			pServer->m_keepGoing = false;
 		}
 		else
 		{

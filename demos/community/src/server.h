@@ -306,6 +306,7 @@ public:
 
 	Account* makeNewAccount(Server* pServer)
 	{
+		size_t new_account_index = pServer->account_count();
 		Account* pNewAccount = nullptr;
 		for(size_t patience = 10; patience > 0; patience--)
 		{
@@ -323,7 +324,7 @@ public:
 		m_currentAccount = m_accounts.size();
 		m_accounts.push_back(pNewAccount);
 		m_requirePassword.push_back(false);
-		if(m_currentAccount == 0)
+		if(new_account_index == 0)
 			pNewAccount->makeAdmin(true);
 		return pNewAccount;
 	}
