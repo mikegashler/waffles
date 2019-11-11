@@ -86,4 +86,12 @@ function post_comment(id) {
 	ajax(server_addr, ob, submit_comment_callback);
 }
 
+function delete_comment(id) {
+	let ob = {};
+	ob.action = "del_comment";
+	ob.file = comments_file;
+	ob.id = id;
+	ajax(server_addr, ob, submit_comment_callback);
+}
+
 refresh_comments();

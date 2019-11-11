@@ -32,7 +32,7 @@ using std::string;
 using std::vector;
 using std::cout;
 
-void Forum::format_comment_recursive(Server* pServer, GDomNode* pEntry, std::ostream& os, std::string& id, bool allow_direct_reply, size_t depth)
+void Forum::format_comment_recursive(Server* pServer, Account* pAccount, GDomNode* pEntry, std::ostream& os, std::string& reply_id, std::string& my_id, bool allow_direct_reply, size_t depth)
 {
 	// Extract relevant data
 	const char* szUsername = pServer->get_account(pEntry->getInt("user"))->username();
@@ -47,7 +47,9 @@ void Forum::format_comment_recursive(Server* pServer, GDomNode* pEntry, std::ost
 	os << szDate;
 	os << "</td><td valign=top>";
 	os << szComment;
-	os << "<br><a href=\"#javascript:void(0)\" onclick=\"tog_viz('" << id << "')\">reply</a>";
+	os << "<br><a href=\"#javascript:void(0)\" onclick=\"tog_viz('" << reply_id << "')\">reply</a>";
+	if(pAccount && strcmp(pAccount->username(), szUsername) == 0)
+		os << "&nbsp;&nbsp;&nbsp;&nbsp;<a href=\"#javascript:void(0)\" onclick=\"delete_comment('" << my_id << "')\">delete</a>";
 	os << "</td></tr>\n";
 	os << "</table></div><br>\n";
 
@@ -59,13 +61,13 @@ void Forum::format_comment_recursive(Server* pServer, GDomNode* pEntry, std::ost
 			os << "<div class=\"indent\">";
 			for(size_t i = 0; i < pReplies->size(); i++)
 			{
-				string child_id = id;
+				string child_id = my_id;
 				child_id += "_";
 				child_id += to_str(i);
 				bool child_allow_direct_replies = true;
 				if(i == pReplies->size() - 1)
 					child_allow_direct_replies = false;
-				format_comment_recursive(pServer, pReplies->get(i), os, child_allow_direct_replies ? child_id : id, child_allow_direct_replies, depth - 1);
+				format_comment_recursive(pServer, pAccount, pReplies->get(i), os, child_allow_direct_replies ? child_id : my_id, child_id, child_allow_direct_replies, depth - 1);
 			}
 			os << "</div>\n";
 		}
@@ -73,8 +75,8 @@ void Forum::format_comment_recursive(Server* pServer, GDomNode* pEntry, std::ost
 		if(allow_direct_reply)
 		{
 			// Add a hidden div with a reply field and post button
-			os << "<div class=\"hidden indent\" id=\"" << id << "\"><textarea id=\"" << id << "t\" rows=\"2\" cols=\"50\"></textarea><br>";
-			os << "<button type=\"button\" onclick=\"post_comment('" << id << "t')\">Post</button><br><br></div>\n";
+			os << "<div class=\"hidden indent\" id=\"" << my_id << "\"><textarea id=\"" << my_id << "t\" rows=\"2\" cols=\"50\"></textarea><br>";
+			os << "<button type=\"button\" onclick=\"post_comment('" << my_id << "t')\">Post</button><br><br></div>\n";
 		}
 	}
 }
@@ -131,7 +133,7 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 				GDomNode* pEntry = pResponse->get(i);
 				string id = "r";
 				id += to_str(i);
-				format_comment_recursive(pServer, pEntry, os, id, true, 12);
+				format_comment_recursive(pServer, pAccount, pEntry, os, id, id, true, 12);
 			}
 			os << "<textarea id=\"rt\" rows=\"2\" cols=\"50\"></textarea><br>\n";
 			os << "<input type=\"button\" onclick=\"post_comment('rt');\" value=\"Post\">\n";
@@ -245,6 +247,12 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 		throw Ex("You must be logged in to comment.");
 	size_t user_id = pServer->user_id(pAccount->username());
 	const char* szFilename = pIn->getString("file");
+	if(strstr(szFilename, "..") != nullptr)
+		throw Ex("Filename should not contain '..'");
+	if(strlen(szFilename) < 14)
+		throw Ex("Short filename");
+	if(strcmp(szFilename + strlen(szFilename) - 14, "_comments.json") != 0)
+		throw Ex("Expected the filename to end with '_comments.json'");
 	const char* szId = pIn->getString("id");
 	const char* szIpAddress = pSession->connection()->getIPAddress();
 	const char* szComment = pIn->getString("comment");
@@ -324,7 +332,74 @@ void Forum::ajaxAddComment(Server* pServer, GDynamicPageSession* pSession, const
 	cmd2 << ",\"file\":" << JSON_encode_string(szFilename);
 	cmd2 << ",\"comment\":" << encodedComment;
 	cmd2 << "}";
-	jaad.apply("comments.json", cmd2.str().c_str(), &doc);
+	jaad.apply("comments_feed.json", cmd2.str().c_str(), &doc);
+}
+
+void Forum::ajaxDelComment(Server* pServer, GDynamicPageSession* pSession, const GDomNode* pIn, GDom& doc, GDomNode* pOut)
+{
+	// Get the data
+	Account* pAccount = getAccount(pSession);
+	if(!pAccount)
+		throw Ex("You must be logged in to delete comments.");
+	size_t user_id = pServer->user_id(pAccount->username());
+	const char* szFilename = pIn->getString("file");
+	if(strstr(szFilename, "..") != nullptr)
+		throw Ex("Filename should not contain '..'");
+	if(strlen(szFilename) < 14)
+		throw Ex("Short filename");
+	if(strcmp(szFilename + strlen(szFilename) - 14, "_comments.json") != 0)
+		throw Ex("Expected the filename to end with '_comments.json'");
+	const char* szId = pIn->getString("id");
+
+	// Parse the ID (to determine a path to the comment)
+	if(*szId != 'r')
+		throw Ex("Invalid ID");
+	if(*szId == '_')
+		throw Ex("Invalid ID");
+	szId++;
+	std::ostringstream cmd;
+	size_t depth = 0;
+	while(true)
+	{
+		if(*szId == '_')
+		{
+			++szId;
+			if(*szId == '_' || *szId == 't')
+				throw Ex("Invalid ID");
+		}
+		else if(*szId >= '0' && *szId <= '9')
+		{
+			if(++depth > 20)
+				throw Ex("Invalid ID");
+			cmd << '[';
+			while(*szId >= '0' && *szId <= '9')
+			{
+				cmd << *szId;
+				++szId;
+			}
+			cmd << "]";
+			if(*szId == '\0')
+				break;
+		}
+		else
+			throw Ex("Invalid ID");
+	}
+
+	// Check to see if usernames match (unless you are an admin)
+	string path = cmd.str();
+	if(!pAccount->isAdmin())
+	{
+		GJsonAsADatabase& jaad = pServer->jaad();
+		const GDomNode* pResponse = jaad.apply(szFilename, path.c_str(), &doc);
+		size_t comment_user_id = pResponse->getInt("user");
+		if(comment_user_id != user_id)
+			throw Ex("You can only delete your own comments");
+	}
+
+	string del_cmd = "-= ";
+	del_cmd += path;
+	GJsonAsADatabase& jaad = pServer->jaad();
+	jaad.apply(szFilename, del_cmd.c_str(), &doc);
 }
 
 void Forum::pageFeed(Server* pServer, GDynamicPageSession* pSession, ostream& response)
@@ -345,7 +420,7 @@ void Forum::pageFeed(Server* pServer, GDynamicPageSession* pSession, ostream& re
 				{
 					size_t account_index = atoi(it->first + 4);
 					Account* pUserAccount = pServer->get_account(account_index);
-					if(strcmp(it->second, "true") == 0)
+					if(strcmp(it->second, "true") == 0 || strcmp(it->second, "on") == 0)
 					{
 						string s = "Banning user: ";
 						s += pUserAccount->username();
@@ -379,7 +454,7 @@ void Forum::pageFeed(Server* pServer, GDynamicPageSession* pSession, ostream& re
 	// Load the log file
 	GJsonAsADatabase& jaad = pServer->jaad();
 	GDom doc;
-	const GDomNode* pNode = jaad.apply("comments.json", "", &doc);
+	const GDomNode* pNode = jaad.apply("comments_feed.json", "", &doc);
 
 	// Generate a page
 	if(pNode)

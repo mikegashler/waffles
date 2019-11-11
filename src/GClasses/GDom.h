@@ -443,7 +443,9 @@ public:
 /// ".somefield += {'x':123, 'y':456}"   Add an object to a list
 /// ".somefield[3].newfield = 'newval'"  Set a field value
 /// ".somefield -= [3]"                  Remove a list element
+/// "-= .somefield[3]"                   Remove a list element (same as previous one)
 /// ".somefield[3] -= .newfield"         Remove a field
+/// "-= .somefield[3].newfield"          Remove a field (same as previous one)
 /// ".somefield[.field == 'val']"        Get the object with a field of 'val'
 /// ".somefield[.field == 'val'].f2 = 3" Set f2 of the object with a field of 'val' to 3
 /// "[3]"                                Get an array element from a root list

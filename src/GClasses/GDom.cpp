@@ -1769,7 +1769,7 @@ const GDomNode* GJsonAsADatabase::apply(const char* szFilename, const char* szCm
 				throw Ex("Can only remove from a list or object type");
 		}
 		else
-			throw Ex("Expected a left part before '-='");
+			throw Ex("No document to remove from");
 	}
 	else
 	{

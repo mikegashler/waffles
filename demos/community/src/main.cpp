@@ -109,7 +109,7 @@ void doit(void* pArg)
 		cout << "Server started at: " << buf << "\n";
 		cout.flush();
 
-		LaunchBrowser(pServer->myAddress(), &prng);
+		//LaunchBrowser(pServer->myAddress(), &prng);
 
 		// Process web requests
 		double dLastMaintenance = GTime::seconds();

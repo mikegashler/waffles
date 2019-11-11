@@ -51,11 +51,10 @@ using std::ostream;
 using std::ostringstream;
 
 
-GDynamicPageSession::GDynamicPageSession(GDynamicPageServer* pServer, unsigned long long ident)
+GDynamicPageSession::GDynamicPageSession(unsigned long long ident)
 : m_pConnection(nullptr)
 {
 	m_id = ident;
-	m_pServer = pServer;
 	onAccess();
 	m_pExtension = nullptr;
 }
@@ -77,6 +76,11 @@ GDynamicPageSession::~GDynamicPageSession()
 {
 	if(m_pExtension)
 		m_pExtension->onDisown();
+}
+
+GDynamicPageServer* GDynamicPageSession::server()
+{
+	return m_pConnection->m_pServer;
 }
 
 void GDynamicPageSession::setConnection(GDynamicPageConnection* pConn)
@@ -285,8 +289,8 @@ void GDynamicPageConnection::sendFile(const char* szMimeType, const char* szFile
 
 void GDynamicPageConnection::sendFileSafe(const char* szJailPath, const char* szLocalPath, ostream& response)
 {
-	cout << "Requested file: " << szLocalPath;
-	cout.flush();
+	//cout << "Requested file: " << szLocalPath;
+	//cout.flush();
 
 	// Make sure the file is within the jail
 	size_t jailLen = strlen(szJailPath);
@@ -297,7 +301,7 @@ void GDynamicPageConnection::sendFileSafe(const char* szJailPath, const char* sz
 	GFile::condensePath(buf);
 	if(strncmp(buf, szJailPath, jailLen) != 0)
 	{
-		cout << "Denied because " << buf << " it is not within " << szJailPath << "\n";
+		//cout << "Denied because " << buf << " it is not within " << szJailPath << "\n";
 		return;
 	}
 
@@ -308,20 +312,20 @@ void GDynamicPageConnection::sendFileSafe(const char* szJailPath, const char* sz
 		try
 		{
 			sendFile(extensionToMimeType(buf), buf, response);
-			cout << ", Sent: " << buf << "\n";
-			cout.flush();
+			//cout << ", Sent: " << buf << "\n";
+			//cout.flush();
 		}
 		catch(const char* szError)
 		{
-			cout << ", Error sending file: " << buf << ", " << szError << "\n";
-			cout.flush();
+			//cout << ", Error sending file: " << buf << ", " << szError << "\n";
+			//cout.flush();
 			return;
 		}
 	}
 	else
 	{
-		cout << ", Not found: " << buf << "\n";
-		cout.flush();
+		//cout << ", Not found: " << buf << "\n";
+		//cout.flush();
 		response << "404 - not found.<br><br>\n";
 	}
 }
@@ -408,7 +412,7 @@ void GDynamicPageServer::flushSessions()
 
 GDynamicPageSession* GDynamicPageServer::makeNewSession(unsigned long long id)
 {
-	GDynamicPageSession* pSession = new GDynamicPageSession(this, id);
+	GDynamicPageSession* pSession = new GDynamicPageSession(id);
 	m_sessions.insert(make_pair(id, pSession));
 	return pSession;
 }

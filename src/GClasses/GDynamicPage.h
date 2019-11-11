@@ -59,19 +59,18 @@ public:
 class GDynamicPageSession
 {
 protected:
-	GDynamicPageServer* m_pServer;
 	unsigned long long m_id;
 	time_t m_tLastAccessed;
 	GDynamicPageSessionExtension* m_pExtension;
 	GDynamicPageConnection* m_pConnection;
 
 public:
-	GDynamicPageSession(GDynamicPageServer* pServer, unsigned long long id);
+	GDynamicPageSession(unsigned long long id);
 	GDynamicPageSession(GDynamicPageServer* pServer, GDomNode* pNode);
 	virtual ~GDynamicPageSession();
 
 	/// Returns the server object associated with this session
-	GDynamicPageServer* server() { return m_pServer; }
+	GDynamicPageServer* server();
 
 	/// Returns the id associated with this session
 	unsigned long long id() { return m_id; }
@@ -118,10 +117,10 @@ public:
 
 class GDynamicPageConnection : public GHttpConnection
 {
-protected:
+public:
 	GDynamicPageServer* m_pServer;
 
-public:
+
 	GDynamicPageConnection(SOCKET sock, GDynamicPageServer* pServer);
 	virtual ~GDynamicPageConnection();
 

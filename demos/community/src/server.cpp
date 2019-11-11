@@ -511,7 +511,28 @@ Account* getAccount(GDynamicPageSession* pSession)
 	// Get the terminal
 	Terminal* pTerminal = getTerminal(pSession);
 	Account* pAccount = pTerminal->currentAccount();
-	GAssert(!pAccount || pAccount->username()[0] != '\0'); // every account should have a unique username
+	if(!pAccount)
+	{
+		// Find an account that requires no password
+		for(size_t i = 0; i < pTerminal->accountCount(); ++i)
+		{
+			if(!pTerminal->requirePassword(i))
+			{
+				pTerminal->logIn(pTerminal->account(i), "");
+				pAccount = pTerminal->currentAccount();
+				break;
+			}
+		}
+
+		// Make one
+		if(!pAccount)
+			pAccount = pTerminal->makeNewAccount((Server*)pSession->server());
+	}
+
+	// Check for banned users
+	if(((Server*)pSession->server())->isBanned((Connection*)pSession->connection(), pAccount))
+		throw Ex("This account was banned");
+
 	return pAccount;
 }
 
@@ -561,25 +582,20 @@ void Connection::handleAjax(Server* pServer, GDynamicPageSession* pSession, ostr
 		{
 			response << "true";
 			allowOrigin("*");
+			//allowOrigin("http://gashler.com");
 		}
 		else if(strcmp(action, "save_gui") == 0) Editor::ajaxSaveGui(pServer, pSession, pInNode, docOut, pOutNode);
 		else if(strcmp(action, "save_text") == 0) Editor::ajaxSaveText(pServer, pSession, pInNode, docOut, pOutNode);
 		else if(strcmp(action, "filelist") == 0) Editor::ajaxFilelist(pServer, pSession, pInNode, docOut, pOutNode);
-		else if(strcmp(action, "add_comment") == 0)
-		{
-			Forum::ajaxAddComment(pServer, pSession, pInNode, docOut, pOutNode);
-			allowOrigin("http://gashler.com");
-		}
-		else if(strcmp(action, "get_comments") == 0)
-		{
-			Forum::ajaxGetForumHtml(pServer, pSession, pInNode, docOut, pOutNode);
-			allowOrigin("http://gashler.com");
-		}
+		else if(strcmp(action, "add_comment") == 0) Forum::ajaxAddComment(pServer, pSession, pInNode, docOut, pOutNode);
+		else if(strcmp(action, "get_comments") == 0) Forum::ajaxGetForumHtml(pServer, pSession, pInNode, docOut, pOutNode);
+		else if(strcmp(action, "del_comment") == 0) Forum::ajaxDelComment(pServer, pSession, pInNode, docOut, pOutNode);
 		else
 		{
 			string s = "Error: unrecognized action, ";
 			s += action;
-			pOutNode->add(&docOut, "msg", s.c_str());
+			pServer->log(s.c_str());
+			pOutNode->add(&docOut, "error", s.c_str());
 		}
 	}
 	catch(std::exception& e)
@@ -793,18 +809,6 @@ void Connection::handleRequest(GDynamicPageSession* pSession, ostream& response)
 		if(pSession && pSession->params() && pSession->params()[0] != '\0')
 			os << "?" << pSession->params();
 		pServer->log(os.str().c_str());
-
-		// Make an account if there is not one already for this terminal
-		Terminal* pTerminal = getTerminal(pSession);
-		if(pTerminal->accountCount() == 0)
-			pTerminal->makeNewAccount((Server*)m_pServer);
-
-		// Check for banned accounts
-		if(pServer->isBanned(this, pTerminal->currentAccount()))
-		{
-			response << "404. Page not found."; // Bogus non-confrontational "go away" message
-			return;
-		}
 
 		// Send the request to the right place to be processed
 		if(strcmp(m_szUrl, "/") == 0)
