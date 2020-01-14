@@ -41,6 +41,7 @@ class GHtmlParser : public GTokenizer
 {
 protected:
 	GCharSet m_tagStart;
+	GCharSet m_tagEnd;
 	GCharSet m_endTagName;
 	GCharSet m_endAttrName;
 	GCharSet m_hyphen;
@@ -91,6 +92,7 @@ public:
 
 	GHtmlParser(const char* szFilename) : GTokenizer(szFilename),
 		m_tagStart("<"),
+		m_tagEnd(">"),
 		m_endTagName("> \t\r\n/"),
 		m_endAttrName(">= \t\r\n/"),
 		m_hyphen("-"),
@@ -101,6 +103,7 @@ public:
 
 	GHtmlParser(const char* pFile, size_t len) : GTokenizer(pFile, len),
 		m_tagStart("<"),
+		m_tagEnd(">"),
 		m_endTagName("> \t\r\n"),
 		m_endAttrName(">= \t\r\n"),
 		m_hyphen("-"),
@@ -116,8 +119,8 @@ public:
 	const char* parseCloser()
 	{
 		skip(2); // Move past the "</"
-		char* szTagName = readUntil(m_endTagName);
-		skipWhile(m_endTagName);
+		char* szTagName = readUntil(m_tagEnd);
+		skipWhile(m_tagEnd);
 		return szTagName;
 	}
 
@@ -526,7 +529,7 @@ void GHtmlDoc::test()
 	"<table bgcolor=#f0e8e0 cellpadding=40 width=800 align=center><tr><td>\n"
 	"<br>\n"
 	"<!-- Here comes the title -->\n"
-	"<h1>My elegant title</h1>\n"
+	"<h1>My <b>elegant</b> title</h1>\n"
 	"<p>Bla bla blah!\n"
 	"</p>\n"
 	"	   <br><br>\n"

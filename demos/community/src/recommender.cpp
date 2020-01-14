@@ -479,7 +479,20 @@ void Submit::makeSliderScript(ostream& response)
 {
 	response << "<script language=\"JavaScript\" src=\"/b/style/slider.js\"></script>\n";
 	response << "<script language=\"JavaScript\">\n";
-	response << "	var A_TPL = { 'b_vertical' : false, 'b_watch': true, 'n_controlWidth': 321, 'n_controlHeight': 22, 'n_sliderWidth': 19, 'n_sliderHeight': 20, 'n_pathLeft' : 1, 'n_pathTop' : 1, 'n_pathLength' : 300, 's_imgControl': 'style/slider_bg.png', 's_imgSlider': 'style/slider_tab.png', 'n_zIndex': 1 }\n";
+	response << "	var A_TPL = {";
+	response << "	 'b_vertical' : false,";
+	response << "  'b_watch': true,";
+	response << "  'n_controlWidth': 321,";
+	response << "  'n_controlHeight': 22,";
+	response << "  'n_sliderWidth': 19,";
+	response << "  'n_sliderHeight': 20,";
+	response << "  'n_pathLeft' : 1,";
+	response << "  'n_pathTop' : 1,";
+	response << "  'n_pathLength' : 300,";
+	response << "  'n_minValue' : -1,";
+	response << "  'n_maxValue' : 1,";
+	response << "  'n_step' : 0.01,";
+	response << "  'n_zIndex': 1 }\n";
 	response << "</script>\n";
 }
 
@@ -501,7 +514,12 @@ void Submit::makeUrlSlider(Server* pServer, Account* pAccount, size_t itemId, os
 	response << "	<input name=\"slider" << itemId << "\" id=\"slider" << itemId << "\" type=\"Text\" size=\"3\">\n";
 	response << "</td><td>\n";
 	response << "<script language=\"JavaScript\">\n";
-	response << "	var A_INIT1 = { 's_checkname': 'check_slider" << itemId << "', 's_name': 'slider" << itemId << "', 'n_minValue' : -1, 'n_maxValue' : 1, 'n_value' : " << score << ", 'n_step' : 0.01 }\n";
+	response << "	var A_INIT1 = { ";
+	response << "  's_checkname': 'cksla" << itemId << "', ";
+	response << "  's_name': 'slider" << itemId << "', ";
+	response << "  's_imgControl': 'style/slider1.png',";
+	response << "  's_imgSlider': 'style/slider_tab.png',";
+	response << "  'n_value' : " << score << " }\n";
 	response << "	new slider(A_INIT1, A_TPL);\n";
 	response << "</script>\n";
 	response << "</td><td width=300>\n";
