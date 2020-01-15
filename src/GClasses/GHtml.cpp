@@ -541,22 +541,40 @@ void GHtmlDoc::test()
 	string s = os.str();
 	const char* rt = s.c_str();
 
-	// Make sure the two strings differ only by whitespace
+	// Make sure the before and after strings match
 	size_t i = 0;
-	size_t j = 0;
-	while(raw[i] != '\0' || rt[j] != '\0')
+	while(raw[i] != '\0' || rt[i] != '\0')
 	{
-		if(raw[i] == rt[j])
-		{
+		if(raw[i] == rt[i])
 			++i;
-			++j;
-		}
-		else if(raw[i] <= ' ')
-			++i;
-		else if(rt[j] <= ' ')
-			++j;
 		else
-			throw Ex("failed");
+		{
+            std::cout << "\n";
+            size_t pre = std::min(i, (size_t)20);
+            for(size_t j = 0; j < pre; j++)
+                std::cout << " ";
+            std::cout << "v\n";
+            for(size_t j = 0; j < 40; j++)
+            {
+                if(raw[i - pre + j] >= ' ')
+                    std::cout << raw[i - pre + j];
+                else
+                    std::cout << '.';
+            }
+            std::cout << "\n";
+            for(size_t j = 0; j < 40; j++)
+            {
+                if(rt[i - pre + j] >= ' ')
+                    std::cout << rt[i - pre + j];
+                else
+                    std::cout << '.';
+            }
+            std::cout << "\n";
+            for(size_t j = 0; j < pre; j++)
+                std::cout << " ";
+            std::cout << "^\n";
+            throw Ex("strings differ");
+        }
 	}
 }
 
