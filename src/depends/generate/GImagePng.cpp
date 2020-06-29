@@ -19,6 +19,7 @@
 #include "../../GClasses/GFile.h"
 #include "../../GClasses/GBits.h"
 #include <memory>
+#include <string.h>
 
 namespace GClasses {
 
@@ -40,7 +41,7 @@ public:
 		{
 			m_pReadStruct = NULL;
 			throw Ex("Failed to create read struct");
-			return;	
+			return;
 		}
 		m_pInfoStruct = png_create_info_struct(m_pReadStruct);
 		m_pEndInfoStruct = png_create_info_struct(m_pReadStruct);

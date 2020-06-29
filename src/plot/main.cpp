@@ -1339,11 +1339,11 @@ void makeHistogram(GArgReader& args)
 	{
 		bool use_density_estimation = false;
 		if(pData->rows() < 10000)
-			use_density_estimation = true;
-		
+		 	use_density_estimation = true;
+
 		if(use_density_estimation)
 		{
-			size_t k = std::max((size_t)3, pData->rows() / 7);
+			size_t k = std::max((size_t)5, pData->rows() / 5);
 
 			// Estimate the inverse density at each point
 			pData->sort(attr);
@@ -1369,7 +1369,10 @@ void makeHistogram(GArgReader& args)
 			GSVG svg(wid, hgt);
 			double xxmin = invDensity[0][0];
 			double xxmax = invDensity[invDensity.rows() - 1][0];
-			svg.newChart(xxmin, 0.0, xxmax, maxHeight);
+			if(xmin != UNKNOWN_REAL_VALUE)
+				svg.newChart(xmin, 0.0, xmax, ymax);
+			else
+				svg.newChart(xxmin, 0.0, xxmax, maxHeight);
 			svg.add_raw("<path d=\"m "); // Start a path
 			svg.add_raw(to_str(invDensity[0][0]).c_str());
 			svg.add_raw(",0 c "); // Turn on control points
@@ -1576,15 +1579,15 @@ void PrintStats(GArgReader& args)
 void calcError(GArgReader& args){
 	GMatrix loader;
 	loader.loadArff(args.pop_string());
-	
+
 	GMatrix output(0, 1);
-	
+
 	int SSE = 0;
 	int MAPE = 1;
 	int RMSE = 2;
-	
+
 	int metric = SSE;
-	
+
 	if(args.if_pop("-m")){
 		if(args.if_pop("SSE"))
 			metric = SSE;
@@ -1595,25 +1598,25 @@ void calcError(GArgReader& args){
 		else
 			throw Ex("Invalid metric.");
 	}
-	
+
 	while(args.size() > 0){
 		GVec& row = output.newRow();
 		row[0] = 0.0;
-		
+
 		size_t col1 = args.pop_uint();
 		size_t col2 = args.pop_uint();
-		
+
 		if(col1 >= loader.cols() || col2 >= loader.cols())
 			throw Ex("Invalid column.");
-		
+
 		size_t dropped = 0;
-		
+
 		for(size_t i = 0; i < loader.rows(); i++){
 			if(loader[i][col1] == UNKNOWN_REAL_VALUE){
 				dropped++;
 				continue;
 			}
-			
+
 			if(metric == SSE || metric == RMSE){
 				row[0] += (loader[i][col1] - loader[i][col2]) * (loader[i][col1] - loader[i][col2]);
 			}
@@ -1621,19 +1624,19 @@ void calcError(GArgReader& args){
 				row[0] += fabs((loader[i][col1] - loader[i][col2]) / loader[i][col1]);
 			}
 		}
-		
+
 		if(dropped == loader.rows())
 			throw Ex("Invalid data set!");
-		
+
 		if(metric == MAPE || metric == RMSE)
 			row[0] /= (loader.rows() - dropped);
-		
+
 		if(metric == RMSE)
 		{
 			row[0] = sqrt(row[0]);
 		}
 	}
-	
+
 	output.print(std::cout);
 }
 
@@ -1775,7 +1778,7 @@ public:
 	GraphConnection(SOCKET sock, GDynamicPageServer* pServer) : GDynamicPageConnection(sock, pServer)
 	{
 	}
-	
+
 	virtual ~GraphConnection()
 	{
 	}
@@ -1856,7 +1859,7 @@ void GraphConnection::handleRequest(GDynamicPageSession* pDPSession, std::ostrea
 	const char* cursorpos = pp.find("cursorpos");
 
 	response << "<table width=\"100%\"><tr><td>\n";
-	
+
 	// Parse funcs into an argument list
 	char* funcs2 = new char[strlen(funcs) + 1];
 	std::unique_ptr<char[]> hfuncs2(funcs2);
@@ -1900,7 +1903,7 @@ void GraphConnection::handleRequest(GDynamicPageSession* pDPSession, std::ostrea
 	response << "	<input type=\"submit\" name=\"plotbutton\" value=\"Plot\"> (or press \"\\\")\n";
 	response << "</form>\n";
 	response << "</td></tr></table>\n";
-	
+
 	response << "<br>\n<br>\n<h3>Built in constants</h3>\ne, pi.<br><h3>Built in functions</h3>\n+, -, *, /, %, ^, abs, acos, acosh, asin, asinh, atan, atanh, ceil, cos, cosh, erf, floor, gamma, lgamma, log, max, min, sin, sinh, sqrt, tan, and tanh. These generally have the same meaning as in C, except '^' means exponent, \"gamma\" is the gamma function, and max and min can support any number of parameters >= 1. \"ifzero\" returns its second parameter if its first parameter is zero (when rounded), otherwise returns its third parameter. \"ifnegative\" returns its second parameter if its first parameter is negative, otherwise returns its third parameter.\n";
 
 	response << "\n\n<script>\n";
@@ -1915,7 +1918,7 @@ void GraphConnection::handleRequest(GDynamicPageSession* pDPSession, std::ostrea
 		response << "range.select();\n";
 		response << "alert(\"cdid it\");\n";*/
 	}
-	
+
 	response << "\n";
 	response << "function handleKey(event)\n";
 	response << "{\n";
@@ -2067,4 +2070,3 @@ int main(int argc, char *argv[])
 
 	return ret;
 }
-

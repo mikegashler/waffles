@@ -30,6 +30,7 @@
 #include "../../GClasses/GPlot.h"
 #include "../../GClasses/GRayTrace.h"
 #include "../../GClasses/GRect.h"
+#include "../../GClasses/GString.h"
 #include "../../GClasses/GDom.h"
 #include "../../GClasses/usage.h"
 #include "../../GClasses/GString.h"
@@ -974,7 +975,7 @@ void addCraneToScene(GRayTraceScene& scene, double craneYaw, double ballHeight, 
 	pCableMaterial->setColor(GRayTraceMaterial::Diffuse, 0.6, 0.6, 0.6);
 	scene.addMaterial(pCableMaterial);
 	G3DVector ballCenter;
-	ballCenter.copy(&craneTop);
+	ballCenter.copy(craneTop);
 	ballCenter.m_vals[1] = y + ballHeight;
 	GRayTraceTriMesh* pCable = GRayTraceTriMesh::makeCylinder(pCableMaterial, &ballCenter, &craneTop, cableRadius, 12, false/*end caps*/);
 	pCable->computePhongNormals();
@@ -1206,12 +1207,12 @@ void cranePath(GArgReader& args)
 		GImage* pImage = makeCraneImage(craneYaw, ballHeight, wid, hgt, ballRadius, front);
 		if(blur > 0)
 			pImage->blur(blur);
-		
+
 		string sFilename = "crane";
-		sFilename += pre_pad(5, '0', to_str(i));
+		sFilename += to_fixed_str(i, 5, '0');
 		sFilename += ".png";
 		savePng(pImage, sFilename.c_str());
-		
+
 		std::unique_ptr<GImage> hImage(pImage);
 		GVec& pRow = data.newRow();
 		size_t pos = 0;
@@ -2027,7 +2028,8 @@ void MakeAttributeSummaryGraph(const GRelation* pRelation, GMatrix* pData, GImag
 	{
 		size_t buckets = pRelation->valueCount(attr);
 		GTEMPBUF(double, hist, buckets);
-		GVec::setAll(hist, 0.0, buckets);
+		GVecWrapper vw(hist, buckets);
+		vw.fill(0.0);
 		for(size_t i = 0; i < pData->rows(); i++)
 		{
 			int b = (int)pData->row(i)[attr];
@@ -2307,15 +2309,15 @@ void Plot3d(GImage* pImage, GMatrix* pData, unsigned int bgCol, float pointRadiu
 	range.m_vals[1] = pData->columnMax(1) - min.m_vals[1];
 	min.m_vals[2] = pData->columnMin(2);
 	range.m_vals[2] = pData->columnMax(2) - min.m_vals[2];
-	max.copy(&range);
-	max.add(&min);
-	G3DReal dist = sqrt(min.squaredDist(&max)) * cameraDist;
+	max.copy(range);
+	max.add(min);
+	G3DReal dist = sqrt(min.squaredDist(max)) * cameraDist;
 	G3DVector* pCameraPos = camera.lookFromPoint();
-	pCameraPos->copy(pCameraDirection);
+	pCameraPos->copy(*pCameraDirection);
 	pCameraPos->multiply(-1);
 	pCameraPos->normalize();
 	pCameraPos->multiply(dist);
-	pCameraPos->add(&mean);
+	pCameraPos->add(mean);
 	camera.setDirection(pCameraDirection, 0.0);
 
 	G3DVector point, coords, point2, coords2;
@@ -2324,12 +2326,12 @@ void Plot3d(GImage* pImage, GMatrix* pData, unsigned int bgCol, float pointRadiu
 	// Draw box
 	if(box)
 	{
-		min.subtract(&mean);
+		min.subtract(mean);
 		min.multiply(1.1);
-		min.add(&mean);
-		max.subtract(&mean);
+		min.add(mean);
+		max.subtract(mean);
 		max.multiply(1.1);
-		max.add(&mean);
+		max.add(mean);
 		range.multiply(1.1);
 		int x, y, z;
 		for(z = 0; z < 2; z++)
@@ -2751,11 +2753,11 @@ void rayTraceManifoldModel(GArgReader& args)
 //	G3DVector cameraDirection(0.1, -0.25, -0.85);
 	G3DReal dist = 2.0;
 	G3DVector* pCameraPos = pCamera->lookFromPoint();
-	pCameraPos->copy(&cameraDirection);
+	pCameraPos->copy(cameraDirection);
 	pCameraPos->multiply(-1);
 	pCameraPos->normalize();
 	pCameraPos->multiply(dist);
-	pCameraPos->add(&mean);
+	pCameraPos->add(mean);
 	pCamera->setDirection(&cameraDirection, 0.0);
 
 	// Make bluish material
@@ -2903,12 +2905,12 @@ void mackeyGlass(GArgReader &args)
 	double n		= 10.0;
 	size_t tao		= 17;
 	size_t count	= 100;
-	
+
 	if(args.next_is_uint())
 	{
 		count = args.pop_uint();
 	}
-	
+
 	while(args.size() > 1)
 	{
 		if(args.if_pop("-initX"))
@@ -2936,7 +2938,7 @@ void mackeyGlass(GArgReader &args)
 			throw Ex("Unrecognized option: ", args.peek());
 		}
 	}
-	
+
 	double x, xt;
 
 	GMatrix m(0, 1);
@@ -2950,7 +2952,7 @@ void mackeyGlass(GArgReader &args)
 		{
 			x = initX;
 		}
-		
+
 		if(m.rows() >= tao)
 		{
 			xt = m[i - tao][0];
@@ -2959,11 +2961,11 @@ void mackeyGlass(GArgReader &args)
 		{
 			xt = initX;
 		}
-		
+
 		GVec& row = m.newRow();
 		row[0] = GMath::mackeyGlass(x, xt, beta, gamma, n);
 	}
-	
+
 	m.print(cout);
 }
 
@@ -2974,14 +2976,14 @@ void lorenz63(GArgReader &args)
 	double beta		= 8.0 / 3.0;
 	double rho		= 28.0;
 	double dt		= 0.01;
-	
+
 	size_t count	= 100;
-	
+
 	if(args.next_is_uint())
 	{
 		count = args.pop_uint();
 	}
-	
+
 	while(args.size() > 1)
 	{
 		if(args.if_pop("-x"))
@@ -3019,11 +3021,11 @@ void lorenz63(GArgReader &args)
 	}
 
 	GMatrix m(count, 3);
-	
+
 	m[0][0] = x;
 	m[0][1] = y;
 	m[0][2] = z;
-	
+
 	for(size_t i = 1; i < count; i++)
 	{
 		GVec &row	= m[i - 1];
@@ -3031,7 +3033,7 @@ void lorenz63(GArgReader &args)
 		m[i][1]		= row[1] + dt * (row[0] * (rho - row[2]) - row[1]);
 		m[i][2]		= row[2] + dt * (row[0] * row[1] - beta * row[2]);
 	}
-	
+
 	m.print(cout);
 }
 
@@ -3088,4 +3090,3 @@ int main(int argc, char *argv[])
 
 	return ret;
 }
-
