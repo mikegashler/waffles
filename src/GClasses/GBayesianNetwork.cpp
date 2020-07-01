@@ -330,7 +330,14 @@ GBNMetropolisNode::GBNMetropolisNode()
 double GBNMetropolisNode::markovBlanket(double x)
 {
 	double d;
-	double logSum = log(likelihood(x));
+	double lik = likelihood(x);
+	if(lik <= 0)
+	{
+		if(lik < 0)
+			throw Ex("Negative likelihood?");
+		return MIN_LOG_PROB;
+	}
+	double logSum = log(lik);
 	if(logSum >= MIN_LOG_PROB)
 	{
 		const vector<GBNVariable*>& kids = children();
@@ -339,7 +346,15 @@ double GBNMetropolisNode::markovBlanket(double x)
 			GBNVariable* pChildNode = *it;
 			double oldVal = m_currentMean;
 			m_currentMean = x;
-			d = log(pChildNode->likelihood(pChildNode->currentValue()));
+			double cv = pChildNode->currentValue();
+			lik = pChildNode->likelihood(cv);
+			if(lik <= 0)
+			{
+				if(lik < 0)
+					throw Ex("Negative likelihood?");
+				return MIN_LOG_PROB;
+			}
+			d = log(lik);
 			m_currentMean = oldVal;
 			if(d >= MIN_LOG_PROB)
 				logSum += d;
@@ -361,7 +376,7 @@ void GBNMetropolisNode::metropolis(GRand* pRand)
 	if(isDiscrete())
 		dCandidateValue = floor(dCandidateValue + 0.5);
 	double cand = markovBlanket(dCandidateValue);
-	if(cand >= MIN_LOG_PROB)
+	if(cand > MIN_LOG_PROB)
 	{
 		if(log(pRand->uniform()) < cand - markovBlanket(m_currentMean))
 			m_currentMean = dCandidateValue;
@@ -446,6 +461,8 @@ double GBNNormal::likelihood(double x)
 	size_t base = 2 * currentCatIndex();
 	double mean = m_meanAndDev[base]->currentValue();
 	double dev = m_meanAndDev[base + 1]->currentValue();
+	if(dev < 0)
+		throw Ex("Negative deviation?");
 	double t = x - mean;
 	if(m_devIsVariance)
 		return 1.0 / (sqrt(dev * 2.0 * M_PI)) * exp(-(t * t) / (2.0 * dev));
@@ -900,7 +917,10 @@ double GBNInverseGamma::initMean()
 {
 	double alpha = m_alphaAndBeta[0]->currentValue();
 	double beta = m_alphaAndBeta[1]->currentValue();
-	return std::max(0.0, beta / (std::max(0.5, alpha - 1.0)));
+	double mean = std::max(0.0, beta / (std::max(0.5, alpha - 1.0)));
+	if(mean < 0.0)
+		throw Ex("Only positive values are supported");
+	return mean;
 }
 
 

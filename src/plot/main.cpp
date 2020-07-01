@@ -1531,7 +1531,10 @@ void PrintStats(GArgReader& args)
 			cout << "Values:" << pRel->valueCount(i) << ", ";
 			cout << "Entropy: " << pData->entropy(i) << ", ";
 			cout << "Missing:" << pData->countValue(i, UNKNOWN_DISCRETE_VALUE);
-			if(pRel->valueCount(i) < 9)
+			size_t max_vals = 9;
+			if(printAll)
+				max_vals = 75;
+			if(pRel->valueCount(i) < max_vals)
 			{
 				cout << "\n";
 				for(size_t j = 0; j < pRel->valueCount(i); j++)
