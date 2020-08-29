@@ -116,7 +116,7 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 		if(pResponse->type() == GDomNode::type_list)
 		{
 			// Convert hierarchical list of comments into HTML
-			os << "<br><br><h2>Visitor Comments:</h2>\n";
+			os << "<h2>Visitor Comments:</h2>\n";
 
 			// Add the username
 			if(pAccount)
