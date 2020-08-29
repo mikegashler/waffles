@@ -542,7 +542,8 @@ void Forum::pageForumWrapper(Server* pServer, GDynamicPageSession* pSession, ost
 	pAddedScript->addAttr("type", "\"text/javascript\"");
 	GHtmlElement* pAddedScriptContent = new GHtmlElement(pAddedScript, sScript.c_str());
 	pAddedScriptContent->text = true;
-	GHtmlElement* pAddedComments = new GHtmlElement(pElBody, "div");
+	GHtmlElement* pAddedCenter = new GHtmlElement(pElBody, "center");
+	GHtmlElement* pAddedComments = new GHtmlElement(pAddedCenter, "div");
 	pAddedComments->addAttr("id", "\"comments\"");
 
 	doc.document()->write(response);
