@@ -148,7 +148,7 @@ void Forum::ajaxGetForumHtml(Server* pServer, GDynamicPageSession* pSession, con
 	}
 	else
 	{
-		os << "<br><br><h2>Visitor Comments:</h2>\n";
+		os << "<h2>Visitor Comments:</h2>\n";
 
 		// Add the username
 		if(pAccount)
