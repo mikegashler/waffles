@@ -378,7 +378,7 @@ void Server::do_maintenance()
 		m_pJaad->flush(false);
 
 		// Train recommender system
-		doSomeRecommenderTraining();
+		//doSomeRecommenderTraining();
 	}
 	catch(std::exception& e)
 	{
