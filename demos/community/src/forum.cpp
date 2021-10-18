@@ -514,39 +514,48 @@ void Forum::pageForumWrapper(Server* pServer, GDynamicPageSession* pSession, ost
 	}
 
 	// Parse the HTML
-	string fullPath = pServer->m_basePath;
-	fullPath += s;
-	GHtmlDoc doc(fullPath.c_str());
-	GHtmlElement* pElHtml = doc.document()->childTag("html");
-	if(!pElHtml)
-		return throw Ex("Expected an html tag");
-	GHtmlElement* pElHead = pElHtml->childTag("head");
-	if(!pElHead)
-		pElHead = new GHtmlElement(pElHtml, "head", 0);
-	GHtmlElement* pElStyle = pElHead->childTag("style");
-	if(!pElStyle)
-		pElStyle = new GHtmlElement(pElHead, "style");
-	GHtmlElement* pElBody = pElHtml->childTag("body");
-	if(!pElBody)
-		return throw Ex("Expected a body tag");
+	try
+	{
+		string fullPath = pServer->m_basePath;
+		fullPath += s;
+		GHtmlDoc doc(fullPath.c_str());
+		GHtmlElement* pElHtml = doc.document()->childTag("html");
+		if(!pElHtml)
+			return throw Ex("Expected an html tag");
+		GHtmlElement* pElHead = pElHtml->childTag("head");
+		if(!pElHead)
+			pElHead = new GHtmlElement(pElHtml, "head", 0);
+		GHtmlElement* pElStyle = pElHead->childTag("style");
+		if(!pElStyle)
+			pElStyle = new GHtmlElement(pElHead, "style");
+		GHtmlElement* pElBody = pElHtml->childTag("body");
+		if(!pElBody)
+			return throw Ex("Expected a body tag");
 
-	// Inject the comments stuff
-	string& sStyle = pServer->cache("chat_style.css");
-	GHtmlElement* pAddedStyle = new GHtmlElement(pElStyle, sStyle.c_str());
-	pAddedStyle->text = true;
-	string sScript = "\nlet comments_file = \"";
-	sScript += s.substr(0, pd.extStart);
-	sScript += "_comments.json\";\n";
-	sScript += pServer->cache("chat_script.js");
-	GHtmlElement* pAddedScript = new GHtmlElement(pElBody, "script", 0);
-	pAddedScript->addAttr("type", "\"text/javascript\"");
-	GHtmlElement* pAddedScriptContent = new GHtmlElement(pAddedScript, sScript.c_str());
-	pAddedScriptContent->text = true;
-	GHtmlElement* pAddedCenter = new GHtmlElement(pElBody, "center");
-	GHtmlElement* pAddedComments = new GHtmlElement(pAddedCenter, "div");
-	pAddedComments->addAttr("id", "\"comments\"");
+		// Inject the comments stuff
+		string& sStyle = pServer->cache("chat_style.css");
+		GHtmlElement* pAddedStyle = new GHtmlElement(pElStyle, sStyle.c_str());
+		pAddedStyle->text = true;
+		string sScript = "\nlet comments_file = \"";
+		sScript += s.substr(0, pd.extStart);
+		sScript += "_comments.json\";\n";
+		sScript += pServer->cache("chat_script.js");
+		GHtmlElement* pAddedScript = new GHtmlElement(pElBody, "script", 0);
+		pAddedScript->addAttr("type", "\"text/javascript\"");
+		GHtmlElement* pAddedScriptContent = new GHtmlElement(pAddedScript, sScript.c_str());
+		pAddedScriptContent->text = true;
+		GHtmlElement* pAddedCenter = new GHtmlElement(pElBody, "center");
+		GHtmlElement* pAddedComments = new GHtmlElement(pAddedCenter, "div");
+		pAddedComments->addAttr("id", "\"comments\"");
 
-	doc.document()->write(response);
+		doc.document()->write(response);
+	}
+	catch(std::exception& e)
+	{
+		// Something went wrong, so let's just send the file as-is
+		pSession->connection()->sendFileSafe(pServer->m_basePath.c_str(), s.c_str(), response);
+		return;
+	}
 }
 
 bool Forum::purge_comments_from_banned_users(Server* pServer, GDomNode* pList)
