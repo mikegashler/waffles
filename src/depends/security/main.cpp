@@ -928,7 +928,7 @@ void permuteAttack(GArgReader& args)
 	}
 
 	// todo: finish me
-	
+
 	*/
 }
 
@@ -1115,7 +1115,7 @@ public:
 	FastConnection(SOCKET sock, GDynamicPageServer* pServer) : GDynamicPageConnection(sock, pServer)
 	{
 	}
-	
+
 	virtual ~FastConnection()
 	{
 	}
@@ -1144,6 +1144,7 @@ public:
 // virtual
 void FastConnection::handleRequest(GDynamicPageSession* pSession, std::ostream& response)
 {
+#ifndef DARWIN
 	if(strcmp(m_szUrl, "/favicon.ico") == 0)
 		return;
 	GHttpParamParser parser(this->m_szParams);
@@ -1273,14 +1274,17 @@ void FastConnection::handleRequest(GDynamicPageSession* pSession, std::ostream& 
 
 	}
 	response << "</body></html>\n";
+#endif // !DARWIN
 }
 
 void fast(GArgReader& args)
 {
+#ifndef DARWIN
 	GRand rand(0);
 	FastServer server(8983, &rand);
 	GApp::openUrlInBrowser(server.myAddress());
 	server.go();
+#endif // !DARWIN
 }
 
 
@@ -1425,6 +1429,7 @@ void nthash(GArgReader& args)
 const char* g_szMagicCombo = "xqwertx";
 #define MAGIC_LEN 7
 
+#ifndef DARWIN
 class KeystrokeSniffer
 {
 protected:
@@ -1542,7 +1547,7 @@ public:
 			doLogging((void*)szFilename);
 	}
 };
-
+#endif // !DARWIN
 
 
 
@@ -1947,12 +1952,12 @@ void socketClient(GArgReader& args)
 		else
 			throw Ex("Invalid option: ", args.peek());
 	}
-	
+
 	GTCPClient client;
 	client.connect(szAddr, port);
 	while(true)
 	{
-		
+
 	}
 }
 */
@@ -2044,7 +2049,7 @@ void doit(GArgReader& args)
 	else if(args.if_pop("commandcenter")) doCommandCenter(args);
 	else if(args.if_pop("decrypt")) decrypt(args);
 	else if(args.if_pop("encrypt")) encrypt(args);
-	else if(args.if_pop("logkeys")) KeystrokeSniffer::logKeyStrokes(args);
+	//else if(args.if_pop("logkeys")) KeystrokeSniffer::logKeyStrokes(args);
 	else if(args.if_pop("makegarbage")) makeGarbage(args);
 	else if(args.if_pop("nthash")) nthash(args);
 	else if(args.if_pop("open")) open(args);
@@ -2133,4 +2138,3 @@ int main(int argc, char *argv[])
 	return nRet;
 }
 #endif // !USE_WINMAIN
-

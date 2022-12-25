@@ -9,6 +9,7 @@
 #ifndef __GKEYBOARD_H__
 #define __GKEYBOARD_H__
 
+#ifndef DARWIN
 #ifdef WIN32
 #	define DIRECTINPUT_VERSION 0x0700
 #	include <dinput.h>
@@ -59,4 +60,5 @@ protected:
 
 } // namespace GClasses
 
+#endif // !DARWIN
 #endif // __GKEYBOARD_H__

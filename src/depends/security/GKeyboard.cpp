@@ -6,6 +6,7 @@
 // (http://www.opensource.org/licenses).
 // -------------------------------------------------------------
 
+#ifndef DARWIN
 #ifdef WINDOWS
 
 // ---------------------
@@ -240,7 +241,7 @@ void GKeyboard::Watch()
 			SubstructureNotifyMask // receive CreateNotify events
 //			OwnerGrabButtonMask // which window buttons were pressed in
 		);
-	
+
 /*
 	// Values used for getting button press events
 	Atom property = XInternAtom(m_pDisplay, "WM_NAME", False), type;
@@ -293,3 +294,4 @@ void GKeyboard::Watch()
 
 
 #endif // !WINDOWS
+#endif // !DARWIN

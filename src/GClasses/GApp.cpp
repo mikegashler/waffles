@@ -35,7 +35,9 @@
 //#	include <termios.h>
 //#	include <fcntl.h>
 #	ifndef __linux__
-#  include <xmmintrin.h>
+#   ifndef DARWIN
+#   include <xmmintrin.h>
+#   endif
 #  ifndef __FreeBSD__
 #		include <mach-o/dyld.h>
 #  endif
@@ -613,7 +615,7 @@ void GApp::enableFloatingPointExceptions()
 	_control87(cw,MCW_EM);
 #else
 #	ifdef DARWIN
-	_MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID);
+	//_MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID);
 #	else
 	feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
 #	endif
