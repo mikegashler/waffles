@@ -2326,7 +2326,7 @@ void GRayTraceSphere::drawWireFrame(GCamera* pCamera, GImage* pImage)
 // virtual
 void GRayTraceSphere::center(G3DVector* pOutPoint)
 {
-	memcpy(pOutPoint, &m_center, sizeof(G3DVector));
+	memcpy((void*)pOutPoint, &m_center, sizeof(G3DVector));
 }
 
 // -----------------------------------------------------------------------------

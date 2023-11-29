@@ -419,9 +419,9 @@ struct GNurbsPoint
 
 GNurbs::GNurbs(int nControlPoints, int nDegree, bool periodic)
 {
-	GAssert(m_nControlPoints > m_nDegree); // You must have more control points than the degree
 	m_nControlPoints = nControlPoints;
 	m_nDegree = nDegree;
+	GAssert(m_nControlPoints > m_nDegree); // You must have more control points than the degree
 	m_pPoints = new GNurbsPoint[nControlPoints];
 	m_bPeriodic = periodic;
 }

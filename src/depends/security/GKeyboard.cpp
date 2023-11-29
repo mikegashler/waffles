@@ -160,9 +160,10 @@ void GKeyboard::Watch()
 #include "GKeyboard.h"
 #include <GClasses/GError.h>
 #include <stdio.h>
-#include <X11/StringDefs.h>
+//#include <X11/StringDefs.h>
 #include <X11/Xutil.h>
-#include <X11/Shell.h>
+//#include <X11/Shell.h>
+#include <string.h>
 
 using namespace GClasses;
 

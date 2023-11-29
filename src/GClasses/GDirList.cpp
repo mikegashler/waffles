@@ -245,7 +245,7 @@ void GFolderSerializer::startFile(const char* szFilename)
 		size = m_pInStream->tellg();
 		m_pInStream->seekg(0, std::ios::beg);
 	}
-	catch(const std::exception e)
+	catch(const std::exception& e)
 	{
 		throw Ex("Error opening file: ", szFilename);
 	}

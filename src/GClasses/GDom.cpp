@@ -1518,7 +1518,7 @@ GDomNode* GJsonAsADatabase::findNode(GDom* pDoc, GDomNode* pOb, GDom* pResponseD
 GDomNode* GJsonAsADatabase::findLValue(GDom* pDoc, GDomNode* pOb, GDom* pResponseDom, const char* szCmd, string* pOutField, size_t* pOutIndex)
 {
 	GDomNode* pPrevOb = nullptr;
-	size_t pos = 0;
+/*	size_t pos = 0;
 	while(true)
 	{
 		// Eat whitespace
@@ -1642,7 +1642,7 @@ GDomNode* GJsonAsADatabase::findLValue(GDom* pDoc, GDomNode* pOb, GDom* pRespons
 		}
 		else
 			throw Ex("Unexpected token: ", string(szCmd + pos, 1));
-	}
+	}*/
 	return pPrevOb;
 }
 
@@ -1709,7 +1709,7 @@ void GJsonAsADatabase::del(GDomNode* pRequest, GDom* pDoc, GDomNode* pOb)
 
 const GDomNode* GJsonAsADatabase::apply(const char* szFilename, const char* szCmd, GDom* pResponseDom)
 {
-	// Find or load the DOM
+/*	// Find or load the DOM
 	GJaadDom* pDoc = getDom(szFilename);
 
 	// Do the command
@@ -1799,7 +1799,7 @@ const GDomNode* GJsonAsADatabase::apply(const char* szFilename, const char* szCm
 		else
 			throw Ex("Not an LValue");
 		return nullptr;
-	}
+	}*/return nullptr;
 }
 
 

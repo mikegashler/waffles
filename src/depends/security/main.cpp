@@ -1085,6 +1085,212 @@ void decryptFile(const char* source, char* passphrase, char* outSalt, std::strin
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+class FastConnection : public GDynamicPageConnection
+{
+public:
+	FastConnection(SOCKET sock, GDynamicPageServer* pServer) : GDynamicPageConnection(sock, pServer)
+	{
+	}
+
+	virtual ~FastConnection()
+	{
+	}
+
+	virtual void handleRequest(GDynamicPageSession* pSession, std::ostream& response);
+
+};
+
+class FastServer : public GDynamicPageServer
+{
+public:
+	std::string m_basePath;
+
+	FastServer(int port, GRand* pRand) : GDynamicPageServer(port, pRand) {}
+	virtual ~FastServer() {}
+	virtual void onEverySixHours() {}
+	virtual void onStateChange() {}
+	virtual void onShutDown() {}
+
+	virtual GDynamicPageConnection* makeConnection(SOCKET sock)
+	{
+		return new FastConnection(sock, this);
+	}
+};
+
+// virtual
+void FastConnection::handleRequest(GDynamicPageSession* pSession, std::ostream& response)
+{
+#ifndef DARWIN
+	if(strcmp(m_szUrl, "/favicon.ico") == 0)
+		return;
+	GHttpParamParser parser(this->m_szParams);
+	response << "<html><head>\n";
+	response << "	<title>The Fasting Enforcer</title>\n";
+	response << "</head><body>\n";
+	const char* filename = parser.find("filename");
+	if(filename)
+	{
+		time_t tNow = time(0);
+		struct tm dest;
+		localtime_r(&tNow, &dest);
+		const char* szYear = parser.find("year");
+		const char* szMonth = parser.find("month");
+		const char* szDay = parser.find("day");
+		const char* szHour = parser.find("hour");
+		const char* szMinute = parser.find("minute");
+		const char* szServer = parser.find("server");
+		const char* szName = parser.find("uid");
+		if(!szYear || !szMonth || !szDay || !szHour || !szMinute || !szServer || !szName)
+		{
+			response << "Missing parameter. I am not going to lock it.";
+		}
+		else
+		{
+			dest.tm_year = atoi(szYear) - 1900;
+			dest.tm_mon = atoi(szMonth) - 1;
+			dest.tm_mday = atoi(szDay);
+			dest.tm_hour = atoi(szHour);
+			dest.tm_min = atoi(szMinute);
+			time_t destTime = mktime(&dest);
+			double duration = destTime - tNow;
+			if(duration < 0)
+			{
+				response << "That is in the past. I am not going to lock it.";
+			}
+			else if(duration > 90 * 24 * 60 * 60)
+			{
+				response << "That would be more than 90 days! I am going to assume it was an error and not lock it.";
+			}
+			else
+			{
+				// Measure the clock skew
+				const char* szpretime = "name=\"date\" value=\"";
+				size_t resp1Size;
+				unsigned char* pResp1 = downloadFromWeb(szServer, 60, &resp1Size);
+				std::unique_ptr<unsigned char[]> hResp1(pResp1);
+				char* pServerTime = strstr((char*)pResp1, szpretime);
+				size_t servertime = atol(pServerTime + strlen(szpretime));
+				time_t timenow = time(NULL);
+				ssize_t skew = (ssize_t)servertime - (ssize_t)timenow;
+				cout << "Clock skew: " << to_str(skew) << "\n";
+
+				// Generate a password
+				char pw[33 + SALT_LEN];
+				GRand rand(getpid() * time(NULL));
+				for(size_t i = 0; i < 32 + SALT_LEN; i++)
+					pw[i] = 'a' + rand.next(26);
+				pw[32] = '\0';
+
+				// Notify the server
+				size_t responseSize;
+				string query = szServer;
+				query += "?put=";
+				query += szName;
+				query += "&value=";
+				query += pw;
+				query += "&date=";
+				query += to_str(timenow + duration + skew);
+				unsigned char* pResponse = downloadFromWeb(query.c_str(), 60, &responseSize);
+				std::unique_ptr<unsigned char[]> hResponse(pResponse);
+				char* pUntil = strstr((char*)pResponse, "until ");
+				if(!pUntil)
+					throw Ex("Unexpected response from server: ", (char*)pResponse);
+
+				// Encrypt the path
+				string s = filename;
+				s += ".encrypted";
+				encryptPath(filename, pw, s.c_str(), false);
+				if(unlink(filename) != 0)
+					throw Ex("Error deleting the file ", filename);
+
+				response << "<h2>The file has been locked</h2>\n";
+				response << "Have a nice day!";
+				m_pServer->shutDown();
+			}
+		}
+	}
+	else
+	{
+		response << "<h2>The Fasting Enforcer</h2>\n";
+		char cwdbuf[256];
+		const char* cwd = getcwd(cwdbuf, 256);
+		response << "<table>\n";
+		char timebuf[256];
+		const char* curTime = GTime::asciiTime(timebuf, 256);
+		response << "<tr><td align=right>Time:</td><td>" << curTime << "</tr>\n";
+		response << "<tr><td>Current folder:</td><td>" << cwd << "</td></tr>\n";
+		response << "<tr><td valign=top align=right>Files:</td><td>";
+		vector<string> files;
+		GFile::fileList(files);
+		string def;
+		for(size_t i = 0; i < files.size(); i++) {
+			PathData pd;
+			GFile::parsePath(files[i].c_str(), &pd);
+			if(def.length() == 0 || strcmp(files[i].c_str()+ pd.extStart, ".exe") == 0)
+				def = files[i];
+			response << files[i] << "<br>\n";
+		}
+		time_t tnow = time(0);
+		struct tm* cur_time = localtime(&tnow);
+
+		response << "</td></tr>\n";
+		response << "</table><br><br>\n";
+		response << "<form method=\"get\"><table>\n";
+		response << "<tr><td align=right>Lock the file</td><td><input type=\"string\" name=\"filename\" size=\"100\" value=\"" << def << "\"></td></tr>\n";
+		response << "<tr><td align=right>Until</td><td>";
+		response << " Year:<input type=\"string\" name=\"year\" size=\"4\" value=\"" << to_str(cur_time->tm_year + 1900) << "\">";
+		response << " Month:<input type=\"string\" name=\"month\" size=\"3\" value=\"" << to_str(cur_time->tm_mon + 1) << "\">";
+		response << " Day:<input type=\"string\" name=\"day\" size=\"3\" value=\"" << to_str(cur_time->tm_mday) << "\">";
+		response << " Hour:<input type=\"string\" name=\"hour\" size=\"3\" value=\"" << to_str(cur_time->tm_hour) << "\">";
+		response << " Minute:<input type=\"string\" name=\"minute\" size=\"3\" value=\"0\"></td></tr>\n";
+		response << "<tr><td></td><td><input type=\"hidden\" name=\"server\" value=\"uaf46365.ddns.uark.edu/escrow/escrow.php\">\n";
+		response << "<input type=\"hidden\" name=\"uid\" value=\"lol\">\n";
+		response << "<input type=\"submit\" value=\"Lock\"></td></tr>\n";
+		response << "</table></form>\n";
+
+	}
+	response << "</body></html>\n";
+#endif // !DARWIN
+}
+
+void fast(GArgReader& args)
+{
+#ifndef DARWIN
+	GRand rand(0);
+	FastServer server(8983, &rand);
+	GApp::openUrlInBrowser(server.myAddress());
+	server.go();
+#endif // !DARWIN
+}
+
+
+*/
+
+
 void feast(GArgReader& args)
 {
 	string def;
@@ -1625,7 +1831,7 @@ void OpenFile(const char* szFilename)
 	GTEMPBUF(char, pBuf, 32 + strlen(szFilename));
 
 	// XFCE
-	strcpy(pBuf, "xdg-open ");
+	strcpy(pBuf, "thunar ");
 	strcat(pBuf, szFilename);
 	if(system(pBuf) != 0)
 	{
@@ -1837,6 +2043,7 @@ void doit(GArgReader& args)
 	//else if(args.if_pop("findbrokenlinks")) findbrokenlinks(args);
 	else if(args.if_pop("dictattackntpassword")) dictAttackNTPassword(args);
 	else if(args.if_pop("dump")) dump(args);
+//	else if(args.if_pop("fast")) fast(args);
 	else if(args.if_pop("feast")) feast(args);
 	else if(args.if_pop("find")) find(args);
 	else if(args.if_pop("commandcenter")) doCommandCenter(args);
